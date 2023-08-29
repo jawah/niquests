@@ -1,10 +1,26 @@
 Release History
 ===============
 
-dev
----
+2.32.0 (2023-08-29)
+-------------------
 
-- \[Short description of non-trivial change.\]
+**Dependencies**
+- ⚠️ Switch urllib3 for urllib3.future ⚠️
+  This may contain minor breaking changes, so we advise careful testing and
+  reviewing.
+
+**Features**
+- Support for HTTP/2.
+- Support for HTTP/3 over QUIC.
+- Added property `http_version` that return an integer (11, 20, and 30) within `Response` to identify which protocol has been negotiated.
+- Added `quic_cache_layer` mutable mapping optional argument to `Session` for optional external caching of QUIC server capabilities.
+
+**Improvements**
+- HTTP/1.1 no longer relies on the standard library `http.client` but `h11`.
+- Response representation `__repr__` now yield the HTTP version.
+
+**Removed**
+- Warning filter for `charset_normalizer` as it was removed long ago.
 
 2.31.0 (2023-05-22)
 -------------------

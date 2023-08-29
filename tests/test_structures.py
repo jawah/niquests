@@ -1,6 +1,6 @@
 import pytest
 
-from requests.structures import CaseInsensitiveDict, LookupDict
+from niquests.structures import CaseInsensitiveDict, LookupDict
 
 
 class TestCaseInsensitiveDict:

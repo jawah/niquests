@@ -61,7 +61,7 @@ if sys.argv[-1] == "publish":
 requires = [
     "charset_normalizer>=2,<4",
     "idna>=2.5,<4",
-    "urllib3>=1.21.1,<3",
+    "urllib3.future>=2.0.931,<3",
     "certifi>=2017.4.17",
 ]
 test_requirements = [
@@ -75,7 +75,7 @@ test_requirements = [
 
 about = {}
 here = os.path.abspath(os.path.dirname(__file__))
-with open(os.path.join(here, "src", "requests", "__version__.py"), "r", "utf-8") as f:
+with open(os.path.join(here, "src", "niquests", "__version__.py"), "r", "utf-8") as f:
     exec(f.read(), about)
 
 with open("README.md", "r", "utf-8") as f:
@@ -90,7 +90,7 @@ setup(
     author=about["__author__"],
     author_email=about["__author_email__"],
     url=about["__url__"],
-    packages=["requests"],
+    packages=["niquests"],
     package_data={"": ["LICENSE", "NOTICE"]},
     package_dir={"": "src"},
     include_package_data=True,
@@ -127,7 +127,7 @@ setup(
         "use_chardet_on_py3": ["chardet>=3.0.2,<6"],
     },
     project_urls={
-        "Documentation": "https://requests.readthedocs.io",
-        "Source": "https://github.com/psf/requests",
+        "Documentation": "https://niquests.readthedocs.io",
+        "Source": "https://github.com/jawah/niquests",
     },
 )

@@ -9,11 +9,11 @@ from unittest import mock
 
 import pytest
 
-from requests import compat
-from requests._internal_utils import unicode_is_ascii
-from requests.cookies import RequestsCookieJar
-from requests.structures import CaseInsensitiveDict
-from requests.utils import (
+from niquests import compat
+from niquests._internal_utils import unicode_is_ascii
+from niquests.cookies import RequestsCookieJar
+from niquests.structures import CaseInsensitiveDict
+from niquests.utils import (
     _parse_content_type_header,
     add_dict_to_cookiejar,
     address_in_network,
@@ -217,7 +217,7 @@ class TestGetEnvironProxies:
         (
             "http://192.168.1.1:5000/",
             "http://192.168.1.1/",
-            "http://www.requests.com/",
+            "http://www.niquests.com/",
         ),
     )
     def test_not_bypass(self, url):
@@ -228,11 +228,11 @@ class TestGetEnvironProxies:
         (
             "http://192.168.1.1:5000/",
             "http://192.168.1.1/",
-            "http://www.requests.com/",
+            "http://www.niquests.com/",
         ),
     )
     def test_bypass_no_proxy_keyword(self, url):
-        no_proxy = "192.168.1.1,requests.com"
+        no_proxy = "192.168.1.1,niquests.com"
         assert get_environ_proxies(url, no_proxy=no_proxy) == {}
 
     @pytest.mark.parametrize(
@@ -249,7 +249,7 @@ class TestGetEnvironProxies:
         # This is testing that the 'no_proxy' argument overrides the
         # environment variable 'no_proxy'
         monkeypatch.setenv("http_proxy", "http://proxy.example.com:3128/")
-        no_proxy = "192.168.1.1,requests.com"
+        no_proxy = "192.168.1.1,niquests.com"
         assert get_environ_proxies(url, no_proxy=no_proxy) != {}
 
 
@@ -756,7 +756,7 @@ def test_should_bypass_proxies_pass_only_hostname(url, expected):
     """The proxy_bypass function should be called with a hostname or IP without
     a port number or auth credentials.
     """
-    with mock.patch("requests.utils.proxy_bypass") as proxy_bypass:
+    with mock.patch("niquests.utils.proxy_bypass") as proxy_bypass:
         should_bypass_proxies(url, no_proxy=None)
         proxy_bypass.assert_called_once_with(expected)
 

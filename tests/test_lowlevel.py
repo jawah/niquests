@@ -3,8 +3,8 @@ import threading
 import pytest
 from tests.testserver.server import Server, consume_socket_content
 
-import requests
-from requests.compat import JSONDecodeError
+import niquests
+from niquests.compat import JSONDecodeError
 
 from .utils import override_environ
 
@@ -29,7 +29,7 @@ def test_chunked_upload():
 
     with server as (host, port):
         url = f"http://{host}:{port}/"
-        r = requests.post(url, data=data, stream=True)
+        r = niquests.post(url, data=data, stream=True)
         close_server.set()  # release server block
 
     assert r.status_code == 200
@@ -45,7 +45,7 @@ def test_chunked_encoding_error():
         # The server never ends the request and doesn't provide any valid chunks
         sock.send(
             b"HTTP/1.1 200 OK\r\n"
-            b"Transfer-Encoding: chunked\r\n"
+            b"Transfer-Encoding: chunked\r\n\r\n"
         )
 
         return request_content
@@ -55,13 +55,13 @@ def test_chunked_encoding_error():
 
     with server as (host, port):
         url = f"http://{host}:{port}/"
-        with pytest.raises(requests.exceptions.ChunkedEncodingError):
-            requests.get(url)
+        with pytest.raises(niquests.exceptions.ChunkedEncodingError):
+            niquests.get(url)
         close_server.set()  # release server block
 
 
 def test_chunked_upload_uses_only_specified_host_header():
-    """Ensure we use only the specified Host header for chunked requests."""
+    """Ensure we use only the specified Host header for chunked niquests."""
     close_server = threading.Event()
     server = Server(echo_response_handler, wait_to_close_event=close_server)
 
@@ -70,7 +70,7 @@ def test_chunked_upload_uses_only_specified_host_header():
 
     with server as (host, port):
         url = f"http://{host}:{port}/"
-        r = requests.post(url, data=data, headers={"Host": custom_host}, stream=True)
+        r = niquests.post(url, data=data, headers={"Host": custom_host}, stream=True)
         close_server.set()  # release server block
 
     expected_header = b"Host: %s\r\n" % custom_host.encode("utf-8")
@@ -79,7 +79,7 @@ def test_chunked_upload_uses_only_specified_host_header():
 
 
 def test_chunked_upload_doesnt_skip_host_header():
-    """Ensure we don't omit all Host headers with chunked requests."""
+    """Ensure we don't omit all Host headers with chunked niquests."""
     close_server = threading.Event()
     server = Server(echo_response_handler, wait_to_close_event=close_server)
 
@@ -88,7 +88,7 @@ def test_chunked_upload_doesnt_skip_host_header():
     with server as (host, port):
         expected_host = f"{host}:{port}"
         url = f"http://{host}:{port}/"
-        r = requests.post(url, data=data, stream=True)
+        r = niquests.post(url, data=data, stream=True)
         close_server.set()  # release server block
 
     expected_header = b"Host: %s\r\n" % expected_host.encode("utf-8")
@@ -119,8 +119,8 @@ def test_conflicting_content_lengths():
 
     with server as (host, port):
         url = f"http://{host}:{port}/"
-        with pytest.raises(requests.exceptions.InvalidHeader):
-            requests.get(url)
+        with pytest.raises(niquests.exceptions.InvalidHeader):
+            niquests.get(url)
         close_server.set()
 
 
@@ -147,7 +147,7 @@ def test_digestauth_401_count_reset_on_redirect():
                        b'realm="me@kennethreitz.com", '
                        b'nonce="6bf5d6e4da1ce66918800195d6b9130d", uri="/"')
 
-    auth = requests.auth.HTTPDigestAuth('user', 'pass')
+    auth = niquests.auth.HTTPDigestAuth('user', 'pass')
 
     def digest_response_handler(sock):
         # Respond to initial GET with a challenge.
@@ -178,7 +178,7 @@ def test_digestauth_401_count_reset_on_redirect():
 
     with server as (host, port):
         url = f'http://{host}:{port}/'
-        r = requests.get(url, auth=auth)
+        r = niquests.get(url, auth=auth)
         # Verify server succeeded in authenticating.
         assert r.status_code == 200
         # Verify Authorization was sent in final request.
@@ -203,7 +203,7 @@ def test_digestauth_401_only_sent_once():
                        b'realm="me@kennethreitz.com", '
                        b'nonce="6bf5d6e4da1ce66918800195d6b9130d", uri="/"')
 
-    auth = requests.auth.HTTPDigestAuth('user', 'pass')
+    auth = niquests.auth.HTTPDigestAuth('user', 'pass')
 
     def digest_failed_response_handler(sock):
         # Respond to initial GET with a challenge.
@@ -228,7 +228,7 @@ def test_digestauth_401_only_sent_once():
 
     with server as (host, port):
         url = f'http://{host}:{port}/'
-        r = requests.get(url, auth=auth)
+        r = niquests.get(url, auth=auth)
         # Verify server didn't authenticate us.
         assert r.status_code == 401
         assert r.history[0].status_code == 401
@@ -246,7 +246,7 @@ def test_digestauth_only_on_4xx():
                      b', opaque="372825293d1c26955496c80ed6426e9e", '
                      b'realm="me@kennethreitz.com", qop=auth\r\n\r\n')
 
-    auth = requests.auth.HTTPDigestAuth('user', 'pass')
+    auth = niquests.auth.HTTPDigestAuth('user', 'pass')
 
     def digest_response_handler(sock):
         # Respond to GET with a 200 containing www-authenticate header.
@@ -265,7 +265,7 @@ def test_digestauth_only_on_4xx():
 
     with server as (host, port):
         url = f'http://{host}:{port}/'
-        r = requests.get(url, auth=auth)
+        r = niquests.get(url, auth=auth)
         # Verify server didn't receive auth from us.
         assert r.status_code == 200
         assert len(r.history) == 0
@@ -295,8 +295,8 @@ def test_use_proxy_from_environment(httpbin, var, scheme):
         kwargs = {var: proxy_url}
         with override_environ(**kwargs):
             # fake proxy's lack of response will cause a ConnectionError
-            with pytest.raises(requests.exceptions.ConnectionError):
-                requests.get(url)
+            with pytest.raises(niquests.exceptions.ConnectionError):
+                niquests.get(url)
 
         # the fake proxy received a request
         assert len(fake_proxy.handler_results) == 1
@@ -329,7 +329,7 @@ def test_redirect_rfc1808_to_non_ascii_location():
 
     with server as (host, port):
         url = f'http://{host}:{port}'
-        r = requests.get(url=url, allow_redirects=True)
+        r = niquests.get(url=url, allow_redirects=True)
         assert r.status_code == 200
         assert len(r.history) == 1
         assert r.history[0].status_code == 301
@@ -346,7 +346,7 @@ def test_fragment_not_sent_with_request():
 
     with server as (host, port):
         url = f'http://{host}:{port}/path/to/thing/#view=edit&token=hunter2'
-        r = requests.get(url)
+        r = niquests.get(url)
         raw_request = r.content
 
         assert r.status_code == 200
@@ -364,7 +364,7 @@ def test_fragment_not_sent_with_request():
 def test_fragment_update_on_redirect():
     """Verify we only append previous fragment if one doesn't exist on new
     location. If a new fragment is encountered in a Location header, it should
-    be added to all subsequent requests.
+    be added to all subsequent niquests.
     """
 
     def response_handler(sock):
@@ -390,7 +390,7 @@ def test_fragment_update_on_redirect():
 
     with server as (host, port):
         url = f'http://{host}:{port}/path/to/thing/#view=edit&token=hunter2'
-        r = requests.get(url)
+        r = niquests.get(url)
 
         assert r.status_code == 200
         assert len(r.history) == 2
@@ -419,10 +419,10 @@ def test_json_decode_compatibility_for_alt_utf_encodings():
 
     with server as (host, port):
         url = f'http://{host}:{port}/'
-        r = requests.get(url)
+        r = niquests.get(url)
     r.encoding = None
-    with pytest.raises(requests.exceptions.JSONDecodeError) as excinfo:
+    with pytest.raises(niquests.exceptions.JSONDecodeError) as excinfo:
         r.json()
-    assert isinstance(excinfo.value, requests.exceptions.RequestException)
+    assert isinstance(excinfo.value, niquests.exceptions.RequestException)
     assert isinstance(excinfo.value, JSONDecodeError)
     assert r.text not in str(excinfo.value)

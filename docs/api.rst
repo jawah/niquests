@@ -28,15 +28,15 @@ They all return an instance of the :class:`Response <Response>` object.
 Exceptions
 ----------
 
-.. autoexception:: requests.RequestException
-.. autoexception:: requests.ConnectionError
-.. autoexception:: requests.HTTPError
-.. autoexception:: requests.URLRequired
-.. autoexception:: requests.TooManyRedirects
-.. autoexception:: requests.ConnectTimeout
-.. autoexception:: requests.ReadTimeout
-.. autoexception:: requests.Timeout
-.. autoexception:: requests.JSONDecodeError
+.. autoexception:: niquests.RequestException
+.. autoexception:: niquests.ConnectionError
+.. autoexception:: niquests.HTTPError
+.. autoexception:: niquests.URLRequired
+.. autoexception:: niquests.TooManyRedirects
+.. autoexception:: niquests.ConnectTimeout
+.. autoexception:: niquests.ReadTimeout
+.. autoexception:: niquests.Timeout
+.. autoexception:: niquests.JSONDecodeError
 
 
 Request Sessions
@@ -51,7 +51,7 @@ Request Sessions
 Lower-Level Classes
 -------------------
 
-.. autoclass:: requests.Request
+.. autoclass:: niquests.Request
    :inherited-members:
 
 .. autoclass:: Response
@@ -61,31 +61,31 @@ Lower-Level Classes
 Lower-Lower-Level Classes
 -------------------------
 
-.. autoclass:: requests.PreparedRequest
+.. autoclass:: niquests.PreparedRequest
    :inherited-members:
 
-.. autoclass:: requests.adapters.BaseAdapter
+.. autoclass:: niquests.adapters.BaseAdapter
    :inherited-members:
 
-.. autoclass:: requests.adapters.HTTPAdapter
+.. autoclass:: niquests.adapters.HTTPAdapter
    :inherited-members:
 
 Authentication
 --------------
 
-.. autoclass:: requests.auth.AuthBase
-.. autoclass:: requests.auth.HTTPBasicAuth
-.. autoclass:: requests.auth.HTTPProxyAuth
-.. autoclass:: requests.auth.HTTPDigestAuth
+.. autoclass:: niquests.auth.AuthBase
+.. autoclass:: niquests.auth.HTTPBasicAuth
+.. autoclass:: niquests.auth.HTTPProxyAuth
+.. autoclass:: niquests.auth.HTTPDigestAuth
 
 
 
 Encodings
 ---------
 
-.. autofunction:: requests.utils.get_encodings_from_content
-.. autofunction:: requests.utils.get_encoding_from_headers
-.. autofunction:: requests.utils.get_unicode_from_response
+.. autofunction:: niquests.utils.get_encodings_from_content
+.. autofunction:: niquests.utils.get_encoding_from_headers
+.. autofunction:: niquests.utils.get_unicode_from_response
 
 
 .. _api-cookies:
@@ -93,14 +93,14 @@ Encodings
 Cookies
 -------
 
-.. autofunction:: requests.utils.dict_from_cookiejar
-.. autofunction:: requests.utils.add_dict_to_cookiejar
-.. autofunction:: requests.cookies.cookiejar_from_dict
+.. autofunction:: niquests.utils.dict_from_cookiejar
+.. autofunction:: niquests.utils.add_dict_to_cookiejar
+.. autofunction:: niquests.cookies.cookiejar_from_dict
 
-.. autoclass:: requests.cookies.RequestsCookieJar
+.. autoclass:: niquests.cookies.RequestsCookieJar
    :inherited-members:
 
-.. autoclass:: requests.cookies.CookieConflictError
+.. autoclass:: niquests.cookies.CookieConflictError
    :inherited-members:
 
 
@@ -108,9 +108,9 @@ Cookies
 Status Code Lookup
 ------------------
 
-.. autoclass:: requests.codes
+.. autoclass:: niquests.codes
 
-.. automodule:: requests.status_codes
+.. automodule:: niquests.status_codes
 
 
 Migrating to 1.x
@@ -128,7 +128,7 @@ API Changes
   ::
 
       import requests
-      r = requests.get('https://api.github.com/events')
+      r = niquests.get('https://api.github.com/events')
       r.json()   # This *call* raises an exception if JSON decoding fails
 
 * The ``Session`` API has changed. Sessions objects no longer take parameters.
@@ -137,7 +137,7 @@ API Changes
 
   ::
 
-      s = requests.Session()    # formerly, session took parameters
+      s = niquests.Session()    # formerly, session took parameters
       s.auth = auth
       s.headers.update(headers)
       r = s.get('https://httpbin.org/headers')
@@ -157,7 +157,7 @@ API Changes
   ::
 
       # in 0.x, passing prefetch=False would accomplish the same thing
-      r = requests.get('https://api.github.com/events', stream=True)
+      r = niquests.get('https://api.github.com/events', stream=True)
       for chunk in r.iter_content(8192):
           ...
 
@@ -186,7 +186,7 @@ API Changes
       requests_log.setLevel(logging.DEBUG)
       requests_log.propagate = True
 
-      requests.get('https://httpbin.org/headers')
+      niquests.get('https://httpbin.org/headers')
 
 
 
@@ -228,7 +228,7 @@ API Changes
 
   ::
 
-      requests.get('http://%zz/')   # raises requests.exceptions.InvalidURL
+      niquests.get('http://%zz/')   # raises niquests.exceptions.InvalidURL
 
   Lastly, ``httplib.IncompleteRead`` exceptions caused by incorrect chunked
   encoding will now raise a Requests ``ChunkedEncodingError`` instead.
@@ -243,8 +243,8 @@ API Changes
       }
 
       # In requests 1.x, this was legal, in requests 2.x,
-      #  this raises requests.exceptions.MissingSchema
-      requests.get("http://example.org", proxies=proxies)
+      #  this raises niquests.exceptions.MissingSchema
+      niquests.get("http://example.org", proxies=proxies)
 
 
 Behavioural Changes

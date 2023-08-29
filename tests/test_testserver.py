@@ -5,7 +5,7 @@ import time
 import pytest
 from tests.testserver.server import Server
 
-import requests
+import niquests
 
 
 class TestTestServer:
@@ -46,7 +46,7 @@ class TestTestServer:
         )
 
         with server as (host, port):
-            r = requests.get(f"http://{host}:{port}")
+            r = niquests.get(f"http://{host}:{port}")
 
             assert r.status_code == 200
             assert r.text == "roflol"
@@ -55,7 +55,7 @@ class TestTestServer:
     def test_basic_response(self):
         """the basic response server returns an empty http response"""
         with Server.basic_response_server() as (host, port):
-            r = requests.get(f"http://{host}:{port}")
+            r = niquests.get(f"http://{host}:{port}")
             assert r.status_code == 200
             assert r.text == ""
             assert r.headers["Content-Length"] == "0"
@@ -84,12 +84,12 @@ class TestTestServer:
         with server as (host, port):
             server_url = f"http://{host}:{port}"
             for _ in range(requests_to_handle):
-                r = requests.get(server_url)
+                r = niquests.get(server_url)
                 assert r.status_code == 200
 
             # the (n+1)th request fails
-            with pytest.raises(requests.exceptions.ConnectionError):
-                r = requests.get(server_url)
+            with pytest.raises(niquests.exceptions.ConnectionError):
+                r = niquests.get(server_url)
 
     @pytest.mark.skip(reason="this fails non-deterministically under pytest-xdist")
     def test_request_recovery(self):
