@@ -725,7 +725,13 @@ class Response:
         setattr(self, "raw", None)
 
     def __repr__(self):
-        return f"<Response [{self.status_code}]>"
+        http_revision = self.http_version / 10
+
+        # HTTP/2.0 is not preferred, cast it to HTTP/2 instead.
+        if http_revision.is_integer():
+            http_revision = int(http_revision)
+
+        return f"<Response HTTP/{http_revision} [{self.status_code}]>"
 
     def __bool__(self):
         """Returns True if :attr:`status_code` is less than 400.
@@ -988,6 +994,18 @@ class Response:
                 resolved_links[key] = link
 
         return resolved_links
+
+    @property
+    def http_version(self):
+        """Shortcut to negotiated HTTP version protocol. See HttpVersion from urllib3.future.
+        It returns an integer. It is as follows:
+
+        - 11 for HTTP/1.1
+        - 20 for HTTP/2
+        - 30 for HTTP/3
+
+        :rtype: int"""
+        return self.raw.version
 
     def raise_for_status(self):
         """Raises :class:`HTTPError`, if one occurred."""

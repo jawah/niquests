@@ -2,16 +2,7 @@ Vulnerability Disclosure
 ========================
 
 If you think you have found a potential security vulnerability in requests,
-please email `Nate <mailto:nate.prewitt@gmail.com>`_ and `Seth <mailto:@sethmichaellarson@gmail.com>`_ directly. **Do not file a public issue.**
-
-Our PGP Key fingerprints are:
-
-- 8722 7E29 AD9C FF5C FAC3  EA6A 44D3 FF97 B80D C864 (`@nateprewitt <https://keybase.io/nateprewitt>`_)
-
-- EDD5 6765 A9D8 4653 CBC8  A134 51B0 6736 1740 F5FC (`@sethmlarson <https://keybase.io/sethmlarson>`_)
-
-You can also contact us on `Keybase <https://keybase.io/>`_ with the
-profiles above if desired.
+please use Github vulnerability disclosure form within the repository.
 
 If English is not your first language, please try to describe the problem and
 its impact to the best of your ability. For greater detail, please use your
@@ -41,7 +32,7 @@ Timeline
 
 When you report an issue, one of the project members will respond to you within
 two days *at the outside*. In most cases responses will be faster, usually
-within 12 hours. This initial response will at the very least confirm receipt
+within 24 hours. This initial response will at the very least confirm receipt
 of the report.
 
 If we were able to rapidly reproduce the issue, the initial response will also

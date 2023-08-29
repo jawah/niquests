@@ -22,7 +22,7 @@ except ImportError:
 
 try:
     from urllib3.contrib import pyopenssl
-except ImportError:
+except (ImportError, AttributeError):
     pyopenssl = None
     OpenSSL = None
     cryptography = None

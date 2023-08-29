@@ -385,9 +385,10 @@ class Session(SessionRedirectMixin):
         "stream",
         "trust_env",
         "max_redirects",
+        "quic_cache_layer",
     ]
 
-    def __init__(self):
+    def __init__(self, quic_cache_layer=None):
         #: A case-insensitive dictionary of headers to be sent on each
         #: :class:`Request <Request>` sent from this
         #: :class:`Session <Session>`.
@@ -443,9 +444,14 @@ class Session(SessionRedirectMixin):
         #: may be any other ``cookielib.CookieJar`` compatible object.
         self.cookies = cookiejar_from_dict({})
 
+        #: A simple dict that allows us to persist which server support QUIC
+        #: It is simply forwarded to urllib3.future that handle the caching logic.
+        #: Can be any mutable mapping.
+        self.quic_cache_layer = quic_cache_layer or dict()
+
         # Default connection adapters.
         self.adapters = OrderedDict()
-        self.mount("https://", HTTPAdapter())
+        self.mount("https://", HTTPAdapter(quic_cache_layer=self.quic_cache_layer))
         self.mount("http://", HTTPAdapter())
 
     def __enter__(self):

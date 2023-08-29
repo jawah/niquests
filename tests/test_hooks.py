@@ -1,6 +1,6 @@
 import pytest
 
-from requests import hooks
+from niquests import hooks
 
 
 def hook(value):

@@ -11,7 +11,7 @@ Session Objects
 ---------------
 
 The Session object allows you to persist certain parameters across
-requests. It also persists cookies across all requests made from the
+niquests. It also persists cookies across all requests made from the
 Session instance, and will use ``urllib3``'s `connection pooling`_. So if
 you're making several requests to the same host, the underlying TCP
 connection will be reused, which can result in a significant performance
@@ -21,7 +21,7 @@ A Session object has all the methods of the main Requests API.
 
 Let's persist some cookies across requests::
 
-    s = requests.Session()
+    s = niquests.Session()
 
     s.get('https://httpbin.org/cookies/set/sessioncookie/123456789')
     r = s.get('https://httpbin.org/cookies')
@@ -33,7 +33,7 @@ Let's persist some cookies across requests::
 Sessions can also be used to provide default data to the request methods. This
 is done by providing data to the properties on a Session object::
 
-    s = requests.Session()
+    s = niquests.Session()
     s.auth = ('user', 'pass')
     s.headers.update({'x-test': 'true'})
 
@@ -49,7 +49,7 @@ Note, however, that method-level parameters will *not* be persisted across
 requests, even if using a session. This example will only send the cookies
 with the first request, but not the second::
 
-    s = requests.Session()
+    s = niquests.Session()
 
     r = s.get('https://httpbin.org/cookies', cookies={'from-my': 'browser'})
     print(r.text)
@@ -62,11 +62,11 @@ with the first request, but not the second::
 
 If you want to manually add cookies to your session, use the
 :ref:`Cookie utility functions <api-cookies>` to manipulate
-:attr:`Session.cookies <requests.Session.cookies>`.
+:attr:`Session.cookies <niquests.Session.cookies>`.
 
 Sessions can also be used as context managers::
 
-    with requests.Session() as s:
+    with niquests.Session() as s:
         s.get('https://httpbin.org/cookies/set/sessioncookie/123456789')
 
 This will make sure the session is closed as soon as the ``with`` block is
@@ -87,7 +87,7 @@ See the :ref:`Session API Docs <sessionapi>` to learn more.
 Request and Response Objects
 ----------------------------
 
-Whenever a call is made to ``requests.get()`` and friends, you are doing two
+Whenever a call is made to ``niquests.get()`` and friends, you are doing two
 major things. First, you are constructing a ``Request`` object which will be
 sent off to a server to request or query some resource. Second, a ``Response``
 object is generated once Requests gets a response back from the server.
@@ -95,7 +95,7 @@ The ``Response`` object contains all of the information returned by the server a
 also contains the ``Request`` object you created originally. Here is a simple
 request to get some very important information from Wikipedia's servers::
 
-    >>> r = requests.get('https://en.wikipedia.org/wiki/Monty_Python')
+    >>> r = niquests.get('https://en.wikipedia.org/wiki/Monty_Python')
 
 If we want to access the headers the server sent back to us, we do this::
 
@@ -121,7 +121,7 @@ request, and then the request's headers::
 Prepared Requests
 -----------------
 
-Whenever you receive a :class:`Response <requests.Response>` object
+Whenever you receive a :class:`Response <niquests.Response>` object
 from an API call or a Session call, the ``request`` attribute is actually the
 ``PreparedRequest`` that was used. In some cases you may wish to do some extra
 work to the body or headers (or anything else really) before sending a
@@ -152,17 +152,17 @@ request. The simple recipe for this is the following::
 
 Since you are not doing anything special with the ``Request`` object, you
 prepare it immediately and modify the ``PreparedRequest`` object. You then
-send that with the other parameters you would have sent to ``requests.*`` or
+send that with the other parameters you would have sent to ``niquests.*`` or
 ``Session.*``.
 
 However, the above code will lose some of the advantages of having a Requests
-:class:`Session <requests.Session>` object. In particular,
-:class:`Session <requests.Session>`-level state such as cookies will
+:class:`Session <niquests.Session>` object. In particular,
+:class:`Session <niquests.Session>`-level state such as cookies will
 not get applied to your request. To get a
-:class:`PreparedRequest <requests.PreparedRequest>` with that state
+:class:`PreparedRequest <niquests.PreparedRequest>` with that state
 applied, replace the call to :meth:`Request.prepare()
-<requests.Request.prepare>` with a call to
-:meth:`Session.prepare_request() <requests.Session.prepare_request>`, like this::
+<niquests.Request.prepare>` with a call to
+:meth:`Session.prepare_request() <niquests.Session.prepare_request>`, like this::
 
     from requests import Request, Session
 
@@ -188,7 +188,7 @@ applied, replace the call to :meth:`Request.prepare()
     print(resp.status_code)
 
 When you are using the prepared request flow, keep in mind that it does not take into account the environment.
-This can cause problems if you are using environment variables to change the behaviour of requests.
+This can cause problems if you are using environment variables to change the behaviour of niquests.
 For example: Self-signed SSL certificates specified in ``REQUESTS_CA_BUNDLE`` will not be taken into account.
 As a result an ``SSL: CERTIFICATE_VERIFY_FAILED`` is thrown.
 You can get around this behaviour by explicitly merging the environment settings into your session::
@@ -215,21 +215,21 @@ Requests verifies SSL certificates for HTTPS requests, just like a web browser.
 By default, SSL verification is enabled, and Requests will throw a SSLError if
 it's unable to verify the certificate::
 
-    >>> requests.get('https://requestb.in')
-    requests.exceptions.SSLError: hostname 'requestb.in' doesn't match either of '*.herokuapp.com', 'herokuapp.com'
+    >>> niquests.get('https://requestb.in')
+    niquests.exceptions.SSLError: hostname 'requestb.in' doesn't match either of '*.herokuapp.com', 'herokuapp.com'
 
 I don't have SSL setup on this domain, so it throws an exception. Excellent. GitHub does though::
 
-    >>> requests.get('https://github.com')
+    >>> niquests.get('https://github.com')
     <Response [200]>
 
 You can pass ``verify`` the path to a CA_BUNDLE file or directory with certificates of trusted CAs::
 
-    >>> requests.get('https://github.com', verify='/path/to/certfile')
+    >>> niquests.get('https://github.com', verify='/path/to/certfile')
 
 or persistent::
 
-    s = requests.Session()
+    s = niquests.Session()
     s.verify = '/path/to/certfile'
 
 .. note:: If ``verify`` is set to a path to a directory, the directory must have been processed using
@@ -240,7 +240,7 @@ If ``REQUESTS_CA_BUNDLE`` is not set, ``CURL_CA_BUNDLE`` will be used as fallbac
 
 Requests can also ignore verifying the SSL certificate if you set ``verify`` to False::
 
-    >>> requests.get('https://kennethreitz.org', verify=False)
+    >>> niquests.get('https://kennethreitz.org', verify=False)
     <Response [200]>
 
 Note that when ``verify`` is set to ``False``, requests will accept any TLS
@@ -258,17 +258,17 @@ You can also specify a local cert to use as client side certificate, as a single
 file (containing the private key and the certificate) or as a tuple of both
 files' paths::
 
-    >>> requests.get('https://kennethreitz.org', cert=('/path/client.cert', '/path/client.key'))
+    >>> niquests.get('https://kennethreitz.org', cert=('/path/client.cert', '/path/client.key'))
     <Response [200]>
 
 or persistent::
 
-    s = requests.Session()
+    s = niquests.Session()
     s.cert = '/path/client.cert'
 
 If you specify a wrong path or an invalid cert, you'll get a SSLError::
 
-    >>> requests.get('https://kennethreitz.org', cert='/wrong_path/client.pem')
+    >>> niquests.get('https://kennethreitz.org', cert='/wrong_path/client.pem')
     SSLError: [Errno 336265225] _ssl.c:347: error:140B0009:SSL routines:SSL_CTX_use_PrivateKey_file:PEM lib
 
 .. warning:: The private key to your local certificate *must* be unencrypted.
@@ -302,11 +302,11 @@ Body Content Workflow
 
 By default, when you make a request, the body of the response is downloaded
 immediately. You can override this behaviour and defer downloading the response
-body until you access the :attr:`Response.content <requests.Response.content>`
+body until you access the :attr:`Response.content <niquests.Response.content>`
 attribute with the ``stream`` parameter::
 
-    tarball_url = 'https://github.com/psf/requests/tarball/main'
-    r = requests.get(tarball_url, stream=True)
+    tarball_url = 'https://github.com/jawah/niquests/tarball/main'
+    r = niquests.get(tarball_url, stream=True)
 
 At this point only the response headers have been downloaded and the connection
 remains open, hence allowing us to make content retrieval conditional::
@@ -315,20 +315,20 @@ remains open, hence allowing us to make content retrieval conditional::
       content = r.content
       ...
 
-You can further control the workflow by use of the :meth:`Response.iter_content() <requests.Response.iter_content>`
-and :meth:`Response.iter_lines() <requests.Response.iter_lines>` methods.
+You can further control the workflow by use of the :meth:`Response.iter_content() <niquests.Response.iter_content>`
+and :meth:`Response.iter_lines() <niquests.Response.iter_lines>` methods.
 Alternatively, you can read the undecoded body from the underlying
 urllib3 :class:`urllib3.HTTPResponse <urllib3.response.HTTPResponse>` at
-:attr:`Response.raw <requests.Response.raw>`.
+:attr:`Response.raw <niquests.Response.raw>`.
 
 If you set ``stream`` to ``True`` when making a request, Requests cannot
 release the connection back to the pool unless you consume all the data or call
-:meth:`Response.close <requests.Response.close>`. This can lead to
+:meth:`Response.close <niquests.Response.close>`. This can lead to
 inefficiency with connections. If you find yourself partially reading request
 bodies (or not reading them at all) while using ``stream=True``, you should
 make the request within a ``with`` statement to ensure it's always closed::
 
-    with requests.get('https://httpbin.org/get', stream=True) as r:
+    with niquests.get('https://httpbin.org/get', stream=True) as r:
         # Do things with the response here.
 
 .. _keep-alive:
@@ -354,7 +354,7 @@ files without reading them into memory. To stream and upload, simply provide a
 file-like object for your body::
 
     with open('massive-body', 'rb') as f:
-        requests.post('http://some.url/streamed', data=f)
+        niquests.post('http://some.url/streamed', data=f)
 
 .. warning:: It is strongly recommended that you open files in :ref:`binary
              mode <tut-files>`. This is because Requests may attempt to provide
@@ -368,7 +368,7 @@ file-like object for your body::
 Chunk-Encoded Requests
 ----------------------
 
-Requests also supports Chunked transfer encoding for outgoing and incoming requests.
+Requests also supports Chunked transfer encoding for outgoing and incoming niquests.
 To send a chunk-encoded request, simply provide a generator (or any iterator without
 a length) for your body::
 
@@ -376,10 +376,10 @@ a length) for your body::
         yield 'hi'
         yield 'there'
 
-    requests.post('http://some.url/chunked', data=gen())
+    niquests.post('http://some.url/chunked', data=gen())
 
 For chunked encoded responses, it's best to iterate over the data using
-:meth:`Response.iter_content() <requests.Response.iter_content>`. In
+:meth:`Response.iter_content() <niquests.Response.iter_content>`. In
 an ideal situation you'll have set ``stream=True`` on the request, in which
 case you can iterate chunk-by-chunk by calling ``iter_content`` with a ``chunk_size``
 parameter of ``None``. If you want to set a maximum size of the chunk,
@@ -402,7 +402,7 @@ To do that, just set files to a list of tuples of ``(form_field_name, file_info)
     >>> multiple_files = [
     ...     ('images', ('foo.png', open('foo.png', 'rb'), 'image/png')),
     ...     ('images', ('bar.png', open('bar.png', 'rb'), 'image/png'))]
-    >>> r = requests.post(url, files=multiple_files)
+    >>> r = niquests.post(url, files=multiple_files)
     >>> r.text
     {
       ...
@@ -460,20 +460,20 @@ anything, nothing else is affected.
 
 Let's print some request method arguments at runtime::
 
-    >>> requests.get('https://httpbin.org/', hooks={'response': print_url})
+    >>> niquests.get('https://httpbin.org/', hooks={'response': print_url})
     https://httpbin.org/
     <Response [200]>
 
 You can add multiple hooks to a single request.  Let's call two hooks at once::
 
-    >>> r = requests.get('https://httpbin.org/', hooks={'response': [print_url, record_hook]})
+    >>> r = niquests.get('https://httpbin.org/', hooks={'response': [print_url, record_hook]})
     >>> r.hook_called
     True
 
 You can also add hooks to a ``Session`` instance.  Any hooks you add will then
 be called on every request made to the session.  For example::
 
-   >>> s = requests.Session()
+   >>> s = niquests.Session()
    >>> s.hooks['response'].append(print_url)
    >>> s.get('https://httpbin.org/')
     https://httpbin.org/
@@ -492,17 +492,17 @@ Requests allows you to specify your own authentication mechanism.
 Any callable which is passed as the ``auth`` argument to a request method will
 have the opportunity to modify the request before it is dispatched.
 
-Authentication implementations are subclasses of :class:`AuthBase <requests.auth.AuthBase>`,
+Authentication implementations are subclasses of :class:`AuthBase <niquests.auth.AuthBase>`,
 and are easy to define. Requests provides two common authentication scheme
-implementations in ``requests.auth``: :class:`HTTPBasicAuth <requests.auth.HTTPBasicAuth>` and
-:class:`HTTPDigestAuth <requests.auth.HTTPDigestAuth>`.
+implementations in ``niquests.auth``: :class:`HTTPBasicAuth <niquests.auth.HTTPBasicAuth>` and
+:class:`HTTPDigestAuth <niquests.auth.HTTPDigestAuth>`.
 
 Let's pretend that we have a web service that will only respond if the
 ``X-Pizza`` header is set to a password value. Unlikely, but just go with it.
 
 ::
 
-    from requests.auth import AuthBase
+    from niquests.auth import AuthBase
 
     class PizzaAuth(AuthBase):
         """Attaches HTTP Pizza Authentication to the given Request object."""
@@ -517,7 +517,7 @@ Let's pretend that we have a web service that will only respond if the
 
 Then, we can make a request using our Pizza Auth::
 
-    >>> requests.get('http://pizzabin.org/admin', auth=PizzaAuth('kenneth'))
+    >>> niquests.get('http://pizzabin.org/admin', auth=PizzaAuth('kenneth'))
     <Response [200]>
 
 .. _streaming-requests:
@@ -525,16 +525,16 @@ Then, we can make a request using our Pizza Auth::
 Streaming Requests
 ------------------
 
-With :meth:`Response.iter_lines() <requests.Response.iter_lines>` you can easily
+With :meth:`Response.iter_lines() <niquests.Response.iter_lines>` you can easily
 iterate over streaming APIs such as the `Twitter Streaming
 API <https://dev.twitter.com/streaming/overview>`_. Simply
 set ``stream`` to ``True`` and iterate over the response with
-:meth:`~requests.Response.iter_lines()`::
+:meth:`~niquests.Response.iter_lines()`::
 
     import json
     import requests
 
-    r = requests.get('https://httpbin.org/stream/20', stream=True)
+    r = niquests.get('https://httpbin.org/stream/20', stream=True)
 
     for line in r.iter_lines():
 
@@ -544,11 +544,11 @@ set ``stream`` to ``True`` and iterate over the response with
             print(json.loads(decoded_line))
 
 When using `decode_unicode=True` with
-:meth:`Response.iter_lines() <requests.Response.iter_lines>` or
-:meth:`Response.iter_content() <requests.Response.iter_content>`, you'll want
+:meth:`Response.iter_lines() <niquests.Response.iter_lines>` or
+:meth:`Response.iter_content() <niquests.Response.iter_content>`, you'll want
 to provide a fallback encoding in the event the server doesn't provide one::
 
-    r = requests.get('https://httpbin.org/stream/20', stream=True)
+    r = niquests.get('https://httpbin.org/stream/20', stream=True)
 
     if r.encoding is None:
         r.encoding = 'utf-8'
@@ -559,7 +559,7 @@ to provide a fallback encoding in the event the server doesn't provide one::
 
 .. warning::
 
-    :meth:`~requests.Response.iter_lines()` is not reentrant safe.
+    :meth:`~niquests.Response.iter_lines()` is not reentrant safe.
     Calling this method multiple times causes some of the received data
     being lost. In case you need to call it from multiple places, use
     the resulting iterator object instead::
@@ -587,10 +587,10 @@ If you need to use a proxy, you can configure individual requests with the
       'https': 'http://10.10.1.10:1080',
     }
 
-    requests.get('http://example.org', proxies=proxies)
+    niquests.get('http://example.org', proxies=proxies)
 
 Alternatively you can configure it once for an entire
-:class:`Session <requests.Session>`::
+:class:`Session <niquests.Session>`::
 
     import requests
 
@@ -598,7 +598,7 @@ Alternatively you can configure it once for an entire
       'http': 'http://10.10.1.10:3128',
       'https': 'http://10.10.1.10:1080',
     }
-    session = requests.Session()
+    session = niquests.Session()
     session.proxies.update(proxies)
 
     session.get('http://example.org')
@@ -625,7 +625,7 @@ to your needs)::
 
     $ python
     >>> import requests
-    >>> requests.get('http://example.org')
+    >>> niquests.get('http://example.org')
 
 To use HTTP Basic Auth with your proxy, use the `http://user:password@host/`
 syntax in any of the above configuration entries::
@@ -653,7 +653,7 @@ Finally, note that using a proxy for https connections typically requires your
 local machine to trust the proxy's root certificate. By default the list of
 certificates trusted by Requests can be found with::
 
-    from requests.utils import DEFAULT_CA_BUNDLE_PATH
+    from niquests.utils import DEFAULT_CA_BUNDLE_PATH
     print(DEFAULT_CA_BUNDLE_PATH)
 
 You override this default certificate bundle by setting the ``REQUESTS_CA_BUNDLE``
@@ -664,7 +664,7 @@ You override this default certificate bundle by setting the ``REQUESTS_CA_BUNDLE
 
     $ python
     >>> import requests
-    >>> requests.get('https://example.org')
+    >>> niquests.get('https://example.org')
 
 SOCKS
 ^^^^^
@@ -706,7 +706,7 @@ Encodings
 
 When you receive a response, Requests makes a guess at the encoding to
 use for decoding the response when you access the :attr:`Response.text
-<requests.Response.text>` attribute. Requests will first check for an
+<niquests.Response.text>` attribute. Requests will first check for an
 encoding in the HTTP header, and if none is present, will use
 `charset_normalizer <https://pypi.org/project/charset_normalizer/>`_
 or `chardet <https://github.com/chardet/chardet>`_ to attempt to
@@ -727,8 +727,8 @@ header contains ``text``. In this situation, `RFC 2616
 <https://www.w3.org/Protocols/rfc2616/rfc2616-sec3.html#sec3.7.1>`_ specifies
 that the default charset must be ``ISO-8859-1``. Requests follows the
 specification in this case. If you require a different encoding, you can
-manually set the :attr:`Response.encoding <requests.Response.encoding>`
-property, or use the raw :attr:`Response.content <requests.Response.content>`.
+manually set the :attr:`Response.encoding <niquests.Response.encoding>`
+property, or use the raw :attr:`Response.content <niquests.Response.content>`.
 
 .. _http-verbs:
 
@@ -747,18 +747,18 @@ from GitHub. Suppose we wanted commit ``a050faf`` on Requests. We would get it
 like so::
 
     >>> import requests
-    >>> r = requests.get('https://api.github.com/repos/psf/requests/git/commits/a050faf084662f3a352dd1a941f2c7c9f886d4ad')
+    >>> r = niquests.get('https://api.github.com/repos/psf/requests/git/commits/a050faf084662f3a352dd1a941f2c7c9f886d4ad')
 
 We should confirm that GitHub responded correctly. If it has, we want to work
 out what type of content it is. Do this like so::
 
-    >>> if r.status_code == requests.codes.ok:
+    >>> if r.status_code == niquests.codes.ok:
     ...     print(r.headers['content-type'])
     ...
     application/json; charset=utf-8
 
 So, GitHub returns JSON. That's great, we can use the :meth:`r.json
-<requests.Response.json>` method to parse it into Python objects.
+<niquests.Response.json>` method to parse it into Python objects.
 
 ::
 
@@ -780,7 +780,7 @@ see what kinds of HTTP methods are supported on the url we just used.
 
 ::
 
-    >>> verbs = requests.options(r.url)
+    >>> verbs = niquests.options(r.url)
     >>> verbs.status_code
     500
 
@@ -792,7 +792,7 @@ headers, e.g.
 
 ::
 
-    >>> verbs = requests.options('http://a-good-website.com/api/cats')
+    >>> verbs = niquests.options('http://a-good-website.com/api/cats')
     >>> print(verbs.headers['allow'])
     GET,HEAD,POST,OPTIONS
 
@@ -807,7 +807,7 @@ this issue already exists, we will use it as an example. Let's start by getting 
 
 ::
 
-    >>> r = requests.get('https://api.github.com/repos/psf/requests/issues/482')
+    >>> r = niquests.get('https://api.github.com/repos/psf/requests/issues/482')
     >>> r.status_code
     200
 
@@ -823,7 +823,7 @@ Cool, we have three comments. Let's take a look at the last of them.
 
 ::
 
-    >>> r = requests.get(r.url + '/comments')
+    >>> r = niquests.get(r.url + '/comments')
     >>> r.status_code
     200
 
@@ -852,7 +852,7 @@ is to POST to the thread. Let's do it.
     >>> body = json.dumps({u"body": u"Sounds great! I'll get right on it!"})
     >>> url = u"https://api.github.com/repos/psf/requests/issues/482/comments"
 
-    >>> r = requests.post(url=url, data=body)
+    >>> r = niquests.post(url=url, data=body)
     >>> r.status_code
     404
 
@@ -862,10 +862,10 @@ the very common Basic Auth.
 
 ::
 
-    >>> from requests.auth import HTTPBasicAuth
+    >>> from niquests.auth import HTTPBasicAuth
     >>> auth = HTTPBasicAuth('fake@example.com', 'not_a_real_password')
 
-    >>> r = requests.post(url=url, data=body, auth=auth)
+    >>> r = niquests.post(url=url, data=body, auth=auth)
     >>> r.status_code
     201
 
@@ -886,7 +886,7 @@ that.
     >>> body = json.dumps({u"body": u"Sounds great! I'll get right on it once I feed my cat."})
     >>> url = u"https://api.github.com/repos/psf/requests/issues/comments/5804413"
 
-    >>> r = requests.patch(url=url, data=body, auth=auth)
+    >>> r = niquests.patch(url=url, data=body, auth=auth)
     >>> r.status_code
     200
 
@@ -897,7 +897,7 @@ DELETE method. Let's get rid of it.
 
 ::
 
-    >>> r = requests.delete(url=url, auth=auth)
+    >>> r = niquests.delete(url=url, auth=auth)
     >>> r.status_code
     204
     >>> r.headers['status']
@@ -910,7 +910,7 @@ headers.
 
 ::
 
-    >>> r = requests.head(url=url, auth=auth)
+    >>> r = niquests.head(url=url, auth=auth)
     >>> print(r.headers)
     ...
     'x-ratelimit-remaining': '4995'
@@ -931,7 +931,7 @@ this would be the MKCOL method some WEBDAV servers use. Do not fret, these can
 still be used with Requests. These make use of the built-in ``.request``
 method. For example::
 
-    >>> r = requests.request('MKCOL', url, data=data)
+    >>> r = niquests.request('MKCOL', url, data=data)
     >>> r.status_code
     200 # Assuming your call was correct
 
@@ -950,7 +950,7 @@ GitHub uses these for `pagination <https://developer.github.com/v3/#pagination>`
 in their API, for example::
 
     >>> url = 'https://api.github.com/users/kennethreitz/repos?page=1&per_page=10'
-    >>> r = requests.head(url=url)
+    >>> r = niquests.head(url=url)
     >>> r.headers['link']
     '<https://api.github.com/users/kennethreitz/repos?page=2&per_page=10>; rel="next", <https://api.github.com/users/kennethreitz/repos?page=6&per_page=10>; rel="last"'
 
@@ -974,10 +974,10 @@ methods for an HTTP service. In particular, they allow you to apply per-service
 configuration.
 
 Requests ships with a single Transport Adapter, the :class:`HTTPAdapter
-<requests.adapters.HTTPAdapter>`. This adapter provides the default Requests
+<niquests.adapters.HTTPAdapter>`. This adapter provides the default Requests
 interaction with HTTP and HTTPS using the powerful `urllib3`_ library. Whenever
-a Requests :class:`Session <requests.Session>` is initialized, one of these is
-attached to the :class:`Session <requests.Session>` object for HTTP, and one
+a Requests :class:`Session <niquests.Session>` is initialized, one of these is
+attached to the :class:`Session <niquests.Session>` object for HTTP, and one
 for HTTPS.
 
 Requests enables users to create and use their own Transport Adapters that
@@ -987,7 +987,7 @@ it should apply to.
 
 ::
 
-    >>> s = requests.Session()
+    >>> s = niquests.Session()
     >>> s.mount('https://github.com/', MyAdapter())
 
 The mount call registers a specific instance of a Transport Adapter to a
@@ -1001,7 +1001,7 @@ with the given prefix will use the given Transport Adapter.
 Many of the details of implementing a Transport Adapter are beyond the scope of
 this documentation, but take a look at the next example for a simple SSL use-
 case. For more than that, you might look at subclassing the
-:class:`BaseAdapter <requests.adapters.BaseAdapter>`.
+:class:`BaseAdapter <niquests.adapters.BaseAdapter>`.
 
 Example: Specific SSL Version
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -1019,7 +1019,7 @@ library to use SSLv3::
     import ssl
     from urllib3.poolmanager import PoolManager
 
-    from requests.adapters import HTTPAdapter
+    from niquests.adapters import HTTPAdapter
 
 
     class Ssl3HttpAdapter(HTTPAdapter):
@@ -1035,12 +1035,12 @@ Example: Automatic Retries
 
 By default, Requests does not retry failed connections. However, it is possible
 to implement automatic retries with a powerful array of features, including
-backoff, within a Requests :class:`Session <requests.Session>` using the
+backoff, within a Requests :class:`Session <niquests.Session>` using the
 `urllib3.util.Retry`_ class::
 
     from urllib3.util import Retry
     from requests import Session
-    from requests.adapters import HTTPAdapter
+    from niquests.adapters import HTTPAdapter
 
     s = Session()
     retries = Retry(
@@ -1061,7 +1061,7 @@ Blocking Or Non-Blocking?
 -------------------------
 
 With the default Transport Adapter in place, Requests does not provide any kind
-of non-blocking IO. The :attr:`Response.content <requests.Response.content>`
+of non-blocking IO. The :attr:`Response.content <niquests.Response.content>`
 property will block until the entire response has been downloaded. If
 you require more granularity, the streaming features of the library (see
 :ref:`streaming-requests`) allow you to retrieve smaller quantities of the
@@ -1081,7 +1081,7 @@ Header Ordering
 
 In unusual circumstances you may want to provide headers in an ordered manner. If you pass an ``OrderedDict`` to the ``headers`` keyword argument, that will provide the headers with an ordering. *However*, the ordering of the default headers used by Requests will be preferred, which means that if you override default headers in the ``headers`` keyword argument, they may appear out of order compared to other headers in that keyword argument.
 
-If this is problematic, users should consider setting the default headers on a :class:`Session <requests.Session>` object, by setting :attr:`Session.headers <requests.Session.headers>` to a custom ``OrderedDict``. That ordering will always be preferred.
+If this is problematic, users should consider setting the default headers on a :class:`Session <niquests.Session>` object, by setting :attr:`Session.headers <niquests.Session.headers>` to a custom ``OrderedDict``. That ordering will always be preferred.
 
 .. _timeouts:
 
@@ -1107,12 +1107,12 @@ time before the server sends the first byte).
 
 If you specify a single value for the timeout, like this::
 
-    r = requests.get('https://github.com', timeout=5)
+    r = niquests.get('https://github.com', timeout=5)
 
 The timeout value will be applied to both the ``connect`` and the ``read``
 timeouts. Specify a tuple if you would like to set the values separately::
 
-    r = requests.get('https://github.com', timeout=(3.05, 27))
+    r = niquests.get('https://github.com', timeout=(3.05, 27))
 
 If the remote server is very slow, you can tell Requests to wait forever for
 a response, by passing None as a timeout value and then retrieving a cup of
@@ -1120,6 +1120,6 @@ coffee.
 
 ::
 
-    r = requests.get('https://github.com', timeout=None)
+    r = niquests.get('https://github.com', timeout=None)
 
 .. _`connect()`: https://linux.die.net/man/2/connect

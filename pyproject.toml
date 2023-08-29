@@ -1,6 +1,6 @@
 [tool.isort]
 profile = "black"
-src_paths = ["src/requests", "test"]
+src_paths = ["src/niquests", "test"]
 honor_noqa = true
 
 [tool.pytest.ini_options]

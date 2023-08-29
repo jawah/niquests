@@ -10,6 +10,8 @@ This module implements the Requests API.
 
 from . import sessions
 
+_SHARED_QUIC_CACHE = dict()
+
 
 def request(method, url, **kwargs):
     """Constructs and sends a :class:`Request <Request>`.
@@ -55,7 +57,7 @@ def request(method, url, **kwargs):
     # By using the 'with' statement we are sure the session is closed, thus we
     # avoid leaving sockets open which can trigger a ResourceWarning in some
     # cases, and look like a memory leak in others.
-    with sessions.Session() as session:
+    with sessions.Session(quic_cache_layer=_SHARED_QUIC_CACHE) as session:
         return session.request(method=method, url=url, **kwargs)
 
 

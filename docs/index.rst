@@ -3,35 +3,36 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-Requests: HTTP for Humans™
+Niquests: HTTP for Humans™
 ==========================
 
 Release v\ |version|. (:ref:`Installation <install>`)
 
 
-.. image:: https://static.pepy.tech/badge/requests/month
-    :target: https://pepy.tech/project/requests
-    :alt: Requests Downloads Per Month Badge
+.. image:: https://static.pepy.tech/badge/niquests/month
+    :target: https://pepy.tech/project/niquests
+    :alt: Niquests Downloads Per Month Badge
     
-.. image:: https://img.shields.io/pypi/l/requests.svg
-    :target: https://pypi.org/project/requests/
+.. image:: https://img.shields.io/pypi/l/niquests.svg
+    :target: https://pypi.org/project/niquests/
     :alt: License Badge
 
-.. image:: https://img.shields.io/pypi/wheel/requests.svg
-    :target: https://pypi.org/project/requests/
+.. image:: https://img.shields.io/pypi/wheel/niquests.svg
+    :target: https://pypi.org/project/niquests/
     :alt: Wheel Support Badge
 
-.. image:: https://img.shields.io/pypi/pyversions/requests.svg
-    :target: https://pypi.org/project/requests/
+.. image:: https://img.shields.io/pypi/pyversions/niquests.svg
+    :target: https://pypi.org/project/niquests/
     :alt: Python Version Support Badge
 
-**Requests** is an elegant and simple HTTP library for Python, built for human beings.
+**Niquests** is an elegant and simple HTTP library for Python, built for human beings. It
+is designed to be a drop-in replacement for **Requests** that is no longer under feature freeze.
 
 -------------------
 
 **Behold, the power of Requests**::
 
-    >>> r = requests.get('https://api.github.com/user', auth=('user', 'pass'))
+    >>> r = niquests.get('https://api.github.com/user', auth=('user', 'pass'))
     >>> r.status_code
     200
     >>> r.headers['content-type']
@@ -46,7 +47,7 @@ Release v\ |version|. (:ref:`Installation <install>`)
 See `similar code, sans Requests <https://gist.github.com/973705>`_.
 
 
-**Requests** allows you to send HTTP/1.1 requests extremely easily. 
+**Niquests** allows you to send HTTP/1.1, HTTP/2 and HTTP/3 requests extremely easily.
 There's no need to manually add query strings to your
 URLs, or to form-encode your POST data. Keep-alive and HTTP connection pooling
 are 100% automatic, thanks to `urllib3 <https://github.com/urllib3/urllib3>`_.
@@ -71,6 +72,8 @@ Requests is ready for today's web.
 - Connection Timeouts
 - Chunked Requests
 - ``.netrc`` Support
+- HTTP/2 Support
+- HTTP/3 over QUIC Support
 
 Requests officially supports Python 3.7+, and runs great on PyPy.
 

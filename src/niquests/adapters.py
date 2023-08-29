@@ -98,7 +98,7 @@ class BaseAdapter:
 
 
 class HTTPAdapter(BaseAdapter):
-    """The built-in HTTP Adapter for urllib3.
+    """The built-in HTTP Adapter for urllib3.future.
 
     Provides a general-case interface for Requests sessions to contact HTTP and
     HTTPS urls by implementing the Transport Adapter interface. This class will
@@ -130,6 +130,7 @@ class HTTPAdapter(BaseAdapter):
         "_pool_connections",
         "_pool_maxsize",
         "_pool_block",
+        "_quic_cache_layer",
     ]
 
     def __init__(
@@ -138,6 +139,7 @@ class HTTPAdapter(BaseAdapter):
         pool_maxsize=DEFAULT_POOLSIZE,
         max_retries=DEFAULT_RETRIES,
         pool_block=DEFAULT_POOLBLOCK,
+        quic_cache_layer=None,
     ):
         if max_retries == DEFAULT_RETRIES:
             self.max_retries = Retry(0, read=False)
@@ -151,8 +153,14 @@ class HTTPAdapter(BaseAdapter):
         self._pool_connections = pool_connections
         self._pool_maxsize = pool_maxsize
         self._pool_block = pool_block
+        self._quic_cache_layer = quic_cache_layer
 
-        self.init_poolmanager(pool_connections, pool_maxsize, block=pool_block)
+        self.init_poolmanager(
+            pool_connections,
+            pool_maxsize,
+            block=pool_block,
+            quic_cache_layer=quic_cache_layer,
+        )
 
     def __getstate__(self):
         return {attr: getattr(self, attr, None) for attr in self.__attrs__}
@@ -167,11 +175,19 @@ class HTTPAdapter(BaseAdapter):
             setattr(self, attr, value)
 
         self.init_poolmanager(
-            self._pool_connections, self._pool_maxsize, block=self._pool_block
+            self._pool_connections,
+            self._pool_maxsize,
+            block=self._pool_block,
+            quic_cache_layer=self._quic_cache_layer,
         )
 
     def init_poolmanager(
-        self, connections, maxsize, block=DEFAULT_POOLBLOCK, **pool_kwargs
+        self,
+        connections,
+        maxsize,
+        block=DEFAULT_POOLBLOCK,
+        quic_cache_layer=None,
+        **pool_kwargs,
     ):
         """Initializes a urllib3 PoolManager.
 
@@ -182,17 +198,20 @@ class HTTPAdapter(BaseAdapter):
         :param connections: The number of urllib3 connection pools to cache.
         :param maxsize: The maximum number of connections to save in the pool.
         :param block: Block when no free connections are available.
+        :param quic_cache_layer: Caching mutable mapping to remember QUIC capable endpoint.
         :param pool_kwargs: Extra keyword arguments used to initialize the Pool Manager.
         """
         # save these values for pickling
         self._pool_connections = connections
         self._pool_maxsize = maxsize
         self._pool_block = block
+        self._quic_cache_layer = quic_cache_layer
 
         self.poolmanager = PoolManager(
             num_pools=connections,
             maxsize=maxsize,
             block=block,
+            preemptive_quic_cache=quic_cache_layer,
             **pool_kwargs,
         )
 

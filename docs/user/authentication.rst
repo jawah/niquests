@@ -18,15 +18,15 @@ the simplest kind, and Requests supports it straight out of the box.
 
 Making requests with HTTP Basic Auth is very simple::
 
-    >>> from requests.auth import HTTPBasicAuth
+    >>> from niquests.auth import HTTPBasicAuth
     >>> basic = HTTPBasicAuth('user', 'pass')
-    >>> requests.get('https://httpbin.org/basic-auth/user/pass', auth=basic)
+    >>> niquests.get('https://httpbin.org/basic-auth/user/pass', auth=basic)
     <Response [200]>
 
 In fact, HTTP Basic Auth is so common that Requests provides a handy shorthand
 for using it::
 
-    >>> requests.get('https://httpbin.org/basic-auth/user/pass', auth=('user', 'pass'))
+    >>> niquests.get('https://httpbin.org/basic-auth/user/pass', auth=('user', 'pass'))
     <Response [200]>
 
 Providing the credentials in a tuple like this is exactly the same as the
@@ -51,9 +51,9 @@ Digest Authentication
 Another very popular form of HTTP Authentication is Digest Authentication,
 and Requests supports this out of the box as well::
 
-    >>> from requests.auth import HTTPDigestAuth
+    >>> from niquests.auth import HTTPDigestAuth
     >>> url = 'https://httpbin.org/digest-auth/auth/user/pass'
-    >>> requests.get(url, auth=HTTPDigestAuth('user', 'pass'))
+    >>> niquests.get(url, auth=HTTPDigestAuth('user', 'pass'))
     <Response [200]>
 
 
@@ -70,7 +70,7 @@ library allows Requests users to easily make OAuth 1 authenticated requests::
     >>> auth = OAuth1('YOUR_APP_KEY', 'YOUR_APP_SECRET',
     ...               'USER_OAUTH_TOKEN', 'USER_OAUTH_TOKEN_SECRET')
 
-    >>> requests.get(url, auth=auth)
+    >>> niquests.get(url, auth=auth)
     <Response [200]>
 
 For more information on how to OAuth flow works, please see the official `OAuth`_ website.
@@ -112,17 +112,17 @@ If you can't find a good implementation of the form of authentication you
 want, you can implement it yourself. Requests makes it easy to add your own
 forms of authentication.
 
-To do so, subclass :class:`AuthBase <requests.auth.AuthBase>` and implement the
+To do so, subclass :class:`AuthBase <niquests.auth.AuthBase>` and implement the
 ``__call__()`` method::
 
     >>> import requests
-    >>> class MyAuth(requests.auth.AuthBase):
+    >>> class MyAuth(niquests.auth.AuthBase):
     ...     def __call__(self, r):
     ...         # Implement my authentication
     ...         return r
     ...
     >>> url = 'https://httpbin.org/get'
-    >>> requests.get(url, auth=MyAuth())
+    >>> niquests.get(url, auth=MyAuth())
     <Response [200]>
 
 When an authentication handler is attached to a request,

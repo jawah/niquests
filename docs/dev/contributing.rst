@@ -11,12 +11,9 @@ contributing to the Requests project is *very* generous of you.
 This document lays out guidelines and advice for contributing to this project.
 If you're thinking of contributing, please start by reading this document and
 getting a feel for how contributing to this project works. If you have any
-questions, feel free to reach out to either `Nate Prewitt`_, `Ian Cordasco`_,
-or `Seth Michael Larson`_, the primary maintainers.
+questions, feel free to reach out to `Ahmed Tahri`_.
 
-.. _Ian Cordasco: http://www.coglib.com/~icordasc/
-.. _Nate Prewitt: https://www.nateprewitt.com/
-.. _Seth Michael Larson: https://sethmlarson.dev/
+.. _Ahmed Tahri: https://github.com/Ousret
 
 The guide is split into sections based on the type of contribution you're
 thinking of making, with a section that covers general guidelines for all
@@ -106,14 +103,13 @@ You can find the full list of formatting requirements specified in the
 `.pre-commit-config.yaml`_ at the top level directory of Requests.
 
 .. _pre-commit: https://pre-commit.com/
-.. _.pre-commit-config.yaml: https://github.com/psf/requests/blob/main/.pre-commit-config.yaml
+.. _.pre-commit-config.yaml: https://github.com/jawah/niquests/blob/main/.pre-commit-config.yaml
 
 New Contributors
 ~~~~~~~~~~~~~~~~
 
-If you are new or relatively new to Open Source, welcome! Requests aims to
-be a gentle introduction to the world of Open Source. If you're concerned about
-how best to contribute, please consider mailing a maintainer (listed above) and
+If you are new or relatively new to Open Source, welcome! Niquests IS a gentle introduction to the world of Open Source.
+If you're concerned about how best to contribute, please consider mailing a maintainer (listed above) and
 asking for help.
 
 Please also check the :ref:`early-feedback` section.
@@ -148,20 +144,10 @@ through the `GitHub issues`_, **both open and closed**, to confirm that the bug
 hasn't been reported before. Duplicate bug reports are a huge drain on the time
 of other contributors, and should be avoided as much as possible.
 
-.. _GitHub issues: https://github.com/psf/requests/issues
+.. _GitHub issues: https://github.com/jawah/niquests/issues
 
 
 Feature Requests
 ----------------
 
-Requests is in a perpetual feature freeze, only the BDFL can add or approve of
-new features. The maintainers believe that Requests is a feature-complete
-piece of software at this time.
-
-One of the most important skills to have while maintaining a largely-used
-open source project is learning the ability to say "no" to suggested changes,
-while keeping an open ear and mind.
-
-If you believe there is a feature missing, feel free to raise a feature
-request, but please do be aware that the overwhelming likelihood is that your
-feature request will not be accepted.
+Niquests happily accept new feature. Forever? Hopefully!

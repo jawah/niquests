@@ -20,7 +20,7 @@ CacheControl
 
 `CacheControl`_ is an extension that adds a full HTTP cache to Requests. This
 makes your web requests substantially more efficient, and should be used
-whenever you're making a lot of web requests.
+whenever you're making a lot of web niquests.
 
 .. _CacheControl: https://cachecontrol.readthedocs.io/en/latest/
 

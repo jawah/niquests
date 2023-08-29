@@ -9,7 +9,7 @@ import threading
 
 import pytest
 
-from requests.compat import urljoin
+from niquests.compat import urljoin
 
 
 def prepare_url(value):
