@@ -447,7 +447,7 @@ class Session(SessionRedirectMixin):
         #: A simple dict that allows us to persist which server support QUIC
         #: It is simply forwarded to urllib3.future that handle the caching logic.
         #: Can be any mutable mapping.
-        self.quic_cache_layer = quic_cache_layer or dict()
+        self.quic_cache_layer = quic_cache_layer
 
         # Default connection adapters.
         self.adapters = OrderedDict()
