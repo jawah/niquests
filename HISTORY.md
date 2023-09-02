@@ -1,6 +1,11 @@
 Release History
 ===============
 
+2.32.1 (2023-09-??)
+
+**Bugfixes**
+- Fix QUIC cache when using requests.request without persistent Session
+
 2.32.0 (2023-08-29)
 -------------------
 
