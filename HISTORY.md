@@ -1,10 +1,14 @@
 Release History
 ===============
 
-2.32.1 (2023-09-??)
+2.32.1 (2023-09-12)
+-------------------
 
 **Bugfixes**
 - Fix QUIC cache when using requests.request without persistent Session
+
+**Dependencies**
+- urllib3.future minimal version supported raised to 2.0.932 (ship with critical fixes)
 
 2.32.0 (2023-08-29)
 -------------------
