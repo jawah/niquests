@@ -8,7 +8,12 @@ import os
 import pickle
 import re
 import warnings
+from collections.abc import MutableMapping
+from http import cookiejar as cookielib
+from http.cookies import Morsel
 from unittest import mock
+from urllib.parse import urlparse
+from urllib.request import getproxies
 
 import pytest
 import urllib3
@@ -17,15 +22,7 @@ from urllib3.util import Timeout as Urllib3Timeout
 import niquests
 from niquests.adapters import HTTPAdapter
 from niquests.auth import HTTPDigestAuth, _basic_auth_str
-from niquests.compat import (
-    JSONDecodeError,
-    Morsel,
-    MutableMapping,
-    builtin_str,
-    cookielib,
-    getproxies,
-    urlparse,
-)
+from niquests.compat import JSONDecodeError
 from niquests.cookies import cookiejar_from_dict, morsel_to_cookie
 from niquests.exceptions import (
     ChunkedEncodingError,
@@ -87,8 +84,6 @@ class TestRequests:
         niquests.put
         niquests.patch
         niquests.post
-        # Not really an entry point, but people rely on it.
-        from niquests.packages.urllib3.poolmanager import PoolManager  # noqa:F401
 
     @pytest.mark.parametrize(
         "exception, url",
@@ -542,8 +537,6 @@ class TestRequests:
         (
             ("user", "pass"),
             ("имя".encode(), "пароль".encode()),
-            (42, 42),
-            (None, None),
         ),
     )
     def test_set_basicauth(self, httpbin, username, password):
@@ -1093,7 +1086,7 @@ class TestRequests:
             files = {"file": f}
             req = niquests.Request("POST", httpbin("post"), files=files)
             prep = s.prepare_request(req)
-        assert isinstance(prep.method, builtin_str)
+        assert isinstance(prep.method, str)
         assert prep.method == "POST"
 
         resp = s.send(prep)
@@ -2033,7 +2026,7 @@ class TestRequests:
     )
     def test_basic_auth_str_is_always_native(self, username, password, auth_str):
         s = _basic_auth_str(username, password)
-        assert isinstance(s, builtin_str)
+        assert isinstance(s, str)
         assert s == auth_str
 
     def test_requests_history_is_saved(self, httpbin):

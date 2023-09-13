@@ -6,10 +6,9 @@ except ImportError:
 
 import ssl
 import threading
+from urllib.parse import urljoin
 
 import pytest
-
-from niquests.compat import urljoin
 
 
 def prepare_url(value):

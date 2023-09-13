@@ -18,6 +18,11 @@ import tempfile
 import warnings
 import zipfile
 from collections import OrderedDict
+from collections.abc import Mapping
+from urllib.parse import quote, unquote, urlparse, urlunparse
+from urllib.request import getproxies, getproxies_environment
+from urllib.request import parse_http_list as _parse_list_header
+from urllib.request import proxy_bypass, proxy_bypass_environment
 
 from urllib3.util import make_headers, parse_url
 
@@ -30,24 +35,6 @@ from ._internal_utils import (  # noqa: F401
     _HEADER_VALIDATORS_STR,
     HEADER_VALIDATORS,
     to_native_string,
-)
-from .compat import (
-    Mapping,
-    basestring,
-    bytes,
-    getproxies,
-    getproxies_environment,
-    integer_types,
-)
-from .compat import parse_http_list as _parse_list_header
-from .compat import (
-    proxy_bypass,
-    proxy_bypass_environment,
-    quote,
-    str,
-    unquote,
-    urlparse,
-    urlunparse,
 )
 from .cookies import cookiejar_from_dict
 from .exceptions import (
@@ -256,7 +243,7 @@ def get_netrc_auth(url, raise_errors=False):
 def guess_filename(obj):
     """Tries to guess the filename of the given object."""
     name = getattr(obj, "name", None)
-    if name and isinstance(name, basestring) and name[0] != "<" and name[-1] != ">":
+    if name and isinstance(name, (str, bytes)) and name[0] != "<" and name[-1] != ">":
         return os.path.basename(name)
 
 
@@ -481,31 +468,6 @@ def add_dict_to_cookiejar(cj, cookie_dict):
     return cookiejar_from_dict(cookie_dict, cj)
 
 
-def get_encodings_from_content(content):
-    """Returns encodings from given content string.
-
-    :param content: bytestring to extract encodings from.
-    """
-    warnings.warn(
-        (
-            "In requests 3.0, get_encodings_from_content will be removed. For "
-            "more information, please see the discussion on issue #2266. (This"
-            " warning should only appear once.)"
-        ),
-        DeprecationWarning,
-    )
-
-    charset_re = re.compile(r'<meta.*?charset=["\']*(.+?)["\'>]', flags=re.I)
-    pragma_re = re.compile(r'<meta.*?content=["\']*;?charset=(.+?)["\'>]', flags=re.I)
-    xml_re = re.compile(r'^<\?xml.*?encoding=["\']*(.+?)["\'>]')
-
-    return (
-        charset_re.findall(content)
-        + pragma_re.findall(content)
-        + xml_re.findall(content)
-    )
-
-
 def _parse_content_type_header(header):
     """Returns content type and parameters from given header
 
@@ -581,45 +543,6 @@ def iter_slices(string, slice_length):
     while pos < len(string):
         yield string[pos : pos + slice_length]
         pos += slice_length
-
-
-def get_unicode_from_response(r):
-    """Returns the requested content back in unicode.
-
-    :param r: Response object to get unicode content from.
-
-    Tried:
-
-    1. charset from content-type
-    2. fall back and replace all unicode characters
-
-    :rtype: str
-    """
-    warnings.warn(
-        (
-            "In requests 3.0, get_unicode_from_response will be removed. For "
-            "more information, please see the discussion on issue #2266. (This"
-            " warning should only appear once.)"
-        ),
-        DeprecationWarning,
-    )
-
-    tried_encodings = []
-
-    # Try charset from content-type
-    encoding = get_encoding_from_headers(r.headers)
-
-    if encoding:
-        try:
-            return str(r.content, encoding)
-        except UnicodeError:
-            tried_encodings.append(encoding)
-
-    # Fall back:
-    try:
-        return str(r.content, encoding, errors="replace")
-    except TypeError:
-        return r.content
 
 
 # The unreserved URI characters (RFC 3986)
@@ -1046,9 +969,7 @@ def rewind_body(prepared_request):
     so it can be read again on redirect.
     """
     body_seek = getattr(prepared_request.body, "seek", None)
-    if body_seek is not None and isinstance(
-        prepared_request._body_position, integer_types
-    ):
+    if body_seek is not None and isinstance(prepared_request._body_position, int):
         try:
             body_seek(prepared_request._body_position)
         except OSError:

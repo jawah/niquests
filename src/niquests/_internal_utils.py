@@ -7,8 +7,6 @@ which depend on extremely few external helpers (such as compat)
 """
 import re
 
-from .compat import builtin_str
-
 _VALID_HEADER_NAME_RE_BYTE = re.compile(rb"^[^:\s][^:\r\n]*$")
 _VALID_HEADER_NAME_RE_STR = re.compile(r"^[^:\s][^:\r\n]*$")
 _VALID_HEADER_VALUE_RE_BYTE = re.compile(rb"^\S[^\r\n]*$|^$")
@@ -27,7 +25,7 @@ def to_native_string(string, encoding="ascii"):
     that string in the native string type, encoding and decoding where
     necessary. This assumes ASCII unless told otherwise.
     """
-    if isinstance(string, builtin_str):
+    if isinstance(string, str):
         out = string
     else:
         out = string.decode(encoding)

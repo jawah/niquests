@@ -8,6 +8,7 @@ and maintain connections.
 
 import os.path
 import socket  # noqa: F401
+from urllib.parse import urlparse
 
 from urllib3.exceptions import ClosedPoolError, ConnectTimeoutError
 from urllib3.exceptions import HTTPError as _HTTPError
@@ -27,7 +28,6 @@ from urllib3.util import parse_url
 from urllib3.util.retry import Retry
 
 from .auth import _basic_auth_str
-from .compat import basestring, urlparse
 from .cookies import extract_cookies_to_jar
 from .exceptions import (
     ConnectionError,
@@ -293,7 +293,7 @@ class HTTPAdapter(BaseAdapter):
             conn.ca_cert_dir = None
 
         if cert:
-            if not isinstance(cert, basestring):
+            if not isinstance(cert, str):
                 conn.cert_file = cert[0]
                 conn.key_file = cert[1]
             else:

@@ -10,9 +10,12 @@ requests.utils imports from here, so be careful with imports.
 import calendar
 import copy
 import time
+from collections.abc import MutableMapping
+from http import cookiejar as cookielib
+from http.cookies import Morsel
+from urllib.parse import urlparse, urlunparse
 
 from ._internal_utils import to_native_string
-from .compat import Morsel, MutableMapping, cookielib, urlparse, urlunparse
 
 try:
     import threading
