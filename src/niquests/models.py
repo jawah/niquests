@@ -4,7 +4,7 @@ requests.models
 
 This module contains the primary objects that power Requests.
 """
-
+import codecs
 import datetime
 
 # Import encoding now, to avoid implicit import later.
@@ -910,38 +910,45 @@ class Response:
         """
 
         # Try charset from content-type
-        content = None
         encoding = self.encoding
 
         if not self.content:
             return ""
 
+        if encoding is not None:
+            try:
+                info = codecs.lookup(self.encoding)
+
+                if (
+                    hasattr(info, "_is_text_encoding")
+                    and info._is_text_encoding is False
+                ):
+                    return None
+            except LookupError:
+                encoding = None
+
         # Fallback to auto-detected encoding.
         if self.encoding is None:
             guesses = from_bytes(self.content)
-            encoding = guesses.best().encoding if guesses else "utf-8"
+            encoding = guesses.best().encoding if guesses else None
 
-        # Decode unicode from given encoding.
-        try:
-            content = str(self.content, encoding, errors="replace")
-        except (LookupError, TypeError):
-            # A LookupError is raised if the encoding was not found which could
-            # indicate a misspelling or similar mistake.
-            #
-            # A TypeError can be raised if encoding is None
-            #
-            # So we try blindly encoding.
-            content = str(self.content, errors="replace")
+        if encoding is None:
+            return None
 
-        return content
+        return str(self.content, encoding, errors="replace")
 
     def json(self, **kwargs):
         r"""Returns the json-encoded content of a response, if any.
 
         :param \*\*kwargs: Optional arguments that ``json.loads`` takes.
         :raises requests.exceptions.JSONDecodeError: If the response body does not
-            contain valid json.
+            contain valid json or if content-type is not about json.
         """
+
+        if "json" not in self.headers.get("content-type", "").lower():
+            raise RequestsJSONDecodeError(
+                "response content-type is not JSON", self.text or "", 0
+            )
 
         if not self.encoding and self.content:
             # No encoding set. JSON RFC 4627 section 3 states we should expect
@@ -976,8 +983,15 @@ class Response:
                 except JSONDecodeError as e:
                     raise RequestsJSONDecodeError(e.msg, e.doc, e.pos)
 
+        plain_content = self.text
+
+        if plain_content is None:
+            raise RequestsJSONDecodeError(
+                "response cannot lead to decodable JSON", "", 0
+            )
+
         try:
-            return complexjson.loads(self.text, **kwargs)
+            return complexjson.loads(plain_content, **kwargs)
         except JSONDecodeError as e:
             # Catch JSON-related errors and raise as requests.JSONDecodeError
             # This aliases json.JSONDecodeError and simplejson.JSONDecodeError

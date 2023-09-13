@@ -15,10 +15,15 @@ Release History
 - Deprecated function `get_unicode_from_response` from utils.
 - BasicAuth middleware no-longer support anything else than `bytes` or `str` for username and password.
 - `requests.compat` is stripped of every reference that no longer vary between supported interpreter version.
+- Charset fall back **ISO-8859-1** when content-type is text and no charset was specified.
 
 **Changed**
 - Calling the method `json` from `Response` when no encoding was provided no longer relies on internal encoding inference.
   We fall back on `charset-normalizer` with a limited set of charsets allowed (UTF-8/16/32 or ASCII).
+- No longer will the `text` method from `Response` return str if content cannot be decoded. It returns None instead.
+- If specified charset in content-type does not exist (LookupError) the `text` method from `Response` will rely on charset detection.
+- If specified charset in content-type is not made for text decoding (e.g. base64), the `text` method from `Response` returns None.
+- With above four changes, the `json` method will raise `RequestsJSONDecodeError` when the payload (body) cannot be decoded.
 
 2.32.1 (2023-09-12)
 -------------------

@@ -510,12 +510,11 @@ def get_encoding_from_headers(headers):
     if "charset" in params:
         return params["charset"].strip("'\"")
 
-    if "text" in content_type:
-        return "ISO-8859-1"
-
     if "application/json" in content_type:
         # Assume UTF-8 based on RFC 4627: https://www.ietf.org/rfc/rfc4627.txt since the charset was unset
         return "utf-8"
+
+    return None
 
 
 def stream_decode_response_unicode(iterator, r):
