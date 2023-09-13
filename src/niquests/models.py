@@ -11,7 +11,10 @@ import datetime
 # Implicit import within threads may cause LookupError when standard library is in a ZIP,
 # such as in Embedded Python. See https://github.com/psf/requests/issues/3578.
 import encodings.idna  # noqa: F401
+from collections.abc import Callable, Mapping
+from http import cookiejar as cookielib
 from io import UnsupportedOperation
+from urllib.parse import urlencode, urlsplit, urlunparse
 
 from charset_normalizer import from_bytes
 from urllib3.exceptions import (
@@ -27,16 +30,8 @@ from urllib3.util import parse_url
 
 from ._internal_utils import to_native_string, unicode_is_ascii
 from .auth import HTTPBasicAuth
-from .compat import (
-    Callable,
-    JSONDecodeError,
-    Mapping,
-    basestring,
-    builtin_str,
-    cookielib,
-)
+from .compat import JSONDecodeError
 from .compat import json as complexjson
-from .compat import urlencode, urlsplit, urlunparse
 from .cookies import _copy_cookie_jar, cookiejar_from_dict, get_cookie_header
 from .exceptions import (
     ChunkedEncodingError,
@@ -118,7 +113,7 @@ class RequestEncodingMixin:
         elif hasattr(data, "__iter__"):
             result = []
             for k, vs in to_key_val_list(data):
-                if isinstance(vs, basestring) or not hasattr(vs, "__iter__"):
+                if isinstance(vs, str) or not hasattr(vs, "__iter__"):
                     vs = [vs]
                 for v in vs:
                     if v is not None:
@@ -144,7 +139,7 @@ class RequestEncodingMixin:
         """
         if not files:
             raise ValueError("Files must be provided.")
-        elif isinstance(data, basestring):
+        elif isinstance(data, str):
             raise ValueError("Data must not be a string.")
 
         new_fields = []
@@ -152,7 +147,7 @@ class RequestEncodingMixin:
         files = to_key_val_list(files or {})
 
         for field, val in fields:
-            if isinstance(val, basestring) or not hasattr(val, "__iter__"):
+            if isinstance(val, str) or not hasattr(val, "__iter__"):
                 val = [val]
             for v in val:
                 if v is not None:
@@ -327,7 +322,7 @@ class PreparedRequest(RequestEncodingMixin, RequestHooksMixin):
 
       >>> s = requests.Session()
       >>> s.send(r)
-      <Response [200]>
+      <Response HTTP/2 [200]>
     """
 
     def __init__(self):
@@ -516,7 +511,7 @@ class PreparedRequest(RequestEncodingMixin, RequestHooksMixin):
         is_stream = all(
             [
                 hasattr(data, "__iter__"),
-                not isinstance(data, (basestring, list, tuple, Mapping)),
+                not isinstance(data, (str, list, tuple, Mapping)),
             ]
         )
 
@@ -545,7 +540,7 @@ class PreparedRequest(RequestEncodingMixin, RequestHooksMixin):
                 )
 
             if length:
-                self.headers["Content-Length"] = builtin_str(length)
+                self.headers["Content-Length"] = str(length)
             else:
                 self.headers["Transfer-Encoding"] = "chunked"
         else:
@@ -555,7 +550,7 @@ class PreparedRequest(RequestEncodingMixin, RequestHooksMixin):
             else:
                 if data:
                     body = self._encode_params(data)
-                    if isinstance(data, basestring) or hasattr(data, "read"):
+                    if isinstance(data, str) or hasattr(data, "read"):
                         content_type = None
                     else:
                         content_type = "application/x-www-form-urlencoded"
@@ -575,7 +570,7 @@ class PreparedRequest(RequestEncodingMixin, RequestHooksMixin):
             if length:
                 # If length exists, set it. Otherwise, we fallback
                 # to Transfer-Encoding: chunked.
-                self.headers["Content-Length"] = builtin_str(length)
+                self.headers["Content-Length"] = str(length)
         elif (
             self.method not in ("GET", "HEAD")
             and self.headers.get("Content-Length") is None

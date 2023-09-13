@@ -123,7 +123,7 @@ warnings.simplefilter("ignore", DependencyWarning)
 import logging
 from logging import NullHandler
 
-from . import packages, utils
+from . import utils
 from .__version__ import (
     __author__,
     __author_email__,

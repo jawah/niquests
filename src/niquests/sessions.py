@@ -9,12 +9,14 @@ import os
 import sys
 import time
 from collections import OrderedDict
+from collections.abc import Mapping
 from datetime import timedelta
+from http import cookiejar as cookielib
+from urllib.parse import urljoin, urlparse
 
 from ._internal_utils import to_native_string
 from .adapters import HTTPAdapter
 from .auth import _basic_auth_str
-from .compat import Mapping, cookielib, urljoin, urlparse
 from .cookies import (
     RequestsCookieJar,
     cookiejar_from_dict,

@@ -2,14 +2,15 @@ import copy
 import filecmp
 import os
 import tarfile
+import urllib.parse
 import zipfile
 from collections import deque
+from http import cookiejar
 from io import BytesIO
 from unittest import mock
 
 import pytest
 
-from niquests import compat
 from niquests._internal_utils import unicode_is_ascii
 from niquests.cookies import RequestsCookieJar
 from niquests.structures import CaseInsensitiveDict
@@ -21,7 +22,6 @@ from niquests.utils import (
     extract_zipped_paths,
     get_auth_from_url,
     get_encoding_from_headers,
-    get_encodings_from_content,
     get_environ_proxies,
     guess_filename,
     is_ipv4_address,
@@ -298,8 +298,8 @@ class TestGuessFilename:
     @pytest.mark.parametrize(
         "value, expected_type",
         (
-            (b"value", compat.bytes),
-            (b"value".decode("utf-8"), compat.str),
+            (b"value", bytes),
+            (b"value".decode("utf-8"), str),
         ),
     )
     def test_guess_filename_valid(self, value, expected_type):
@@ -340,41 +340,9 @@ class TestExtractZippedPaths:
         assert extract_zipped_paths(path) == path
 
 
-class TestContentEncodingDetection:
-    def test_none(self):
-        encodings = get_encodings_from_content("")
-        assert not len(encodings)
-
-    @pytest.mark.parametrize(
-        "content",
-        (
-            # HTML5 meta charset attribute
-            '<meta charset="UTF-8">',
-            # HTML4 pragma directive
-            '<meta http-equiv="Content-type" content="text/html;charset=UTF-8">',
-            # XHTML 1.x served with text/html MIME type
-            '<meta http-equiv="Content-type" content="text/html;charset=UTF-8" />',
-            # XHTML 1.x served as XML
-            '<?xml version="1.0" encoding="UTF-8"?>',
-        ),
-    )
-    def test_pragmas(self, content):
-        encodings = get_encodings_from_content(content)
-        assert len(encodings) == 1
-        assert encodings[0] == "UTF-8"
-
-    def test_precedence(self):
-        content = """
-        <?xml version="1.0" encoding="XML"?>
-        <meta charset="HTML5">
-        <meta http-equiv="Content-type" content="text/html;charset=HTML4" />
-        """.strip()
-        assert get_encodings_from_content(content) == ["HTML5", "HTML4", "XML"]
-
-
 USER = PASSWORD = "%!*'();:@&=+$,/?#[] "
-ENCODED_USER = compat.quote(USER, "")
-ENCODED_PASSWORD = compat.quote(PASSWORD, "")
+ENCODED_USER = urllib.parse.quote(USER, "")
+ENCODED_PASSWORD = urllib.parse.quote(PASSWORD, "")
 
 
 @pytest.mark.parametrize(
@@ -728,7 +696,7 @@ def test_should_bypass_proxies_pass_only_hostname(url, expected):
 @pytest.mark.parametrize(
     "cookiejar",
     (
-        compat.cookielib.CookieJar(),
+        cookiejar.CookieJar(),
         RequestsCookieJar(),
     ),
 )

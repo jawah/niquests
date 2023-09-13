@@ -9,11 +9,16 @@ Release History
 - Support for the legacy `chardet` detector in case it was present in environment.
   Extra `chardet_on_py3` is now unavailable.
 - **requests.compat** no longer hold reference to _chardet_.
+- Deprecated `requests.packages` that was meant to avoid breakage from people importing `urllib3` or `chardet` within this package.
+  They were _vendored_ in early versions of Requests. A long time ago.
+- Deprecated function `get_encodings_from_content` from utils.
+- Deprecated function `get_unicode_from_response` from utils.
+- BasicAuth middleware no-longer support anything else than `bytes` or `str` for username and password.
+- `requests.compat` is stripped of every reference that no longer vary between supported interpreter version.
 
 **Changed**
 - Calling the method `json` from `Response` when no encoding was provided no longer relies on internal encoding inference.
   We fall back on `charset-normalizer` with a limited set of charsets allowed (UTF-8/16/32 or ASCII).
-
 
 2.32.1 (2023-09-12)
 -------------------
