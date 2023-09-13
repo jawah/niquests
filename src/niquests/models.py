@@ -13,6 +13,7 @@ import datetime
 import encodings.idna  # noqa: F401
 from io import UnsupportedOperation
 
+from charset_normalizer import from_bytes
 from urllib3.exceptions import (
     DecodeError,
     LocationParseError,
@@ -32,7 +33,6 @@ from .compat import (
     Mapping,
     basestring,
     builtin_str,
-    chardet,
     cookielib,
 )
 from .compat import json as complexjson
@@ -57,7 +57,6 @@ from .utils import (
     check_header_validity,
     get_auth_from_url,
     guess_filename,
-    guess_json_utf,
     iter_slices,
     parse_header_links,
     requote_uri,
@@ -792,11 +791,6 @@ class Response:
         """Returns a PreparedRequest for the next request in a redirect chain, if there is one."""
         return self._next
 
-    @property
-    def apparent_encoding(self):
-        """The apparent encoding, provided by the charset_normalizer or chardet libraries."""
-        return chardet.detect(self.content)["encoding"]
-
     def iter_content(self, chunk_size=1, decode_unicode=False):
         """Iterates over the response data.  When stream=True is set on the
         request, this avoids reading the content at once into memory for
@@ -912,7 +906,7 @@ class Response:
         """Content of the response, in unicode.
 
         If Response.encoding is None, encoding will be guessed using
-        ``charset_normalizer`` or ``chardet``.
+        ``charset_normalizer``.
 
         The encoding of the response content is determined based solely on HTTP
         headers, following RFC 2616 to the letter. If you can take advantage of
@@ -929,7 +923,8 @@ class Response:
 
         # Fallback to auto-detected encoding.
         if self.encoding is None:
-            encoding = self.apparent_encoding
+            guesses = from_bytes(self.content)
+            encoding = guesses.best().encoding if guesses else "utf-8"
 
         # Decode unicode from given encoding.
         try:
@@ -953,12 +948,27 @@ class Response:
             contain valid json.
         """
 
-        if not self.encoding and self.content and len(self.content) > 3:
+        if not self.encoding and self.content:
             # No encoding set. JSON RFC 4627 section 3 states we should expect
             # UTF-8, -16 or -32. Detect which one to use; If the detection or
             # decoding fails, fall back to `self.text` (using charset_normalizer to make
             # a best guess).
-            encoding = guess_json_utf(self.content)
+            guesses = from_bytes(
+                self.content,
+                cp_isolation=[
+                    "ascii",
+                    "utf-8",
+                    "utf-16",
+                    "utf-32",
+                    "utf-16-le",
+                    "utf-16-be",
+                    "utf-32-le",
+                    "utf-32-be",
+                ],
+            )
+
+            encoding = guesses.best().encoding if guesses else "utf-8"
+
             if encoding is not None:
                 try:
                     return complexjson.loads(self.content.decode(encoding), **kwargs)

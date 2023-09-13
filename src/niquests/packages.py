@@ -1,9 +1,6 @@
 import sys
 
-try:
-    import chardet
-except ImportError:
-    import charset_normalizer as chardet
+import charset_normalizer as chardet
 
 # This code exists for backwards compatibility reasons.
 # I don't like it either. Just look the other way. :)
