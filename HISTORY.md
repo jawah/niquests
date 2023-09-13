@@ -4,6 +4,16 @@ Release History
 3.0.0 (2023-??-??)
 -------------------
 
+**Removed**
+- Property `apparent_encoding` in favor of a discrete internal inference.
+- Support for the legacy `chardet` detector in case it was present in environment.
+  Extra `chardet_on_py3` is now unavailable.
+- **requests.compat** no longer hold reference to _chardet_.
+
+**Changed**
+- Calling the method `json` from `Response` when no encoding was provided no longer relies on internal encoding inference.
+  We fall back on `charset-normalizer` with a limited set of charsets allowed (UTF-8/16/32 or ASCII).
+
 
 2.32.1 (2023-09-12)
 -------------------

@@ -7,11 +7,6 @@ between Python 2 and Python 3. It remains for backwards
 compatibility until the next major version.
 """
 
-try:
-    import chardet
-except ImportError:
-    import charset_normalizer as chardet
-
 import sys
 
 # -------

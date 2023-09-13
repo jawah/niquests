@@ -41,21 +41,12 @@ is at <https://niquests.readthedocs.io>.
 import warnings
 
 import urllib3
+from charset_normalizer import __version__ as charset_normalizer_version
 
 from .exceptions import RequestsDependencyWarning
 
-try:
-    from charset_normalizer import __version__ as charset_normalizer_version
-except ImportError:
-    charset_normalizer_version = None
 
-try:
-    from chardet import __version__ as chardet_version
-except ImportError:
-    chardet_version = None
-
-
-def check_compatibility(urllib3_version, chardet_version, charset_normalizer_version):
+def check_compatibility(urllib3_version, charset_normalizer_version):
     urllib3_version = urllib3_version.split(".")
     assert urllib3_version != ["dev"]  # Verify urllib3 isn't installed from git.
 
@@ -72,18 +63,10 @@ def check_compatibility(urllib3_version, chardet_version, charset_normalizer_ver
         assert minor >= 21
 
     # Check charset_normalizer for compatibility.
-    if chardet_version:
-        major, minor, patch = chardet_version.split(".")[:3]
-        major, minor, patch = int(major), int(minor), int(patch)
-        # chardet_version >= 3.0.2, < 6.0.0
-        assert (3, 0, 2) <= (major, minor, patch) < (6, 0, 0)
-    elif charset_normalizer_version:
-        major, minor, patch = charset_normalizer_version.split(".")[:3]
-        major, minor, patch = int(major), int(minor), int(patch)
-        # charset_normalizer >= 2.0.0 < 4.0.0
-        assert (2, 0, 0) <= (major, minor, patch) < (4, 0, 0)
-    else:
-        raise Exception("You need either charset_normalizer or chardet installed")
+    major, minor, patch = charset_normalizer_version.split(".")[:3]
+    major, minor, patch = int(major), int(minor), int(patch)
+    # charset_normalizer >= 2.0.0 < 4.0.0
+    assert (2, 0, 0) <= (major, minor, patch) < (4, 0, 0)
 
 
 def _check_cryptography(cryptography_version):
@@ -102,15 +85,11 @@ def _check_cryptography(cryptography_version):
 
 # Check imported dependencies for compatibility.
 try:
-    check_compatibility(
-        urllib3.__version__, chardet_version, charset_normalizer_version
-    )
+    check_compatibility(urllib3.__version__, charset_normalizer_version)
 except (AssertionError, ValueError):
     warnings.warn(
-        "urllib3 ({}) or chardet ({})/charset_normalizer ({}) doesn't match a supported "
-        "version!".format(
-            urllib3.__version__, chardet_version, charset_normalizer_version
-        ),
+        "urllib3 ({}) or charset_normalizer ({}) doesn't match a supported "
+        "version!".format(urllib3.__version__, charset_normalizer_version),
         RequestsDependencyWarning,
     )
 
