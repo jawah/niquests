@@ -21,6 +21,7 @@ Release History
   e.g. function `delete` no-longer accept `json`, or `files` arguments. as per RFCs specifications. You can still override this behavior through the `request` function.
 - Mixin classes `RequestEncodingMixin`, and `RequestHooksMixin` due to OOP violations. Now deported directly into child classes.
 - Function `unicode_is_ascii` as it is part of the stable `str` stdlib on Python 3 or greater.
+- Alias function `session` for `Session` context manager that was kept for BC reasons since the v1.
 
 **Changed**
 - Calling the method `json` from `Response` when no encoding was provided no longer relies on internal encoding inference.
