@@ -150,7 +150,7 @@ from .exceptions import (
     URLRequired,
 )
 from .models import PreparedRequest, Request, Response
-from .sessions import Session, session
+from .sessions import Session
 from .status_codes import codes
 
 logging.getLogger(__name__).addHandler(NullHandler())
@@ -194,6 +194,5 @@ __all__ = (
     "Request",
     "Response",
     "Session",
-    "session",
     "codes",
 )
