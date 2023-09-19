@@ -9,7 +9,7 @@ compatibility until the next major version.
 
 # json/simplejson module import resolution
 try:
-    import simplejson as json
+    import simplejson as json  # type: ignore[import]
     from simplejson import JSONDecodeError
 except ImportError:
     import json

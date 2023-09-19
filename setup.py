@@ -6,27 +6,6 @@ from codecs import open
 from setuptools import setup
 from setuptools.command.test import test as TestCommand
 
-CURRENT_PYTHON = sys.version_info[:2]
-REQUIRED_PYTHON = (3, 7)
-
-if CURRENT_PYTHON < REQUIRED_PYTHON:
-    sys.stderr.write(
-        """
-==========================
-Unsupported Python version
-==========================
-This version of Requests requires at least Python {}.{}, but
-you're trying to install it on Python {}.{}. To resolve this,
-consider upgrading to a supported Python version.
-
-If you can't upgrade your Python version, you'll need to
-pin to an older version of Requests (<2.28).
-""".format(
-            *(REQUIRED_PYTHON + CURRENT_PYTHON)
-        )
-    )
-    sys.exit(1)
-
 
 class PyTest(TestCommand):
     user_options = [("pytest-args=", "a", "Arguments to pass into py.test")]

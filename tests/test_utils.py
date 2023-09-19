@@ -11,7 +11,6 @@ from unittest import mock
 
 import pytest
 
-from niquests._internal_utils import unicode_is_ascii
 from niquests.cookies import RequestsCookieJar
 from niquests.structures import CaseInsensitiveDict
 from niquests.utils import (
@@ -158,7 +157,6 @@ class TestToKeyValList:
             ([("key", "val")], [("key", "val")]),
             ((("key", "val"),), [("key", "val")]),
             ({"key": "val"}, [("key", "val")]),
-            (None, None),
         ),
     )
     def test_valid(self, value, expected):
@@ -297,10 +295,7 @@ class TestGuessFilename:
 
     @pytest.mark.parametrize(
         "value, expected_type",
-        (
-            (b"value", bytes),
-            (b"value".decode("utf-8"), str),
-        ),
+        ((b"value".decode("utf-8"), str),),
     )
     def test_guess_filename_valid(self, value, expected_type):
         obj = type("Fake", (object,), {"name": value})()
@@ -708,18 +703,6 @@ def test_add_dict_to_cookiejar(cookiejar):
     cj = add_dict_to_cookiejar(cookiejar, cookiedict)
     cookies = {cookie.name: cookie.value for cookie in cj}
     assert cookiedict == cookies
-
-
-@pytest.mark.parametrize(
-    "value, expected",
-    (
-        ("test", True),
-        ("æíöû", False),
-        ("ジェーピーニック", False),
-    ),
-)
-def test_unicode_is_ascii(value, expected):
-    assert unicode_is_ascii(value) is expected
 
 
 @pytest.mark.parametrize(

@@ -1,4 +1,5 @@
 """Module containing bug report helper(s)."""
+from __future__ import annotations
 
 import json
 import platform
@@ -14,12 +15,12 @@ from . import __version__ as requests_version
 try:
     from urllib3.contrib import pyopenssl
 except (ImportError, AttributeError):
-    pyopenssl = None
-    OpenSSL = None
-    cryptography = None
+    pyopenssl = None  # type: ignore
+    OpenSSL = None  # type: ignore
+    cryptography = None  # type: ignore
 else:
-    import cryptography
-    import OpenSSL
+    import cryptography  # type: ignore
+    import OpenSSL  # type: ignore
 
 
 def _implementation():
@@ -39,13 +40,13 @@ def _implementation():
         implementation_version = platform.python_version()
     elif implementation == "PyPy":
         implementation_version = "{}.{}.{}".format(
-            sys.pypy_version_info.major,
-            sys.pypy_version_info.minor,
-            sys.pypy_version_info.micro,
+            sys.pypy_version_info.major,  # type: ignore[attr-defined]
+            sys.pypy_version_info.minor,  # type: ignore[attr-defined]
+            sys.pypy_version_info.micro,  # type: ignore[attr-defined]
         )
-        if sys.pypy_version_info.releaselevel != "final":
+        if sys.pypy_version_info.releaselevel != "final":  # type: ignore[attr-defined]
             implementation_version = "".join(
-                [implementation_version, sys.pypy_version_info.releaselevel]
+                [implementation_version, sys.pypy_version_info.releaselevel]  # type: ignore[attr-defined]
             )
     elif implementation == "Jython":
         implementation_version = platform.python_version()  # Complete Guess
@@ -110,7 +111,7 @@ def info():
     }
 
 
-def main():
+def main() -> None:
     """Pretty-print the bug information as JSON."""
     print(json.dumps(info(), sort_keys=True, indent=2))
 
