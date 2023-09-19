@@ -31,7 +31,7 @@ from urllib3.util import Timeout as TimeoutSauce
 from urllib3.util import parse_url
 from urllib3.util.retry import Retry
 
-from ._typing import ProxyType, TLSClientCertType, TLSVerifyType
+from ._typing import CacheLayerAltSvcType, ProxyType, TLSClientCertType, TLSVerifyType
 from .auth import _basic_auth_str
 from .cookies import extract_cookies_to_jar
 from .exceptions import (
@@ -150,8 +150,7 @@ class HTTPAdapter(BaseAdapter):
         pool_maxsize: int = DEFAULT_POOLSIZE,
         max_retries: int = DEFAULT_RETRIES,
         pool_block: bool = DEFAULT_POOLBLOCK,
-        quic_cache_layer: typing.MutableMapping[tuple[str, int], tuple[str, int] | None]
-        | None = None,
+        quic_cache_layer: CacheLayerAltSvcType | None = None,
     ):
         if max_retries == DEFAULT_RETRIES:
             self.max_retries = Retry(0, read=False)
@@ -198,8 +197,7 @@ class HTTPAdapter(BaseAdapter):
         connections: int,
         maxsize: int,
         block: bool = DEFAULT_POOLBLOCK,
-        quic_cache_layer: typing.MutableMapping[tuple[str, int], tuple[str, int] | None]
-        | None = None,
+        quic_cache_layer: CacheLayerAltSvcType | None = None,
         **pool_kwargs: typing.Any,
     ) -> None:
         """Initializes a urllib3 PoolManager.
