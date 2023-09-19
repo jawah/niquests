@@ -32,6 +32,10 @@ Release History
 - Passing invalid `files` description no longer _just skip_ invalid entries, it raises `ValueError` from now on.
 - Non-str HTTP-Verb are refused.
 - Passing `files` with minimal description (meaning no tuple but _just_ the fp) no longer guess its name when `fp.name` return bytes.
+- No longer will the default timeout be unset, thus making you waiting indefinitely.
+  Functions `get`, `head`, and `options` ships with a default of 30 seconds.
+  Then `put`, `post`, `patch` and `delete` uses a default of 120 seconds.
+  Finally, the `request` function also have 120 seconds.
 
 **Added**
 - Static type annotations thorough the whole package.
