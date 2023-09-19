@@ -2,13 +2,13 @@
 # |(  |-  |.| | | |-  `-.  |  `-.
 # ' ' `-' `-`.`-' `-' `-'  '  `-'
 
-__title__ = "niquests"
-__description__ = "Python HTTP for Humans."
-__url__ = "https://niquests.readthedocs.io"
-__version__ = "3.0.0a0"
-__build__ = 0x030000
-__author__ = "Kenneth Reitz"
-__author_email__ = "me@kennethreitz.org"
-__license__ = "Apache-2.0"
-__copyright__ = "Copyright Kenneth Reitz"
-__cake__ = "\u2728 \U0001f370 \u2728"
+__title__: str = "niquests"
+__description__: str = "Python HTTP for Humans."
+__url__: str = "https://niquests.readthedocs.io"
+__version__: str = "3.0.0a0"
+__build__: int = 0x030000
+__author__: str = "Kenneth Reitz"
+__author_email__: str = "me@kennethreitz.org"
+__license__: str = "Apache-2.0"
+__copyright__: str = "Copyright Kenneth Reitz"
+__cake__: str = "\u2728 \U0001f370 \u2728"

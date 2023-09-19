@@ -43,7 +43,7 @@ from niquests.exceptions import SSLError as RequestsSSLError
 from niquests.exceptions import Timeout, TooManyRedirects, UnrewindableBodyError
 from niquests.hooks import default_hooks
 from niquests.models import PreparedRequest, urlencode
-from niquests.sessions import SessionRedirectMixin
+from niquests.sessions import Session
 from niquests.structures import CaseInsensitiveDict
 
 from . import SNIMissingWarning
@@ -370,7 +370,7 @@ class TestRequests:
 
     def test_cookie_sent_on_redirect(self, httpbin):
         s = niquests.session()
-        s.get(httpbin("cookies/set?foo=bar"))
+        r = s.get(httpbin("cookies/set?foo=bar"))
         r = s.get(httpbin("redirect/1"))  # redirects to httpbin('get')
         assert "Cookie" in r.json()["headers"]
 
@@ -783,9 +783,8 @@ class TestRequests:
 
     def test_invalid_files_input(self, httpbin):
         url = httpbin("post")
-        post = niquests.post(url, files={"random-file-1": None, "random-file-2": 1})
-        assert b'name="random-file-1"' not in post.request.body
-        assert b'name="random-file-2"' in post.request.body
+        with pytest.raises(ValueError):
+            niquests.post(url, files={"random-file-1": None, "random-file-2": 1})
 
     def test_POSTBIN_SEEKED_OBJECT_WITH_NO_ITER(self, httpbin):
         class TestStream:
@@ -2476,16 +2475,11 @@ class TestTimeout:
         except ConnectTimeout:
             pass
 
-    def test_encoded_methods(self, httpbin):
-        """See: https://github.com/psf/requests/issues/2316"""
-        r = niquests.request(b"GET", httpbin("get"))
-        assert r.ok
-
 
 SendCall = collections.namedtuple("SendCall", ("args", "kwargs"))
 
 
-class RedirectSession(SessionRedirectMixin):
+class RedirectSession(Session):
     def __init__(self, order_of_redirects):
         self.redirects = order_of_redirects
         self.calls = []

@@ -1,7 +1,7 @@
 Release History
 ===============
 
-3.0.0 (2023-??-??)
+3.0.0a0 (2023-??-??)
 -------------------
 
 **Removed**
@@ -16,6 +16,11 @@ Release History
 - BasicAuth middleware no-longer support anything else than `bytes` or `str` for username and password.
 - `requests.compat` is stripped of every reference that no longer vary between supported interpreter version.
 - Charset fall back **ISO-8859-1** when content-type is text and no charset was specified.
+- Main function `get`, `post`, `put`, `patch`, `delete`, and `head` no longer accept **kwargs**. They have a fixed list of typed argument.
+  It is no longer possible to specify non-supported additional keyword argument from a `Session` instance or directly through `requests.api` functions.
+  e.g. function `delete` no-longer accept `json`, or `files` arguments. as per RFCs specifications. You can still override this behavior through the `request` function.
+- Mixin classes `RequestEncodingMixin`, and `RequestHooksMixin` due to OOP violations. Now deported directly into child classes.
+- Function `unicode_is_ascii` as it is part of the stable `str` stdlib on Python 3 or greater.
 
 **Changed**
 - Calling the method `json` from `Response` when no encoding was provided no longer relies on internal encoding inference.
@@ -24,6 +29,12 @@ Release History
 - If specified charset in content-type does not exist (LookupError) the `text` method from `Response` will rely on charset detection.
 - If specified charset in content-type is not made for text decoding (e.g. base64), the `text` method from `Response` returns None.
 - With above four changes, the `json` method will raise `RequestsJSONDecodeError` when the payload (body) cannot be decoded.
+- Passing invalid `files` description no longer _just skip_ invalid entries, it raises `ValueError` from now on.
+- Non-str HTTP-Verb are refused.
+- Passing `files` with minimal description (meaning no tuple but _just_ the fp) no longer guess its name when `fp.name` return bytes.
+
+**Added**
+- Static type annotations thorough the whole package.
 
 2.32.1 (2023-09-12)
 -------------------

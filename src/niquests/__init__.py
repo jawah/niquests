@@ -46,7 +46,7 @@ from charset_normalizer import __version__ as charset_normalizer_version
 from .exceptions import RequestsDependencyWarning
 
 
-def check_compatibility(urllib3_version, charset_normalizer_version):
+def check_compatibility(urllib3_version, charset_normalizer_version) -> None:
     urllib3_version = urllib3_version.split(".")
     assert urllib3_version != ["dev"]  # Verify urllib3 isn't installed from git.
 
@@ -69,7 +69,7 @@ def check_compatibility(urllib3_version, charset_normalizer_version):
     assert (2, 0, 0) <= (major, minor, patch) < (4, 0, 0)
 
 
-def _check_cryptography(cryptography_version):
+def _check_cryptography(cryptography_version) -> None:
     # cryptography < 1.3.4
     try:
         cryptography_version = list(map(int, cryptography_version.split(".")))
@@ -100,7 +100,7 @@ try:
     try:
         import ssl
     except ImportError:
-        ssl = None
+        ssl = None  # type: ignore[assignment]
 
     if not getattr(ssl, "HAS_SNI", False):
         from urllib3.contrib import pyopenssl
@@ -157,3 +157,43 @@ logging.getLogger(__name__).addHandler(NullHandler())
 
 # FileModeWarnings go off per the default.
 warnings.simplefilter("default", FileModeWarning, append=True)
+
+
+__all__ = (
+    "RequestsDependencyWarning",
+    "utils",
+    "__author__",
+    "__author_email__",
+    "__build__",
+    "__cake__",
+    "__copyright__",
+    "__description__",
+    "__license__",
+    "__title__",
+    "__url__",
+    "__version__",
+    "delete",
+    "get",
+    "head",
+    "options",
+    "patch",
+    "post",
+    "put",
+    "request",
+    "ConnectionError",
+    "ConnectTimeout",
+    "FileModeWarning",
+    "HTTPError",
+    "JSONDecodeError",
+    "ReadTimeout",
+    "RequestException",
+    "Timeout",
+    "TooManyRedirects",
+    "URLRequired",
+    "PreparedRequest",
+    "Request",
+    "Response",
+    "Session",
+    "session",
+    "codes",
+)

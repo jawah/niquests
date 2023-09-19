@@ -4,6 +4,8 @@ requests.models
 
 This module contains the primary objects that power Requests.
 """
+from __future__ import annotations
+
 import codecs
 import datetime
 
@@ -11,12 +13,15 @@ import datetime
 # Implicit import within threads may cause LookupError when standard library is in a ZIP,
 # such as in Embedded Python. See https://github.com/psf/requests/issues/3578.
 import encodings.idna  # noqa: F401
-from collections.abc import Callable, Mapping
+import typing
+from collections.abc import Mapping
 from http import cookiejar as cookielib
+from http.cookiejar import CookieJar
 from io import UnsupportedOperation
 from urllib.parse import urlencode, urlsplit, urlunparse
 
 from charset_normalizer import from_bytes
+from urllib3 import BaseHTTPResponse
 from urllib3.exceptions import (
     DecodeError,
     LocationParseError,
@@ -28,11 +33,28 @@ from urllib3.fields import RequestField
 from urllib3.filepost import encode_multipart_formdata
 from urllib3.util import parse_url
 
-from ._internal_utils import to_native_string, unicode_is_ascii
+from ._internal_utils import to_native_string
+from ._typing import (
+    BodyFormType,
+    BodyType,
+    CookiesType,
+    HeadersType,
+    HookCallableType,
+    HttpAuthenticationType,
+    HttpMethodType,
+    MultiPartFilesAltType,
+    MultiPartFilesType,
+    QueryParameterType,
+)
 from .auth import HTTPBasicAuth
 from .compat import JSONDecodeError
 from .compat import json as complexjson
-from .cookies import _copy_cookie_jar, cookiejar_from_dict, get_cookie_header
+from .cookies import (
+    RequestsCookieJar,
+    _copy_cookie_jar,
+    cookiejar_from_dict,
+    get_cookie_header,
+)
 from .exceptions import (
     ChunkedEncodingError,
     ConnectionError,
@@ -63,11 +85,16 @@ from .utils import (
 #: The set of HTTP status codes that indicate an automatically
 #: processable redirect.
 REDIRECT_STATI = (
-    codes.moved,  # 301
-    codes.found,  # 302
-    codes.other,  # 303
-    codes.temporary_redirect,  # 307
-    codes.permanent_redirect,  # 308
+    #  301
+    codes.moved,  # type: ignore[attr-defined]
+    # 302
+    codes.found,  # type: ignore[attr-defined]
+    # 303
+    codes.other,  # type: ignore[attr-defined]
+    # 307
+    codes.temporary_redirect,  # type: ignore[attr-defined]
+    # 308
+    codes.permanent_redirect,  # type: ignore[attr-defined]
 )
 
 DEFAULT_REDIRECT_LIMIT = 30
@@ -75,153 +102,7 @@ CONTENT_CHUNK_SIZE = 10 * 1024
 ITER_CHUNK_SIZE = 512
 
 
-class RequestEncodingMixin:
-    @property
-    def path_url(self):
-        """Build the path URL to use."""
-
-        url = []
-
-        p = urlsplit(self.url)
-
-        path = p.path
-        if not path:
-            path = "/"
-
-        url.append(path)
-
-        query = p.query
-        if query:
-            url.append("?")
-            url.append(query)
-
-        return "".join(url)
-
-    @staticmethod
-    def _encode_params(data):
-        """Encode parameters in a piece of data.
-
-        Will successfully encode parameters when passed as a dict or a list of
-        2-tuples. Order is retained if data is a list of 2-tuples but arbitrary
-        if parameters are supplied as a dict.
-        """
-
-        if isinstance(data, (str, bytes)):
-            return data
-        elif hasattr(data, "read"):
-            return data
-        elif hasattr(data, "__iter__"):
-            result = []
-            for k, vs in to_key_val_list(data):
-                if isinstance(vs, str) or not hasattr(vs, "__iter__"):
-                    vs = [vs]
-                for v in vs:
-                    if v is not None:
-                        result.append(
-                            (
-                                k.encode("utf-8") if isinstance(k, str) else k,
-                                v.encode("utf-8") if isinstance(v, str) else v,
-                            )
-                        )
-            return urlencode(result, doseq=True)
-        else:
-            return data
-
-    @staticmethod
-    def _encode_files(files, data):
-        """Build the body for a multipart/form-data request.
-
-        Will successfully encode files when passed as a dict or a list of
-        tuples. Order is retained if data is a list of tuples but arbitrary
-        if parameters are supplied as a dict.
-        The tuples may be 2-tuples (filename, fileobj), 3-tuples (filename, fileobj, contentype)
-        or 4-tuples (filename, fileobj, contentype, custom_headers).
-        """
-        if not files:
-            raise ValueError("Files must be provided.")
-        elif isinstance(data, str):
-            raise ValueError("Data must not be a string.")
-
-        new_fields = []
-        fields = to_key_val_list(data or {})
-        files = to_key_val_list(files or {})
-
-        for field, val in fields:
-            if isinstance(val, str) or not hasattr(val, "__iter__"):
-                val = [val]
-            for v in val:
-                if v is not None:
-                    # Don't call str() on bytestrings: in Py3 it all goes wrong.
-                    if not isinstance(v, bytes):
-                        v = str(v)
-
-                    new_fields.append(
-                        (
-                            field.decode("utf-8")
-                            if isinstance(field, bytes)
-                            else field,
-                            v.encode("utf-8") if isinstance(v, str) else v,
-                        )
-                    )
-
-        for k, v in files:
-            # support for explicit filename
-            ft = None
-            fh = None
-            if isinstance(v, (tuple, list)):
-                if len(v) == 2:
-                    fn, fp = v
-                elif len(v) == 3:
-                    fn, fp, ft = v
-                else:
-                    fn, fp, ft, fh = v
-            else:
-                fn = guess_filename(v) or k
-                fp = v
-
-            if isinstance(fp, (str, bytes, bytearray)):
-                fdata = fp
-            elif hasattr(fp, "read"):
-                fdata = fp.read()
-            elif fp is None:
-                continue
-            else:
-                fdata = fp
-
-            rf = RequestField(name=k, data=fdata, filename=fn, headers=fh)
-            rf.make_multipart(content_type=ft)
-            new_fields.append(rf)
-
-        body, content_type = encode_multipart_formdata(new_fields)
-
-        return body, content_type
-
-
-class RequestHooksMixin:
-    def register_hook(self, event, hook):
-        """Properly register a hook."""
-
-        if event not in self.hooks:
-            raise ValueError(f'Unsupported event specified, with event name "{event}"')
-
-        if isinstance(hook, Callable):
-            self.hooks[event].append(hook)
-        elif hasattr(hook, "__iter__"):
-            self.hooks[event].extend(h for h in hook if isinstance(h, Callable))
-
-    def deregister_hook(self, event, hook):
-        """Deregister a previously registered hook.
-        Returns True if the hook existed, False if not.
-        """
-
-        try:
-            self.hooks[event].remove(hook)
-            return True
-        except ValueError:
-            return False
-
-
-class Request(RequestHooksMixin):
+class Request:
     """A user-created :class:`Request <Request>` object.
 
     Used to prepare a :class:`PreparedRequest <PreparedRequest>`, which is sent to the server.
@@ -251,16 +132,16 @@ class Request(RequestHooksMixin):
 
     def __init__(
         self,
-        method=None,
-        url=None,
-        headers=None,
-        files=None,
-        data=None,
-        params=None,
-        auth=None,
-        cookies=None,
+        method: HttpMethodType | None = None,
+        url: str | None = None,
+        headers: HeadersType | None = None,
+        files: MultiPartFilesType | MultiPartFilesAltType | None = None,
+        data: BodyType | None = None,
+        params: QueryParameterType | None = None,
+        auth: HttpAuthenticationType | None = None,
+        cookies: CookiesType | None = None,
         hooks=None,
-        json=None,
+        json: typing.Any | None = None,
     ):
         # Default empty dicts for dict params.
         data = [] if data is None else data
@@ -283,10 +164,34 @@ class Request(RequestHooksMixin):
         self.auth = auth
         self.cookies = cookies
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"<Request [{self.method}]>"
 
-    def prepare(self):
+    def register_hook(
+        self, event: str, hook: HookCallableType | list[HookCallableType]
+    ) -> None:
+        """Properly register a hook."""
+
+        if event not in self.hooks:
+            raise ValueError(f'Unsupported event specified, with event name "{event}"')
+
+        if callable(hook):
+            self.hooks[event].append(hook)
+        elif isinstance(hook, list):
+            self.hooks[event].extend(h for h in hook if callable(h))
+
+    def deregister_hook(self, event: str, hook: HookCallableType) -> bool:
+        """Deregister a previously registered hook.
+        Returns True if the hook existed, False if not.
+        """
+
+        try:
+            self.hooks[event].remove(hook)
+            return True
+        except ValueError:
+            return False
+
+    def prepare(self) -> PreparedRequest:
         """Constructs a :class:`PreparedRequest <PreparedRequest>` for transmission and returns it."""
         p = PreparedRequest()
         p.prepare(
@@ -304,7 +209,7 @@ class Request(RequestHooksMixin):
         return p
 
 
-class PreparedRequest(RequestEncodingMixin, RequestHooksMixin):
+class PreparedRequest:
     """The fully mutable :class:`PreparedRequest <PreparedRequest>` object,
     containing the exact bytes that will be sent to the server.
 
@@ -325,36 +230,36 @@ class PreparedRequest(RequestEncodingMixin, RequestHooksMixin):
       <Response HTTP/2 [200]>
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         #: HTTP verb to send to the server.
-        self.method = None
+        self.method: HttpMethodType | None = None
         #: HTTP URL to send the request to.
-        self.url = None
+        self.url: str | None = None
         #: dictionary of HTTP headers.
-        self.headers = None
+        self.headers: CaseInsensitiveDict | None = None
         # The `CookieJar` used to create the Cookie header will be stored here
         # after prepare_cookies is called
-        self._cookies = None
+        self._cookies: RequestsCookieJar | CookieJar | None = None
         #: request body to send to the server.
-        self.body = None
+        self.body: BodyType | None = None
         #: dictionary of callback hooks, for internal usage.
         self.hooks = default_hooks()
         #: integer denoting starting position of a readable file-like body.
-        self._body_position = None
+        self._body_position: int | object | None = None
 
     def prepare(
         self,
-        method=None,
-        url=None,
-        headers=None,
-        files=None,
-        data=None,
-        params=None,
-        auth=None,
-        cookies=None,
+        method: HttpMethodType | None = None,
+        url: str | None = None,
+        headers: HeadersType | None = None,
+        files: MultiPartFilesType | MultiPartFilesAltType | None = None,
+        data: BodyType | None = None,
+        params: QueryParameterType | None = None,
+        auth: HttpAuthenticationType | None = None,
+        cookies: CookiesType | None = None,
         hooks=None,
-        json=None,
-    ):
+        json: typing.Any | None = None,
+    ) -> None:
         """Prepares the entire request with the given parameters."""
 
         self.prepare_method(method)
@@ -362,7 +267,7 @@ class PreparedRequest(RequestEncodingMixin, RequestHooksMixin):
         self.prepare_headers(headers)
         self.prepare_cookies(cookies)
         self.prepare_body(data, files, json)
-        self.prepare_auth(auth, url)
+        self.prepare_auth(auth)
 
         # Note that prepare_auth must be last to enable authentication schemes
         # such as OAuth to work on a fully prepared request.
@@ -370,10 +275,10 @@ class PreparedRequest(RequestEncodingMixin, RequestHooksMixin):
         # This MUST go after prepare_auth. Authenticators could add a hook
         self.prepare_hooks(hooks)
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"<PreparedRequest [{self.method}]>"
 
-    def copy(self):
+    def copy(self) -> PreparedRequest:
         p = PreparedRequest()
         p.method = self.method
         p.url = self.url
@@ -384,14 +289,12 @@ class PreparedRequest(RequestEncodingMixin, RequestHooksMixin):
         p._body_position = self._body_position
         return p
 
-    def prepare_method(self, method):
+    def prepare_method(self, method: HttpMethodType | None) -> None:
         """Prepares the given HTTP method."""
         self.method = method
-        if self.method is not None:
-            self.method = to_native_string(self.method.upper())
 
     @staticmethod
-    def _get_idna_encoded_host(host):
+    def _get_idna_encoded_host(host: str) -> str:
         import idna
 
         try:
@@ -400,8 +303,10 @@ class PreparedRequest(RequestEncodingMixin, RequestHooksMixin):
             raise UnicodeError
         return host
 
-    def prepare_url(self, url, params):
+    def prepare_url(self, url: str | None, params: QueryParameterType | None) -> None:
         """Prepares the given HTTP URL."""
+        assert url is not None, "Missing URL in PreparedRequest"
+
         #: Accept objects that have string representations.
         #: We're unable to blindly call unicode/str functions
         #: as this will include the bytestring indicator (b'')
@@ -441,7 +346,7 @@ class PreparedRequest(RequestEncodingMixin, RequestHooksMixin):
         # non-ASCII characters. This allows users to automatically get the correct IDNA
         # behaviour. For strings containing only ASCII characters, we need to also verify
         # it doesn't start with a wildcard (*), before allowing the unencoded hostname.
-        if not unicode_is_ascii(host):
+        if not host.isascii():
             try:
                 host = self._get_idna_encoded_host(host)
             except UnicodeError:
@@ -461,39 +366,53 @@ class PreparedRequest(RequestEncodingMixin, RequestHooksMixin):
         if not path:
             path = "/"
 
-        if isinstance(params, (str, bytes)):
-            params = to_native_string(params)
+        if params:
+            if isinstance(params, (str, bytes)):
+                params = to_native_string(params)
 
-        enc_params = self._encode_params(params)
-        if enc_params:
-            if query:
-                query = f"{query}&{enc_params}"
-            else:
-                query = enc_params
+            enc_params = self._encode_params(params)
+            if enc_params:
+                if isinstance(enc_params, (bytes, bytearray)):
+                    enc_params = enc_params.decode("utf-8")
+                if query:
+                    query = f"{query}&{enc_params}"
+                else:
+                    query = enc_params
 
         url = requote_uri(urlunparse([scheme, netloc, path, None, query, fragment]))
         self.url = url
 
-    def prepare_headers(self, headers):
+    def prepare_headers(self, headers: HeadersType | None) -> None:
         """Prepares the given HTTP headers."""
 
         self.headers = CaseInsensitiveDict()
-        if headers:
-            for header in headers.items():
-                # Raise exception on invalid header value.
-                check_header_validity(header)
-                name, value = header
-                self.headers[to_native_string(name)] = value
 
-    def prepare_body(self, data, files, json=None):
+        if headers:
+            if isinstance(headers, list):
+                self.headers.update(CaseInsensitiveDict(headers))
+            else:
+                for header in headers.items():
+                    # Raise exception on invalid header value.
+                    check_header_validity(header)
+                    name, value = header
+                    self.headers[to_native_string(name)] = value
+
+    def prepare_body(
+        self,
+        data: BodyType | None,
+        files: MultiPartFilesType | MultiPartFilesAltType | None,
+        json: typing.Any | None = None,
+    ) -> None:
         """Prepares the given HTTP body data."""
 
         # Check if file, fo, generator, iterator.
         # If not, run through normal process.
 
+        assert self.headers is not None
+
         # Nottin' on you.
-        body = None
-        content_type = None
+        body: BodyType | None = None
+        content_type: str | None = None
 
         if not data and json is not None:
             # urllib3 requires a bytes-like body. Python 2's json.dumps
@@ -505,7 +424,7 @@ class PreparedRequest(RequestEncodingMixin, RequestHooksMixin):
             except ValueError as ve:
                 raise InvalidJSONError(ve, request=self)
 
-            if not isinstance(body, bytes):
+            if isinstance(body, str):
                 body = body.encode("utf-8")
 
         is_stream = all(
@@ -523,7 +442,7 @@ class PreparedRequest(RequestEncodingMixin, RequestHooksMixin):
 
             body = data
 
-            if getattr(body, "tell", None) is not None:
+            if body is not None and hasattr(body, "tell"):
                 # Record the current file position before reading.
                 # This will allow us to rewind a file in the event
                 # of a redirect.
@@ -546,7 +465,21 @@ class PreparedRequest(RequestEncodingMixin, RequestHooksMixin):
         else:
             # Multi-part file uploads.
             if files:
-                (body, content_type) = self._encode_files(files, data)
+                if not (
+                    isinstance(
+                        data,
+                        (
+                            list,
+                            dict,
+                        ),
+                    )
+                    or data is None
+                ):
+                    raise ValueError(
+                        f"Conflicting parameters. Cannot pass files with given data: type({type(data)})"
+                    )
+                # mypy seems to lose its way here.
+                (body, content_type) = self._encode_files(files, data)  # type: ignore[arg-type]
             else:
                 if data:
                     body = self._encode_params(data)
@@ -555,6 +488,7 @@ class PreparedRequest(RequestEncodingMixin, RequestHooksMixin):
                     else:
                         content_type = "application/x-www-form-urlencoded"
 
+            assert isinstance(body, (list, dict)) is False
             self.prepare_content_length(body)
 
             # Add content-type if it wasn't explicitly provided.
@@ -563,8 +497,10 @@ class PreparedRequest(RequestEncodingMixin, RequestHooksMixin):
 
         self.body = body
 
-    def prepare_content_length(self, body):
+    def prepare_content_length(self, body: BodyType | None) -> None:
         """Prepare Content-Length header based on request method and body"""
+        assert self.headers is not None
+
         if body is not None:
             length = super_len(body)
             if length:
@@ -579,8 +515,12 @@ class PreparedRequest(RequestEncodingMixin, RequestHooksMixin):
             # but don't provide one. (i.e. not GET or HEAD)
             self.headers["Content-Length"] = "0"
 
-    def prepare_auth(self, auth, url=""):
+    def prepare_auth(self, auth: HttpAuthenticationType | None, url: str = "") -> None:
         """Prepares the given HTTP auth data."""
+
+        assert (
+            self.url is not None
+        ), "Cannot invoke prepare_auth method with incomplete PreparedRequest"
 
         # If no Auth is explicitly provided, extract it from the URL first.
         if auth is None:
@@ -592,6 +532,11 @@ class PreparedRequest(RequestEncodingMixin, RequestHooksMixin):
                 # special-case basic HTTP auth
                 auth = HTTPBasicAuth(*auth)
 
+            if not callable(auth):
+                raise ValueError(
+                    "Unexpected non-callable authentication. Did you pass unsupported tuple to auth argument?"
+                )
+
             # Allow auth to make its changes.
             r = auth(self)
 
@@ -601,7 +546,7 @@ class PreparedRequest(RequestEncodingMixin, RequestHooksMixin):
             # Recompute Content-Length
             self.prepare_content_length(self.body)
 
-    def prepare_cookies(self, cookies):
+    def prepare_cookies(self, cookies: CookiesType | None) -> None:
         """Prepares the given HTTP cookie data.
 
         This function eventually generates a ``Cookie`` header from the
@@ -612,6 +557,10 @@ class PreparedRequest(RequestEncodingMixin, RequestHooksMixin):
         to ``prepare_cookies`` will have no actual effect, unless the "Cookie"
         header is removed beforehand.
         """
+        assert (
+            self.headers is not None
+        ), "method prepare_cookies must be invoked after prepare_headers"
+
         if isinstance(cookies, cookielib.CookieJar):
             self._cookies = cookies
         else:
@@ -621,7 +570,7 @@ class PreparedRequest(RequestEncodingMixin, RequestHooksMixin):
         if cookie_header is not None:
             self.headers["Cookie"] = cookie_header
 
-    def prepare_hooks(self, hooks):
+    def prepare_hooks(self, hooks) -> None:
         """Prepares the given hooks."""
         # hooks can be passed as None to the prepare method and to this
         # method. To prevent iterating over None, simply use an empty list
@@ -629,6 +578,198 @@ class PreparedRequest(RequestEncodingMixin, RequestHooksMixin):
         hooks = hooks or []
         for event in hooks:
             self.register_hook(event, hooks[event])
+
+    def register_hook(self, event, hook) -> None:
+        """Properly register a hook."""
+
+        if event not in self.hooks:
+            raise ValueError(f'Unsupported event specified, with event name "{event}"')
+
+        if callable(hook):
+            self.hooks[event].append(hook)
+        elif hasattr(hook, "__iter__"):
+            self.hooks[event].extend(h for h in hook if callable(h))
+
+    def deregister_hook(self, event: str, hook) -> bool:
+        """Deregister a previously registered hook.
+        Returns True if the hook existed, False if not.
+        """
+
+        try:
+            self.hooks[event].remove(hook)
+            return True
+        except ValueError:
+            return False
+
+    @property
+    def path_url(self) -> str:
+        """Build the path URL to use."""
+        assert self.url is not None
+        url = []
+
+        p = urlsplit(self.url)
+
+        path = p.path
+        if not path:
+            path = "/"
+
+        url.append(path)
+
+        query = p.query
+        if query:
+            url.append("?")
+            url.append(query)
+
+        return "".join(url)
+
+    @staticmethod
+    def _encode_params(
+        data: QueryParameterType | BodyFormType | typing.IO,
+    ) -> str | bytes | bytearray:
+        """Encode parameters in a piece of data.
+
+        Will successfully encode parameters when passed as a dict or a list of
+        2-tuples. Order is retained if data is a list of 2-tuples but arbitrary
+        if parameters are supplied as a dict.
+        """
+
+        if isinstance(data, (str, bytes, bytearray)):
+            return data
+        elif hasattr(data, "read"):
+            return data.read()
+        elif hasattr(data, "__iter__"):
+            result = []
+            for k, vs in to_key_val_list(data):
+                iterable_vs: list[str | bytes]
+                if isinstance(vs, str) or not hasattr(vs, "__iter__"):
+                    iterable_vs = [vs]
+                else:
+                    iterable_vs = vs
+                for v in iterable_vs:
+                    if v is not None:
+                        result.append(
+                            (
+                                k.encode("utf-8") if isinstance(k, str) else k,
+                                v.encode("utf-8") if isinstance(v, str) else v,
+                            )
+                        )
+            return urlencode(result, doseq=True)
+        else:
+            raise ValueError(
+                f"Function _encode_params got an unexpected type argument '{type(data)}'"
+            )
+
+    @staticmethod
+    def _encode_files(
+        files: MultiPartFilesType | MultiPartFilesAltType,
+        data: dict[str | bytes, str | bytes]
+        | list[tuple[str | bytes, str | bytes]]
+        | None,
+    ) -> tuple[bytes, str]:
+        """Build the body for a multipart/form-data request.
+
+        Will successfully encode files when passed as a dict or a list of
+        tuples. Order is retained if data is a list of tuples but arbitrary
+        if parameters are supplied as a dict.
+        The tuples may be 2-tuples (filename, fileobj), 3-tuples (filename, fileobj, contentype)
+        or 4-tuples (filename, fileobj, contentype, custom_headers).
+        """
+        if not files:
+            raise ValueError("Files must be provided.")
+        elif isinstance(data, str):
+            raise ValueError("Data must not be a string.")
+
+        new_fields: list[tuple[str, bytes] | RequestField] = []
+        fields: list[tuple[str | bytes, str | bytes]] = to_key_val_list(data or {})
+        no_dict_files: MultiPartFilesType = to_key_val_list(files or {})
+
+        for field, val in fields:
+            iterable_val: list[str | bytes]
+            if isinstance(
+                val,
+                (
+                    str,
+                    bytes,
+                ),
+            ) or not hasattr(val, "__iter__"):
+                iterable_val = [val]
+            else:
+                iterable_val = val
+            for v in iterable_val:
+                if v is not None:
+                    # Don't call str() on bytestrings: in Py3 it all goes wrong.
+                    if not isinstance(v, bytes):
+                        v = str(v)
+
+                    new_fields.append(
+                        (
+                            field.decode("utf-8")
+                            if isinstance(field, bytes)
+                            else field,
+                            v.encode("utf-8") if isinstance(v, str) else v,
+                        )
+                    )
+
+        for fkey, fdescriptor in no_dict_files:
+            # support for explicit filename
+            fn: str
+            ft: str | None = None
+            fh: HeadersType | None = None
+
+            if isinstance(fdescriptor, tuple):
+                # mypy and tuple length cmp not supported
+                # https://github.com/python/mypy/issues/1178
+                if len(fdescriptor) == 2:
+                    fn, fp = fdescriptor  # type: ignore[misc]
+                elif len(fdescriptor) == 3:
+                    fn, fp, ft = fdescriptor  # type: ignore[misc]
+                else:
+                    fn, fp, ft, fh = fdescriptor  # type: ignore[misc]
+            else:
+                if isinstance(fdescriptor, (str, bytes, bytearray)):
+                    fn = fkey
+                else:
+                    fn = guess_filename(fdescriptor) or fkey
+
+                fp = fdescriptor
+
+            if isinstance(fp, (str, bytes, bytearray)):
+                fdata = fp
+            elif hasattr(fp, "read"):
+                fdata = fp.read()
+            elif fp is None:
+                continue
+            else:
+                raise ValueError(
+                    f"Unexpected fp type given for multipart form data preparation: '{type(fp)}'"
+                )
+
+            fh_converted: typing.MutableMapping[str, str] | None
+
+            try:
+                if fh:
+                    fh_converted = dict()
+
+                    for fh_key, fh_val in to_key_val_list(fh):
+                        if isinstance(fh_key, bytes):
+                            fh_key = fh_key.decode("ascii")
+                        if isinstance(fh_val, bytes):
+                            fh_val = fh_val.decode("latin-1")
+                        fh_converted[fh_key] = fh_val
+                else:
+                    fh_converted = None
+            except UnicodeDecodeError as e:
+                raise ValueError(
+                    "Tried to prepare a form data but failed due to non-decodable headers"
+                ) from e
+
+            rf = RequestField(name=fkey, data=fdata, filename=fn, headers=fh_converted)
+            rf.make_multipart(content_type=ft)
+            new_fields.append(rf)
+
+        body, content_type = encode_multipart_formdata(new_fields)
+
+        return body, content_type
 
 
 class Response:
@@ -649,40 +790,40 @@ class Response:
         "request",
     ]
 
-    def __init__(self):
-        self._content = False
-        self._content_consumed = False
-        self._next = None
+    def __init__(self) -> None:
+        self._content: typing.Literal[False] | bytes | None = False
+        self._content_consumed: bool = False
+        self._next: PreparedRequest | None = None
 
         #: Integer Code of responded HTTP Status, e.g. 404 or 200.
-        self.status_code = None
+        self.status_code: int | None = None
 
         #: Case-insensitive Dictionary of Response Headers.
         #: For example, ``headers['content-encoding']`` will return the
         #: value of a ``'Content-Encoding'`` response header.
-        self.headers = CaseInsensitiveDict()
+        self.headers: CaseInsensitiveDict = CaseInsensitiveDict()
 
         #: File-like object representation of response (for advanced usage).
         #: Use of ``raw`` requires that ``stream=True`` be set on the request.
         #: This requirement does not apply for use internally to Requests.
-        self.raw = None
+        self.raw: BaseHTTPResponse | None = None
 
         #: Final URL location of Response.
-        self.url = None
+        self.url: str | None = None
 
         #: Encoding to decode with when accessing r.text.
-        self.encoding = None
+        self.encoding: str | None = None
 
         #: A list of :class:`Response <Response>` objects from
         #: the history of the Request. Any redirect responses will end
         #: up here. The list is sorted from the oldest to the most recent request.
-        self.history = []
+        self.history: list[Response] = []
 
         #: Textual reason of responded HTTP Status, e.g. "Not Found" or "OK".
-        self.reason = None
+        self.reason: str | None = None
 
         #: A CookieJar of Cookies the server sent back.
-        self.cookies = cookiejar_from_dict({})
+        self.cookies: CookieJar = cookiejar_from_dict({})
 
         #: The amount of time elapsed between sending the request
         #: and the arrival of the response (as a timedelta).
@@ -690,11 +831,11 @@ class Response:
         #: the first byte of the request and finishing parsing the headers. It
         #: is therefore unaffected by consuming the response content or the
         #: value of the ``stream`` keyword argument.
-        self.elapsed = datetime.timedelta(0)
+        self.elapsed: datetime.timedelta = datetime.timedelta(0)
 
         #: The :class:`PreparedRequest <PreparedRequest>` object to which this
         #: is a response.
-        self.request = None
+        self.request: PreparedRequest | None = None
 
     def __enter__(self):
         return self
@@ -718,7 +859,10 @@ class Response:
         setattr(self, "_content_consumed", True)
         setattr(self, "raw", None)
 
-    def __repr__(self):
+    def __repr__(self) -> str:
+        if self.http_version is None:
+            return "<Response Non-Ready>"
+
         http_revision = self.http_version / 10
 
         # HTTP/2.0 is not preferred, cast it to HTTP/2 instead.
@@ -737,22 +881,12 @@ class Response:
         """
         return self.ok
 
-    def __nonzero__(self):
-        """Returns True if :attr:`status_code` is less than 400.
-
-        This attribute checks if the status code of the response is between
-        400 and 600 to see if there was a client error or a server error. If
-        the status code, is between 200 and 400, this will return True. This
-        is **not** a check to see if the response code is ``200 OK``.
-        """
-        return self.ok
-
     def __iter__(self):
         """Allows you to use a response as an iterator."""
         return self.iter_content(128)
 
     @property
-    def ok(self):
+    def ok(self) -> bool:
         """Returns True if :attr:`status_code` is less than 400, False if not.
 
         This attribute checks if the status code of the response is between
@@ -767,26 +901,26 @@ class Response:
         return True
 
     @property
-    def is_redirect(self):
+    def is_redirect(self) -> bool:
         """True if this Response is a well-formed HTTP redirect that could have
         been processed automatically (by :meth:`Session.resolve_redirects`).
         """
         return "location" in self.headers and self.status_code in REDIRECT_STATI
 
     @property
-    def is_permanent_redirect(self):
+    def is_permanent_redirect(self) -> bool:
         """True if this Response one of the permanent versions of redirect."""
         return "location" in self.headers and self.status_code in (
-            codes.moved_permanently,
-            codes.permanent_redirect,
+            codes.moved_permanently,  # type: ignore[attr-defined]
+            codes.permanent_redirect,  # type: ignore[attr-defined]
         )
 
     @property
-    def next(self):
+    def next(self) -> PreparedRequest | None:
         """Returns a PreparedRequest for the next request in a redirect chain, if there is one."""
         return self._next
 
-    def iter_content(self, chunk_size=1, decode_unicode=False):
+    def iter_content(self, chunk_size: int = 1, decode_unicode: bool = False):
         """Iterates over the response data.  When stream=True is set on the
         request, this avoids reading the content at once into memory for
         large responses.  The chunk size is the number of bytes it should
@@ -804,6 +938,7 @@ class Response:
         """
 
         def generate():
+            assert self.raw is not None
             # Special case for urllib3.
             if hasattr(self.raw, "stream"):
                 try:
@@ -833,7 +968,7 @@ class Response:
                 f"chunk_size must be an int, it is instead a {type(chunk_size)}."
             )
         # simulate reading small chunks of the content
-        reused_chunks = iter_slices(self._content, chunk_size)
+        reused_chunks = iter_slices(self._content or b"", chunk_size)
 
         stream_chunks = generate()
 
@@ -845,8 +980,11 @@ class Response:
         return chunks
 
     def iter_lines(
-        self, chunk_size=ITER_CHUNK_SIZE, decode_unicode=False, delimiter=None
-    ):
+        self,
+        chunk_size: int = ITER_CHUNK_SIZE,
+        decode_unicode: bool = False,
+        delimiter: str | bytes | None = None,
+    ) -> typing.Generator[bytes | str, None, None]:
         """Iterates over the response data, one line at a time.  When
         stream=True is set on the request, this avoids reading the
         content at once into memory for large responses.
@@ -878,7 +1016,7 @@ class Response:
             yield pending
 
     @property
-    def content(self):
+    def content(self) -> bytes | None:
         """Content of the response, in bytes."""
 
         if self._content is False:
@@ -897,7 +1035,7 @@ class Response:
         return self._content
 
     @property
-    def text(self):
+    def text(self) -> str | None:
         """Content of the response, in unicode.
 
         If Response.encoding is None, encoding will be guessed using
@@ -917,7 +1055,7 @@ class Response:
 
         if encoding is not None:
             try:
-                info = codecs.lookup(self.encoding)
+                info = codecs.lookup(encoding)
 
                 if (
                     hasattr(info, "_is_text_encoding")
@@ -929,15 +1067,15 @@ class Response:
 
         # Fallback to auto-detected encoding.
         if self.encoding is None:
-            guesses = from_bytes(self.content)
-            encoding = guesses.best().encoding if guesses else None
+            encoding_guess = from_bytes(self.content).best()
+            encoding = encoding_guess.encoding if encoding_guess else None
 
         if encoding is None:
             return None
 
         return str(self.content, encoding, errors="replace")
 
-    def json(self, **kwargs):
+    def json(self, **kwargs: typing.Any) -> typing.Any:
         r"""Returns the json-encoded content of a response, if any.
 
         :param \*\*kwargs: Optional arguments that ``json.loads`` takes.
@@ -955,7 +1093,7 @@ class Response:
             # UTF-8, -16 or -32. Detect which one to use; If the detection or
             # decoding fails, fall back to `self.text` (using charset_normalizer to make
             # a best guess).
-            guesses = from_bytes(
+            encoding_guess = from_bytes(
                 self.content,
                 cp_isolation=[
                     "ascii",
@@ -967,9 +1105,9 @@ class Response:
                     "utf-32-le",
                     "utf-32-be",
                 ],
-            )
+            ).best()
 
-            encoding = guesses.best().encoding if guesses else "utf-8"
+            encoding = encoding_guess.encoding if encoding_guess else "utf-8"
 
             if encoding is not None:
                 try:
@@ -1015,7 +1153,7 @@ class Response:
         return resolved_links
 
     @property
-    def http_version(self):
+    def http_version(self) -> int | None:
         """Shortcut to negotiated HTTP version protocol. See HttpVersion from urllib3.future.
         It returns an integer. It is as follows:
 
@@ -1024,10 +1162,13 @@ class Response:
         - 30 for HTTP/3
 
         :rtype: int"""
-        return self.raw.version
+        return self.raw.version if self.raw else None
 
-    def raise_for_status(self):
+    def raise_for_status(self) -> None:
         """Raises :class:`HTTPError`, if one occurred."""
+
+        if self.status_code is None:
+            return
 
         http_error_msg = ""
         if isinstance(self.reason, bytes):
@@ -1055,13 +1196,13 @@ class Response:
         if http_error_msg:
             raise HTTPError(http_error_msg, response=self)
 
-    def close(self):
+    def close(self) -> None:
         """Releases the connection back to the pool. Once this method has been
         called the underlying ``raw`` object must not be accessed again.
 
         *Note: Should not normally need to be called explicitly.*
         """
-        if not self._content_consumed:
+        if self._content_consumed is False and self.raw is not None:
             self.raw.close()
 
         release_conn = getattr(self.raw, "release_conn", None)
