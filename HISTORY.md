@@ -37,6 +37,7 @@ Release History
   Functions `get`, `head`, and `options` ships with a default of 30 seconds.
   Then `put`, `post`, `patch` and `delete` uses a default of 120 seconds.
   Finally, the `request` function also have 120 seconds.
+- Basic authorization username and password are now encoded using utf-8 instead of latin-1 prior to being base64 encoded.
 
 **Added**
 - Static type annotations thorough the whole package.
