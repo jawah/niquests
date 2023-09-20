@@ -283,27 +283,38 @@ class HTTPAdapter(BaseAdapter):
         :param cert: The SSL certificate to verify.
         """
         if url.lower().startswith("https") and verify:
-            cert_loc = None
+            cert_loc: str | None = None
+            cert_data: bytes | None = None
 
-            # Allow self-specified cert location.
-            if verify is not True:
-                cert_loc = verify
+            if isinstance(verify, str) and "-----BEGIN CERTIFICATE-----" in verify:
+                verify = verify.encode("utf-8")
 
-            if not cert_loc:
-                cert_loc = extract_zipped_paths(DEFAULT_CA_BUNDLE_PATH)
+            if isinstance(verify, bytes):
+                cert_data = verify
+            else:
+                # Allow self-specified cert location.
+                if verify is not True:
+                    cert_loc = verify
 
-            if not cert_loc or not os.path.exists(cert_loc):
-                raise OSError(
-                    f"Could not find a suitable TLS CA certificate bundle, "
-                    f"invalid path: {cert_loc}"
-                )
+                if not cert_loc:
+                    cert_loc = extract_zipped_paths(DEFAULT_CA_BUNDLE_PATH)
+
+                if not cert_loc or not os.path.exists(cert_loc):
+                    raise OSError(
+                        f"Could not find a suitable TLS CA certificate bundle, "
+                        f"invalid path: {cert_loc}"
+                    )
 
             conn.cert_reqs = "CERT_REQUIRED"
 
-            if not os.path.isdir(cert_loc):
-                conn.ca_certs = cert_loc
-            else:
-                conn.ca_cert_dir = cert_loc
+            if cert_data:
+                # todo: update HTTPSConnPool in urllib3.future and add it!
+                conn.ca_data = cert_data  # type: ignore[attr-defined]
+            elif cert_loc:
+                if not os.path.isdir(cert_loc):
+                    conn.ca_certs = cert_loc
+                else:
+                    conn.ca_cert_dir = cert_loc
         else:
             conn.cert_reqs = "CERT_NONE"
             conn.ca_certs = None
@@ -313,9 +324,11 @@ class HTTPAdapter(BaseAdapter):
             if not isinstance(cert, str):
                 conn.cert_file = cert[0]
                 conn.key_file = cert[1]
+                conn.key_password = cert[2] if len(cert) == 3 else None  # type: ignore[misc]
             else:
                 conn.cert_file = cert
                 conn.key_file = None
+                conn.key_password = None
             if conn.cert_file and not os.path.exists(conn.cert_file):
                 raise OSError(
                     f"Could not find the TLS certificate file, "
