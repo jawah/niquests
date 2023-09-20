@@ -41,6 +41,9 @@ Release History
 **Added**
 - Static type annotations thorough the whole package.
 
+**Fixed**
+- An invalid content-type definition would cause the charset being evaluated to `True`, thus making the program crash.
+
 2.32.1 (2023-09-12)
 -------------------
 
