@@ -40,8 +40,8 @@ is at <https://niquests.readthedocs.io>.
 
 import warnings
 
+import charset_normalizer
 import urllib3
-from charset_normalizer import __version__ as charset_normalizer_version
 
 from .exceptions import RequestsDependencyWarning
 
@@ -68,50 +68,15 @@ def check_compatibility(urllib3_version, charset_normalizer_version) -> None:
     assert (2, 0, 0) <= (major, minor, patch) < (4, 0, 0)
 
 
-def _check_cryptography(cryptography_version) -> None:
-    # cryptography < 1.3.4
-    try:
-        cryptography_version = list(map(int, cryptography_version.split(".")))
-    except ValueError:
-        return
-
-    if cryptography_version < [1, 3, 4]:
-        warning = "Old version of cryptography ({}) may cause slowdown.".format(
-            cryptography_version
-        )
-        warnings.warn(warning, RequestsDependencyWarning)
-
-
 # Check imported dependencies for compatibility.
 try:
-    check_compatibility(urllib3.__version__, charset_normalizer_version)
+    check_compatibility(urllib3.__version__, charset_normalizer.__version__)
 except (AssertionError, ValueError):
     warnings.warn(
         "urllib3 ({}) or charset_normalizer ({}) doesn't match a supported "
-        "version!".format(urllib3.__version__, charset_normalizer_version),
+        "version!".format(urllib3.__version__, charset_normalizer.__version__),
         RequestsDependencyWarning,
     )
-
-# Attempt to enable urllib3's fallback for SNI support
-# if the standard library doesn't support SNI or the
-# 'ssl' library isn't available.
-try:
-    try:
-        import ssl
-    except ImportError:
-        ssl = None  # type: ignore[assignment]
-
-    if not getattr(ssl, "HAS_SNI", False):
-        from urllib3.contrib import pyopenssl
-
-        pyopenssl.inject_into_urllib3()
-
-        # Check cryptography version
-        from cryptography import __version__ as cryptography_version
-
-        _check_cryptography(cryptography_version)
-except ImportError:
-    pass
 
 # urllib3's DependencyWarnings should be silenced.
 from urllib3.exceptions import DependencyWarning
