@@ -86,8 +86,8 @@ def request(
 
     Usage::
 
-      >>> import requests
-      >>> req = requests.request('GET', 'https://httpbin.org/get')
+      >>> import niquests
+      >>> req = niquests.request('GET', 'https://httpbin.org/get')
       >>> req
       <Response HTTP/2 [200]>
     """

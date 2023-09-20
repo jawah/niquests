@@ -124,8 +124,8 @@ class Request:
 
     Usage::
 
-      >>> import requests
-      >>> req = requests.Request('GET', 'https://httpbin.org/get')
+      >>> import niquests
+      >>> req = niquests.Request('GET', 'https://httpbin.org/get')
       >>> req.prepare()
       <PreparedRequest [GET]>
     """
@@ -219,13 +219,13 @@ class PreparedRequest:
 
     Usage::
 
-      >>> import requests
-      >>> req = requests.Request('GET', 'https://httpbin.org/get')
+      >>> import niquests
+      >>> req = niquests.Request('GET', 'https://httpbin.org/get')
       >>> r = req.prepare()
       >>> r
       <PreparedRequest [GET]>
 
-      >>> s = requests.Session()
+      >>> s = niquests.Session()
       >>> s.send(r)
       <Response HTTP/2 [200]>
     """

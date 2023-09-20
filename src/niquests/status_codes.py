@@ -5,12 +5,12 @@ items.
 
 Example::
 
-    >>> import requests
-    >>> requests.codes['temporary_redirect']
+    >>> import niquests
+    >>> niquests.codes['temporary_redirect']
     307
-    >>> requests.codes.teapot
+    >>> niquests.codes.teapot
     418
-    >>> requests.codes['\o/']
+    >>> niquests.codes['\o/']
     200
 
 Some codes have multiple names, and both upper- and lower-case versions of

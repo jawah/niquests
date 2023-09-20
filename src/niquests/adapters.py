@@ -31,6 +31,7 @@ from urllib3.util import Timeout as TimeoutSauce
 from urllib3.util import parse_url
 from urllib3.util.retry import Retry
 
+from ._constant import DEFAULT_POOLBLOCK, DEFAULT_POOLSIZE, DEFAULT_RETRIES
 from ._typing import CacheLayerAltSvcType, ProxyType, TLSClientCertType, TLSVerifyType
 from .auth import _basic_auth_str
 from .cookies import extract_cookies_to_jar
@@ -64,12 +65,6 @@ except ImportError:
 
     def SOCKSProxyManager(*args: typing.Any, **kwargs: typing.Any) -> None:  # type: ignore[no-redef]
         raise InvalidSchema("Missing dependencies for SOCKS support.")
-
-
-DEFAULT_POOLBLOCK = False
-DEFAULT_POOLSIZE = 10
-DEFAULT_RETRIES = 0
-DEFAULT_POOL_TIMEOUT = None
 
 
 class BaseAdapter:
@@ -129,9 +124,9 @@ class HTTPAdapter(BaseAdapter):
 
     Usage::
 
-      >>> import requests
-      >>> s = requests.Session()
-      >>> a = requests.adapters.HTTPAdapter(max_retries=3)
+      >>> import niquests
+      >>> s = niquests.Session()
+      >>> a = niquests.adapters.HTTPAdapter(max_retries=3)
       >>> s.mount('http://', a)
     """
 

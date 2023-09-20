@@ -136,14 +136,14 @@ class Session:
 
     Basic Usage::
 
-      >>> import requests
-      >>> s = requests.Session()
+      >>> import niquests
+      >>> s = niquests.Session()
       >>> s.get('https://httpbin.org/get')
       <Response HTTP/2 [200]>
 
     Or as a context manager::
 
-      >>> with requests.Session() as s:
+      >>> with niquests.Session() as s:
       ...     s.get('https://httpbin.org/get')
       <Response HTTP/2 [200]>
     """
