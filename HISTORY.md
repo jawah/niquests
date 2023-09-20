@@ -1,7 +1,7 @@
 Release History
 ===============
 
-3.0.0a0 (2023-??-??)
+3.0.0b0 (2023-09-??)
 -------------------
 
 **Removed**
@@ -41,6 +41,10 @@ Release History
 
 **Added**
 - Static type annotations thorough the whole package.
+- `cert` argument for client authentication with certificate can now pass the password/passphrase using a 3-values tuple (cert, key, password).
+  The three parameters in the tuple must be of type `str`.
+- `verify` argument behavior has been extended and now accept your CA bundle as `str` instead of a path. It also accepts your CA bundle as `bytes` directly.
+  This help when you do not have access to the fs.
 
 **Fixed**
 - An invalid content-type definition would cause the charset being evaluated to `True`, thus making the program crash.

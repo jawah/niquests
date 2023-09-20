@@ -43,10 +43,12 @@ CookiesType: typing.TypeAlias = typing.Union[
     typing.MutableMapping[str, str],
     CookieJar,
 ]
-#: Either Yes/No, or CA bundle pem location.
-TLSVerifyType: typing.TypeAlias = typing.Union[bool, str]
-#: Accept a pem certificate (concat cert, key) or an explicit tuple of cert, key pair.
-TLSClientCertType: typing.TypeAlias = typing.Union[str, typing.Tuple[str, str]]
+#: Either Yes/No, or CA bundle pem location. Or directly the raw bundle content itself.
+TLSVerifyType: typing.TypeAlias = typing.Union[bool, str, bytes]
+#: Accept a pem certificate (concat cert, key) or an explicit tuple of cert, key pair with an optional password.
+TLSClientCertType: typing.TypeAlias = typing.Union[
+    str, typing.Tuple[str, str], typing.Tuple[str, str, str]
+]
 #: All accepted ways to describe desired timeout.
 TimeoutType: typing.TypeAlias = typing.Union[
     int,  # TotalTimeout
