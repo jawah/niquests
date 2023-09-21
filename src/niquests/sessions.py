@@ -382,6 +382,7 @@ class Session:
     def get(
         self,
         url: str,
+        *,
         params: QueryParameterType | None = None,
         headers: HeadersType | None = None,
         cookies: CookiesType | None = None,
@@ -419,6 +420,7 @@ class Session:
     def options(
         self,
         url: str,
+        *,
         params: QueryParameterType | None = None,
         headers: HeadersType | None = None,
         cookies: CookiesType | None = None,
@@ -456,6 +458,7 @@ class Session:
     def head(
         self,
         url: str,
+        *,
         params: QueryParameterType | None = None,
         headers: HeadersType | None = None,
         cookies: CookiesType | None = None,
@@ -494,6 +497,7 @@ class Session:
         url: str,
         data: BodyType | None = None,
         json: typing.Any | None = None,
+        *,
         params: QueryParameterType | None = None,
         headers: HeadersType | None = None,
         cookies: CookiesType | None = None,
@@ -539,6 +543,7 @@ class Session:
         self,
         url: str,
         data: BodyType | None = None,
+        *,
         json: typing.Any | None = None,
         params: QueryParameterType | None = None,
         headers: HeadersType | None = None,
@@ -584,6 +589,7 @@ class Session:
         self,
         url: str,
         data: BodyType | None = None,
+        *,
         json: typing.Any | None = None,
         params: QueryParameterType | None = None,
         headers: HeadersType | None = None,
@@ -628,6 +634,7 @@ class Session:
     def delete(
         self,
         url: str,
+        *,
         params: QueryParameterType | None = None,
         headers: HeadersType | None = None,
         cookies: CookiesType | None = None,

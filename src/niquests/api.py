@@ -18,6 +18,7 @@ from ._typing import (
     CacheLayerAltSvcType,
     CookiesType,
     HeadersType,
+    HookType,
     HttpAuthenticationType,
     HttpMethodType,
     MultiPartFilesAltType,
@@ -30,6 +31,7 @@ from ._typing import (
 )
 from .models import Response
 
+#: This is a non-thread safe in-memory cache for the AltSvc / h3
 _SHARED_QUIC_CACHE: CacheLayerAltSvcType = {
     # ("pie.dev", 443): ("pie.dev", 443)
 }
@@ -38,6 +40,7 @@ _SHARED_QUIC_CACHE: CacheLayerAltSvcType = {
 def request(
     method: HttpMethodType,
     url: str,
+    *,
     params: QueryParameterType | None = None,
     data: BodyType | None = None,
     json: typing.Any | None = None,
@@ -51,6 +54,7 @@ def request(
     verify: TLSVerifyType = True,
     stream: bool = False,
     cert: TLSClientCertType | None = None,
+    hooks: HookType | None = None,
 ) -> Response:
     """Constructs and sends a :class:`Request <Request>`.
 
@@ -108,7 +112,7 @@ def request(
             timeout=timeout,
             allow_redirects=allow_redirects,
             proxies=proxies,
-            hooks=None,
+            hooks=hooks,
             stream=stream,
             verify=verify,
             cert=cert,
@@ -119,6 +123,7 @@ def request(
 def get(
     url: str,
     params: QueryParameterType | None = None,
+    *,
     headers: HeadersType | None = None,
     cookies: CookiesType | None = None,
     auth: HttpAuthenticationType | None = None,
@@ -128,6 +133,7 @@ def get(
     verify: TLSVerifyType = True,
     stream: bool = False,
     cert: TLSClientCertType | None = None,
+    hooks: HookType | None = None,
 ) -> Response:
     r"""Sends a GET request.
 
@@ -151,11 +157,13 @@ def get(
         verify=verify,
         stream=stream,
         cert=cert,
+        hooks=hooks,
     )
 
 
 def options(
     url: str,
+    *,
     params: QueryParameterType | None = None,
     headers: HeadersType | None = None,
     cookies: CookiesType | None = None,
@@ -166,6 +174,7 @@ def options(
     verify: TLSVerifyType = True,
     stream: bool = False,
     cert: TLSClientCertType | None = None,
+    hooks: HookType | None = None,
 ) -> Response:
     r"""Sends an OPTIONS request.
 
@@ -187,11 +196,13 @@ def options(
         verify=verify,
         stream=stream,
         cert=cert,
+        hooks=hooks,
     )
 
 
 def head(
     url: str,
+    *,
     params: QueryParameterType | None = None,
     headers: HeadersType | None = None,
     cookies: CookiesType | None = None,
@@ -202,6 +213,7 @@ def head(
     verify: TLSVerifyType = True,
     stream: bool = False,
     cert: TLSClientCertType | None = None,
+    hooks: HookType | None = None,
 ) -> Response:
     r"""Sends a HEAD request.
 
@@ -223,6 +235,7 @@ def head(
         verify=verify,
         stream=stream,
         cert=cert,
+        hooks=hooks,
     )
 
 
@@ -230,6 +243,7 @@ def post(
     url: str,
     data: BodyType | None = None,
     json: typing.Any | None = None,
+    *,
     params: QueryParameterType | None = None,
     headers: HeadersType | None = None,
     cookies: CookiesType | None = None,
@@ -241,6 +255,7 @@ def post(
     verify: TLSVerifyType = True,
     stream: bool = False,
     cert: TLSClientCertType | None = None,
+    hooks: HookType | None = None,
 ) -> Response:
     r"""Sends a POST request.
 
@@ -268,12 +283,14 @@ def post(
         verify=verify,
         stream=stream,
         cert=cert,
+        hooks=hooks,
     )
 
 
 def put(
     url: str,
     data: BodyType | None = None,
+    *,
     json: typing.Any | None = None,
     params: QueryParameterType | None = None,
     headers: HeadersType | None = None,
@@ -286,6 +303,7 @@ def put(
     verify: TLSVerifyType = True,
     stream: bool = False,
     cert: TLSClientCertType | None = None,
+    hooks: HookType | None = None,
 ) -> Response:
     r"""Sends a PUT request.
 
@@ -313,12 +331,14 @@ def put(
         verify=verify,
         stream=stream,
         cert=cert,
+        hooks=hooks,
     )
 
 
 def patch(
     url: str,
     data: BodyType | None = None,
+    *,
     json: typing.Any | None = None,
     params: QueryParameterType | None = None,
     headers: HeadersType | None = None,
@@ -331,6 +351,7 @@ def patch(
     verify: TLSVerifyType = True,
     stream: bool = False,
     cert: TLSClientCertType | None = None,
+    hooks: HookType | None = None,
 ) -> Response:
     r"""Sends a PATCH request.
 
@@ -358,11 +379,13 @@ def patch(
         verify=verify,
         stream=stream,
         cert=cert,
+        hooks=hooks,
     )
 
 
 def delete(
     url: str,
+    *,
     params: QueryParameterType | None = None,
     headers: HeadersType | None = None,
     cookies: CookiesType | None = None,
@@ -372,6 +395,7 @@ def delete(
     verify: TLSVerifyType = True,
     stream: bool = False,
     cert: TLSClientCertType | None = None,
+    hooks: HookType | None = None,
 ) -> Response:
     r"""Sends a DELETE request.
 
@@ -392,4 +416,5 @@ def delete(
         verify=verify,
         stream=stream,
         cert=cert,
+        hooks=hooks,
     )
