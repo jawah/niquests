@@ -32,4 +32,4 @@ repos:
   -   id: mypy
       args: [--check-untyped-defs]
       exclude: 'tests/|setup.py'
-      additional_dependencies: ['charset_normalizer', 'urllib3.future', 'certifi', 'idna']
+      additional_dependencies: ['charset_normalizer', 'urllib3.future', 'wassima', 'idna']

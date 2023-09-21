@@ -18,7 +18,6 @@ import sys
 import tempfile
 import typing
 import warnings
-import zipfile
 from collections import OrderedDict
 from http.cookiejar import CookieJar
 from urllib.parse import quote, unquote, urlparse, urlunparse
@@ -34,7 +33,6 @@ from urllib.request import (  # type: ignore[attr-defined]
 
 from urllib3.util import make_headers, parse_url
 
-from . import certs
 from .__version__ import __version__
 
 # to_native_string is unused here, but imported here for backwards compatibility
@@ -58,8 +56,6 @@ if typing.TYPE_CHECKING:
     from .models import PreparedRequest, Request
 
 NETRC_FILES = (".netrc", "_netrc")
-
-DEFAULT_CA_BUNDLE_PATH: str = certs.where()
 
 DEFAULT_PORTS: dict[str, int] = {"http": 80, "https": 443}
 
@@ -257,43 +253,6 @@ def guess_filename(obj: typing.IO) -> str | None:
     if name and isinstance(name, str) and name[0] != "<" and name[-1] != ">":
         return os.path.basename(name)
     return None
-
-
-def extract_zipped_paths(path: str) -> str:
-    """Replace nonexistent paths that look like they refer to a member of a zip
-    archive with the location of an extracted copy of the target, or else
-    just return the provided path unchanged.
-    """
-    if os.path.exists(path):
-        # this is already a valid path, no need to do anything further
-        return path
-
-    # find the first valid part of the provided path and treat that as a zip archive
-    # assume the rest of the path is the name of a member in the archive
-    archive, member = os.path.split(path)
-    while archive and not os.path.exists(archive):
-        archive, prefix = os.path.split(archive)
-        if not prefix:
-            # If we don't check for an empty prefix after the split (in other words, archive remains unchanged after the split),
-            # we _can_ end up in an infinite loop on a rare corner case affecting a small number of users
-            break
-        member = "/".join([prefix, member])
-
-    if not zipfile.is_zipfile(archive):
-        return path
-
-    zip_file = zipfile.ZipFile(archive)
-    if member not in zip_file.namelist():
-        return path
-
-    # we have a valid zip archive and a valid member of that archive
-    tmp = tempfile.gettempdir()
-    extracted_path = os.path.join(tmp, member.split("/")[-1])
-    if not os.path.exists(extracted_path):
-        # use read + write to avoid the creating nested folders, we only want the file, avoids mkdir racing condition
-        with atomic_open(extracted_path) as file_handler:
-            file_handler.write(zip_file.read(member))
-    return extracted_path
 
 
 @contextlib.contextmanager

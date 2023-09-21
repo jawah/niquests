@@ -40,8 +40,8 @@ if sys.argv[-1] == "publish":
 requires = [
     "charset_normalizer>=2,<4",
     "idna>=2.5,<4",
-    "urllib3.future>=2.0.932,<3",
-    "certifi>=2017.4.17",
+    "urllib3.future>=2.0.933,<3",
+    "wassima>=1.0.0,<2",
 ]
 test_requirements = [
     "pytest-httpbin==2.0.0",

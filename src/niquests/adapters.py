@@ -31,7 +31,12 @@ from urllib3.util import Timeout as TimeoutSauce
 from urllib3.util import parse_url
 from urllib3.util.retry import Retry
 
-from ._constant import DEFAULT_POOLBLOCK, DEFAULT_POOLSIZE, DEFAULT_RETRIES
+from ._constant import (
+    DEFAULT_CA_BUNDLE,
+    DEFAULT_POOLBLOCK,
+    DEFAULT_POOLSIZE,
+    DEFAULT_RETRIES,
+)
 from ._typing import CacheLayerAltSvcType, ProxyType, TLSClientCertType, TLSVerifyType
 from .auth import _basic_auth_str
 from .cookies import extract_cookies_to_jar
@@ -50,8 +55,6 @@ from .exceptions import (
 from .models import PreparedRequest, Response
 from .structures import CaseInsensitiveDict
 from .utils import (
-    DEFAULT_CA_BUNDLE_PATH,
-    extract_zipped_paths,
     get_auth_from_url,
     get_encoding_from_headers,
     prepend_scheme_if_needed,
@@ -279,22 +282,20 @@ class HTTPAdapter(BaseAdapter):
         """
         if url.lower().startswith("https") and verify:
             cert_loc: str | None = None
-            cert_data: bytes | None = None
+            cert_data: str = DEFAULT_CA_BUNDLE
 
             if isinstance(verify, str) and "-----BEGIN CERTIFICATE-----" in verify:
-                verify = verify.encode("utf-8")
+                cert_data = verify
+                verify = True
 
             if isinstance(verify, bytes):
-                cert_data = verify
+                cert_data = verify.decode("utf-8")
             else:
                 # Allow self-specified cert location.
-                if verify is not True:
+                if isinstance(verify, str):
                     cert_loc = verify
 
-                if not cert_loc:
-                    cert_loc = extract_zipped_paths(DEFAULT_CA_BUNDLE_PATH)
-
-                if not cert_loc or not os.path.exists(cert_loc):
+                if isinstance(cert_loc, str) and not os.path.exists(cert_loc):
                     raise OSError(
                         f"Could not find a suitable TLS CA certificate bundle, "
                         f"invalid path: {cert_loc}"
@@ -302,9 +303,10 @@ class HTTPAdapter(BaseAdapter):
 
             conn.cert_reqs = "CERT_REQUIRED"
 
-            if cert_data:
-                # todo: update HTTPSConnPool in urllib3.future and add it!
-                conn.ca_data = cert_data  # type: ignore[attr-defined]
+            if cert_data and cert_loc is None:
+                conn.ca_certs = None
+                conn.ca_cert_dir = None
+                conn.ca_cert_data = cert_data
             elif cert_loc:
                 if not os.path.isdir(cert_loc):
                     conn.ca_certs = cert_loc
@@ -314,6 +316,7 @@ class HTTPAdapter(BaseAdapter):
             conn.cert_reqs = "CERT_NONE"
             conn.ca_certs = None
             conn.ca_cert_dir = None
+            conn.ca_cert_data = None
 
         if cert:
             if not isinstance(cert, str):
