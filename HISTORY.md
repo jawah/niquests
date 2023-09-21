@@ -53,6 +53,8 @@ Release History
 
 **Fixed**
 - An invalid content-type definition would cause the charset being evaluated to `True`, thus making the program crash.
+- Given `proxies` could be mutated when environment proxies were evaluated and injected. This package should not modify your inputs.
+  For context see https://github.com/psf/requests/issues/6118
 
 2.32.1 (2023-09-12)
 -------------------
