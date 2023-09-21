@@ -47,6 +47,7 @@ from .cookies import (
 from .exceptions import (
     ChunkedEncodingError,
     ContentDecodingError,
+    HTTPError,
     InvalidSchema,
     TooManyRedirects,
 )
@@ -828,8 +829,15 @@ class Session:
             # It is more likely to get UTF8 header rather than latin1.
             # This causes incorrect handling of UTF8 encoded location headers.
             # To solve this, we re-encode the location in latin1.
-            location = location.encode("latin1")
-            return to_native_string(location, "utf8")
+            try:
+                return to_native_string(location.encode("latin1"), "utf8")
+            except UnicodeDecodeError:
+                try:
+                    return to_native_string(location.encode("utf-8"), "utf8")
+                except (UnicodeDecodeError, UnicodeEncodeError) as e:
+                    raise HTTPError(
+                        "Response specify a Location header but is unreadable. This is a violation."
+                    ) from e
         return None
 
     def should_strip_auth(self, old_url: str, new_url: str) -> bool:
