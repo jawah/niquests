@@ -23,6 +23,8 @@ Release History
 - Function `unicode_is_ascii` as it is part of the stable `str` stdlib on Python 3 or greater.
 - Alias function `session` for `Session` context manager that was kept for BC reasons since the v1.
 - pyOpenSSL/urllib3 injection in case built-in ssl module does not have SNI support as it is not the case anymore for every supported interpreters.
+- Constant `DEFAULT_CA_BUNDLE_PATH`, and submodule `certs` due to dropping `certifi`.
+- Function `extract_zipped_paths` because rendered useless as it was made to handle an edge case where `certifi` is "zipped".
 
 **Changed**
 - Calling the method `json` from `Response` when no encoding was provided no longer relies on internal encoding inference.
@@ -46,6 +48,7 @@ Release History
   The three parameters in the tuple must be of type `str`.
 - `verify` argument behavior has been extended and now accept your CA bundle as `str` instead of a path. It also accepts your CA bundle as `bytes` directly.
   This help when you do not have access to the fs.
+- Operating system truststore will be used instead of `certifi`. Root CAs are automatically grabbed from your computer configuration.
 
 **Fixed**
 - An invalid content-type definition would cause the charset being evaluated to `True`, thus making the program crash.
