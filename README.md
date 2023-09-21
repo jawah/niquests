@@ -58,8 +58,9 @@ Niquests is ready for the demands of building robust and reliable HTTP–speakin
 - Automatic honoring of `.netrc`
 - Chunked HTTP Requests
 - HTTP/2
-- (Optionally) HTTP/3 over QUIC
+- HTTP/3 over QUIC
 - Fully type-annotated!
+- OS truststore by default, no more certifi!
 
 ## API Reference and User Guide available on [Read the Docs](https://niquests.readthedocs.io)
 
