@@ -101,7 +101,6 @@ setup(
     cmdclass={"test": PyTest},
     tests_require=test_requirements,
     extras_require={
-        "security": [],
         "socks": ["PySocks>=1.5.6, !=1.5.7"],
     },
     project_urls={
