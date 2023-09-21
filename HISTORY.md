@@ -55,6 +55,9 @@ Release History
 - An invalid content-type definition would cause the charset being evaluated to `True`, thus making the program crash.
 - Given `proxies` could be mutated when environment proxies were evaluated and injected. This package should not modify your inputs.
   For context see https://github.com/psf/requests/issues/6118
+- A server could specify a `Location` header that does not comply to HTTP specifications and could lead to an unexpected exception.
+  We try to fall back to Unicode decoding if the typical and expected Latin-1 would fail. If that fails too, a proper exception is raised.
+  For context see https://github.com/psf/requests/issues/6026
 
 2.32.1 (2023-09-12)
 -------------------
