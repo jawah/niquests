@@ -25,6 +25,7 @@ Release History
 - pyOpenSSL/urllib3 injection in case built-in ssl module does not have SNI support as it is not the case anymore for every supported interpreters.
 - Constant `DEFAULT_CA_BUNDLE_PATH`, and submodule `certs` due to dropping `certifi`.
 - Function `extract_zipped_paths` because rendered useless as it was made to handle an edge case where `certifi` is "zipped".
+- Extra `security` when installing this package. It was previously emptied in the previous major.
 
 **Changed**
 - Calling the method `json` from `Response` when no encoding was provided no longer relies on internal encoding inference.
