@@ -11,6 +11,7 @@ import warnings
 from collections.abc import MutableMapping
 from http import cookiejar as cookielib
 from http.cookies import Morsel
+from json import JSONDecodeError
 from unittest import mock
 from urllib.parse import urlparse
 from urllib.request import getproxies
@@ -22,7 +23,6 @@ from urllib3.util import Timeout as Urllib3Timeout
 import niquests
 from niquests.adapters import HTTPAdapter
 from niquests.auth import HTTPDigestAuth, _basic_auth_str
-from niquests.compat import JSONDecodeError
 from niquests.cookies import cookiejar_from_dict, morsel_to_cookie
 from niquests.exceptions import (
     ChunkedEncodingError,
