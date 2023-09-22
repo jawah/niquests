@@ -10,6 +10,11 @@ Release History
 
 **Added**
 - Oriented-object headers. Access them through the new property `oheaders` in your `Response`.
+- Propagated the argument `retries` in `niquests.api` for all functions.
+- Added argument `retries` in the `Session` constructor.
+
+**Fixed**
+- No configured retry of your HTTP requests but getting exception `MaxRetryError` nonetheless.
 
 3.0.0b0 (2023-09-21)
 -------------------
