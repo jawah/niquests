@@ -12,7 +12,7 @@ from __future__ import annotations
 import typing
 
 from . import sessions
-from ._constant import READ_DEFAULT_TIMEOUT, WRITE_DEFAULT_TIMEOUT
+from ._constant import DEFAULT_RETRIES, READ_DEFAULT_TIMEOUT, WRITE_DEFAULT_TIMEOUT
 from ._typing import (
     BodyType,
     CacheLayerAltSvcType,
@@ -25,6 +25,7 @@ from ._typing import (
     MultiPartFilesType,
     ProxyType,
     QueryParameterType,
+    RetryType,
     TimeoutType,
     TLSClientCertType,
     TLSVerifyType,
@@ -55,6 +56,7 @@ def request(
     stream: bool = False,
     cert: TLSClientCertType | None = None,
     hooks: HookType | None = None,
+    retries: RetryType = DEFAULT_RETRIES,
 ) -> Response:
     """Constructs and sends a :class:`Request <Request>`.
 
@@ -99,7 +101,9 @@ def request(
     # By using the 'with' statement we are sure the session is closed, thus we
     # avoid leaving sockets open which can trigger a ResourceWarning in some
     # cases, and look like a memory leak in others.
-    with sessions.Session(quic_cache_layer=_SHARED_QUIC_CACHE) as session:
+    with sessions.Session(
+        quic_cache_layer=_SHARED_QUIC_CACHE, retries=retries
+    ) as session:
         return session.request(
             method=method,
             url=url,
@@ -134,6 +138,7 @@ def get(
     stream: bool = False,
     cert: TLSClientCertType | None = None,
     hooks: HookType | None = None,
+    retries: RetryType = DEFAULT_RETRIES,
 ) -> Response:
     r"""Sends a GET request.
 
@@ -158,6 +163,7 @@ def get(
         stream=stream,
         cert=cert,
         hooks=hooks,
+        retries=retries,
     )
 
 
@@ -175,6 +181,7 @@ def options(
     stream: bool = False,
     cert: TLSClientCertType | None = None,
     hooks: HookType | None = None,
+    retries: RetryType = DEFAULT_RETRIES,
 ) -> Response:
     r"""Sends an OPTIONS request.
 
@@ -197,6 +204,7 @@ def options(
         stream=stream,
         cert=cert,
         hooks=hooks,
+        retries=retries,
     )
 
 
@@ -214,6 +222,7 @@ def head(
     stream: bool = False,
     cert: TLSClientCertType | None = None,
     hooks: HookType | None = None,
+    retries: RetryType = DEFAULT_RETRIES,
 ) -> Response:
     r"""Sends a HEAD request.
 
@@ -236,6 +245,7 @@ def head(
         stream=stream,
         cert=cert,
         hooks=hooks,
+        retries=retries,
     )
 
 
@@ -256,6 +266,7 @@ def post(
     stream: bool = False,
     cert: TLSClientCertType | None = None,
     hooks: HookType | None = None,
+    retries: RetryType = DEFAULT_RETRIES,
 ) -> Response:
     r"""Sends a POST request.
 
@@ -284,6 +295,7 @@ def post(
         stream=stream,
         cert=cert,
         hooks=hooks,
+        retries=retries,
     )
 
 
@@ -304,6 +316,7 @@ def put(
     stream: bool = False,
     cert: TLSClientCertType | None = None,
     hooks: HookType | None = None,
+    retries: RetryType = DEFAULT_RETRIES,
 ) -> Response:
     r"""Sends a PUT request.
 
@@ -332,6 +345,7 @@ def put(
         stream=stream,
         cert=cert,
         hooks=hooks,
+        retries=retries,
     )
 
 
@@ -352,6 +366,7 @@ def patch(
     stream: bool = False,
     cert: TLSClientCertType | None = None,
     hooks: HookType | None = None,
+    retries: RetryType = DEFAULT_RETRIES,
 ) -> Response:
     r"""Sends a PATCH request.
 
@@ -380,6 +395,7 @@ def patch(
         stream=stream,
         cert=cert,
         hooks=hooks,
+        retries=retries,
     )
 
 
@@ -396,6 +412,7 @@ def delete(
     stream: bool = False,
     cert: TLSClientCertType | None = None,
     hooks: HookType | None = None,
+    retries: RetryType = DEFAULT_RETRIES,
 ) -> Response:
     r"""Sends a DELETE request.
 
@@ -417,4 +434,5 @@ def delete(
         stream=stream,
         cert=cert,
         hooks=hooks,
+        retries=retries,
     )
