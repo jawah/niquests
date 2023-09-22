@@ -18,7 +18,7 @@ from http import cookiejar as cookielib
 from http.cookiejar import CookieJar
 from urllib.parse import urljoin, urlparse
 
-from ._constant import READ_DEFAULT_TIMEOUT, WRITE_DEFAULT_TIMEOUT
+from ._constant import DEFAULT_RETRIES, READ_DEFAULT_TIMEOUT, WRITE_DEFAULT_TIMEOUT
 from ._internal_utils import to_native_string
 from ._typing import (
     BodyType,
@@ -32,6 +32,7 @@ from ._typing import (
     MultiPartFilesType,
     ProxyType,
     QueryParameterType,
+    RetryType,
     TimeoutType,
     TLSClientCertType,
     TLSVerifyType,
@@ -165,7 +166,12 @@ class Session:
         "quic_cache_layer",
     ]
 
-    def __init__(self, quic_cache_layer: CacheLayerAltSvcType | None = None):
+    def __init__(
+        self,
+        *,
+        quic_cache_layer: CacheLayerAltSvcType | None = None,
+        retries: RetryType = DEFAULT_RETRIES,
+    ):
         #: A case-insensitive dictionary of headers to be sent on each
         #: :class:`Request <Request>` sent from this
         #: :class:`Session <Session>`.
@@ -228,8 +234,11 @@ class Session:
 
         # Default connection adapters.
         self.adapters: OrderedDict[str, BaseAdapter] = OrderedDict()
-        self.mount("https://", HTTPAdapter(quic_cache_layer=self.quic_cache_layer))
-        self.mount("http://", HTTPAdapter())
+        self.mount(
+            "https://",
+            HTTPAdapter(quic_cache_layer=self.quic_cache_layer, max_retries=retries),
+        )
+        self.mount("http://", HTTPAdapter(max_retries=retries))
 
     def __enter__(self):
         return self

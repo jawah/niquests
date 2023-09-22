@@ -134,3 +134,5 @@ HookType: typing.TypeAlias = typing.Dict[str, typing.List[HookCallableType]]
 CacheLayerAltSvcType: typing.TypeAlias = typing.MutableMapping[
     typing.Tuple[str, int], typing.Optional[typing.Tuple[str, int]]
 ]
+
+RetryType: typing.TypeAlias = typing.Union[bool, int]
