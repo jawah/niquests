@@ -3,6 +3,7 @@ from __future__ import annotations
 import typing
 from http.cookiejar import CookieJar
 
+from kiss_headers import Headers
 from urllib3 import Timeout
 from urllib3.fields import RequestField
 
@@ -37,6 +38,7 @@ HeadersType: typing.TypeAlias = typing.Union[
     typing.MutableMapping[typing.Union[str, bytes], typing.Union[str, bytes]],
     CaseInsensitiveDict,
     typing.List[typing.Tuple[typing.Union[str, bytes], typing.Union[str, bytes]]],
+    Headers,
 ]
 #: We accept both typical mapping and stdlib CookieJar.
 CookiesType: typing.TypeAlias = typing.Union[

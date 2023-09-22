@@ -22,6 +22,7 @@ from io import UnsupportedOperation
 from urllib.parse import urlencode, urlsplit, urlunparse
 
 from charset_normalizer import from_bytes
+from kiss_headers import Headers, parse_it
 from urllib3 import BaseHTTPResponse
 from urllib3.exceptions import (
     DecodeError,
@@ -747,6 +748,9 @@ class PreparedRequest:
 
             try:
                 if fh:
+                    if isinstance(fh, Headers):
+                        fh = fh.to_dict()
+
                     fh_converted = dict()
 
                     for fh_key, fh_val in to_key_val_list(fh):
@@ -1013,6 +1017,25 @@ class Response:
 
         if pending is not None:
             yield pending
+
+    @property
+    def oheaders(self) -> Headers:
+        """
+        Retrieve headers as they were objects. There is no need to parse headers yourself.
+        A simple Mapping isn't enough to quickly access and analyze them.
+        Read the full documentation of object-oriented headers at https://ousret.github.io/kiss-headers/
+        >>> import niquests
+        >>> r = niquests.get("https://google.com")
+        >>> r.oheaders.content_type.charset
+        'ISO-8859-1'
+        >>> r.oheaders.content_type
+        'text/html; charset=ISO-8859-1'
+        >>> r.oheaders.content_type[0]
+        'text/html'
+        """
+        if self.raw:
+            return parse_it(self.raw)
+        return parse_it(self.headers)
 
     @property
     def content(self) -> bytes | None:

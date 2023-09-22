@@ -8,6 +8,9 @@ Release History
 - Support for `simplejson` if was present in environment.
 - Submodule `compat`.
 
+**Added**
+- Oriented-object headers. Access them through the new property `oheaders` in your `Response`.
+
 3.0.0b0 (2023-09-21)
 -------------------
 

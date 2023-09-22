@@ -42,6 +42,7 @@ requires = [
     "idna>=2.5,<4",
     "urllib3.future>=2.0.933,<3",
     "wassima>=1.0.0,<2",
+    "kiss_headers>=2,<4",
 ]
 test_requirements = [
     "pytest-httpbin==2.0.0",
