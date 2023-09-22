@@ -61,6 +61,7 @@ Niquests is ready for the demands of building robust and reliable HTTP–speakin
 - HTTP/3 over QUIC
 - Fully type-annotated!
 - OS truststore by default, no more certifi!
+- Object-oriented headers
 
 ## API Reference and User Guide available on [Read the Docs](https://niquests.readthedocs.io)
 

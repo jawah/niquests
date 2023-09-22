@@ -4,7 +4,9 @@ Release History
 3.0.0b1 (2023-09-??)
 -------------------
 
-
+**Removed**
+- Support for `simplejson` if was present in environment.
+- Submodule `compat`.
 
 3.0.0b0 (2023-09-21)
 -------------------

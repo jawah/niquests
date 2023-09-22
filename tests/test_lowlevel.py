@@ -1,10 +1,10 @@
 import threading
+from json import JSONDecodeError
 
 import pytest
 from tests.testserver.server import Server, consume_socket_content
 
 import niquests
-from niquests.compat import JSONDecodeError
 
 from .utils import override_environ
 

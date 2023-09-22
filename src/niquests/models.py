@@ -13,6 +13,7 @@ import datetime
 # Implicit import within threads may cause LookupError when standard library is in a ZIP,
 # such as in Embedded Python. See https://github.com/psf/requests/issues/3578.
 import encodings.idna  # noqa: F401
+import json as _json
 import typing
 from collections.abc import Mapping
 from http import cookiejar as cookielib
@@ -47,8 +48,6 @@ from ._typing import (
     QueryParameterType,
 )
 from .auth import HTTPBasicAuth
-from .compat import JSONDecodeError
-from .compat import json as complexjson
 from .cookies import (
     RequestsCookieJar,
     _copy_cookie_jar,
@@ -420,7 +419,7 @@ class PreparedRequest:
             content_type = "application/json"
 
             try:
-                body = complexjson.dumps(json, allow_nan=False)
+                body = _json.dumps(json, allow_nan=False)
             except ValueError as ve:
                 raise InvalidJSONError(ve, request=self)
 
@@ -1107,18 +1106,10 @@ class Response:
                 ],
             ).best()
 
-            encoding = encoding_guess.encoding if encoding_guess else "utf-8"
-
-            if encoding is not None:
+            if encoding_guess is not None:
                 try:
-                    return complexjson.loads(self.content.decode(encoding), **kwargs)
-                except UnicodeDecodeError:
-                    # Wrong UTF codec detected; usually because it's not UTF-8
-                    # but some other 8-bit codec.  This is an RFC violation,
-                    # and the server didn't bother to tell us what codec *was*
-                    # used.
-                    pass
-                except JSONDecodeError as e:
+                    return _json.loads(str(encoding_guess), **kwargs)
+                except _json.JSONDecodeError as e:
                     raise RequestsJSONDecodeError(e.msg, e.doc, e.pos)
 
         plain_content = self.text
@@ -1129,8 +1120,8 @@ class Response:
             )
 
         try:
-            return complexjson.loads(plain_content, **kwargs)
-        except JSONDecodeError as e:
+            return _json.loads(plain_content, **kwargs)
+        except _json.JSONDecodeError as e:
             # Catch JSON-related errors and raise as requests.JSONDecodeError
             # This aliases json.JSONDecodeError and simplejson.JSONDecodeError
             raise RequestsJSONDecodeError(e.msg, e.doc, e.pos)
