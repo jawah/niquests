@@ -9,6 +9,6 @@ WRITE_DEFAULT_TIMEOUT: TimeoutType = 120
 
 DEFAULT_POOLBLOCK: bool = False
 DEFAULT_POOLSIZE: int = 10
-DEFAULT_RETRIES: RetryType = False
+DEFAULT_RETRIES: RetryType = 0
 
 DEFAULT_CA_BUNDLE: str = wassima.generate_ca_bundle()

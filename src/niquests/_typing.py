@@ -4,7 +4,7 @@ import typing
 from http.cookiejar import CookieJar
 
 from kiss_headers import Headers
-from urllib3 import Timeout
+from urllib3 import Retry, Timeout
 from urllib3.fields import RequestField
 
 from .auth import AuthBase
@@ -135,4 +135,4 @@ CacheLayerAltSvcType: typing.TypeAlias = typing.MutableMapping[
     typing.Tuple[str, int], typing.Optional[typing.Tuple[str, int]]
 ]
 
-RetryType: typing.TypeAlias = typing.Union[bool, int]
+RetryType: typing.TypeAlias = typing.Union[bool, int, Retry]

@@ -37,7 +37,13 @@ from ._constant import (
     DEFAULT_POOLSIZE,
     DEFAULT_RETRIES,
 )
-from ._typing import CacheLayerAltSvcType, ProxyType, TLSClientCertType, TLSVerifyType
+from ._typing import (
+    CacheLayerAltSvcType,
+    ProxyType,
+    RetryType,
+    TLSClientCertType,
+    TLSVerifyType,
+)
 from .auth import _basic_auth_str
 from .cookies import extract_cookies_to_jar
 from .exceptions import (
@@ -146,14 +152,23 @@ class HTTPAdapter(BaseAdapter):
         self,
         pool_connections: int = DEFAULT_POOLSIZE,
         pool_maxsize: int = DEFAULT_POOLSIZE,
-        max_retries: int = DEFAULT_RETRIES,
+        max_retries: RetryType = DEFAULT_RETRIES,
         pool_block: bool = DEFAULT_POOLBLOCK,
         quic_cache_layer: CacheLayerAltSvcType | None = None,
     ):
-        if max_retries == DEFAULT_RETRIES:
-            self.max_retries = Retry(0, read=False)
+        if isinstance(max_retries, bool):
+            self.max_retries: RetryType = False
+        elif isinstance(max_retries, Retry):
+            self.max_retries = max_retries
         else:
+            if max_retries < 0:
+                raise ValueError(
+                    "configured retries count is invalid. you must specify a positive or zero integer value."
+                )
             self.max_retries = Retry.from_int(max_retries)
+            # Kept for backward compatibility.
+            if max_retries == 0:
+                self.max_retries.read = False
         self.config: typing.MutableMapping[str, typing.Any] = {}
         self.proxy_manager: typing.MutableMapping[str, PoolManager] = {}
 
