@@ -3,7 +3,7 @@
 Advanced Usage
 ==============
 
-This document covers some of Requests more advanced features.
+This document covers some of Niquests more advanced features.
 
 .. _session-objects:
 
@@ -17,7 +17,7 @@ you're making several requests to the same host, the underlying TCP
 connection will be reused, which can result in a significant performance
 increase (see `HTTP persistent connection`_).
 
-A Session object has all the methods of the main Requests API.
+A Session object has all the methods of the main Niquests API.
 
 Let's persist some cookies across requests::
 
@@ -82,6 +82,14 @@ exited, even if unhandled exceptions occurred.
 All values that are contained within a session are directly available to you.
 See the :ref:`Session API Docs <sessionapi>` to learn more.
 
+The ``Session`` class takes two (optional) named arguments for your convenience.
+
+- `quic_cache_layer`
+  Specify a `MutableMapping` that can memorize Alt-Svc capabilities (when a server is HTTP/3 compatible).
+
+- `retries`
+  Determine the retry strategy across the ``Session`` lifetime.
+
 .. _request-and-response-objects:
 
 Request and Response Objects
@@ -90,7 +98,7 @@ Request and Response Objects
 Whenever a call is made to ``niquests.get()`` and friends, you are doing two
 major things. First, you are constructing a ``Request`` object which will be
 sent off to a server to request or query some resource. Second, a ``Response``
-object is generated once Requests gets a response back from the server.
+object is generated once Niquests gets a response back from the server.
 The ``Response`` object contains all of the information returned by the server and
 also contains the ``Request`` object you created originally. Here is a simple
 request to get some very important information from Wikipedia's servers::
@@ -127,7 +135,7 @@ from an API call or a Session call, the ``request`` attribute is actually the
 work to the body or headers (or anything else really) before sending a
 request. The simple recipe for this is the following::
 
-    from requests import Request, Session
+    from niquests import Request, Session
 
     s = Session()
 
@@ -164,7 +172,7 @@ applied, replace the call to :meth:`Request.prepare()
 <niquests.Request.prepare>` with a call to
 :meth:`Session.prepare_request() <niquests.Session.prepare_request>`, like this::
 
-    from requests import Request, Session
+    from niquests import Request, Session
 
     s = Session()
     req = Request('GET',  url, data=data, headers=headers)
@@ -193,7 +201,7 @@ For example: Self-signed SSL certificates specified in ``REQUESTS_CA_BUNDLE`` wi
 As a result an ``SSL: CERTIFICATE_VERIFY_FAILED`` is thrown.
 You can get around this behaviour by explicitly merging the environment settings into your session::
 
-    from requests import Request, Session
+    from niquests import Request, Session
 
     s = Session()
     req = Request('GET', url)
@@ -211,8 +219,8 @@ You can get around this behaviour by explicitly merging the environment settings
 SSL Cert Verification
 ---------------------
 
-Requests verifies SSL certificates for HTTPS requests, just like a web browser.
-By default, SSL verification is enabled, and Requests will throw a SSLError if
+Niquests verifies SSL certificates for HTTPS requests, just like a web browser.
+By default, SSL verification is enabled, and Niquests will throw a SSLError if
 it's unable to verify the certificate::
 
     >>> niquests.get('https://requestb.in')
@@ -221,7 +229,7 @@ it's unable to verify the certificate::
 I don't have SSL setup on this domain, so it throws an exception. Excellent. GitHub does though::
 
     >>> niquests.get('https://github.com')
-    <Response [200]>
+    <Response HTTP/2 [200]>
 
 You can pass ``verify`` the path to a CA_BUNDLE file or directory with certificates of trusted CAs::
 
@@ -238,10 +246,10 @@ or persistent::
 This list of trusted CAs can also be specified through the ``REQUESTS_CA_BUNDLE`` environment variable.
 If ``REQUESTS_CA_BUNDLE`` is not set, ``CURL_CA_BUNDLE`` will be used as fallback.
 
-Requests can also ignore verifying the SSL certificate if you set ``verify`` to False::
+Niquests can also ignore verifying the SSL certificate if you set ``verify`` to False::
 
     >>> niquests.get('https://kennethreitz.org', verify=False)
-    <Response [200]>
+    <Response HTTP/2 [200]>
 
 Note that when ``verify`` is set to ``False``, requests will accept any TLS
 certificate presented by the server, and will ignore hostname mismatches
@@ -259,7 +267,7 @@ file (containing the private key and the certificate) or as a tuple of both
 files' paths::
 
     >>> niquests.get('https://kennethreitz.org', cert=('/path/client.cert', '/path/client.key'))
-    <Response [200]>
+    <Response HTTP/2 [200]>
 
 or persistent::
 
@@ -271,30 +279,25 @@ If you specify a wrong path or an invalid cert, you'll get a SSLError::
     >>> niquests.get('https://kennethreitz.org', cert='/wrong_path/client.pem')
     SSLError: [Errno 336265225] _ssl.c:347: error:140B0009:SSL routines:SSL_CTX_use_PrivateKey_file:PEM lib
 
-.. warning:: The private key to your local certificate *must* be unencrypted.
-   Currently, Requests does not support using encrypted keys.
+.. warning:: The private key to your local certificate *must* be unencrypted in above example.
+
+You may specify the private key passphrase using the following example::
+
+    >>> niquests.get('https://kennethreitz.org', cert=('/path/client.cert', '/path/client.key', 'my_key_password'))
+    <Response HTTP/2 [200]>
 
 .. _ca-certificates:
 
 CA Certificates
 ---------------
 
-Requests uses certificates from the package `certifi`_. This allows for users
-to update their trusted certificates without changing the version of Requests.
-
-Before version 2.16, Requests bundled a set of root CAs that it trusted,
-sourced from the `Mozilla trust store`_. The certificates were only updated
-once for each Requests version. When ``certifi`` was not installed, this led to
-extremely out-of-date certificate bundles when using significantly older
-versions of Requests.
-
-For the sake of security we recommend upgrading certifi frequently!
+Niquests uses certificates provided by the package `wassima`_. This allows for users
+to not care about root CAs. By default it is expected to use your operating system root CAs.
+You have nothing to do.
 
 .. _HTTP persistent connection: https://en.wikipedia.org/wiki/HTTP_persistent_connection
 .. _connection pooling: https://urllib3.readthedocs.io/en/latest/reference/index.html#module-urllib3.connectionpool
-.. _certifi: https://certifiio.readthedocs.io/
-.. _Mozilla trust store: https://hg.mozilla.org/mozilla-central/raw-file/tip/security/nss/lib/ckfw/builtins/certdata.txt
-
+.. wassima: https://github.com/jawah/wassima
 .. _body-content-workflow:
 
 Body Content Workflow
@@ -321,7 +324,7 @@ Alternatively, you can read the undecoded body from the underlying
 urllib3 :class:`urllib3.HTTPResponse <urllib3.response.HTTPResponse>` at
 :attr:`Response.raw <niquests.Response.raw>`.
 
-If you set ``stream`` to ``True`` when making a request, Requests cannot
+If you set ``stream`` to ``True`` when making a request, Niquests cannot
 release the connection back to the pool unless you consume all the data or call
 :meth:`Response.close <niquests.Response.close>`. This can lead to
 inefficiency with connections. If you find yourself partially reading request
@@ -349,7 +352,7 @@ data has been read; be sure to either set ``stream`` to ``False`` or read the
 Streaming Uploads
 -----------------
 
-Requests supports streaming uploads, which allow you to send large streams or
+Niquests supports streaming uploads, which allow you to send large streams or
 files without reading them into memory. To stream and upload, simply provide a
 file-like object for your body::
 
@@ -357,7 +360,7 @@ file-like object for your body::
         niquests.post('http://some.url/streamed', data=f)
 
 .. warning:: It is strongly recommended that you open files in :ref:`binary
-             mode <tut-files>`. This is because Requests may attempt to provide
+             mode <tut-files>`. This is because Niquests may attempt to provide
              the ``Content-Length`` header for you, and if it does this value
              will be set to the number of *bytes* in the file. Errors may occur
              if you open the file in *text mode*.
@@ -368,7 +371,7 @@ file-like object for your body::
 Chunk-Encoded Requests
 ----------------------
 
-Requests also supports Chunked transfer encoding for outgoing and incoming niquests.
+Niquests also supports Chunked transfer encoding for outgoing and incoming niquests.
 To send a chunk-encoded request, simply provide a generator (or any iterator without
 a length) for your body::
 
@@ -423,14 +426,17 @@ To do that, just set files to a list of tuples of ``(form_field_name, file_info)
 Event Hooks
 -----------
 
-Requests has a hook system that you can use to manipulate portions of
+Niquests has a hook system that you can use to manipulate portions of
 the request process, or signal event handling.
 
 Available hooks:
 
 ``response``:
     The response generated from a Request.
-
+``pre_send``:
+    The prepared request got his ConnectionInfo injected. This event is triggered just after picking a live connection from the pool.
+``pre_request``:
+    The prepared request just got built. You may alter it prior to be sent through HTTP.
 
 You can assign a hook function on a per-request basis by passing a
 ``{hook_name: callback_function}`` dictionary to the ``hooks`` request
@@ -446,7 +452,7 @@ argument.
     def print_url(r, *args, **kwargs):
         print(r.url)
 
-Your callback function must handle its own exceptions. Any unhandled exception won't be passed silently and thus should be handled by the code calling Requests.
+Your callback function must handle its own exceptions. Any unhandled exception won't be passed silently and thus should be handled by the code calling Niquests.
 
 If the callback function returns a value, it is assumed that it is to
 replace the data that was passed in. If the function doesn't return
@@ -462,7 +468,7 @@ Let's print some request method arguments at runtime::
 
     >>> niquests.get('https://httpbin.org/', hooks={'response': print_url})
     https://httpbin.org/
-    <Response [200]>
+    <Response HTTP/2 [200]>
 
 You can add multiple hooks to a single request.  Let's call two hooks at once::
 
@@ -477,10 +483,33 @@ be called on every request made to the session.  For example::
    >>> s.hooks['response'].append(print_url)
    >>> s.get('https://httpbin.org/')
     https://httpbin.org/
-    <Response [200]>
+    <Response HTTP/2 [200]>
 
 A ``Session`` can have multiple hooks, which will be called in the order
 they are added.
+
+You can find a example of how to retrieve the connection information just before the request is sent::
+
+    >>> r = niquests.get("https://1.1.1.1", hooks={"pre_send": [lambda r: print(r.conn_info)]}
+
+Here, ``r`` is the ``PreparedRequest`` and ``conn_info`` contains a ``ConnectionInfo``.
+You can explore the following data in it.
+
+- **certificate_der**: The certificate in DER format (binary)
+- **certificate_dict**: The certificate as a dictionary like ``ssl.SSLSocket.getpeercert(binary_from=False)`` output it.
+- **tls_version**: TLS version.
+- **cipher**: Cipher used.
+- **http_version**: Http version that is about to be used.
+
+.. warning:: Depending on your platform and interpreter, some key element might not be available and be assigned ``None`` everytime. Like **certificate_dict** on MacOS.
+
+List of tangible use-cases:
+
+
+- Doing a OCSP request to verify whenever a certificate is revoked.
+- Displaying cool stuff on the screen for CLI based tools.
+- Also debugging, obviously.
+- Among others thing.
 
 .. _custom-auth:
 
@@ -518,7 +547,7 @@ Let's pretend that we have a web service that will only respond if the
 Then, we can make a request using our Pizza Auth::
 
     >>> niquests.get('http://pizzabin.org/admin', auth=PizzaAuth('kenneth'))
-    <Response [200]>
+    <Response HTTP/2 [200]>
 
 .. _streaming-requests:
 
@@ -663,7 +692,7 @@ You override this default certificate bundle by setting the ``REQUESTS_CA_BUNDLE
     $ export https_proxy="http://10.10.1.10:1080"
 
     $ python
-    >>> import requests
+    >>> import niquests
     >>> niquests.get('https://example.org')
 
 SOCKS
@@ -679,7 +708,7 @@ You can get the dependencies for this feature from ``pip``:
 
 .. code-block:: bash
 
-    $ python -m pip install requests[socks]
+    $ python -m pip install niquests[socks]
 
 Once you've installed those dependencies, using a SOCKS proxy is just as easy
 as using a HTTP one::
@@ -709,24 +738,9 @@ use for decoding the response when you access the :attr:`Response.text
 <niquests.Response.text>` attribute. Requests will first check for an
 encoding in the HTTP header, and if none is present, will use
 `charset_normalizer <https://pypi.org/project/charset_normalizer/>`_
-or `chardet <https://github.com/chardet/chardet>`_ to attempt to
-guess the encoding.
+to attempt to guess the encoding.
 
-If ``chardet`` is installed, ``requests`` uses it, however for python3
-``chardet`` is no longer a mandatory dependency. The ``chardet``
-library is an LGPL-licenced dependency and some users of requests
-cannot depend on mandatory LGPL-licensed dependencies.
-
-When you install ``requests`` without specifying ``[use_chardet_on_py3]`` extra,
-and ``chardet`` is not already installed, ``requests`` uses ``charset-normalizer``
-(MIT-licensed) to guess the encoding.
-
-The only time Requests will not guess the encoding is if no explicit charset
-is present in the HTTP headers **and** the ``Content-Type``
-header contains ``text``. In this situation, `RFC 2616
-<https://www.w3.org/Protocols/rfc2616/rfc2616-sec3.html#sec3.7.1>`_ specifies
-that the default charset must be ``ISO-8859-1``. Requests follows the
-specification in this case. If you require a different encoding, you can
+If you require a different encoding, you can
 manually set the :attr:`Response.encoding <niquests.Response.encoding>`
 property, or use the raw :attr:`Response.content <niquests.Response.content>`.
 
@@ -746,7 +760,7 @@ example usage would be attempting to get information about a specific commit
 from GitHub. Suppose we wanted commit ``a050faf`` on Requests. We would get it
 like so::
 
-    >>> import requests
+    >>> import niquests
     >>> r = niquests.get('https://api.github.com/repos/psf/requests/git/commits/a050faf084662f3a352dd1a941f2c7c9f886d4ad')
 
 We should confirm that GitHub responded correctly. If it has, we want to work
@@ -928,7 +942,7 @@ Custom Verbs
 From time to time you may be working with a server that, for whatever reason,
 allows use or even requires use of HTTP verbs not covered above. One example of
 this would be the MKCOL method some WEBDAV servers use. Do not fret, these can
-still be used with Requests. These make use of the built-in ``.request``
+still be used with Niquests. These make use of the built-in ``.request``
 method. For example::
 
     >>> r = niquests.request('MKCOL', url, data=data)
@@ -1039,17 +1053,17 @@ backoff, within a Requests :class:`Session <niquests.Session>` using the
 `urllib3.util.Retry`_ class::
 
     from urllib3.util import Retry
-    from requests import Session
-    from niquests.adapters import HTTPAdapter
+    from niquests import Session
 
-    s = Session()
     retries = Retry(
         total=3,
         backoff_factor=0.1,
         status_forcelist=[502, 503, 504],
         allowed_methods={'POST'},
     )
-    s.mount('https://', HTTPAdapter(max_retries=retries))
+
+    s = Session(retries=retries)
+    s.get("https://1.1.1.1")
 
 .. _`described here`: https://kenreitz.org/essays/2012/06/14/the-future-of-python-http
 .. _`urllib3`: https://github.com/urllib3/urllib3
@@ -1067,14 +1081,8 @@ you require more granularity, the streaming features of the library (see
 :ref:`streaming-requests`) allow you to retrieve smaller quantities of the
 response at a time. However, these calls will still block.
 
-If you are concerned about the use of blocking IO, there are lots of projects
-out there that combine Requests with one of Python's asynchronicity frameworks.
-Some excellent examples are `requests-threads`_, `grequests`_, `requests-futures`_, and `httpx`_.
-
-.. _`requests-threads`: https://github.com/requests/requests-threads
-.. _`grequests`: https://github.com/spyoungtech/grequests
-.. _`requests-futures`: https://github.com/ross/requests-futures
-.. _`httpx`: https://github.com/encode/httpx
+We plan to support multiplexed requests when using HTTP/2 or HTTP/3. Async usage
+will be partially rendered useless. There won't be any IO blocking per request.
 
 Header Ordering
 ---------------
@@ -1091,7 +1099,7 @@ Timeouts
 Most requests to external servers should have a timeout attached, in case the
 server is not responding in a timely manner. By default, requests do not time
 out unless a timeout value is set explicitly. Without a timeout, your code may
-hang for minutes or more.
+hang for minutes.
 
 The **connect** timeout is the number of seconds Requests will wait for your
 client to establish a connection to a remote machine (corresponding to the
@@ -1116,10 +1124,14 @@ timeouts. Specify a tuple if you would like to set the values separately::
 
 If the remote server is very slow, you can tell Requests to wait forever for
 a response, by passing None as a timeout value and then retrieving a cup of
-coffee.
-
-::
+coffee.::
 
     r = niquests.get('https://github.com', timeout=None)
+
+It is also possible to use the ``Timeout`` class from ``urllib3`` directly::
+
+    from urllib3 import Timeout
+
+    r = niquests.get('https://github.com', timeout=Timeout(3, 9))
 
 .. _`connect()`: https://linux.die.net/man/2/connect

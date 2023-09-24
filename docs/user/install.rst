@@ -1,16 +1,16 @@
 .. _install:
 
-Installation of Requests
+Installation of Niquests
 ========================
 
-This part of the documentation covers the installation of Requests.
+This part of the documentation covers the installation of Niquests.
 The first step to using any software package is getting it properly installed.
 
 
-$ python -m pip install requests
+$ python -m pip install niquests
 --------------------------------
 
-To install Requests, simply run this simple command in your terminal of choice::
+To install Niquests, simply run this simple command in your terminal of choice::
 
     $ python -m pip install niquests
 

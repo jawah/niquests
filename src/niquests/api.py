@@ -83,8 +83,9 @@ def request(
     :param verify: (optional) Either a boolean, in which case it controls whether we verify
             the server's TLS certificate, or a string, in which case it must be a path
             to a CA bundle to use. Defaults to ``True``.
+            It is also possible to put the certificates (directly) in a string or bytes.
     :param stream: (optional) if ``False``, the response content will be immediately downloaded.
-    :param cert: (optional) if String, path to ssl client cert file (.pem). If Tuple, ('cert', 'key') pair.
+    :param cert: (optional) if String, path to ssl client cert file (.pem). If Tuple, ('cert', 'key') pair, or ('cert', 'key', 'key_password').
     :param hooks: (optional) Register functions that should be called at very specific moment in the request lifecycle.
     :param retries: (optional) If integer, determine the number of retry in case of a timeout or connection error.
             Otherwise, for fine gained retry, use directly a ``Retry`` instance from urllib3.
@@ -158,8 +159,9 @@ def get(
     :param verify: (optional) Either a boolean, in which case it controls whether we verify
             the server's TLS certificate, or a string, in which case it must be a path
             to a CA bundle to use. Defaults to ``True``.
+            It is also possible to put the certificates (directly) in a string or bytes.
     :param stream: (optional) if ``False``, the response content will be immediately downloaded.
-    :param cert: (optional) if String, path to ssl client cert file (.pem). If Tuple, ('cert', 'key') pair.
+    :param cert: (optional) if String, path to ssl client cert file (.pem). If Tuple, ('cert', 'key') pair, or ('cert', 'key', 'key_password').
     :param hooks: (optional) Register functions that should be called at very specific moment in the request lifecycle.
     :param retries: (optional) If integer, determine the number of retry in case of a timeout or connection error.
             Otherwise, for fine gained retry, use directly a ``Retry`` instance from urllib3.
@@ -216,8 +218,9 @@ def options(
     :param verify: (optional) Either a boolean, in which case it controls whether we verify
             the server's TLS certificate, or a string, in which case it must be a path
             to a CA bundle to use. Defaults to ``True``.
+            It is also possible to put the certificates (directly) in a string or bytes.
     :param stream: (optional) if ``False``, the response content will be immediately downloaded.
-    :param cert: (optional) if String, path to ssl client cert file (.pem). If Tuple, ('cert', 'key') pair.
+    :param cert: (optional) if String, path to ssl client cert file (.pem). If Tuple, ('cert', 'key') pair, or ('cert', 'key', 'key_password').
     :param hooks: (optional) Register functions that should be called at very specific moment in the request lifecycle.
     :param retries: (optional) If integer, determine the number of retry in case of a timeout or connection error.
             Otherwise, for fine gained retry, use directly a ``Retry`` instance from urllib3.
@@ -275,8 +278,9 @@ def head(
     :param verify: (optional) Either a boolean, in which case it controls whether we verify
             the server's TLS certificate, or a string, in which case it must be a path
             to a CA bundle to use. Defaults to ``True``.
+            It is also possible to put the certificates (directly) in a string or bytes.
     :param stream: (optional) if ``False``, the response content will be immediately downloaded.
-    :param cert: (optional) if String, path to ssl client cert file (.pem). If Tuple, ('cert', 'key') pair.
+    :param cert: (optional) if String, path to ssl client cert file (.pem). If Tuple, ('cert', 'key') pair, or ('cert', 'key', 'key_password').
     :param hooks: (optional) Register functions that should be called at very specific moment in the request lifecycle.
     :param retries: (optional) If integer, determine the number of retry in case of a timeout or connection error.
             Otherwise, for fine gained retry, use directly a ``Retry`` instance from urllib3.
@@ -345,8 +349,9 @@ def post(
     :param verify: (optional) Either a boolean, in which case it controls whether we verify
             the server's TLS certificate, or a string, in which case it must be a path
             to a CA bundle to use. Defaults to ``True``.
+            It is also possible to put the certificates (directly) in a string or bytes.
     :param stream: (optional) if ``False``, the response content will be immediately downloaded.
-    :param cert: (optional) if String, path to ssl client cert file (.pem). If Tuple, ('cert', 'key') pair.
+    :param cert: (optional) if String, path to ssl client cert file (.pem). If Tuple, ('cert', 'key') pair, or ('cert', 'key', 'key_password').
     :param hooks: (optional) Register functions that should be called at very specific moment in the request lifecycle.
     :param retries: (optional) If integer, determine the number of retry in case of a timeout or connection error.
             Otherwise, for fine gained retry, use directly a ``Retry`` instance from urllib3.
@@ -418,8 +423,9 @@ def put(
     :param verify: (optional) Either a boolean, in which case it controls whether we verify
             the server's TLS certificate, or a string, in which case it must be a path
             to a CA bundle to use. Defaults to ``True``.
+            It is also possible to put the certificates (directly) in a string or bytes.
     :param stream: (optional) if ``False``, the response content will be immediately downloaded.
-    :param cert: (optional) if String, path to ssl client cert file (.pem). If Tuple, ('cert', 'key') pair.
+    :param cert: (optional) if String, path to ssl client cert file (.pem). If Tuple, ('cert', 'key') pair, or ('cert', 'key', 'key_password').
     :param hooks: (optional) Register functions that should be called at very specific moment in the request lifecycle.
     :param retries: (optional) If integer, determine the number of retry in case of a timeout or connection error.
             Otherwise, for fine gained retry, use directly a ``Retry`` instance from urllib3.
@@ -491,8 +497,9 @@ def patch(
     :param verify: (optional) Either a boolean, in which case it controls whether we verify
             the server's TLS certificate, or a string, in which case it must be a path
             to a CA bundle to use. Defaults to ``True``.
+            It is also possible to put the certificates (directly) in a string or bytes.
     :param stream: (optional) if ``False``, the response content will be immediately downloaded.
-    :param cert: (optional) if String, path to ssl client cert file (.pem). If Tuple, ('cert', 'key') pair.
+    :param cert: (optional) if String, path to ssl client cert file (.pem). If Tuple, ('cert', 'key') pair, or ('cert', 'key', 'key_password').
     :param hooks: (optional) Register functions that should be called at very specific moment in the request lifecycle.
     :param retries: (optional) If integer, determine the number of retry in case of a timeout or connection error.
             Otherwise, for fine gained retry, use directly a ``Retry`` instance from urllib3.
@@ -553,8 +560,9 @@ def delete(
     :param verify: (optional) Either a boolean, in which case it controls whether we verify
             the server's TLS certificate, or a string, in which case it must be a path
             to a CA bundle to use. Defaults to ``True``.
+            It is also possible to put the certificates (directly) in a string or bytes.
     :param stream: (optional) if ``False``, the response content will be immediately downloaded.
-    :param cert: (optional) if String, path to ssl client cert file (.pem). If Tuple, ('cert', 'key') pair.
+    :param cert: (optional) if String, path to ssl client cert file (.pem). If Tuple, ('cert', 'key') pair, or ('cert', 'key', 'key_password').
     :param hooks: (optional) Register functions that should be called at very specific moment in the request lifecycle.
     :param retries: (optional) If integer, determine the number of retry in case of a timeout or connection error.
             Otherwise, for fine gained retry, use directly a ``Retry`` instance from urllib3.

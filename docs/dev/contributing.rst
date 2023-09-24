@@ -3,10 +3,10 @@
 Contributor's Guide
 ===================
 
-If you're reading this, you're probably interested in contributing to Requests.
+If you're reading this, you're probably interested in contributing to Niquests.
 Thank you very much! Open source projects live-and-die based on the support
 they receive from others, and the fact that you're even considering
-contributing to the Requests project is *very* generous of you.
+contributing to the Niquests project is *very* generous of you.
 
 This document lays out guidelines and advice for contributing to this project.
 If you're thinking of contributing, please start by reading this document and
@@ -24,7 +24,7 @@ Be Cordial
 
     **Be cordial or be on your way**. *—Kenneth Reitz*
 
-Requests has one very important rule governing all forms of contribution,
+Niquests has one very important rule governing all forms of contribution,
 including reporting bugs or requesting features. This golden rule is
 "`be cordial or be on your way`_".
 
@@ -49,7 +49,7 @@ Contribution Suitability
 ------------------------
 
 Our project maintainers have the last word on whether or not a contribution is
-suitable for Requests. All contributions will be considered carefully, but from
+suitable for Niquests. All contributions will be considered carefully, but from
 time to time, contributions will be rejected because they do not suit the
 current goals or needs of the project.
 
@@ -93,14 +93,14 @@ you must either apply the feedback or withdraw your contribution.
 Code Style
 ~~~~~~~~~~
 
-Requests uses a collection of tools to ensure the code base has a consistent
+Niquests uses a collection of tools to ensure the code base has a consistent
 style as it grows. We have these orchestrated using a tool called
 `pre-commit`_. This can be installed locally and run over your changes prior
 to opening a PR, and will also be run as part of the CI approval process
 before a change is merged.
 
 You can find the full list of formatting requirements specified in the
-`.pre-commit-config.yaml`_ at the top level directory of Requests.
+`.pre-commit-config.yaml`_ at the top level directory of Niquests.
 
 .. _pre-commit: https://pre-commit.com/
 .. _.pre-commit-config.yaml: https://github.com/jawah/niquests/blob/main/.pre-commit-config.yaml

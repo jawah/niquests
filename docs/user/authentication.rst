@@ -3,10 +3,10 @@
 Authentication
 ==============
 
-This document discusses using various kinds of authentication with Requests.
+This document discusses using various kinds of authentication with Niquests.
 
 Many web services require authentication, and there are many different types.
-Below, we outline various forms of authentication available in Requests, from
+Below, we outline various forms of authentication available in Niquests, from
 the simple to the complex.
 
 
@@ -14,20 +14,20 @@ Basic Authentication
 --------------------
 
 Many web services that require authentication accept HTTP Basic Auth. This is
-the simplest kind, and Requests supports it straight out of the box.
+the simplest kind, and Niquests supports it straight out of the box.
 
 Making requests with HTTP Basic Auth is very simple::
 
     >>> from niquests.auth import HTTPBasicAuth
     >>> basic = HTTPBasicAuth('user', 'pass')
     >>> niquests.get('https://httpbin.org/basic-auth/user/pass', auth=basic)
-    <Response [200]>
+    <Response HTTP/2 [200]>
 
-In fact, HTTP Basic Auth is so common that Requests provides a handy shorthand
+In fact, HTTP Basic Auth is so common that Niquests provides a handy shorthand
 for using it::
 
     >>> niquests.get('https://httpbin.org/basic-auth/user/pass', auth=('user', 'pass'))
-    <Response [200]>
+    <Response HTTP/2 [200]>
 
 Providing the credentials in a tuple like this is exactly the same as the
 ``HTTPBasicAuth`` example above.
@@ -36,7 +36,7 @@ Providing the credentials in a tuple like this is exactly the same as the
 netrc Authentication
 ~~~~~~~~~~~~~~~~~~~~
 
-If no authentication method is given with the ``auth`` argument, Requests will
+If no authentication method is given with the ``auth`` argument, Niquests will
 attempt to get the authentication credentials for the URL's hostname from the
 user's netrc file. The netrc file overrides raw HTTP authentication headers
 set with `headers=`.
@@ -49,12 +49,12 @@ Digest Authentication
 ---------------------
 
 Another very popular form of HTTP Authentication is Digest Authentication,
-and Requests supports this out of the box as well::
+and Niquests supports this out of the box as well::
 
     >>> from niquests.auth import HTTPDigestAuth
     >>> url = 'https://httpbin.org/digest-auth/auth/user/pass'
     >>> niquests.get(url, auth=HTTPDigestAuth('user', 'pass'))
-    <Response [200]>
+    <Response HTTP/2 [200]>
 
 
 OAuth 1 Authentication
@@ -63,7 +63,7 @@ OAuth 1 Authentication
 A common form of authentication for several web APIs is OAuth. The ``requests-oauthlib``
 library allows Requests users to easily make OAuth 1 authenticated requests::
 
-    >>> import requests
+    >>> import niquests
     >>> from requests_oauthlib import OAuth1
 
     >>> url = 'https://api.twitter.com/1.1/account/verify_credentials.json'
@@ -71,7 +71,7 @@ library allows Requests users to easily make OAuth 1 authenticated requests::
     ...               'USER_OAUTH_TOKEN', 'USER_OAUTH_TOKEN_SECRET')
 
     >>> niquests.get(url, auth=auth)
-    <Response [200]>
+    <Response HTTP/2 [200]>
 
 For more information on how to OAuth flow works, please see the official `OAuth`_ website.
 For examples and documentation on requests-oauthlib, please see the `requests_oauthlib`_
@@ -115,7 +115,7 @@ forms of authentication.
 To do so, subclass :class:`AuthBase <niquests.auth.AuthBase>` and implement the
 ``__call__()`` method::
 
-    >>> import requests
+    >>> import niquests
     >>> class MyAuth(niquests.auth.AuthBase):
     ...     def __call__(self, r):
     ...         # Implement my authentication
@@ -123,7 +123,7 @@ To do so, subclass :class:`AuthBase <niquests.auth.AuthBase>` and implement the
     ...
     >>> url = 'https://httpbin.org/get'
     >>> niquests.get(url, auth=MyAuth())
-    <Response [200]>
+    <Response HTTP/2 [200]>
 
 When an authentication handler is attached to a request,
 it is called during request setup. The ``__call__`` method must therefore do

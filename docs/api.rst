@@ -6,14 +6,14 @@ Developer Interface
 .. module:: requests
 
 This part of the documentation covers all the interfaces of Requests. For
-parts where Requests depends on external libraries, we document the most
+parts where Niquests depends on external libraries, we document the most
 important right here and provide links to the canonical documentation.
 
 
 Main Interface
 --------------
 
-All of Requests' functionality can be accessed by these 7 methods.
+All of Niquests' functionality can be accessed by these 7 methods.
 They all return an instance of the :class:`Response <Response>` object.
 
 .. autofunction:: request
@@ -195,7 +195,7 @@ Licensing
 
 One key difference that has nothing to do with the API is a change in the
 license from the ISC_ license to the `Apache 2.0`_ license. The Apache 2.0
-license ensures that contributions to Requests are also covered by the Apache
+license ensures that contributions to Niquests are also covered by the Apache
 2.0 license.
 
 .. _ISC: https://opensource.org/licenses/ISC
@@ -220,7 +220,7 @@ on the subject.
 API Changes
 ~~~~~~~~~~~
 
-* There were a couple changes to how Requests handles exceptions.
+* There were a couple changes to how Niquests handles exceptions.
   ``RequestException`` is now a subclass of ``IOError`` rather than
   ``RuntimeError`` as that more accurately categorizes the type of error.
   In addition, an invalid URL escape sequence now raises a subclass of
