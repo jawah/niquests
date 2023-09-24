@@ -4,60 +4,33 @@ requests.auth
 
 This module contains the authentication handlers for Requests.
 """
+from __future__ import annotations
 
 import hashlib
 import os
 import re
 import threading
 import time
-import warnings
+import typing
 from base64 import b64encode
+from urllib.parse import urlparse
 
 from ._internal_utils import to_native_string
-from .compat import basestring, str, urlparse
 from .cookies import extract_cookies_to_jar
 from .utils import parse_dict_header
 
-CONTENT_TYPE_FORM_URLENCODED = "application/x-www-form-urlencoded"
-CONTENT_TYPE_MULTI_PART = "multipart/form-data"
+CONTENT_TYPE_FORM_URLENCODED: str = "application/x-www-form-urlencoded"
+CONTENT_TYPE_MULTI_PART: str = "multipart/form-data"
 
 
-def _basic_auth_str(username, password):
+def _basic_auth_str(username: str | bytes, password: str | bytes) -> str:
     """Returns a Basic Auth string."""
 
-    # "I want us to put a big-ol' comment on top of it that
-    # says that this behaviour is dumb but we need to preserve
-    # it because people are relying on it."
-    #    - Lukasa
-    #
-    # These are here solely to maintain backwards compatibility
-    # for things like ints. This will be removed in 3.0.0.
-    if not isinstance(username, basestring):
-        warnings.warn(
-            "Non-string usernames will no longer be supported in Requests "
-            "3.0.0. Please convert the object you've passed in ({!r}) to "
-            "a string or bytes object in the near future to avoid "
-            "problems.".format(username),
-            category=DeprecationWarning,
-        )
-        username = str(username)
-
-    if not isinstance(password, basestring):
-        warnings.warn(
-            "Non-string passwords will no longer be supported in Requests "
-            "3.0.0. Please convert the object you've passed in ({!r}) to "
-            "a string or bytes object in the near future to avoid "
-            "problems.".format(type(password)),
-            category=DeprecationWarning,
-        )
-        password = str(password)
-    # -- End Removal --
-
     if isinstance(username, str):
-        username = username.encode("latin1")
+        username = username.encode("utf-8")
 
     if isinstance(password, str):
-        password = password.encode("latin1")
+        password = password.encode("utf-8")
 
     authstr = "Basic " + to_native_string(
         b64encode(b":".join((username, password))).strip()
@@ -76,11 +49,11 @@ class AuthBase:
 class HTTPBasicAuth(AuthBase):
     """Attaches HTTP Basic Authentication to the given Request object."""
 
-    def __init__(self, username, password):
+    def __init__(self, username: str | bytes, password: str | bytes):
         self.username = username
         self.password = password
 
-    def __eq__(self, other):
+    def __eq__(self, other) -> bool:
         return all(
             [
                 self.username == getattr(other, "username", None),
@@ -88,7 +61,7 @@ class HTTPBasicAuth(AuthBase):
             ]
         )
 
-    def __ne__(self, other):
+    def __ne__(self, other) -> bool:
         return not self == other
 
     def __call__(self, r):
@@ -107,13 +80,13 @@ class HTTPProxyAuth(HTTPBasicAuth):
 class HTTPDigestAuth(AuthBase):
     """Attaches HTTP Digest Authentication to the given Request object."""
 
-    def __init__(self, username, password):
+    def __init__(self, username: str, password: str):
         self.username = username
         self.password = password
         # Keep state in per-thread local storage
         self._thread_local = threading.local()
 
-    def init_per_thread_state(self):
+    def init_per_thread_state(self) -> None:
         # Ensure state is initialized just once per-thread
         if not hasattr(self._thread_local, "init"):
             self._thread_local.init = True
@@ -123,17 +96,13 @@ class HTTPDigestAuth(AuthBase):
             self._thread_local.pos = None
             self._thread_local.num_401_calls = None
 
-    def build_digest_header(self, method, url):
-        """
-        :rtype: str
-        """
-
+    def build_digest_header(self, method: str, url: str) -> str | None:
         realm = self._thread_local.chal["realm"]
         nonce = self._thread_local.chal["nonce"]
         qop = self._thread_local.chal.get("qop")
         algorithm = self._thread_local.chal.get("algorithm")
         opaque = self._thread_local.chal.get("opaque")
-        hash_utf8 = None
+        hash_utf8: typing.Callable[[str | bytes], str] | None = None
 
         if algorithm is None:
             _algorithm = "MD5"
@@ -142,7 +111,7 @@ class HTTPDigestAuth(AuthBase):
         # lambdas assume digest modules are imported at the top level
         if _algorithm == "MD5" or _algorithm == "MD5-SESS":
 
-            def md5_utf8(x):
+            def md5_utf8(x: str | bytes) -> str:
                 if isinstance(x, str):
                     x = x.encode("utf-8")
                 return hashlib.md5(x).hexdigest()
@@ -150,7 +119,7 @@ class HTTPDigestAuth(AuthBase):
             hash_utf8 = md5_utf8
         elif _algorithm == "SHA":
 
-            def sha_utf8(x):
+            def sha_utf8(x: str | bytes) -> str:
                 if isinstance(x, str):
                     x = x.encode("utf-8")
                 return hashlib.sha1(x).hexdigest()
@@ -158,7 +127,7 @@ class HTTPDigestAuth(AuthBase):
             hash_utf8 = sha_utf8
         elif _algorithm == "SHA-256":
 
-            def sha256_utf8(x):
+            def sha256_utf8(x: str | bytes) -> str:
                 if isinstance(x, str):
                     x = x.encode("utf-8")
                 return hashlib.sha256(x).hexdigest()
@@ -166,12 +135,14 @@ class HTTPDigestAuth(AuthBase):
             hash_utf8 = sha256_utf8
         elif _algorithm == "SHA-512":
 
-            def sha512_utf8(x):
+            def sha512_utf8(x: str | bytes) -> str:
                 if isinstance(x, str):
                     x = x.encode("utf-8")
                 return hashlib.sha512(x).hexdigest()
 
             hash_utf8 = sha512_utf8
+        else:
+            raise ValueError(f"'{_algorithm}' hashing algorithm is not supported")
 
         KD = lambda s, d: hash_utf8(f"{s}:{d}")  # noqa:E731
 
@@ -233,7 +204,7 @@ class HTTPDigestAuth(AuthBase):
 
         return f"Digest {base}"
 
-    def handle_redirect(self, r, **kwargs):
+    def handle_redirect(self, r, **kwargs) -> None:
         """Reset num_401_calls counter on redirects."""
         if r.is_redirect:
             self._thread_local.num_401_calls = 1
@@ -302,7 +273,7 @@ class HTTPDigestAuth(AuthBase):
 
         return r
 
-    def __eq__(self, other):
+    def __eq__(self, other) -> bool:
         return all(
             [
                 self.username == getattr(other, "username", None),
@@ -310,5 +281,5 @@ class HTTPDigestAuth(AuthBase):
             ]
         )
 
-    def __ne__(self, other):
+    def __ne__(self, other) -> bool:
         return not self == other

@@ -11,18 +11,14 @@ What happened instead.
 ## Reproduction Steps
 
 ```python
-import requests
+import niquests
 
 ```
 
 ## System Information
 
-    $ python -m requests.help
+    $ python -m niquests.help
 
 ```
 <paste here>
 ```
-
-This command is only available on Requests v2.16.4 and greater. Otherwise,
-please provide some basic information about your system (Python version,
-operating system, &c).

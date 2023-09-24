@@ -1,7 +1,90 @@
+[build-system]
+requires = ["hatchling>=1.6.0,<2"]
+build-backend = "hatchling.build"
+
+[project]
+name = "niquests"
+description = "Python HTTP for Humans."
+readme = "README.md"
+license-files = { paths = ["LICENSE"] }
+license = "Apache-2.0"
+keywords = ["requests", "http/2", "http/3", "QUIC", "http", "https", "http client", "http/1.1"]
+authors = [
+  {name = "Kenneth Reitz", email = "me@kennethreitz.org"}
+]
+maintainers = [
+  {name = "Ahmed R. TAHRI", email="ahmed.tahri@cloudnursery.dev"},
+]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Environment :: Web Environment",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: Apache Software License",
+    "Natural Language :: English",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.7",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: Implementation :: CPython",
+    "Programming Language :: Python :: Implementation :: PyPy",
+    "Topic :: Internet :: WWW/HTTP",
+    "Topic :: Software Development :: Libraries",
+]
+requires-python = ">=3.7"
+dynamic = ["version"]
+dependencies = [
+    "charset_normalizer>=2,<4",
+    "idna>=2.5,<4",
+    "urllib3.future>=2.0.934,<3",
+    "wassima>=1.0.0,<2",
+    "kiss_headers>=2,<4",
+]
+
+[project.optional-dependencies]
+socks = [
+  "PySocks>=1.5.6, !=1.5.7",
+]
+
+[project.urls]
+"Changelog" = "https://github.com/jawah/niquests/blob/main/HISTORY.md"
+"Documentation" = "https://niquests.readthedocs.io"
+"Code" = "https://github.com/jawah/niquests"
+"Issue tracker" = "https://github.com/jawah/niquests/issues"
+
+[tool.hatch.version]
+path = "src/niquests/__version__.py"
+
+[tool.hatch.build.targets.sdist]
+include = [
+    "/docs",
+    "/src",
+    "/tests",
+    "/dev-requirements.txt",
+    "/HISTORY.md",
+    "/README.md",
+    "/AUTHORS.rst",
+    "/LICENSE",
+    "/NOTICE",
+    "/Makefile",
+    "/setup.cfg",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = [
+    "src/niquests",
+]
+
 [tool.isort]
 profile = "black"
-src_paths = ["src/niquests", "test"]
+src_paths = ["src/niquests", "tests"]
 honor_noqa = true
+add_imports = "from __future__ import annotations"
 
 [tool.pytest.ini_options]
 addopts = "--doctest-modules"

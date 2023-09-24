@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import pytest
 
 from niquests import hooks
@@ -19,4 +21,4 @@ def test_hooks(hooks_list, result):
 
 
 def test_default_hooks():
-    assert hooks.default_hooks() == {"response": []}
+    assert hooks.default_hooks() == {"pre_request": [], "pre_send": [], "response": []}

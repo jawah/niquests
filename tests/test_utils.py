@@ -1,16 +1,16 @@
+from __future__ import annotations
+
 import copy
-import filecmp
 import os
 import tarfile
-import zipfile
+import urllib.parse
 from collections import deque
+from http import cookiejar
 from io import BytesIO
 from unittest import mock
 
 import pytest
 
-from niquests import compat
-from niquests._internal_utils import unicode_is_ascii
 from niquests.cookies import RequestsCookieJar
 from niquests.structures import CaseInsensitiveDict
 from niquests.utils import (
@@ -18,13 +18,10 @@ from niquests.utils import (
     add_dict_to_cookiejar,
     address_in_network,
     dotted_netmask,
-    extract_zipped_paths,
     get_auth_from_url,
     get_encoding_from_headers,
-    get_encodings_from_content,
     get_environ_proxies,
     guess_filename,
-    guess_json_utf,
     is_ipv4_address,
     is_valid_cidr,
     iter_slices,
@@ -98,18 +95,17 @@ class TestSuperLen:
         assert super_len("Test") == 4
 
     @pytest.mark.parametrize(
-        "mode, warnings_num",
+        "mode",
         (
-            ("r", 1),
-            ("rb", 0),
+            "r",
+            "rb",
         ),
     )
-    def test_file(self, tmpdir, mode, warnings_num, recwarn):
+    def test_file(self, tmpdir, mode, recwarn):
         file_obj = tmpdir.join("test.txt")
         file_obj.write("Test")
         with file_obj.open(mode) as fd:
             assert super_len(fd) == 4
-        assert len(recwarn) == warnings_num
 
     def test_tarfile_member(self, tmpdir):
         file_obj = tmpdir.join("test.txt")
@@ -159,7 +155,6 @@ class TestToKeyValList:
             ([("key", "val")], [("key", "val")]),
             ((("key", "val"),), [("key", "val")]),
             ({"key": "val"}, [("key", "val")]),
-            (None, None),
         ),
     )
     def test_valid(self, value, expected):
@@ -298,10 +293,7 @@ class TestGuessFilename:
 
     @pytest.mark.parametrize(
         "value, expected_type",
-        (
-            (b"value", compat.bytes),
-            (b"value".decode("utf-8"), compat.str),
-        ),
+        ((b"value".decode("utf-8"), str),),
     )
     def test_guess_filename_valid(self, value, expected_type):
         obj = type("Fake", (object,), {"name": value})()
@@ -310,107 +302,9 @@ class TestGuessFilename:
         assert isinstance(result, expected_type)
 
 
-class TestExtractZippedPaths:
-    @pytest.mark.parametrize(
-        "path",
-        (
-            "/",
-            __file__,
-            pytest.__file__,
-            "/etc/invalid/location",
-        ),
-    )
-    def test_unzipped_paths_unchanged(self, path):
-        assert path == extract_zipped_paths(path)
-
-    def test_zipped_paths_extracted(self, tmpdir):
-        zipped_py = tmpdir.join("test.zip")
-        with zipfile.ZipFile(zipped_py.strpath, "w") as f:
-            f.write(__file__)
-
-        _, name = os.path.splitdrive(__file__)
-        zipped_path = os.path.join(zipped_py.strpath, name.lstrip(r"\/"))
-        extracted_path = extract_zipped_paths(zipped_path)
-
-        assert extracted_path != zipped_path
-        assert os.path.exists(extracted_path)
-        assert filecmp.cmp(extracted_path, __file__)
-
-    def test_invalid_unc_path(self):
-        path = r"\\localhost\invalid\location"
-        assert extract_zipped_paths(path) == path
-
-
-class TestContentEncodingDetection:
-    def test_none(self):
-        encodings = get_encodings_from_content("")
-        assert not len(encodings)
-
-    @pytest.mark.parametrize(
-        "content",
-        (
-            # HTML5 meta charset attribute
-            '<meta charset="UTF-8">',
-            # HTML4 pragma directive
-            '<meta http-equiv="Content-type" content="text/html;charset=UTF-8">',
-            # XHTML 1.x served with text/html MIME type
-            '<meta http-equiv="Content-type" content="text/html;charset=UTF-8" />',
-            # XHTML 1.x served as XML
-            '<?xml version="1.0" encoding="UTF-8"?>',
-        ),
-    )
-    def test_pragmas(self, content):
-        encodings = get_encodings_from_content(content)
-        assert len(encodings) == 1
-        assert encodings[0] == "UTF-8"
-
-    def test_precedence(self):
-        content = """
-        <?xml version="1.0" encoding="XML"?>
-        <meta charset="HTML5">
-        <meta http-equiv="Content-type" content="text/html;charset=HTML4" />
-        """.strip()
-        assert get_encodings_from_content(content) == ["HTML5", "HTML4", "XML"]
-
-
-class TestGuessJSONUTF:
-    @pytest.mark.parametrize(
-        "encoding",
-        (
-            "utf-32",
-            "utf-8-sig",
-            "utf-16",
-            "utf-8",
-            "utf-16-be",
-            "utf-16-le",
-            "utf-32-be",
-            "utf-32-le",
-        ),
-    )
-    def test_encoded(self, encoding):
-        data = "{}".encode(encoding)
-        assert guess_json_utf(data) == encoding
-
-    def test_bad_utf_like_encoding(self):
-        assert guess_json_utf(b"\x00\x00\x00\x00") is None
-
-    @pytest.mark.parametrize(
-        ("encoding", "expected"),
-        (
-            ("utf-16-be", "utf-16"),
-            ("utf-16-le", "utf-16"),
-            ("utf-32-be", "utf-32"),
-            ("utf-32-le", "utf-32"),
-        ),
-    )
-    def test_guess_by_bom(self, encoding, expected):
-        data = "\ufeff{}".encode(encoding)
-        assert guess_json_utf(data) == expected
-
-
 USER = PASSWORD = "%!*'();:@&=+$,/?#[] "
-ENCODED_USER = compat.quote(USER, "")
-ENCODED_PASSWORD = compat.quote(PASSWORD, "")
+ENCODED_USER = urllib.parse.quote(USER, "")
+ENCODED_PASSWORD = urllib.parse.quote(PASSWORD, "")
 
 
 @pytest.mark.parametrize(
@@ -616,7 +510,7 @@ def test__parse_content_type_header(value, expected):
             CaseInsensitiveDict({"content-type": "application/json; charset=utf-8"}),
             "utf-8",
         ),
-        (CaseInsensitiveDict({"content-type": "text/plain"}), "ISO-8859-1"),
+        (CaseInsensitiveDict({"content-type": "text/plain"}), None),
     ),
 )
 def test_get_encoding_from_headers(value, expected):
@@ -764,7 +658,7 @@ def test_should_bypass_proxies_pass_only_hostname(url, expected):
 @pytest.mark.parametrize(
     "cookiejar",
     (
-        compat.cookielib.CookieJar(),
+        cookiejar.CookieJar(),
         RequestsCookieJar(),
     ),
 )
@@ -776,18 +670,6 @@ def test_add_dict_to_cookiejar(cookiejar):
     cj = add_dict_to_cookiejar(cookiejar, cookiedict)
     cookies = {cookie.name: cookie.value for cookie in cj}
     assert cookiedict == cookies
-
-
-@pytest.mark.parametrize(
-    "value, expected",
-    (
-        ("test", True),
-        ("æíöû", False),
-        ("ジェーピーニック", False),
-    ),
-)
-def test_unicode_is_ascii(value, expected):
-    assert unicode_is_ascii(value) is expected
 
 
 @pytest.mark.parametrize(

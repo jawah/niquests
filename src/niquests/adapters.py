@@ -5,10 +5,14 @@ requests.adapters
 This module contains the transport adapters that Requests uses to define
 and maintain connections.
 """
+from __future__ import annotations
 
 import os.path
 import socket  # noqa: F401
+import typing
+from urllib.parse import urlparse
 
+from urllib3 import HTTPConnectionPool, HTTPSConnectionPool
 from urllib3.exceptions import ClosedPoolError, ConnectTimeoutError
 from urllib3.exceptions import HTTPError as _HTTPError
 from urllib3.exceptions import InvalidHeader as _InvalidHeader
@@ -21,13 +25,26 @@ from urllib3.exceptions import (
 from urllib3.exceptions import ProxyError as _ProxyError
 from urllib3.exceptions import ReadTimeoutError, ResponseError
 from urllib3.exceptions import SSLError as _SSLError
-from urllib3.poolmanager import PoolManager, proxy_from_url
+from urllib3.poolmanager import PoolManager, ProxyManager, proxy_from_url
+from urllib3.response import BaseHTTPResponse
 from urllib3.util import Timeout as TimeoutSauce
 from urllib3.util import parse_url
 from urllib3.util.retry import Retry
 
+from ._constant import (
+    DEFAULT_CA_BUNDLE,
+    DEFAULT_POOLBLOCK,
+    DEFAULT_POOLSIZE,
+    DEFAULT_RETRIES,
+)
+from ._typing import (
+    CacheLayerAltSvcType,
+    ProxyType,
+    RetryType,
+    TLSClientCertType,
+    TLSVerifyType,
+)
 from .auth import _basic_auth_str
-from .compat import basestring, urlparse
 from .cookies import extract_cookies_to_jar
 from .exceptions import (
     ConnectionError,
@@ -41,11 +58,9 @@ from .exceptions import (
     RetryError,
     SSLError,
 )
-from .models import Response
+from .models import PreparedRequest, Response
 from .structures import CaseInsensitiveDict
 from .utils import (
-    DEFAULT_CA_BUNDLE_PATH,
-    extract_zipped_paths,
     get_auth_from_url,
     get_encoding_from_headers,
     prepend_scheme_if_needed,
@@ -57,25 +72,26 @@ try:
     from urllib3.contrib.socks import SOCKSProxyManager
 except ImportError:
 
-    def SOCKSProxyManager(*args, **kwargs):
+    def SOCKSProxyManager(*args: typing.Any, **kwargs: typing.Any) -> None:  # type: ignore[no-redef]
         raise InvalidSchema("Missing dependencies for SOCKS support.")
-
-
-DEFAULT_POOLBLOCK = False
-DEFAULT_POOLSIZE = 10
-DEFAULT_RETRIES = 0
-DEFAULT_POOL_TIMEOUT = None
 
 
 class BaseAdapter:
     """The Base Transport Adapter"""
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
 
     def send(
-        self, request, stream=False, timeout=None, verify=True, cert=None, proxies=None
-    ):
+        self,
+        request: PreparedRequest,
+        stream: bool = False,
+        timeout: int | float | None = None,
+        verify: TLSVerifyType = True,
+        cert: TLSClientCertType | None = None,
+        proxies: ProxyType | None = None,
+        on_post_connection: typing.Callable[[typing.Any], None] | None = None,
+    ) -> Response:
         """Sends PreparedRequest object. Returns Response object.
 
         :param request: The :class:`PreparedRequest <PreparedRequest>` being sent.
@@ -83,16 +99,17 @@ class BaseAdapter:
         :param timeout: (optional) How long to wait for the server to send
             data before giving up, as a float, or a :ref:`(connect timeout,
             read timeout) <timeouts>` tuple.
-        :type timeout: float or tuple
         :param verify: (optional) Either a boolean, in which case it controls whether we verify
             the server's TLS certificate, or a string, in which case it must be a path
             to a CA bundle to use
         :param cert: (optional) Any user-provided SSL certificate to be trusted.
         :param proxies: (optional) The proxies dictionary to apply to the request.
+        :param on_post_connection: (optional) A callable that should be invoked just after the pool mgr picked up a live
+            connection. The function is expected to takes one positional argument and return nothing.
         """
         raise NotImplementedError
 
-    def close(self):
+    def close(self) -> None:
         """Cleans up adapter specific items."""
         raise NotImplementedError
 
@@ -118,9 +135,9 @@ class HTTPAdapter(BaseAdapter):
 
     Usage::
 
-      >>> import requests
-      >>> s = requests.Session()
-      >>> a = requests.adapters.HTTPAdapter(max_retries=3)
+      >>> import niquests
+      >>> s = niquests.Session()
+      >>> a = niquests.adapters.HTTPAdapter(max_retries=3)
       >>> s.mount('http://', a)
     """
 
@@ -135,18 +152,27 @@ class HTTPAdapter(BaseAdapter):
 
     def __init__(
         self,
-        pool_connections=DEFAULT_POOLSIZE,
-        pool_maxsize=DEFAULT_POOLSIZE,
-        max_retries=DEFAULT_RETRIES,
-        pool_block=DEFAULT_POOLBLOCK,
-        quic_cache_layer=None,
+        pool_connections: int = DEFAULT_POOLSIZE,
+        pool_maxsize: int = DEFAULT_POOLSIZE,
+        max_retries: RetryType = DEFAULT_RETRIES,
+        pool_block: bool = DEFAULT_POOLBLOCK,
+        quic_cache_layer: CacheLayerAltSvcType | None = None,
     ):
-        if max_retries == DEFAULT_RETRIES:
-            self.max_retries = Retry(0, read=False)
+        if isinstance(max_retries, bool):
+            self.max_retries: RetryType = False
+        elif isinstance(max_retries, Retry):
+            self.max_retries = max_retries
         else:
+            if max_retries < 0:
+                raise ValueError(
+                    "configured retries count is invalid. you must specify a positive or zero integer value."
+                )
             self.max_retries = Retry.from_int(max_retries)
-        self.config = {}
-        self.proxy_manager = {}
+            # Kept for backward compatibility.
+            if max_retries == 0:
+                self.max_retries.read = False
+        self.config: typing.MutableMapping[str, typing.Any] = {}
+        self.proxy_manager: typing.MutableMapping[str, ProxyManager] = {}
 
         super().__init__()
 
@@ -183,12 +209,12 @@ class HTTPAdapter(BaseAdapter):
 
     def init_poolmanager(
         self,
-        connections,
-        maxsize,
-        block=DEFAULT_POOLBLOCK,
-        quic_cache_layer=None,
-        **pool_kwargs,
-    ):
+        connections: int,
+        maxsize: int,
+        block: bool = DEFAULT_POOLBLOCK,
+        quic_cache_layer: CacheLayerAltSvcType | None = None,
+        **pool_kwargs: typing.Any,
+    ) -> None:
         """Initializes a urllib3 PoolManager.
 
         This method should not be called from user code, and is only
@@ -215,7 +241,7 @@ class HTTPAdapter(BaseAdapter):
             **pool_kwargs,
         )
 
-    def proxy_manager_for(self, proxy, **proxy_kwargs):
+    def proxy_manager_for(self, proxy: str, **proxy_kwargs: typing.Any) -> ProxyManager:
         """Return urllib3 ProxyManager for the given proxy.
 
         This method should not be called from user code, and is only
@@ -225,13 +251,12 @@ class HTTPAdapter(BaseAdapter):
         :param proxy: The proxy to return a urllib3 ProxyManager for.
         :param proxy_kwargs: Extra keyword arguments used to configure the Proxy Manager.
         :returns: ProxyManager
-        :rtype: urllib3.ProxyManager
         """
         if proxy in self.proxy_manager:
             manager = self.proxy_manager[proxy]
         elif proxy.lower().startswith("socks"):
             username, password = get_auth_from_url(proxy)
-            manager = self.proxy_manager[proxy] = SOCKSProxyManager(
+            manager = self.proxy_manager[proxy] = SOCKSProxyManager(  # type: ignore[assignment]
                 proxy,
                 username=username,
                 password=password,
@@ -253,7 +278,13 @@ class HTTPAdapter(BaseAdapter):
 
         return manager
 
-    def cert_verify(self, conn, url, verify, cert):
+    def cert_verify(
+        self,
+        conn: HTTPSConnectionPool,
+        url: str,
+        verify: TLSVerifyType | None,
+        cert: TLSClientCertType | None,
+    ) -> None:
         """Verify a SSL certificate. This method should not be called from user
         code, and is only exposed for use when subclassing the
         :class:`HTTPAdapter <requests.adapters.HTTPAdapter>`.
@@ -266,39 +297,52 @@ class HTTPAdapter(BaseAdapter):
         :param cert: The SSL certificate to verify.
         """
         if url.lower().startswith("https") and verify:
-            cert_loc = None
+            cert_loc: str | None = None
+            cert_data: str = DEFAULT_CA_BUNDLE
 
-            # Allow self-specified cert location.
-            if verify is not True:
-                cert_loc = verify
+            if isinstance(verify, str) and "-----BEGIN CERTIFICATE-----" in verify:
+                cert_data = verify
+                verify = True
 
-            if not cert_loc:
-                cert_loc = extract_zipped_paths(DEFAULT_CA_BUNDLE_PATH)
+            if isinstance(verify, bytes):
+                cert_data = verify.decode("utf-8")
+            else:
+                # Allow self-specified cert location.
+                if isinstance(verify, str):
+                    cert_loc = verify
 
-            if not cert_loc or not os.path.exists(cert_loc):
-                raise OSError(
-                    f"Could not find a suitable TLS CA certificate bundle, "
-                    f"invalid path: {cert_loc}"
-                )
+                if isinstance(cert_loc, str) and not os.path.exists(cert_loc):
+                    raise OSError(
+                        f"Could not find a suitable TLS CA certificate bundle, "
+                        f"invalid path: {cert_loc}"
+                    )
 
             conn.cert_reqs = "CERT_REQUIRED"
 
-            if not os.path.isdir(cert_loc):
-                conn.ca_certs = cert_loc
-            else:
-                conn.ca_cert_dir = cert_loc
+            if cert_data and cert_loc is None:
+                conn.ca_certs = None
+                conn.ca_cert_dir = None
+                conn.ca_cert_data = cert_data
+            elif cert_loc:
+                if not os.path.isdir(cert_loc):
+                    conn.ca_certs = cert_loc
+                else:
+                    conn.ca_cert_dir = cert_loc
         else:
             conn.cert_reqs = "CERT_NONE"
             conn.ca_certs = None
             conn.ca_cert_dir = None
+            conn.ca_cert_data = None
 
         if cert:
-            if not isinstance(cert, basestring):
+            if not isinstance(cert, str):
                 conn.cert_file = cert[0]
                 conn.key_file = cert[1]
+                conn.key_password = cert[2] if len(cert) == 3 else None  # type: ignore[misc]
             else:
                 conn.cert_file = cert
                 conn.key_file = None
+                conn.key_password = None
             if conn.cert_file and not os.path.exists(conn.cert_file):
                 raise OSError(
                     f"Could not find the TLS certificate file, "
@@ -309,7 +353,7 @@ class HTTPAdapter(BaseAdapter):
                     f"Could not find the TLS key file, invalid path: {conn.key_file}"
                 )
 
-    def build_response(self, req, resp):
+    def build_response(self, req: PreparedRequest, resp: BaseHTTPResponse) -> Response:
         """Builds a :class:`Response <requests.Response>` object from a urllib3
         response. This should not be called from user code, and is only exposed
         for use when subclassing the
@@ -317,7 +361,6 @@ class HTTPAdapter(BaseAdapter):
 
         :param req: The :class:`PreparedRequest <PreparedRequest>` used to generate the response.
         :param resp: The urllib3 response object.
-        :rtype: requests.Response
         """
         response = Response()
 
@@ -342,18 +385,19 @@ class HTTPAdapter(BaseAdapter):
 
         # Give the Response some context.
         response.request = req
-        response.connection = self
+        response.connection = self  # type: ignore[attr-defined]
 
         return response
 
-    def get_connection(self, url, proxies=None):
+    def get_connection(
+        self, url: str, proxies: ProxyType | None = None
+    ) -> HTTPConnectionPool | HTTPSConnectionPool:
         """Returns a urllib3 connection for the given URL. This should not be
         called from user code, and is only exposed for use when subclassing the
         :class:`HTTPAdapter <requests.adapters.HTTPAdapter>`.
 
         :param url: The URL to connect to.
         :param proxies: (optional) A Requests-style dictionary of proxies used on this request.
-        :rtype: urllib3.ConnectionPool
         """
         proxy = select_proxy(url, proxies)
 
@@ -375,7 +419,7 @@ class HTTPAdapter(BaseAdapter):
 
         return conn
 
-    def close(self):
+    def close(self) -> None:
         """Disposes of any internal state.
 
         Currently, this closes the PoolManager and any active ProxyManager,
@@ -385,7 +429,7 @@ class HTTPAdapter(BaseAdapter):
         for proxy in self.proxy_manager.values():
             proxy.clear()
 
-    def request_url(self, request, proxies):
+    def request_url(self, request: PreparedRequest, proxies: ProxyType | None) -> str:
         """Obtain the url to use when making the final request.
 
         If the message is being sent through a HTTP proxy, the full URL has to
@@ -397,8 +441,9 @@ class HTTPAdapter(BaseAdapter):
 
         :param request: The :class:`PreparedRequest <PreparedRequest>` being sent.
         :param proxies: A dictionary of schemes or schemes and hosts to proxy URLs.
-        :rtype: str
         """
+        assert request.url is not None
+
         proxy = select_proxy(request.url, proxies)
         scheme = urlparse(request.url).scheme
 
@@ -414,7 +459,7 @@ class HTTPAdapter(BaseAdapter):
 
         return url
 
-    def add_headers(self, request, **kwargs):
+    def add_headers(self, request: PreparedRequest, **kwargs):
         """Add any headers needed by the connection. As of v2.0 this does
         nothing by default, but is left for overriding by users that subclass
         the :class:`HTTPAdapter <requests.adapters.HTTPAdapter>`.
@@ -428,7 +473,7 @@ class HTTPAdapter(BaseAdapter):
         """
         pass
 
-    def proxy_headers(self, proxy):
+    def proxy_headers(self, proxy: str) -> dict[str, str]:
         """Returns a dictionary of the headers to add to any request sent
         through a proxy. This works with urllib3 magic to ensure that they are
         correctly sent to the proxy, rather than in a tunnelled request if
@@ -439,7 +484,6 @@ class HTTPAdapter(BaseAdapter):
         :class:`HTTPAdapter <requests.adapters.HTTPAdapter>`.
 
         :param proxy: The url of the proxy being used for this request.
-        :rtype: dict
         """
         headers = {}
         username, password = get_auth_from_url(proxy)
@@ -450,8 +494,15 @@ class HTTPAdapter(BaseAdapter):
         return headers
 
     def send(
-        self, request, stream=False, timeout=None, verify=True, cert=None, proxies=None
-    ):
+        self,
+        request: PreparedRequest,
+        stream: bool = False,
+        timeout: int | float | TimeoutSauce | None = None,
+        verify: TLSVerifyType = True,
+        cert: TLSClientCertType | None = None,
+        proxies: ProxyType | None = None,
+        on_post_connection: typing.Callable[[typing.Any], None] | None = None,
+    ) -> Response:
         """Sends PreparedRequest object. Returns Response object.
 
         :param request: The :class:`PreparedRequest <PreparedRequest>` being sent.
@@ -459,21 +510,27 @@ class HTTPAdapter(BaseAdapter):
         :param timeout: (optional) How long to wait for the server to send
             data before giving up, as a float, or a :ref:`(connect timeout,
             read timeout) <timeouts>` tuple.
-        :type timeout: float or tuple or urllib3 Timeout object
         :param verify: (optional) Either a boolean, in which case it controls whether
             we verify the server's TLS certificate, or a string, in which case it
             must be a path to a CA bundle to use
         :param cert: (optional) Any user-provided SSL certificate to be trusted.
         :param proxies: (optional) The proxies dictionary to apply to the request.
-        :rtype: requests.Response
         """
+
+        assert (
+            request.url is not None
+            and request.headers is not None
+            and request.method is not None
+        ), "Tried to send a non-initialized PreparedRequest"
 
         try:
             conn = self.get_connection(request.url, proxies)
         except LocationValueError as e:
             raise InvalidURL(e, request=request)
 
-        self.cert_verify(conn, request.url, verify, cert)
+        if isinstance(conn, HTTPSConnectionPool):
+            self.cert_verify(conn, request.url, verify, cert)
+
         url = self.request_url(request, proxies)
         self.add_headers(
             request,
@@ -500,6 +557,9 @@ class HTTPAdapter(BaseAdapter):
         else:
             timeout = TimeoutSauce(connect=timeout, read=timeout)
 
+        if isinstance(request.body, (list, dict)):
+            raise ValueError("Body contains unprepared native list or dict.")
+
         try:
             resp = conn.urlopen(
                 method=request.method,
@@ -513,6 +573,7 @@ class HTTPAdapter(BaseAdapter):
                 retries=self.max_retries,
                 timeout=timeout,
                 chunked=chunked,
+                on_post_connection=on_post_connection,
             )
 
         except (ProtocolError, OSError) as err:

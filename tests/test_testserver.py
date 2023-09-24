@@ -1,11 +1,13 @@
+from __future__ import annotations
+
 import socket
 import threading
 import time
 
 import pytest
-from tests.testserver.server import Server
 
 import niquests
+from tests.testserver.server import Server
 
 
 class TestTestServer:
@@ -51,6 +53,21 @@ class TestTestServer:
             assert r.status_code == 200
             assert r.text == "roflol"
             assert r.headers["Content-Length"] == "6"
+
+    def test_invalid_location_response(self):
+        server = Server.text_response_server(
+            "HTTP/1.1 302 PERMANENT-REDIRECTION\r\n"
+            "Location: http://localhost:1/search/?q=ïðåçèäåíòû+ÑØÀ\r\n\r\n"
+        )
+
+        with server as (host, port):
+            with pytest.raises(niquests.exceptions.ConnectionError) as exc:
+                niquests.get(f"http://{host}:{port}")
+            msg = exc.value.args[0].args[0]
+            assert (
+                "/search/?q=%C3%AF%C3%B0%C3%A5%C3%A7%C3%A8%C3%A4%C3%A5%C3%AD%C3%B2%C3%BB+%C3%91%C3%98%C3%80"
+                in msg
+            )
 
     def test_basic_response(self):
         """the basic response server returns an empty http response"""

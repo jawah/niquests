@@ -5,18 +5,20 @@ items.
 
 Example::
 
-    >>> import requests
-    >>> requests.codes['temporary_redirect']
+    >>> import niquests
+    >>> niquests.codes['temporary_redirect']
     307
-    >>> requests.codes.teapot
+    >>> niquests.codes.teapot
     418
-    >>> requests.codes['\o/']
+    >>> niquests.codes['\o/']
     200
 
 Some codes have multiple names, and both upper- and lower-case versions of
 the names are allowed. For example, ``codes.ok``, ``codes.OK``, and
 ``codes.okay`` all correspond to the HTTP status code 200.
 """
+
+from __future__ import annotations
 
 from .structures import LookupDict
 

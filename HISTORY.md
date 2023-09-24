@@ -1,6 +1,79 @@
 Release History
 ===============
 
+3.0.0 (2023-09-24)
+------------------
+
+**Added**
+- Static type annotations thorough the whole package.
+- `cert` argument for client authentication with certificate can now pass the password/passphrase using a 3-values tuple (cert, key, password).
+  The three parameters in the tuple must be of type `str`.
+- `verify` argument behavior has been extended and now accept your CA bundle as `str` instead of a path. It also accepts your CA bundle as `bytes` directly.
+  This help when you do not have access to the fs.
+- Operating system truststore will be used instead of `certifi`. Root CAs are automatically grabbed from your computer configuration.
+- Oriented-object headers. Access them through the new property `oheaders` in your `Response`.
+- Propagated the argument `retries` in `niquests.api` for all functions.
+- Added argument `retries` in the `Session` constructor.
+- Property `conn_info` to the `PreparedRequest` and `Response` that hold a reference to a `ConnectionInfo`.
+  This class exposes the following properties: `certificate_der` _(bytes)_, `certificate_dict` _(dict)_ as provided by the standard
+  library (ssl), `destination_address` _(tuple[ipAddress, portNumber])_, `cipher` _(str)_, `tls_version` _(TLSVersion)_, and `http_version`.
+- Two hooks, namely `pre_send` and `pre_request`. The `pre_request` event is fired just after the initial construction of
+  a `PreparedRequest` instance. Finally, the `pre_send` will be triggered just after picking a (live) connection
+  for your request. The two events receive a `PreparedRequest` instance.
+
+**Changed**
+- Calling the method `json` from `Response` when no encoding was provided no longer relies on internal encoding inference.
+  We fall back on `charset-normalizer` with a limited set of charsets allowed (UTF-8/16/32 or ASCII).
+- No longer will the `text` method from `Response` return str if content cannot be decoded. It returns None instead.
+- If specified charset in content-type does not exist (LookupError) the `text` method from `Response` will rely on charset detection.
+- If specified charset in content-type is not made for text decoding (e.g. base64), the `text` method from `Response` returns None.
+- With above four changes, the `json` method will raise `RequestsJSONDecodeError` when the payload (body) cannot be decoded.
+- Passing invalid `files` description no longer _just skip_ invalid entries, it raises `ValueError` from now on.
+- Non-str HTTP-Verb are refused.
+- Passing `files` with minimal description (meaning no tuple but _just_ the fp) no longer guess its name when `fp.name` return bytes.
+- No longer will the default timeout be unset, thus making you waiting indefinitely.
+  Functions `get`, `head`, and `options` ships with a default of 30 seconds.
+  Then `put`, `post`, `patch` and `delete` uses a default of 120 seconds.
+  Finally, the `request` function also have 120 seconds.
+- Basic authorization username and password are now encoded using utf-8 instead of latin-1 prior to being base64 encoded.
+
+
+**Removed**
+- Property `apparent_encoding` in favor of a discrete internal inference.
+- Support for the legacy `chardet` detector in case it was present in environment.
+  Extra `chardet_on_py3` is now unavailable.
+- **requests.compat** no longer hold reference to _chardet_.
+- Deprecated `requests.packages` that was meant to avoid breakage from people importing `urllib3` or `chardet` within this package.
+  They were _vendored_ in early versions of Requests. A long time ago.
+- Deprecated function `get_encodings_from_content` from utils.
+- Deprecated function `get_unicode_from_response` from utils.
+- BasicAuth middleware no-longer support anything else than `bytes` or `str` for username and password.
+- `requests.compat` is stripped of every reference that no longer vary between supported interpreter version.
+- Charset fall back **ISO-8859-1** when content-type is text and no charset was specified.
+- Main function `get`, `post`, `put`, `patch`, `delete`, and `head` no longer accept **kwargs**. They have a fixed list of typed argument.
+  It is no longer possible to specify non-supported additional keyword argument from a `Session` instance or directly through `requests.api` functions.
+  e.g. function `delete` no-longer accept `json`, or `files` arguments. as per RFCs specifications. You can still override this behavior through the `request` function.
+- Mixin classes `RequestEncodingMixin`, and `RequestHooksMixin` due to OOP violations. Now deported directly into child classes.
+- Function `unicode_is_ascii` as it is part of the stable `str` stdlib on Python 3 or greater.
+- Alias function `session` for `Session` context manager that was kept for BC reasons since the v1.
+- pyOpenSSL/urllib3 injection in case built-in ssl module does not have SNI support as it is not the case anymore for every supported interpreters.
+- Constant `DEFAULT_CA_BUNDLE_PATH`, and submodule `certs` due to dropping `certifi`.
+- Function `extract_zipped_paths` because rendered useless as it was made to handle an edge case where `certifi` is "zipped".
+- Extra `security` when installing this package. It was previously emptied in the previous major.
+- Warning emitted when passing a file opened in text-mode instead of binary. urllib3.future can overrule
+  the content-length if it detects an error. You should not encounter broken request being sent.
+- Support for `simplejson` if was present in environment.
+- Submodule `compat`.
+
+**Fixed**
+- An invalid content-type definition would cause the charset being evaluated to `True`, thus making the program crash.
+- Given `proxies` could be mutated when environment proxies were evaluated and injected. This package should not modify your inputs.
+  For context see https://github.com/psf/requests/issues/6118
+- A server could specify a `Location` header that does not comply to HTTP specifications and could lead to an unexpected exception.
+  We try to fall back to Unicode decoding if the typical and expected Latin-1 would fail. If that fails too, a proper exception is raised.
+  For context see https://github.com/psf/requests/issues/6026
+- Top-level init now specify correctly the exposed api. Fixes mypy error `.. does not explicitly export attribute ..`.
+
 2.32.1 (2023-09-12)
 -------------------
 

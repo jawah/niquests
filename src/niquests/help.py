@@ -1,34 +1,26 @@
 """Module containing bug report helper(s)."""
+from __future__ import annotations
 
 import json
 import platform
 import ssl
 import sys
 
+import charset_normalizer
 import idna
 import urllib3
 
 from . import __version__ as requests_version
 
 try:
-    import charset_normalizer
-except ImportError:
-    charset_normalizer = None
-
-try:
-    import chardet
-except ImportError:
-    chardet = None
-
-try:
     from urllib3.contrib import pyopenssl
 except (ImportError, AttributeError):
-    pyopenssl = None
-    OpenSSL = None
-    cryptography = None
+    pyopenssl = None  # type: ignore
+    OpenSSL = None  # type: ignore
+    cryptography = None  # type: ignore
 else:
-    import cryptography
-    import OpenSSL
+    import cryptography  # type: ignore
+    import OpenSSL  # type: ignore
 
 
 def _implementation():
@@ -48,13 +40,13 @@ def _implementation():
         implementation_version = platform.python_version()
     elif implementation == "PyPy":
         implementation_version = "{}.{}.{}".format(
-            sys.pypy_version_info.major,
-            sys.pypy_version_info.minor,
-            sys.pypy_version_info.micro,
+            sys.pypy_version_info.major,  # type: ignore[attr-defined]
+            sys.pypy_version_info.minor,  # type: ignore[attr-defined]
+            sys.pypy_version_info.micro,  # type: ignore[attr-defined]
         )
-        if sys.pypy_version_info.releaselevel != "final":
+        if sys.pypy_version_info.releaselevel != "final":  # type: ignore[attr-defined]
             implementation_version = "".join(
-                [implementation_version, sys.pypy_version_info.releaselevel]
+                [implementation_version, sys.pypy_version_info.releaselevel]  # type: ignore[attr-defined]
             )
     elif implementation == "Jython":
         implementation_version = platform.python_version()  # Complete Guess
@@ -81,12 +73,8 @@ def info():
 
     implementation_info = _implementation()
     urllib3_info = {"version": urllib3.__version__}
-    charset_normalizer_info = {"version": None}
-    chardet_info = {"version": None}
-    if charset_normalizer:
-        charset_normalizer_info = {"version": charset_normalizer.__version__}
-    if chardet:
-        chardet_info = {"version": chardet.__version__}
+
+    charset_normalizer_info = {"version": charset_normalizer.__version__}
 
     pyopenssl_info = {
         "version": None,
@@ -112,10 +100,8 @@ def info():
         "implementation": implementation_info,
         "system_ssl": system_ssl_info,
         "using_pyopenssl": pyopenssl is not None,
-        "using_charset_normalizer": chardet is None,
         "pyOpenSSL": pyopenssl_info,
         "urllib3": urllib3_info,
-        "chardet": chardet_info,
         "charset_normalizer": charset_normalizer_info,
         "cryptography": cryptography_info,
         "idna": idna_info,
@@ -125,7 +111,7 @@ def info():
     }
 
 
-def main():
+def main() -> None:
     """Pretty-print the bug information as JSON."""
     print(json.dumps(info(), sort_keys=True, indent=2))
 

@@ -5,16 +5,42 @@ requests.sessions
 This module provides a Session object to manage and persist settings across
 requests (cookies, auth, proxies).
 """
+from __future__ import annotations
+
 import os
 import sys
 import time
+import typing
 from collections import OrderedDict
+from collections.abc import Mapping
 from datetime import timedelta
+from http import cookiejar as cookielib
+from http.cookiejar import CookieJar
+from urllib.parse import urljoin, urlparse
 
+from urllib3 import ConnectionInfo
+
+from ._constant import DEFAULT_RETRIES, READ_DEFAULT_TIMEOUT, WRITE_DEFAULT_TIMEOUT
 from ._internal_utils import to_native_string
-from .adapters import HTTPAdapter
+from ._typing import (
+    BodyType,
+    CacheLayerAltSvcType,
+    CookiesType,
+    HeadersType,
+    HookType,
+    HttpAuthenticationType,
+    HttpMethodType,
+    MultiPartFilesAltType,
+    MultiPartFilesType,
+    ProxyType,
+    QueryParameterType,
+    RetryType,
+    TimeoutType,
+    TLSClientCertType,
+    TLSVerifyType,
+)
+from .adapters import BaseAdapter, HTTPAdapter
 from .auth import _basic_auth_str
-from .compat import Mapping, cookielib, urljoin, urlparse
 from .cookies import (
     RequestsCookieJar,
     cookiejar_from_dict,
@@ -24,6 +50,7 @@ from .cookies import (
 from .exceptions import (
     ChunkedEncodingError,
     ContentDecodingError,
+    HTTPError,
     InvalidSchema,
     TooManyRedirects,
 )
@@ -35,6 +62,7 @@ from .models import (  # noqa: F401
     REDIRECT_STATI,
     PreparedRequest,
     Request,
+    Response,
 )
 from .status_codes import codes
 from .structures import CaseInsensitiveDict
@@ -88,7 +116,9 @@ def merge_setting(request_setting, session_setting, dict_class=OrderedDict):
     return merged_setting
 
 
-def merge_hooks(request_hooks, session_hooks, dict_class=OrderedDict):
+def merge_hooks(
+    request_hooks: HookType, session_hooks: HookType, dict_class=OrderedDict
+):
     """Properly merges both requests and session hooks.
 
     This is necessary because when request_hooks == {'response': []}, the
@@ -103,8 +133,903 @@ def merge_hooks(request_hooks, session_hooks, dict_class=OrderedDict):
     return merge_setting(request_hooks, session_hooks, dict_class)
 
 
-class SessionRedirectMixin:
-    def get_redirect_target(self, resp):
+class Session:
+    """A Requests session.
+
+    Provides cookie persistence, connection-pooling, and configuration.
+
+    Basic Usage::
+
+      >>> import niquests
+      >>> s = niquests.Session()
+      >>> s.get('https://httpbin.org/get')
+      <Response HTTP/2 [200]>
+
+    Or as a context manager::
+
+      >>> with niquests.Session() as s:
+      ...     s.get('https://httpbin.org/get')
+      <Response HTTP/2 [200]>
+    """
+
+    __attrs__ = [
+        "headers",
+        "cookies",
+        "auth",
+        "proxies",
+        "hooks",
+        "params",
+        "verify",
+        "cert",
+        "adapters",
+        "stream",
+        "trust_env",
+        "max_redirects",
+        "quic_cache_layer",
+    ]
+
+    def __init__(
+        self,
+        *,
+        quic_cache_layer: CacheLayerAltSvcType | None = None,
+        retries: RetryType = DEFAULT_RETRIES,
+    ):
+        #: A case-insensitive dictionary of headers to be sent on each
+        #: :class:`Request <Request>` sent from this
+        #: :class:`Session <Session>`.
+        self.headers = default_headers()
+
+        #: Default Authentication tuple or object to attach to
+        #: :class:`Request <Request>`.
+        self.auth = None
+
+        #: Dictionary mapping protocol or protocol and host to the URL of the proxy
+        #: (e.g. {'http': 'foo.bar:3128', 'http://host.name': 'foo.bar:4012'}) to
+        #: be used on each :class:`Request <Request>`.
+        self.proxies: ProxyType = {}
+
+        #: Event-handling hooks.
+        self.hooks = default_hooks()
+
+        #: Dictionary of querystring data to attach to each
+        #: :class:`Request <Request>`. The dictionary values may be lists for
+        #: representing multivalued query parameters.
+        self.params: QueryParameterType = {}
+
+        #: Stream response content default.
+        self.stream = False
+
+        #: SSL Verification default.
+        #: Defaults to `True`, requiring requests to verify the TLS certificate at the
+        #: remote end.
+        #: If verify is set to `False`, requests will accept any TLS certificate
+        #: presented by the server, and will ignore hostname mismatches and/or
+        #: expired certificates, which will make your application vulnerable to
+        #: man-in-the-middle (MitM) attacks.
+        #: Only set this to `False` for testing.
+        self.verify: TLSVerifyType = True
+
+        #: SSL client certificate default, if String, path to ssl client
+        #: cert file (.pem). If Tuple, ('cert', 'key') pair.
+        self.cert: TLSClientCertType | None = None
+
+        #: Maximum number of redirects allowed. If the request exceeds this
+        #: limit, a :class:`TooManyRedirects` exception is raised.
+        #: This defaults to requests.models.DEFAULT_REDIRECT_LIMIT, which is
+        #: 30.
+        self.max_redirects: int = DEFAULT_REDIRECT_LIMIT
+
+        #: Trust environment settings for proxy configuration, default
+        #: authentication and similar.
+        self.trust_env: bool = True
+
+        #: A CookieJar containing all currently outstanding cookies set on this
+        #: session. By default it is a
+        #: :class:`RequestsCookieJar <requests.cookies.RequestsCookieJar>`, but
+        #: may be any other ``cookielib.CookieJar`` compatible object.
+        self.cookies: RequestsCookieJar | CookieJar = cookiejar_from_dict({})
+
+        #: A simple dict that allows us to persist which server support QUIC
+        #: It is simply forwarded to urllib3.future that handle the caching logic.
+        #: Can be any mutable mapping.
+        self.quic_cache_layer = quic_cache_layer
+
+        # Default connection adapters.
+        self.adapters: OrderedDict[str, BaseAdapter] = OrderedDict()
+        self.mount(
+            "https://",
+            HTTPAdapter(quic_cache_layer=self.quic_cache_layer, max_retries=retries),
+        )
+        self.mount("http://", HTTPAdapter(max_retries=retries))
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *args):
+        self.close()
+
+    def prepare_request(self, request: Request) -> PreparedRequest:
+        """Constructs a :class:`PreparedRequest <PreparedRequest>` for
+        transmission and returns it. The :class:`PreparedRequest` has settings
+        merged from the :class:`Request <Request>` instance and those of the
+        :class:`Session`.
+
+        :param request: :class:`Request` instance to prepare with this
+            session's settings.
+        """
+        cookies = request.cookies or {}
+
+        # Bootstrap CookieJar.
+        if not isinstance(cookies, cookielib.CookieJar):
+            cookies = cookiejar_from_dict(cookies)
+
+        # Merge with session cookies
+        merged_cookies = merge_cookies(
+            merge_cookies(RequestsCookieJar(), self.cookies), cookies
+        )
+
+        # Set environment's basic authentication if not explicitly set.
+        auth = request.auth
+        if self.trust_env and not auth and not self.auth:
+            auth = get_netrc_auth(request.url)
+
+        p = PreparedRequest()
+        p.prepare(
+            method=request.method,
+            url=request.url,
+            files=request.files,
+            data=request.data,
+            json=request.json,
+            headers=merge_setting(
+                request.headers, self.headers, dict_class=CaseInsensitiveDict
+            ),
+            params=merge_setting(request.params, self.params),
+            auth=merge_setting(auth, self.auth),
+            cookies=merged_cookies,
+            hooks=merge_hooks(request.hooks, self.hooks),
+        )
+        return p
+
+    def request(
+        self,
+        method: HttpMethodType,
+        url: str,
+        params: QueryParameterType | None = None,
+        data: BodyType | None = None,
+        headers: HeadersType | None = None,
+        cookies: CookiesType | None = None,
+        files: MultiPartFilesType | MultiPartFilesAltType | None = None,
+        auth: HttpAuthenticationType | None = None,
+        timeout: TimeoutType | None = WRITE_DEFAULT_TIMEOUT,
+        allow_redirects: bool = True,
+        proxies: ProxyType | None = None,
+        hooks: HookType | None = None,
+        stream: bool | None = None,
+        verify: TLSVerifyType | None = None,
+        cert: TLSClientCertType | None = None,
+        json: typing.Any | None = None,
+    ) -> Response:
+        """Constructs a :class:`Request <Request>`, prepares it and sends it.
+        Returns :class:`Response <Response>` object.
+
+        :param method: method for the new :class:`Request` object.
+        :param url: URL for the new :class:`Request` object.
+        :param params: (optional) Dictionary or bytes to be sent in the query
+            string for the :class:`Request`.
+        :param data: (optional) Dictionary, list of tuples, bytes, or file-like
+            object to send in the body of the :class:`Request`.
+        :param json: (optional) json to send in the body of the
+            :class:`Request`.
+        :param headers: (optional) Dictionary of HTTP Headers to send with the
+            :class:`Request`.
+        :param cookies: (optional) Dict or CookieJar object to send with the
+            :class:`Request`.
+        :param files: (optional) Dictionary of ``'filename': file-like-objects``
+            for multipart encoding upload.
+        :param auth: (optional) Auth tuple or callable to enable
+            Basic/Digest/Custom HTTP Auth.
+        :param timeout: (optional) How long to wait for the server to send
+            data before giving up, as a float, or a :ref:`(connect timeout,
+            read timeout) <timeouts>` tuple.
+        :param allow_redirects: (optional) Set to True by default.
+        :param proxies: (optional) Dictionary mapping protocol or protocol and
+            hostname to the URL of the proxy.
+        :param hooks: (optional) Dictionary mapping hook name to one event or
+            list of events, event must be callable.
+        :param stream: (optional) whether to immediately download the response
+            content. Defaults to ``False``.
+        :param verify: (optional) Either a boolean, in which case it controls whether we verify
+            the server's TLS certificate, or a string, in which case it must be a path
+            to a CA bundle to use. Defaults to ``True``. When set to
+            ``False``, requests will accept any TLS certificate presented by
+            the server, and will ignore hostname mismatches and/or expired
+            certificates, which will make your application vulnerable to
+            man-in-the-middle (MitM) attacks. Setting verify to ``False``
+            may be useful during local development or testing.
+        :param cert: (optional) if String, path to ssl client cert file (.pem).
+            If Tuple, ('cert', 'key') pair.
+        """
+        # Kept for BC-purposes. One may use lowercase http verb.
+        if method.isupper() is False:
+            method = method.upper()
+
+        # Create the Request.
+        req = Request(
+            method=method,
+            url=url,
+            headers=headers,
+            files=files,
+            data=data or {},
+            json=json,
+            params=params or {},
+            auth=auth,
+            cookies=cookies,
+            hooks=hooks,
+        )
+
+        prep = dispatch_hook("pre_request", hooks, self.prepare_request(req))
+
+        assert prep.url is not None
+
+        proxies = proxies or {}
+
+        settings = self.merge_environment_settings(
+            prep.url, proxies, stream, verify, cert
+        )
+
+        # Send the request.
+        send_kwargs = {
+            "timeout": timeout,
+            "allow_redirects": allow_redirects,
+        }
+        send_kwargs.update(settings)
+        resp = self.send(prep, **send_kwargs)
+
+        return resp
+
+    def get(
+        self,
+        url: str,
+        *,
+        params: QueryParameterType | None = None,
+        headers: HeadersType | None = None,
+        cookies: CookiesType | None = None,
+        auth: HttpAuthenticationType | None = None,
+        timeout: TimeoutType | None = READ_DEFAULT_TIMEOUT,
+        allow_redirects: bool = True,
+        proxies: ProxyType | None = None,
+        hooks: HookType | None = None,
+        verify: TLSVerifyType = True,
+        stream: bool = False,
+        cert: TLSClientCertType | None = None,
+    ) -> Response:
+        r"""Sends a GET request. Returns :class:`Response` object.
+
+        :param url: URL for the new :class:`Request` object.
+        :param params: (optional) Dictionary or bytes to be sent in the query
+            string for the :class:`Request`.
+        :param headers: (optional) Dictionary of HTTP Headers to send with the
+            :class:`Request`.
+        :param cookies: (optional) Dict or CookieJar object to send with the
+            :class:`Request`.
+        :param auth: (optional) Auth tuple or callable to enable
+            Basic/Digest/Custom HTTP Auth.
+        :param timeout: (optional) How long to wait for the server to send
+            data before giving up, as a float, or a :ref:`(connect timeout,
+            read timeout) <timeouts>` tuple.
+        :param allow_redirects: (optional) Set to True by default.
+        :param proxies: (optional) Dictionary mapping protocol or protocol and
+            hostname to the URL of the proxy.
+        :param hooks: (optional) Dictionary mapping hook name to one event or
+            list of events, event must be callable.
+        :param stream: (optional) whether to immediately download the response
+            content. Defaults to ``False``.
+        :param verify: (optional) Either a boolean, in which case it controls whether we verify
+            the server's TLS certificate, or a string, in which case it must be a path
+            to a CA bundle to use. Defaults to ``True``. When set to
+            ``False``, requests will accept any TLS certificate presented by
+            the server, and will ignore hostname mismatches and/or expired
+            certificates, which will make your application vulnerable to
+            man-in-the-middle (MitM) attacks. Setting verify to ``False``
+            may be useful during local development or testing.
+        :param cert: (optional) if String, path to ssl client cert file (.pem).
+            If Tuple, ('cert', 'key') pair.
+        """
+
+        return self.request(
+            "GET",
+            url,
+            params=params,
+            headers=headers,
+            cookies=cookies,
+            auth=auth,
+            timeout=timeout,
+            allow_redirects=allow_redirects,
+            proxies=proxies,
+            hooks=hooks,
+            verify=verify,
+            stream=stream,
+            cert=cert,
+        )
+
+    def options(
+        self,
+        url: str,
+        *,
+        params: QueryParameterType | None = None,
+        headers: HeadersType | None = None,
+        cookies: CookiesType | None = None,
+        auth: HttpAuthenticationType | None = None,
+        timeout: TimeoutType | None = READ_DEFAULT_TIMEOUT,
+        allow_redirects: bool = True,
+        proxies: ProxyType | None = None,
+        hooks: HookType | None = None,
+        verify: TLSVerifyType = True,
+        stream: bool = False,
+        cert: TLSClientCertType | None = None,
+    ) -> Response:
+        r"""Sends a OPTIONS request. Returns :class:`Response` object.
+
+        :param url: URL for the new :class:`Request` object.
+        :param params: (optional) Dictionary or bytes to be sent in the query
+            string for the :class:`Request`.
+        :param headers: (optional) Dictionary of HTTP Headers to send with the
+            :class:`Request`.
+        :param cookies: (optional) Dict or CookieJar object to send with the
+            :class:`Request`.
+        :param auth: (optional) Auth tuple or callable to enable
+            Basic/Digest/Custom HTTP Auth.
+        :param timeout: (optional) How long to wait for the server to send
+            data before giving up, as a float, or a :ref:`(connect timeout,
+            read timeout) <timeouts>` tuple.
+        :param allow_redirects: (optional) Set to True by default.
+        :param proxies: (optional) Dictionary mapping protocol or protocol and
+            hostname to the URL of the proxy.
+        :param hooks: (optional) Dictionary mapping hook name to one event or
+            list of events, event must be callable.
+        :param stream: (optional) whether to immediately download the response
+            content. Defaults to ``False``.
+        :param verify: (optional) Either a boolean, in which case it controls whether we verify
+            the server's TLS certificate, or a string, in which case it must be a path
+            to a CA bundle to use. Defaults to ``True``. When set to
+            ``False``, requests will accept any TLS certificate presented by
+            the server, and will ignore hostname mismatches and/or expired
+            certificates, which will make your application vulnerable to
+            man-in-the-middle (MitM) attacks. Setting verify to ``False``
+            may be useful during local development or testing.
+        :param cert: (optional) if String, path to ssl client cert file (.pem).
+            If Tuple, ('cert', 'key') pair.
+        """
+
+        return self.request(
+            "OPTIONS",
+            url,
+            params=params,
+            headers=headers,
+            cookies=cookies,
+            auth=auth,
+            timeout=timeout,
+            allow_redirects=allow_redirects,
+            proxies=proxies,
+            hooks=hooks,
+            verify=verify,
+            stream=stream,
+            cert=cert,
+        )
+
+    def head(
+        self,
+        url: str,
+        *,
+        params: QueryParameterType | None = None,
+        headers: HeadersType | None = None,
+        cookies: CookiesType | None = None,
+        auth: HttpAuthenticationType | None = None,
+        timeout: TimeoutType | None = READ_DEFAULT_TIMEOUT,
+        proxies: ProxyType | None = None,
+        hooks: HookType | None = None,
+        verify: TLSVerifyType = True,
+        stream: bool = False,
+        cert: TLSClientCertType | None = None,
+    ) -> Response:
+        r"""Sends a HEAD request. Returns :class:`Response` object.
+
+        :param url: URL for the new :class:`Request` object.
+        :param params: (optional) Dictionary or bytes to be sent in the query
+            string for the :class:`Request`.
+        :param headers: (optional) Dictionary of HTTP Headers to send with the
+            :class:`Request`.
+        :param cookies: (optional) Dict or CookieJar object to send with the
+            :class:`Request`.
+        :param auth: (optional) Auth tuple or callable to enable
+            Basic/Digest/Custom HTTP Auth.
+        :param timeout: (optional) How long to wait for the server to send
+            data before giving up, as a float, or a :ref:`(connect timeout,
+            read timeout) <timeouts>` tuple.
+        :param proxies: (optional) Dictionary mapping protocol or protocol and
+            hostname to the URL of the proxy.
+        :param hooks: (optional) Dictionary mapping hook name to one event or
+            list of events, event must be callable.
+        :param stream: (optional) whether to immediately download the response
+            content. Defaults to ``False``.
+        :param verify: (optional) Either a boolean, in which case it controls whether we verify
+            the server's TLS certificate, or a string, in which case it must be a path
+            to a CA bundle to use. Defaults to ``True``. When set to
+            ``False``, requests will accept any TLS certificate presented by
+            the server, and will ignore hostname mismatches and/or expired
+            certificates, which will make your application vulnerable to
+            man-in-the-middle (MitM) attacks. Setting verify to ``False``
+            may be useful during local development or testing.
+        :param cert: (optional) if String, path to ssl client cert file (.pem).
+            If Tuple, ('cert', 'key') pair.
+        """
+
+        return self.request(
+            "HEAD",
+            url,
+            params=params,
+            headers=headers,
+            cookies=cookies,
+            auth=auth,
+            timeout=timeout,
+            proxies=proxies,
+            hooks=hooks,
+            verify=verify,
+            stream=stream,
+            cert=cert,
+            allow_redirects=False,
+        )
+
+    def post(
+        self,
+        url: str,
+        data: BodyType | None = None,
+        json: typing.Any | None = None,
+        *,
+        params: QueryParameterType | None = None,
+        headers: HeadersType | None = None,
+        cookies: CookiesType | None = None,
+        files: MultiPartFilesType | MultiPartFilesAltType | None = None,
+        auth: HttpAuthenticationType | None = None,
+        timeout: TimeoutType | None = WRITE_DEFAULT_TIMEOUT,
+        allow_redirects: bool = True,
+        proxies: ProxyType | None = None,
+        hooks: HookType | None = None,
+        verify: TLSVerifyType = True,
+        stream: bool = False,
+        cert: TLSClientCertType | None = None,
+    ) -> Response:
+        r"""Sends a POST request. Returns :class:`Response` object.
+
+        :param url: URL for the new :class:`Request` object.
+        :param params: (optional) Dictionary or bytes to be sent in the query
+            string for the :class:`Request`.
+        :param data: (optional) Dictionary, list of tuples, bytes, or file-like
+            object to send in the body of the :class:`Request`.
+        :param json: (optional) json to send in the body of the
+            :class:`Request`.
+        :param headers: (optional) Dictionary of HTTP Headers to send with the
+            :class:`Request`.
+        :param cookies: (optional) Dict or CookieJar object to send with the
+            :class:`Request`.
+        :param files: (optional) Dictionary of ``'filename': file-like-objects``
+            for multipart encoding upload.
+        :param auth: (optional) Auth tuple or callable to enable
+            Basic/Digest/Custom HTTP Auth.
+        :param timeout: (optional) How long to wait for the server to send
+            data before giving up, as a float, or a :ref:`(connect timeout,
+            read timeout) <timeouts>` tuple.
+        :param allow_redirects: (optional) Set to True by default.
+        :param proxies: (optional) Dictionary mapping protocol or protocol and
+            hostname to the URL of the proxy.
+        :param hooks: (optional) Dictionary mapping hook name to one event or
+            list of events, event must be callable.
+        :param stream: (optional) whether to immediately download the response
+            content. Defaults to ``False``.
+        :param verify: (optional) Either a boolean, in which case it controls whether we verify
+            the server's TLS certificate, or a string, in which case it must be a path
+            to a CA bundle to use. Defaults to ``True``. When set to
+            ``False``, requests will accept any TLS certificate presented by
+            the server, and will ignore hostname mismatches and/or expired
+            certificates, which will make your application vulnerable to
+            man-in-the-middle (MitM) attacks. Setting verify to ``False``
+            may be useful during local development or testing.
+        :param cert: (optional) if String, path to ssl client cert file (.pem).
+            If Tuple, ('cert', 'key') pair.
+        """
+
+        return self.request(
+            "POST",
+            url,
+            data=data,
+            json=json,
+            params=params,
+            headers=headers,
+            cookies=cookies,
+            files=files,
+            auth=auth,
+            timeout=timeout,
+            allow_redirects=allow_redirects,
+            proxies=proxies,
+            hooks=hooks,
+            verify=verify,
+            stream=stream,
+            cert=cert,
+        )
+
+    def put(
+        self,
+        url: str,
+        data: BodyType | None = None,
+        *,
+        json: typing.Any | None = None,
+        params: QueryParameterType | None = None,
+        headers: HeadersType | None = None,
+        cookies: CookiesType | None = None,
+        files: MultiPartFilesType | MultiPartFilesAltType | None = None,
+        auth: HttpAuthenticationType | None = None,
+        timeout: TimeoutType | None = WRITE_DEFAULT_TIMEOUT,
+        allow_redirects: bool = True,
+        proxies: ProxyType | None = None,
+        hooks: HookType | None = None,
+        verify: TLSVerifyType = True,
+        stream: bool = False,
+        cert: TLSClientCertType | None = None,
+    ) -> Response:
+        r"""Sends a PUT request. Returns :class:`Response` object.
+
+        :param url: URL for the new :class:`Request` object.
+        :param params: (optional) Dictionary or bytes to be sent in the query
+            string for the :class:`Request`.
+        :param data: (optional) Dictionary, list of tuples, bytes, or file-like
+            object to send in the body of the :class:`Request`.
+        :param json: (optional) json to send in the body of the
+            :class:`Request`.
+        :param headers: (optional) Dictionary of HTTP Headers to send with the
+            :class:`Request`.
+        :param cookies: (optional) Dict or CookieJar object to send with the
+            :class:`Request`.
+        :param files: (optional) Dictionary of ``'filename': file-like-objects``
+            for multipart encoding upload.
+        :param auth: (optional) Auth tuple or callable to enable
+            Basic/Digest/Custom HTTP Auth.
+        :param timeout: (optional) How long to wait for the server to send
+            data before giving up, as a float, or a :ref:`(connect timeout,
+            read timeout) <timeouts>` tuple.
+        :param allow_redirects: (optional) Set to True by default.
+        :param proxies: (optional) Dictionary mapping protocol or protocol and
+            hostname to the URL of the proxy.
+        :param hooks: (optional) Dictionary mapping hook name to one event or
+            list of events, event must be callable.
+        :param stream: (optional) whether to immediately download the response
+            content. Defaults to ``False``.
+        :param verify: (optional) Either a boolean, in which case it controls whether we verify
+            the server's TLS certificate, or a string, in which case it must be a path
+            to a CA bundle to use. Defaults to ``True``. When set to
+            ``False``, requests will accept any TLS certificate presented by
+            the server, and will ignore hostname mismatches and/or expired
+            certificates, which will make your application vulnerable to
+            man-in-the-middle (MitM) attacks. Setting verify to ``False``
+            may be useful during local development or testing.
+        :param cert: (optional) if String, path to ssl client cert file (.pem).
+            If Tuple, ('cert', 'key') pair.
+        """
+
+        return self.request(
+            "PUT",
+            url,
+            data=data,
+            json=json,
+            params=params,
+            headers=headers,
+            cookies=cookies,
+            files=files,
+            auth=auth,
+            timeout=timeout,
+            allow_redirects=allow_redirects,
+            proxies=proxies,
+            hooks=hooks,
+            verify=verify,
+            stream=stream,
+            cert=cert,
+        )
+
+    def patch(
+        self,
+        url: str,
+        data: BodyType | None = None,
+        *,
+        json: typing.Any | None = None,
+        params: QueryParameterType | None = None,
+        headers: HeadersType | None = None,
+        cookies: CookiesType | None = None,
+        files: MultiPartFilesType | MultiPartFilesAltType | None = None,
+        auth: HttpAuthenticationType | None = None,
+        timeout: TimeoutType | None = WRITE_DEFAULT_TIMEOUT,
+        allow_redirects: bool = True,
+        proxies: ProxyType | None = None,
+        hooks: HookType | None = None,
+        verify: TLSVerifyType = True,
+        stream: bool = False,
+        cert: TLSClientCertType | None = None,
+    ) -> Response:
+        r"""Sends a PATCH request. Returns :class:`Response` object.
+
+        :param url: URL for the new :class:`Request` object.
+        :param params: (optional) Dictionary or bytes to be sent in the query
+            string for the :class:`Request`.
+        :param data: (optional) Dictionary, list of tuples, bytes, or file-like
+            object to send in the body of the :class:`Request`.
+        :param json: (optional) json to send in the body of the
+            :class:`Request`.
+        :param headers: (optional) Dictionary of HTTP Headers to send with the
+            :class:`Request`.
+        :param cookies: (optional) Dict or CookieJar object to send with the
+            :class:`Request`.
+        :param files: (optional) Dictionary of ``'filename': file-like-objects``
+            for multipart encoding upload.
+        :param auth: (optional) Auth tuple or callable to enable
+            Basic/Digest/Custom HTTP Auth.
+        :param timeout: (optional) How long to wait for the server to send
+            data before giving up, as a float, or a :ref:`(connect timeout,
+            read timeout) <timeouts>` tuple.
+        :param allow_redirects: (optional) Set to True by default.
+        :param proxies: (optional) Dictionary mapping protocol or protocol and
+            hostname to the URL of the proxy.
+        :param hooks: (optional) Dictionary mapping hook name to one event or
+            list of events, event must be callable.
+        :param stream: (optional) whether to immediately download the response
+            content. Defaults to ``False``.
+        :param verify: (optional) Either a boolean, in which case it controls whether we verify
+            the server's TLS certificate, or a string, in which case it must be a path
+            to a CA bundle to use. Defaults to ``True``. When set to
+            ``False``, requests will accept any TLS certificate presented by
+            the server, and will ignore hostname mismatches and/or expired
+            certificates, which will make your application vulnerable to
+            man-in-the-middle (MitM) attacks. Setting verify to ``False``
+            may be useful during local development or testing.
+        :param cert: (optional) if String, path to ssl client cert file (.pem).
+            If Tuple, ('cert', 'key') pair.
+        """
+
+        return self.request(
+            "PATCH",
+            url,
+            data=data,
+            json=json,
+            params=params,
+            headers=headers,
+            cookies=cookies,
+            files=files,
+            auth=auth,
+            timeout=timeout,
+            allow_redirects=allow_redirects,
+            proxies=proxies,
+            hooks=hooks,
+            verify=verify,
+            stream=stream,
+            cert=cert,
+        )
+
+    def delete(
+        self,
+        url: str,
+        *,
+        params: QueryParameterType | None = None,
+        headers: HeadersType | None = None,
+        cookies: CookiesType | None = None,
+        auth: HttpAuthenticationType | None = None,
+        timeout: TimeoutType | None = WRITE_DEFAULT_TIMEOUT,
+        allow_redirects: bool = True,
+        proxies: ProxyType | None = None,
+        hooks: HookType | None = None,
+        verify: TLSVerifyType = True,
+        stream: bool = False,
+        cert: TLSClientCertType | None = None,
+    ) -> Response:
+        r"""Sends a DELETE request. Returns :class:`Response` object.
+
+        :param url: URL for the new :class:`Request` object.
+        :param params: (optional) Dictionary or bytes to be sent in the query
+            string for the :class:`Request`.
+        :param headers: (optional) Dictionary of HTTP Headers to send with the
+            :class:`Request`.
+        :param cookies: (optional) Dict or CookieJar object to send with the
+            :class:`Request`.
+        :param auth: (optional) Auth tuple or callable to enable
+            Basic/Digest/Custom HTTP Auth.
+        :param timeout: (optional) How long to wait for the server to send
+            data before giving up, as a float, or a :ref:`(connect timeout,
+            read timeout) <timeouts>` tuple.
+        :param allow_redirects: (optional) Set to True by default.
+        :param proxies: (optional) Dictionary mapping protocol or protocol and
+            hostname to the URL of the proxy.
+        :param hooks: (optional) Dictionary mapping hook name to one event or
+            list of events, event must be callable.
+        :param stream: (optional) whether to immediately download the response
+            content. Defaults to ``False``.
+        :param verify: (optional) Either a boolean, in which case it controls whether we verify
+            the server's TLS certificate, or a string, in which case it must be a path
+            to a CA bundle to use. Defaults to ``True``. When set to
+            ``False``, requests will accept any TLS certificate presented by
+            the server, and will ignore hostname mismatches and/or expired
+            certificates, which will make your application vulnerable to
+            man-in-the-middle (MitM) attacks. Setting verify to ``False``
+            may be useful during local development or testing.
+        :param cert: (optional) if String, path to ssl client cert file (.pem).
+            If Tuple, ('cert', 'key') pair.
+        """
+
+        return self.request(
+            "DELETE",
+            url,
+            params=params,
+            headers=headers,
+            cookies=cookies,
+            auth=auth,
+            timeout=timeout,
+            allow_redirects=allow_redirects,
+            proxies=proxies,
+            hooks=hooks,
+            verify=verify,
+            stream=stream,
+            cert=cert,
+        )
+
+    def send(self, request: PreparedRequest, **kwargs: typing.Any) -> Response:
+        """Send a given PreparedRequest."""
+        # Set defaults that the hooks can utilize to ensure they always have
+        # the correct parameters to reproduce the previous request.
+        kwargs.setdefault("stream", self.stream)
+        kwargs.setdefault("verify", self.verify)
+        kwargs.setdefault("cert", self.cert)
+        if "proxies" not in kwargs:
+            kwargs["proxies"] = resolve_proxies(request, self.proxies, self.trust_env)
+
+        # It's possible that users might accidentally send a Request object.
+        # Guard against that specific failure case.
+        if isinstance(request, Request):
+            raise ValueError("You can only send PreparedRequests.")
+
+        # Set up variables needed for resolve_redirects and dispatching of hooks
+        allow_redirects = kwargs.pop("allow_redirects", True)
+        stream = kwargs.get("stream")
+        hooks = request.hooks
+
+        def on_post_connection(conn_info: ConnectionInfo) -> None:
+            nonlocal request
+            request.conn_info = conn_info
+            dispatch_hook("pre_send", hooks, request)
+
+        kwargs.setdefault("on_post_connection", on_post_connection)
+
+        assert request.url is not None
+
+        # Get the appropriate adapter to use
+        adapter = self.get_adapter(url=request.url)
+
+        # Start time (approximately) of the request
+        start = preferred_clock()
+
+        # Send the request
+        r = adapter.send(request, **kwargs)
+
+        # Total elapsed time of the request (approximately)
+        elapsed = preferred_clock() - start
+        r.elapsed = timedelta(seconds=elapsed)
+
+        # Response manipulation hooks
+        r = dispatch_hook("response", hooks, r, **kwargs)
+
+        # Persist cookies
+        if r.history:
+            # If the hooks create history then we want those cookies too
+            for resp in r.history:
+                extract_cookies_to_jar(self.cookies, resp.request, resp.raw)
+
+        extract_cookies_to_jar(self.cookies, request, r.raw)
+
+        # Resolve redirects if allowed.
+        if allow_redirects:
+            # Redirect resolving generator.
+            gen = self.resolve_redirects(r, request, **kwargs)
+            history = [resp for resp in gen if isinstance(resp, Response)]
+        else:
+            history = []
+
+        # Shuffle things around if there's history.
+        if history:
+            # Insert the first (original) request at the start
+            history.insert(0, r)
+            # Get the last request made
+            r = history.pop()
+            r.history = history
+
+        # If redirects aren't being followed, store the response on the Request for Response.next().
+        if not allow_redirects:
+            try:
+                r._next = next(
+                    self.resolve_redirects(r, request, yield_requests=True, **kwargs)  # type: ignore[assignment]
+                )
+            except StopIteration:
+                pass
+
+        if not stream:
+            r.content
+
+        return r
+
+    def merge_environment_settings(
+        self,
+        url: str,
+        proxies: ProxyType,
+        stream: bool | None,
+        verify: TLSVerifyType | None,
+        cert: TLSClientCertType | None,
+    ) -> dict[str, typing.Any]:
+        """
+        Check the environment and merge it with some settings.
+        """
+        # Gather clues from the surrounding environment.
+        if self.trust_env:
+            # Set environment's proxies.
+            no_proxy = proxies.get("no_proxy") if proxies is not None else None
+            env_proxies = get_environ_proxies(url, no_proxy=no_proxy)
+            proxies = {**env_proxies, **proxies}
+
+            # Look for requests environment configuration
+            # and be compatible with cURL.
+            if verify is True or verify is None:
+                verify = (
+                    os.environ.get("REQUESTS_CA_BUNDLE")
+                    or os.environ.get("CURL_CA_BUNDLE")
+                    or verify
+                )
+
+        # Merge all the kwargs.
+        proxies = merge_setting(proxies, self.proxies)
+        stream = merge_setting(stream, self.stream)
+        verify = merge_setting(verify, self.verify)
+        cert = merge_setting(cert, self.cert)
+
+        return {"proxies": proxies, "stream": stream, "verify": verify, "cert": cert}
+
+    def get_adapter(self, url: str) -> BaseAdapter:
+        """
+        Returns the appropriate connection adapter for the given URL.
+        """
+        for prefix, adapter in self.adapters.items():
+            if url.lower().startswith(prefix.lower()):
+                return adapter
+
+        # Nothing matches :-/
+        raise InvalidSchema(f"No connection adapters were found for {url!r}")
+
+    def close(self) -> None:
+        """Closes all adapters and as such the session"""
+        for v in self.adapters.values():
+            v.close()
+
+    def mount(self, prefix: str, adapter: BaseAdapter) -> None:
+        """Registers a connection adapter to a prefix.
+
+        Adapters are sorted in descending order by prefix length.
+        """
+        self.adapters[prefix] = adapter
+        keys_to_move = [k for k in self.adapters if len(k) < len(prefix)]
+
+        for key in keys_to_move:
+            self.adapters[key] = self.adapters.pop(key)
+
+    def __getstate__(self):
+        state = {attr: getattr(self, attr, None) for attr in self.__attrs__}
+        return state
+
+    def __setstate__(self, state):
+        for attr, value in state.items():
+            setattr(self, attr, value)
+
+    def get_redirect_target(self, resp: Response) -> str | None:
         """Receives a Response. Returns a redirect URI or ``None``"""
         # Due to the nature of how requests processes redirects this method will
         # be called at least once upon the original response and at least twice
@@ -120,11 +1045,18 @@ class SessionRedirectMixin:
             # It is more likely to get UTF8 header rather than latin1.
             # This causes incorrect handling of UTF8 encoded location headers.
             # To solve this, we re-encode the location in latin1.
-            location = location.encode("latin1")
-            return to_native_string(location, "utf8")
+            try:
+                return to_native_string(location.encode("latin1"), "utf8")
+            except UnicodeDecodeError:
+                try:
+                    return to_native_string(location.encode("utf-8"), "utf8")
+                except (UnicodeDecodeError, UnicodeEncodeError) as e:
+                    raise HTTPError(
+                        "Response specify a Location header but is unreadable. This is a violation."
+                    ) from e
         return None
 
-    def should_strip_auth(self, old_url, new_url):
+    def should_strip_auth(self, old_url: str, new_url: str) -> bool:
         """Decide whether Authorization header should be removed when redirecting"""
         old_parsed = urlparse(old_url)
         new_parsed = urlparse(new_url)
@@ -158,16 +1090,16 @@ class SessionRedirectMixin:
 
     def resolve_redirects(
         self,
-        resp,
-        req,
-        stream=False,
-        timeout=None,
-        verify=True,
-        cert=None,
-        proxies=None,
-        yield_requests=False,
-        **adapter_kwargs,
-    ):
+        resp: Response,
+        req: PreparedRequest,
+        stream: bool = False,
+        timeout: int | float | None = None,
+        verify: TLSVerifyType = True,
+        cert: TLSClientCertType | None = None,
+        proxies: ProxyType | None = None,
+        yield_requests: bool = False,
+        **adapter_kwargs: typing.Any,
+    ) -> typing.Generator[Response | PreparedRequest, None, None]:
         """Receives a Response. Returns a generator of Responses or Requests."""
 
         hist = []  # keep track of history
@@ -181,6 +1113,8 @@ class SessionRedirectMixin:
             # resp.history must ignore the original request in this loop
             hist.append(resp)
             resp.history = hist[1:]
+
+            assert resp.raw is not None
 
             try:
                 resp.content  # Consume socket so it can be released
@@ -203,7 +1137,11 @@ class SessionRedirectMixin:
             # Normalize url case and attach previous fragment if needed (RFC 7231 7.1.2)
             parsed = urlparse(url)
             if parsed.fragment == "" and previous_fragment:
-                parsed = parsed._replace(fragment=previous_fragment)
+                parsed = parsed._replace(
+                    fragment=previous_fragment
+                    if isinstance(previous_fragment, str)
+                    else previous_fragment.decode("utf-8")
+                )
             elif parsed.fragment:
                 previous_fragment = parsed.fragment
             url = parsed.geturl()
@@ -212,18 +1150,22 @@ class SessionRedirectMixin:
             # (e.g. '/path/to/resource' instead of 'http://domain.tld/path/to/resource')
             # Compliant with RFC3986, we percent encode the url.
             if not parsed.netloc:
-                url = urljoin(resp.url, requote_uri(url))
+                url = urljoin(resp.url, requote_uri(url))  # type: ignore[type-var]
+                assert isinstance(
+                    url, str
+                ), f"urljoin produced {type(url)} instead of str"
             else:
                 url = requote_uri(url)
 
             prepared_request.url = to_native_string(url)
+            assert prepared_request.headers is not None
 
             self.rebuild_method(prepared_request, resp)
 
             # https://github.com/psf/requests/issues/1084
             if resp.status_code not in (
-                codes.temporary_redirect,
-                codes.permanent_redirect,
+                codes.temporary_redirect,  # type: ignore[attr-defined]
+                codes.permanent_redirect,  # type: ignore[attr-defined]
             ):
                 # https://github.com/psf/requests/issues/3490
                 purged_headers = ("Content-Length", "Content-Type", "Transfer-Encoding")
@@ -232,8 +1174,10 @@ class SessionRedirectMixin:
                 prepared_request.body = None
 
             headers = prepared_request.headers
+
             headers.pop("Cookie", None)
 
+            assert prepared_request._cookies is not None
             # Extract any cookies sent on the response to the cookiejar
             # in the new request. Because we've mutated our copied prepared
             # request, use the old one that we haven't yet touched.
@@ -279,13 +1223,22 @@ class SessionRedirectMixin:
                 url = self.get_redirect_target(resp)
                 yield resp
 
-    def rebuild_auth(self, prepared_request, response):
+    def rebuild_auth(
+        self, prepared_request: PreparedRequest, response: Response
+    ) -> None:
         """When being redirected we may want to strip authentication from the
         request to avoid leaking credentials. This method intelligently removes
         and reapplies authentication where possible to avoid credential loss.
         """
         headers = prepared_request.headers
         url = prepared_request.url
+
+        assert (
+            url is not None and headers is not None
+        ), "Rebuild auth based on uninitialized PreparedRequest"
+        assert (
+            response.request and response.request.url
+        ), "Rebuild auth based on nonexistent Response->PreparedRequest"
 
         if "Authorization" in headers and self.should_strip_auth(
             response.request.url, url
@@ -299,7 +1252,9 @@ class SessionRedirectMixin:
         if new_auth is not None:
             prepared_request.prepare_auth(new_auth)
 
-    def rebuild_proxies(self, prepared_request, proxies):
+    def rebuild_proxies(
+        self, prepared_request: PreparedRequest, proxies: ProxyType | None
+    ) -> ProxyType:
         """This method re-evaluates the proxy configuration by considering the
         environment variables. If we are redirected to a URL covered by
         NO_PROXY, we strip the proxy configuration. Otherwise, we set missing
@@ -308,11 +1263,17 @@ class SessionRedirectMixin:
 
         This method also replaces the Proxy-Authorization header where
         necessary.
-
-        :rtype: dict
         """
         headers = prepared_request.headers
-        scheme = urlparse(prepared_request.url).scheme
+        scheme: str | bytes = urlparse(prepared_request.url).scheme
+
+        if isinstance(scheme, bytes):
+            scheme = scheme.decode("ascii")
+
+        assert (
+            headers is not None
+        ), "Rebuild proxies based on uninitialized PreparedRequest"
+
         new_proxies = resolve_proxies(prepared_request, proxies, self.trust_env)
 
         if "Proxy-Authorization" in headers:
@@ -330,508 +1291,24 @@ class SessionRedirectMixin:
 
         return new_proxies
 
-    def rebuild_method(self, prepared_request, response):
+    def rebuild_method(self, prepared_request: PreparedRequest, response: Response):
         """When being redirected we may want to change the method of the request
         based on certain specs or browser behavior.
         """
         method = prepared_request.method
 
         # https://tools.ietf.org/html/rfc7231#section-6.4.4
-        if response.status_code == codes.see_other and method != "HEAD":
+        if response.status_code == codes.see_other and method != "HEAD":  # type: ignore[attr-defined]
             method = "GET"
 
         # Do what the browsers do, despite standards...
         # First, turn 302s into GETs.
-        if response.status_code == codes.found and method != "HEAD":
+        if response.status_code == codes.found and method != "HEAD":  # type: ignore[attr-defined]
             method = "GET"
 
         # Second, if a POST is responded to with a 301, turn it into a GET.
         # This bizarre behaviour is explained in Issue 1704.
-        if response.status_code == codes.moved and method == "POST":
+        if response.status_code == codes.moved and method == "POST":  # type: ignore[attr-defined]
             method = "GET"
 
         prepared_request.method = method
-
-
-class Session(SessionRedirectMixin):
-    """A Requests session.
-
-    Provides cookie persistence, connection-pooling, and configuration.
-
-    Basic Usage::
-
-      >>> import requests
-      >>> s = requests.Session()
-      >>> s.get('https://httpbin.org/get')
-      <Response [200]>
-
-    Or as a context manager::
-
-      >>> with requests.Session() as s:
-      ...     s.get('https://httpbin.org/get')
-      <Response [200]>
-    """
-
-    __attrs__ = [
-        "headers",
-        "cookies",
-        "auth",
-        "proxies",
-        "hooks",
-        "params",
-        "verify",
-        "cert",
-        "adapters",
-        "stream",
-        "trust_env",
-        "max_redirects",
-        "quic_cache_layer",
-    ]
-
-    def __init__(self, quic_cache_layer=None):
-        #: A case-insensitive dictionary of headers to be sent on each
-        #: :class:`Request <Request>` sent from this
-        #: :class:`Session <Session>`.
-        self.headers = default_headers()
-
-        #: Default Authentication tuple or object to attach to
-        #: :class:`Request <Request>`.
-        self.auth = None
-
-        #: Dictionary mapping protocol or protocol and host to the URL of the proxy
-        #: (e.g. {'http': 'foo.bar:3128', 'http://host.name': 'foo.bar:4012'}) to
-        #: be used on each :class:`Request <Request>`.
-        self.proxies = {}
-
-        #: Event-handling hooks.
-        self.hooks = default_hooks()
-
-        #: Dictionary of querystring data to attach to each
-        #: :class:`Request <Request>`. The dictionary values may be lists for
-        #: representing multivalued query parameters.
-        self.params = {}
-
-        #: Stream response content default.
-        self.stream = False
-
-        #: SSL Verification default.
-        #: Defaults to `True`, requiring requests to verify the TLS certificate at the
-        #: remote end.
-        #: If verify is set to `False`, requests will accept any TLS certificate
-        #: presented by the server, and will ignore hostname mismatches and/or
-        #: expired certificates, which will make your application vulnerable to
-        #: man-in-the-middle (MitM) attacks.
-        #: Only set this to `False` for testing.
-        self.verify = True
-
-        #: SSL client certificate default, if String, path to ssl client
-        #: cert file (.pem). If Tuple, ('cert', 'key') pair.
-        self.cert = None
-
-        #: Maximum number of redirects allowed. If the request exceeds this
-        #: limit, a :class:`TooManyRedirects` exception is raised.
-        #: This defaults to requests.models.DEFAULT_REDIRECT_LIMIT, which is
-        #: 30.
-        self.max_redirects = DEFAULT_REDIRECT_LIMIT
-
-        #: Trust environment settings for proxy configuration, default
-        #: authentication and similar.
-        self.trust_env = True
-
-        #: A CookieJar containing all currently outstanding cookies set on this
-        #: session. By default it is a
-        #: :class:`RequestsCookieJar <requests.cookies.RequestsCookieJar>`, but
-        #: may be any other ``cookielib.CookieJar`` compatible object.
-        self.cookies = cookiejar_from_dict({})
-
-        #: A simple dict that allows us to persist which server support QUIC
-        #: It is simply forwarded to urllib3.future that handle the caching logic.
-        #: Can be any mutable mapping.
-        self.quic_cache_layer = quic_cache_layer
-
-        # Default connection adapters.
-        self.adapters = OrderedDict()
-        self.mount("https://", HTTPAdapter(quic_cache_layer=self.quic_cache_layer))
-        self.mount("http://", HTTPAdapter())
-
-    def __enter__(self):
-        return self
-
-    def __exit__(self, *args):
-        self.close()
-
-    def prepare_request(self, request):
-        """Constructs a :class:`PreparedRequest <PreparedRequest>` for
-        transmission and returns it. The :class:`PreparedRequest` has settings
-        merged from the :class:`Request <Request>` instance and those of the
-        :class:`Session`.
-
-        :param request: :class:`Request` instance to prepare with this
-            session's settings.
-        :rtype: requests.PreparedRequest
-        """
-        cookies = request.cookies or {}
-
-        # Bootstrap CookieJar.
-        if not isinstance(cookies, cookielib.CookieJar):
-            cookies = cookiejar_from_dict(cookies)
-
-        # Merge with session cookies
-        merged_cookies = merge_cookies(
-            merge_cookies(RequestsCookieJar(), self.cookies), cookies
-        )
-
-        # Set environment's basic authentication if not explicitly set.
-        auth = request.auth
-        if self.trust_env and not auth and not self.auth:
-            auth = get_netrc_auth(request.url)
-
-        p = PreparedRequest()
-        p.prepare(
-            method=request.method.upper(),
-            url=request.url,
-            files=request.files,
-            data=request.data,
-            json=request.json,
-            headers=merge_setting(
-                request.headers, self.headers, dict_class=CaseInsensitiveDict
-            ),
-            params=merge_setting(request.params, self.params),
-            auth=merge_setting(auth, self.auth),
-            cookies=merged_cookies,
-            hooks=merge_hooks(request.hooks, self.hooks),
-        )
-        return p
-
-    def request(
-        self,
-        method,
-        url,
-        params=None,
-        data=None,
-        headers=None,
-        cookies=None,
-        files=None,
-        auth=None,
-        timeout=None,
-        allow_redirects=True,
-        proxies=None,
-        hooks=None,
-        stream=None,
-        verify=None,
-        cert=None,
-        json=None,
-    ):
-        """Constructs a :class:`Request <Request>`, prepares it and sends it.
-        Returns :class:`Response <Response>` object.
-
-        :param method: method for the new :class:`Request` object.
-        :param url: URL for the new :class:`Request` object.
-        :param params: (optional) Dictionary or bytes to be sent in the query
-            string for the :class:`Request`.
-        :param data: (optional) Dictionary, list of tuples, bytes, or file-like
-            object to send in the body of the :class:`Request`.
-        :param json: (optional) json to send in the body of the
-            :class:`Request`.
-        :param headers: (optional) Dictionary of HTTP Headers to send with the
-            :class:`Request`.
-        :param cookies: (optional) Dict or CookieJar object to send with the
-            :class:`Request`.
-        :param files: (optional) Dictionary of ``'filename': file-like-objects``
-            for multipart encoding upload.
-        :param auth: (optional) Auth tuple or callable to enable
-            Basic/Digest/Custom HTTP Auth.
-        :param timeout: (optional) How long to wait for the server to send
-            data before giving up, as a float, or a :ref:`(connect timeout,
-            read timeout) <timeouts>` tuple.
-        :type timeout: float or tuple
-        :param allow_redirects: (optional) Set to True by default.
-        :type allow_redirects: bool
-        :param proxies: (optional) Dictionary mapping protocol or protocol and
-            hostname to the URL of the proxy.
-        :param hooks: (optional) Dictionary mapping hook name to one event or
-            list of events, event must be callable.
-        :param stream: (optional) whether to immediately download the response
-            content. Defaults to ``False``.
-        :param verify: (optional) Either a boolean, in which case it controls whether we verify
-            the server's TLS certificate, or a string, in which case it must be a path
-            to a CA bundle to use. Defaults to ``True``. When set to
-            ``False``, requests will accept any TLS certificate presented by
-            the server, and will ignore hostname mismatches and/or expired
-            certificates, which will make your application vulnerable to
-            man-in-the-middle (MitM) attacks. Setting verify to ``False``
-            may be useful during local development or testing.
-        :param cert: (optional) if String, path to ssl client cert file (.pem).
-            If Tuple, ('cert', 'key') pair.
-        :rtype: requests.Response
-        """
-        # Create the Request.
-        req = Request(
-            method=method.upper(),
-            url=url,
-            headers=headers,
-            files=files,
-            data=data or {},
-            json=json,
-            params=params or {},
-            auth=auth,
-            cookies=cookies,
-            hooks=hooks,
-        )
-        prep = self.prepare_request(req)
-
-        proxies = proxies or {}
-
-        settings = self.merge_environment_settings(
-            prep.url, proxies, stream, verify, cert
-        )
-
-        # Send the request.
-        send_kwargs = {
-            "timeout": timeout,
-            "allow_redirects": allow_redirects,
-        }
-        send_kwargs.update(settings)
-        resp = self.send(prep, **send_kwargs)
-
-        return resp
-
-    def get(self, url, **kwargs):
-        r"""Sends a GET request. Returns :class:`Response` object.
-
-        :param url: URL for the new :class:`Request` object.
-        :param \*\*kwargs: Optional arguments that ``request`` takes.
-        :rtype: requests.Response
-        """
-
-        kwargs.setdefault("allow_redirects", True)
-        return self.request("GET", url, **kwargs)
-
-    def options(self, url, **kwargs):
-        r"""Sends a OPTIONS request. Returns :class:`Response` object.
-
-        :param url: URL for the new :class:`Request` object.
-        :param \*\*kwargs: Optional arguments that ``request`` takes.
-        :rtype: requests.Response
-        """
-
-        kwargs.setdefault("allow_redirects", True)
-        return self.request("OPTIONS", url, **kwargs)
-
-    def head(self, url, **kwargs):
-        r"""Sends a HEAD request. Returns :class:`Response` object.
-
-        :param url: URL for the new :class:`Request` object.
-        :param \*\*kwargs: Optional arguments that ``request`` takes.
-        :rtype: requests.Response
-        """
-
-        kwargs.setdefault("allow_redirects", False)
-        return self.request("HEAD", url, **kwargs)
-
-    def post(self, url, data=None, json=None, **kwargs):
-        r"""Sends a POST request. Returns :class:`Response` object.
-
-        :param url: URL for the new :class:`Request` object.
-        :param data: (optional) Dictionary, list of tuples, bytes, or file-like
-            object to send in the body of the :class:`Request`.
-        :param json: (optional) json to send in the body of the :class:`Request`.
-        :param \*\*kwargs: Optional arguments that ``request`` takes.
-        :rtype: requests.Response
-        """
-
-        return self.request("POST", url, data=data, json=json, **kwargs)
-
-    def put(self, url, data=None, **kwargs):
-        r"""Sends a PUT request. Returns :class:`Response` object.
-
-        :param url: URL for the new :class:`Request` object.
-        :param data: (optional) Dictionary, list of tuples, bytes, or file-like
-            object to send in the body of the :class:`Request`.
-        :param \*\*kwargs: Optional arguments that ``request`` takes.
-        :rtype: requests.Response
-        """
-
-        return self.request("PUT", url, data=data, **kwargs)
-
-    def patch(self, url, data=None, **kwargs):
-        r"""Sends a PATCH request. Returns :class:`Response` object.
-
-        :param url: URL for the new :class:`Request` object.
-        :param data: (optional) Dictionary, list of tuples, bytes, or file-like
-            object to send in the body of the :class:`Request`.
-        :param \*\*kwargs: Optional arguments that ``request`` takes.
-        :rtype: requests.Response
-        """
-
-        return self.request("PATCH", url, data=data, **kwargs)
-
-    def delete(self, url, **kwargs):
-        r"""Sends a DELETE request. Returns :class:`Response` object.
-
-        :param url: URL for the new :class:`Request` object.
-        :param \*\*kwargs: Optional arguments that ``request`` takes.
-        :rtype: requests.Response
-        """
-
-        return self.request("DELETE", url, **kwargs)
-
-    def send(self, request, **kwargs):
-        """Send a given PreparedRequest.
-
-        :rtype: requests.Response
-        """
-        # Set defaults that the hooks can utilize to ensure they always have
-        # the correct parameters to reproduce the previous request.
-        kwargs.setdefault("stream", self.stream)
-        kwargs.setdefault("verify", self.verify)
-        kwargs.setdefault("cert", self.cert)
-        if "proxies" not in kwargs:
-            kwargs["proxies"] = resolve_proxies(request, self.proxies, self.trust_env)
-
-        # It's possible that users might accidentally send a Request object.
-        # Guard against that specific failure case.
-        if isinstance(request, Request):
-            raise ValueError("You can only send PreparedRequests.")
-
-        # Set up variables needed for resolve_redirects and dispatching of hooks
-        allow_redirects = kwargs.pop("allow_redirects", True)
-        stream = kwargs.get("stream")
-        hooks = request.hooks
-
-        # Get the appropriate adapter to use
-        adapter = self.get_adapter(url=request.url)
-
-        # Start time (approximately) of the request
-        start = preferred_clock()
-
-        # Send the request
-        r = adapter.send(request, **kwargs)
-
-        # Total elapsed time of the request (approximately)
-        elapsed = preferred_clock() - start
-        r.elapsed = timedelta(seconds=elapsed)
-
-        # Response manipulation hooks
-        r = dispatch_hook("response", hooks, r, **kwargs)
-
-        # Persist cookies
-        if r.history:
-            # If the hooks create history then we want those cookies too
-            for resp in r.history:
-                extract_cookies_to_jar(self.cookies, resp.request, resp.raw)
-
-        extract_cookies_to_jar(self.cookies, request, r.raw)
-
-        # Resolve redirects if allowed.
-        if allow_redirects:
-            # Redirect resolving generator.
-            gen = self.resolve_redirects(r, request, **kwargs)
-            history = [resp for resp in gen]
-        else:
-            history = []
-
-        # Shuffle things around if there's history.
-        if history:
-            # Insert the first (original) request at the start
-            history.insert(0, r)
-            # Get the last request made
-            r = history.pop()
-            r.history = history
-
-        # If redirects aren't being followed, store the response on the Request for Response.next().
-        if not allow_redirects:
-            try:
-                r._next = next(
-                    self.resolve_redirects(r, request, yield_requests=True, **kwargs)
-                )
-            except StopIteration:
-                pass
-
-        if not stream:
-            r.content
-
-        return r
-
-    def merge_environment_settings(self, url, proxies, stream, verify, cert):
-        """
-        Check the environment and merge it with some settings.
-
-        :rtype: dict
-        """
-        # Gather clues from the surrounding environment.
-        if self.trust_env:
-            # Set environment's proxies.
-            no_proxy = proxies.get("no_proxy") if proxies is not None else None
-            env_proxies = get_environ_proxies(url, no_proxy=no_proxy)
-            for k, v in env_proxies.items():
-                proxies.setdefault(k, v)
-
-            # Look for requests environment configuration
-            # and be compatible with cURL.
-            if verify is True or verify is None:
-                verify = (
-                    os.environ.get("REQUESTS_CA_BUNDLE")
-                    or os.environ.get("CURL_CA_BUNDLE")
-                    or verify
-                )
-
-        # Merge all the kwargs.
-        proxies = merge_setting(proxies, self.proxies)
-        stream = merge_setting(stream, self.stream)
-        verify = merge_setting(verify, self.verify)
-        cert = merge_setting(cert, self.cert)
-
-        return {"proxies": proxies, "stream": stream, "verify": verify, "cert": cert}
-
-    def get_adapter(self, url):
-        """
-        Returns the appropriate connection adapter for the given URL.
-
-        :rtype: requests.adapters.BaseAdapter
-        """
-        for prefix, adapter in self.adapters.items():
-            if url.lower().startswith(prefix.lower()):
-                return adapter
-
-        # Nothing matches :-/
-        raise InvalidSchema(f"No connection adapters were found for {url!r}")
-
-    def close(self):
-        """Closes all adapters and as such the session"""
-        for v in self.adapters.values():
-            v.close()
-
-    def mount(self, prefix, adapter):
-        """Registers a connection adapter to a prefix.
-
-        Adapters are sorted in descending order by prefix length.
-        """
-        self.adapters[prefix] = adapter
-        keys_to_move = [k for k in self.adapters if len(k) < len(prefix)]
-
-        for key in keys_to_move:
-            self.adapters[key] = self.adapters.pop(key)
-
-    def __getstate__(self):
-        state = {attr: getattr(self, attr, None) for attr in self.__attrs__}
-        return state
-
-    def __setstate__(self, state):
-        for attr, value in state.items():
-            setattr(self, attr, value)
-
-
-def session():
-    """
-    Returns a :class:`Session` for context-management.
-
-    .. deprecated:: 1.0.0
-
-        This method has been deprecated since version 1.0.0 and is only kept for
-        backwards compatibility. New code should use :class:`~requests.sessions.Session`
-        to create a session. This may be removed at a future date.
-
-    :rtype: Session
-    """
-    return Session()

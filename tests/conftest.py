@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 try:
     from http.server import HTTPServer, SimpleHTTPRequestHandler
 except ImportError:
@@ -6,10 +8,9 @@ except ImportError:
 
 import ssl
 import threading
+from urllib.parse import urljoin
 
 import pytest
-
-from niquests.compat import urljoin
 
 
 def prepare_url(value):
