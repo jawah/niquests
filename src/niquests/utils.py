@@ -17,7 +17,6 @@ import struct
 import sys
 import tempfile
 import typing
-import warnings
 from collections import OrderedDict
 from http.cookiejar import CookieJar
 from urllib.parse import quote, unquote, urlparse, urlunparse
@@ -43,12 +42,7 @@ from ._internal_utils import (  # noqa: F401
     to_native_string,
 )
 from .cookies import cookiejar_from_dict
-from .exceptions import (
-    FileModeWarning,
-    InvalidHeader,
-    InvalidURL,
-    UnrewindableBodyError,
-)
+from .exceptions import InvalidHeader, InvalidURL, UnrewindableBodyError
 from .structures import CaseInsensitiveDict
 
 if typing.TYPE_CHECKING:
@@ -136,21 +130,6 @@ def super_len(o: typing.Any) -> int:
             pass
         else:
             total_length = os.fstat(fileno).st_size
-
-            # Having used fstat to determine the file length, we need to
-            # confirm that this file was opened up in binary mode.
-            if "b" not in o.mode:
-                warnings.warn(
-                    (
-                        "Requests has determined the content-length for this "
-                        "request using the binary size of the file: however, the "
-                        "file has been opened in text mode (i.e. without the 'b' "
-                        "flag in the mode). This may lead to an incorrect "
-                        "content-length. In Requests 3.0, support will be removed "
-                        "for files in text mode."
-                    ),
-                    FileModeWarning,
-                )
 
     if hasattr(o, "tell"):
         try:

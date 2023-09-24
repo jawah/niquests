@@ -12,6 +12,10 @@ Release History
   a `PreparedRequest` instance. Finally, the `pre_send` will be triggered just after picking a (live) connection
   for your request. The two events receive a `PreparedRequest` instance.
 
+**Removed**
+- Warning emitted when passing a file opened in text-mode instead of binary. urllib3.future can overrule
+  the content-length if it detects an error. You should not encounter broken request being sent.
+
 3.0.0b1 (2023-09-22)
 -------------------
 
