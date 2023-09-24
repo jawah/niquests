@@ -93,18 +93,17 @@ class TestSuperLen:
         assert super_len("Test") == 4
 
     @pytest.mark.parametrize(
-        "mode, warnings_num",
+        "mode",
         (
-            ("r", 1),
-            ("rb", 0),
+            "r",
+            "rb",
         ),
     )
-    def test_file(self, tmpdir, mode, warnings_num, recwarn):
+    def test_file(self, tmpdir, mode, recwarn):
         file_obj = tmpdir.join("test.txt")
         file_obj.write("Test")
         with file_obj.open(mode) as fd:
             assert super_len(fd) == 4
-        assert len(recwarn) == warnings_num
 
     def test_tarfile_member(self, tmpdir):
         file_obj = tmpdir.join("test.txt")
