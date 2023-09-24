@@ -23,7 +23,7 @@ from urllib.parse import urlencode, urlsplit, urlunparse
 
 from charset_normalizer import from_bytes
 from kiss_headers import Headers, parse_it
-from urllib3 import BaseHTTPResponse
+from urllib3 import BaseHTTPResponse, ConnectionInfo
 from urllib3.exceptions import (
     DecodeError,
     LocationParseError,
@@ -246,6 +246,8 @@ class PreparedRequest:
         self.hooks = default_hooks()
         #: integer denoting starting position of a readable file-like body.
         self._body_position: int | object | None = None
+        #: valuable intel about the opened connection.
+        self.conn_info: ConnectionInfo | None = None
 
     def prepare(
         self,
@@ -922,6 +924,12 @@ class Response:
     def next(self) -> PreparedRequest | None:
         """Returns a PreparedRequest for the next request in a redirect chain, if there is one."""
         return self._next
+
+    @property
+    def conn_info(self) -> ConnectionInfo | None:
+        if self.request and hasattr(self.request, "conn_info"):
+            return self.request.conn_info
+        return None
 
     def iter_content(self, chunk_size: int = 1, decode_unicode: bool = False):
         """Iterates over the response data.  When stream=True is set on the

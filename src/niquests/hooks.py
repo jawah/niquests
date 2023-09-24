@@ -15,14 +15,15 @@ import typing
 
 from ._typing import _HV, HookCallableType, HookType
 
-HOOKS = ["response"]
+HOOKS = [
+    "pre_request",
+    "pre_send",
+    "response",
+]
 
 
 def default_hooks() -> HookType:
     return {event: [] for event in HOOKS}
-
-
-# TODO: response is the only one
 
 
 def dispatch_hook(

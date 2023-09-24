@@ -90,6 +90,7 @@ class BaseAdapter:
         verify: TLSVerifyType = True,
         cert: TLSClientCertType | None = None,
         proxies: ProxyType | None = None,
+        on_post_connection: typing.Callable[[typing.Any], None] | None = None,
     ) -> Response:
         """Sends PreparedRequest object. Returns Response object.
 
@@ -504,6 +505,7 @@ class HTTPAdapter(BaseAdapter):
         verify: TLSVerifyType = True,
         cert: TLSClientCertType | None = None,
         proxies: ProxyType | None = None,
+        on_post_connection: typing.Callable[[typing.Any], None] | None = None,
     ) -> Response:
         """Sends PreparedRequest object. Returns Response object.
 
@@ -577,6 +579,7 @@ class HTTPAdapter(BaseAdapter):
                 retries=self.max_retries,
                 timeout=timeout,
                 chunked=chunked,
+                on_post_connection=on_post_connection,
             )
 
         except (ProtocolError, OSError) as err:
