@@ -1,10 +1,19 @@
 Release History
 ===============
 
-3.0.0b2 (2023-09-24)
---------------------
+3.0.0 (2023-09-24)
+------------------
 
 **Added**
+- Static type annotations thorough the whole package.
+- `cert` argument for client authentication with certificate can now pass the password/passphrase using a 3-values tuple (cert, key, password).
+  The three parameters in the tuple must be of type `str`.
+- `verify` argument behavior has been extended and now accept your CA bundle as `str` instead of a path. It also accepts your CA bundle as `bytes` directly.
+  This help when you do not have access to the fs.
+- Operating system truststore will be used instead of `certifi`. Root CAs are automatically grabbed from your computer configuration.
+- Oriented-object headers. Access them through the new property `oheaders` in your `Response`.
+- Propagated the argument `retries` in `niquests.api` for all functions.
+- Added argument `retries` in the `Session` constructor.
 - Property `conn_info` to the `PreparedRequest` and `Response` that hold a reference to a `ConnectionInfo`.
   This class exposes the following properties: `certificate_der` _(bytes)_, `certificate_dict` _(dict)_ as provided by the standard
   library (ssl), `destination_address` _(tuple[ipAddress, portNumber])_, `cipher` _(str)_, `tls_version` _(TLSVersion)_, and `http_version`.
@@ -12,27 +21,22 @@ Release History
   a `PreparedRequest` instance. Finally, the `pre_send` will be triggered just after picking a (live) connection
   for your request. The two events receive a `PreparedRequest` instance.
 
-**Removed**
-- Warning emitted when passing a file opened in text-mode instead of binary. urllib3.future can overrule
-  the content-length if it detects an error. You should not encounter broken request being sent.
+**Changed**
+- Calling the method `json` from `Response` when no encoding was provided no longer relies on internal encoding inference.
+  We fall back on `charset-normalizer` with a limited set of charsets allowed (UTF-8/16/32 or ASCII).
+- No longer will the `text` method from `Response` return str if content cannot be decoded. It returns None instead.
+- If specified charset in content-type does not exist (LookupError) the `text` method from `Response` will rely on charset detection.
+- If specified charset in content-type is not made for text decoding (e.g. base64), the `text` method from `Response` returns None.
+- With above four changes, the `json` method will raise `RequestsJSONDecodeError` when the payload (body) cannot be decoded.
+- Passing invalid `files` description no longer _just skip_ invalid entries, it raises `ValueError` from now on.
+- Non-str HTTP-Verb are refused.
+- Passing `files` with minimal description (meaning no tuple but _just_ the fp) no longer guess its name when `fp.name` return bytes.
+- No longer will the default timeout be unset, thus making you waiting indefinitely.
+  Functions `get`, `head`, and `options` ships with a default of 30 seconds.
+  Then `put`, `post`, `patch` and `delete` uses a default of 120 seconds.
+  Finally, the `request` function also have 120 seconds.
+- Basic authorization username and password are now encoded using utf-8 instead of latin-1 prior to being base64 encoded.
 
-**Fixed**
-- Top-level init now specify correctly the exposed api. Fixes mypy error `.. does not explicitly export attribute ..`.
-
-3.0.0b1 (2023-09-22)
--------------------
-
-**Removed**
-- Support for `simplejson` if was present in environment.
-- Submodule `compat`.
-
-**Added**
-- Oriented-object headers. Access them through the new property `oheaders` in your `Response`.
-- Propagated the argument `retries` in `niquests.api` for all functions.
-- Added argument `retries` in the `Session` constructor.
-
-3.0.0b0 (2023-09-21)
--------------------
 
 **Removed**
 - Property `apparent_encoding` in favor of a discrete internal inference.
@@ -56,30 +60,10 @@ Release History
 - Constant `DEFAULT_CA_BUNDLE_PATH`, and submodule `certs` due to dropping `certifi`.
 - Function `extract_zipped_paths` because rendered useless as it was made to handle an edge case where `certifi` is "zipped".
 - Extra `security` when installing this package. It was previously emptied in the previous major.
-
-**Changed**
-- Calling the method `json` from `Response` when no encoding was provided no longer relies on internal encoding inference.
-  We fall back on `charset-normalizer` with a limited set of charsets allowed (UTF-8/16/32 or ASCII).
-- No longer will the `text` method from `Response` return str if content cannot be decoded. It returns None instead.
-- If specified charset in content-type does not exist (LookupError) the `text` method from `Response` will rely on charset detection.
-- If specified charset in content-type is not made for text decoding (e.g. base64), the `text` method from `Response` returns None.
-- With above four changes, the `json` method will raise `RequestsJSONDecodeError` when the payload (body) cannot be decoded.
-- Passing invalid `files` description no longer _just skip_ invalid entries, it raises `ValueError` from now on.
-- Non-str HTTP-Verb are refused.
-- Passing `files` with minimal description (meaning no tuple but _just_ the fp) no longer guess its name when `fp.name` return bytes.
-- No longer will the default timeout be unset, thus making you waiting indefinitely.
-  Functions `get`, `head`, and `options` ships with a default of 30 seconds.
-  Then `put`, `post`, `patch` and `delete` uses a default of 120 seconds.
-  Finally, the `request` function also have 120 seconds.
-- Basic authorization username and password are now encoded using utf-8 instead of latin-1 prior to being base64 encoded.
-
-**Added**
-- Static type annotations thorough the whole package.
-- `cert` argument for client authentication with certificate can now pass the password/passphrase using a 3-values tuple (cert, key, password).
-  The three parameters in the tuple must be of type `str`.
-- `verify` argument behavior has been extended and now accept your CA bundle as `str` instead of a path. It also accepts your CA bundle as `bytes` directly.
-  This help when you do not have access to the fs.
-- Operating system truststore will be used instead of `certifi`. Root CAs are automatically grabbed from your computer configuration.
+- Warning emitted when passing a file opened in text-mode instead of binary. urllib3.future can overrule
+  the content-length if it detects an error. You should not encounter broken request being sent.
+- Support for `simplejson` if was present in environment.
+- Submodule `compat`.
 
 **Fixed**
 - An invalid content-type definition would cause the charset being evaluated to `True`, thus making the program crash.
@@ -88,6 +72,7 @@ Release History
 - A server could specify a `Location` header that does not comply to HTTP specifications and could lead to an unexpected exception.
   We try to fall back to Unicode decoding if the typical and expected Latin-1 would fail. If that fails too, a proper exception is raised.
   For context see https://github.com/psf/requests/issues/6026
+- Top-level init now specify correctly the exposed api. Fixes mypy error `.. does not explicitly export attribute ..`.
 
 2.32.1 (2023-09-12)
 -------------------
