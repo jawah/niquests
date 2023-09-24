@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 try:
     from http.server import HTTPServer, SimpleHTTPRequestHandler
 except ImportError:

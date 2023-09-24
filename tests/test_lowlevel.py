@@ -1,10 +1,12 @@
+from __future__ import annotations
+
 import threading
 from json import JSONDecodeError
 
 import pytest
-from tests.testserver.server import Server, consume_socket_content
 
 import niquests
+from tests.testserver.server import Server, consume_socket_content
 
 from .utils import override_environ
 

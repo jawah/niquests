@@ -38,6 +38,8 @@ is at <https://niquests.readthedocs.io>.
 :license: Apache 2.0, see LICENSE for more details.
 """
 
+from __future__ import annotations
+
 import warnings
 
 import charset_normalizer

@@ -4,6 +4,8 @@ requests.exceptions
 
 This module contains the set of Requests' exceptions.
 """
+from __future__ import annotations
+
 from json import JSONDecodeError as CompatJSONDecodeError
 
 from urllib3.exceptions import HTTPError as BaseHTTPError

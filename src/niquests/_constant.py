@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import wassima
 
 from ._typing import RetryType, TimeoutType

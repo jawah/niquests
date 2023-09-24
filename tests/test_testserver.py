@@ -1,11 +1,13 @@
+from __future__ import annotations
+
 import socket
 import threading
 import time
 
 import pytest
-from tests.testserver.server import Server
 
 import niquests
+from tests.testserver.server import Server
 
 
 class TestTestServer:

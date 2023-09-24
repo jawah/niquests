@@ -18,6 +18,8 @@ the names are allowed. For example, ``codes.ok``, ``codes.OK``, and
 ``codes.okay`` all correspond to the HTTP status code 200.
 """
 
+from __future__ import annotations
+
 from .structures import LookupDict
 
 _codes = {
