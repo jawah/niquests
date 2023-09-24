@@ -88,7 +88,6 @@ def request(
     :param stream: (optional) if ``False``, the response content will be immediately downloaded.
     :param cert: (optional) if String, path to ssl client cert file (.pem). If Tuple, ('cert', 'key') pair.
     :return: :class:`Response <Response>` object
-    :rtype: requests.Response
 
     Usage::
 
@@ -146,7 +145,6 @@ def get(
     :param params: (optional) Dictionary, list of tuples or bytes to send
         in the query string for the :class:`Request`.
     :return: :class:`Response <Response>` object
-    :rtype: requests.Response
     """
 
     return request(
@@ -187,7 +185,6 @@ def options(
 
     :param url: URL for the new :class:`Request` object.
     :return: :class:`Response <Response>` object
-    :rtype: requests.Response
     """
 
     return request(
@@ -228,7 +225,6 @@ def head(
 
     :param url: URL for the new :class:`Request` object.
     :return: :class:`Response <Response>` object
-    :rtype: requests.Response
     """
 
     return request(
@@ -275,7 +271,6 @@ def post(
         object to send in the body of the :class:`Request`.
     :param json: (optional) A JSON serializable Python object to send in the body of the :class:`Request`.
     :return: :class:`Response <Response>` object
-    :rtype: requests.Response
     """
 
     return request(
@@ -325,7 +320,6 @@ def put(
         object to send in the body of the :class:`Request`.
     :param json: (optional) A JSON serializable Python object to send in the body of the :class:`Request`.
     :return: :class:`Response <Response>` object
-    :rtype: requests.Response
     """
 
     return request(
@@ -375,7 +369,6 @@ def patch(
         object to send in the body of the :class:`Request`.
     :param json: (optional) A JSON serializable Python object to send in the body of the :class:`Request`.
     :return: :class:`Response <Response>` object
-    :rtype: requests.Response
     """
 
     return request(
@@ -418,7 +411,6 @@ def delete(
 
     :param url: URL for the new :class:`Request` object.
     :return: :class:`Response <Response>` object
-    :rtype: requests.Response
     """
 
     return request(

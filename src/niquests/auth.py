@@ -97,10 +97,6 @@ class HTTPDigestAuth(AuthBase):
             self._thread_local.num_401_calls = None
 
     def build_digest_header(self, method: str, url: str) -> str | None:
-        """
-        :rtype: str
-        """
-
         realm = self._thread_local.chal["realm"]
         nonce = self._thread_local.chal["nonce"]
         qop = self._thread_local.chal.get("qop")

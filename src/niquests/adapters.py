@@ -25,7 +25,7 @@ from urllib3.exceptions import (
 from urllib3.exceptions import ProxyError as _ProxyError
 from urllib3.exceptions import ReadTimeoutError, ResponseError
 from urllib3.exceptions import SSLError as _SSLError
-from urllib3.poolmanager import PoolManager, proxy_from_url
+from urllib3.poolmanager import PoolManager, ProxyManager, proxy_from_url
 from urllib3.response import BaseHTTPResponse
 from urllib3.util import Timeout as TimeoutSauce
 from urllib3.util import parse_url
@@ -171,7 +171,7 @@ class HTTPAdapter(BaseAdapter):
             if max_retries == 0:
                 self.max_retries.read = False
         self.config: typing.MutableMapping[str, typing.Any] = {}
-        self.proxy_manager: typing.MutableMapping[str, PoolManager] = {}
+        self.proxy_manager: typing.MutableMapping[str, ProxyManager] = {}
 
         super().__init__()
 
@@ -240,7 +240,7 @@ class HTTPAdapter(BaseAdapter):
             **pool_kwargs,
         )
 
-    def proxy_manager_for(self, proxy: str, **proxy_kwargs: typing.Any) -> PoolManager:
+    def proxy_manager_for(self, proxy: str, **proxy_kwargs: typing.Any) -> ProxyManager:
         """Return urllib3 ProxyManager for the given proxy.
 
         This method should not be called from user code, and is only
@@ -250,13 +250,12 @@ class HTTPAdapter(BaseAdapter):
         :param proxy: The proxy to return a urllib3 ProxyManager for.
         :param proxy_kwargs: Extra keyword arguments used to configure the Proxy Manager.
         :returns: ProxyManager
-        :rtype: urllib3.ProxyManager
         """
         if proxy in self.proxy_manager:
             manager = self.proxy_manager[proxy]
         elif proxy.lower().startswith("socks"):
             username, password = get_auth_from_url(proxy)
-            manager = self.proxy_manager[proxy] = SOCKSProxyManager(
+            manager = self.proxy_manager[proxy] = SOCKSProxyManager(  # type: ignore[assignment]
                 proxy,
                 username=username,
                 password=password,
@@ -361,7 +360,6 @@ class HTTPAdapter(BaseAdapter):
 
         :param req: The :class:`PreparedRequest <PreparedRequest>` used to generate the response.
         :param resp: The urllib3 response object.
-        :rtype: requests.Response
         """
         response = Response()
 
@@ -399,7 +397,6 @@ class HTTPAdapter(BaseAdapter):
 
         :param url: The URL to connect to.
         :param proxies: (optional) A Requests-style dictionary of proxies used on this request.
-        :rtype: urllib3.ConnectionPool
         """
         proxy = select_proxy(url, proxies)
 
@@ -443,7 +440,6 @@ class HTTPAdapter(BaseAdapter):
 
         :param request: The :class:`PreparedRequest <PreparedRequest>` being sent.
         :param proxies: A dictionary of schemes or schemes and hosts to proxy URLs.
-        :rtype: str
         """
         assert request.url is not None
 
@@ -487,7 +483,6 @@ class HTTPAdapter(BaseAdapter):
         :class:`HTTPAdapter <requests.adapters.HTTPAdapter>`.
 
         :param proxy: The url of the proxy being used for this request.
-        :rtype: dict
         """
         headers = {}
         username, password = get_auth_from_url(proxy)
@@ -520,7 +515,6 @@ class HTTPAdapter(BaseAdapter):
             must be a path to a CA bundle to use
         :param cert: (optional) Any user-provided SSL certificate to be trusted.
         :param proxies: (optional) The proxies dictionary to apply to the request.
-        :rtype: requests.Response
         """
 
         assert (

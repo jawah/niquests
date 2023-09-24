@@ -256,7 +256,6 @@ class Session:
 
         :param request: :class:`Request` instance to prepare with this
             session's settings.
-        :rtype: requests.PreparedRequest
         """
         cookies = request.cookies or {}
 
@@ -351,7 +350,6 @@ class Session:
             may be useful during local development or testing.
         :param cert: (optional) if String, path to ssl client cert file (.pem).
             If Tuple, ('cert', 'key') pair.
-        :rtype: requests.Response
         """
         # Kept for BC-purposes. One may use lowercase http verb.
         if method.isupper() is False:
@@ -410,7 +408,6 @@ class Session:
         r"""Sends a GET request. Returns :class:`Response` object.
 
         :param url: URL for the new :class:`Request` object.
-        :rtype: requests.Response
         """
 
         return self.request(
@@ -448,7 +445,6 @@ class Session:
         r"""Sends a OPTIONS request. Returns :class:`Response` object.
 
         :param url: URL for the new :class:`Request` object.
-        :rtype: requests.Response
         """
 
         return self.request(
@@ -485,7 +481,6 @@ class Session:
         r"""Sends a HEAD request. Returns :class:`Response` object.
 
         :param url: URL for the new :class:`Request` object.
-        :rtype: requests.Response
         """
 
         return self.request(
@@ -529,7 +524,6 @@ class Session:
         :param data: (optional) Dictionary, list of tuples, bytes, or file-like
             object to send in the body of the :class:`Request`.
         :param json: (optional) json to send in the body of the :class:`Request`.
-        :rtype: requests.Response
         """
 
         return self.request(
@@ -575,7 +569,6 @@ class Session:
         :param url: URL for the new :class:`Request` object.
         :param data: (optional) Dictionary, list of tuples, bytes, or file-like
             object to send in the body of the :class:`Request`.
-        :rtype: requests.Response
         """
 
         return self.request(
@@ -621,7 +614,6 @@ class Session:
         :param url: URL for the new :class:`Request` object.
         :param data: (optional) Dictionary, list of tuples, bytes, or file-like
             object to send in the body of the :class:`Request`.
-        :rtype: requests.Response
         """
 
         return self.request(
@@ -661,7 +653,6 @@ class Session:
         r"""Sends a DELETE request. Returns :class:`Response` object.
 
         :param url: URL for the new :class:`Request` object.
-        :rtype: requests.Response
         """
 
         return self.request(
@@ -680,10 +671,7 @@ class Session:
         )
 
     def send(self, request: PreparedRequest, **kwargs: typing.Any) -> Response:
-        """Send a given PreparedRequest.
-
-        :rtype: requests.Response
-        """
+        """Send a given PreparedRequest."""
         # Set defaults that the hooks can utilize to ensure they always have
         # the correct parameters to reproduce the previous request.
         kwargs.setdefault("stream", self.stream)
@@ -775,8 +763,6 @@ class Session:
     ) -> dict[str, typing.Any]:
         """
         Check the environment and merge it with some settings.
-
-        :rtype: dict
         """
         # Gather clues from the surrounding environment.
         if self.trust_env:
@@ -805,8 +791,6 @@ class Session:
     def get_adapter(self, url: str) -> BaseAdapter:
         """
         Returns the appropriate connection adapter for the given URL.
-
-        :rtype: requests.adapters.BaseAdapter
         """
         for prefix, adapter in self.adapters.items():
             if url.lower().startswith(prefix.lower()):
@@ -1064,7 +1048,7 @@ class Session:
 
     def rebuild_proxies(
         self, prepared_request: PreparedRequest, proxies: ProxyType | None
-    ):
+    ) -> ProxyType:
         """This method re-evaluates the proxy configuration by considering the
         environment variables. If we are redirected to a URL covered by
         NO_PROXY, we strip the proxy configuration. Otherwise, we set missing
@@ -1073,8 +1057,6 @@ class Session:
 
         This method also replaces the Proxy-Authorization header where
         necessary.
-
-        :rtype: dict
         """
         headers = prepared_request.headers
         scheme: str | bytes = urlparse(prepared_request.url).scheme

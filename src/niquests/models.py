@@ -1182,8 +1182,7 @@ class Response:
         - 11 for HTTP/1.1
         - 20 for HTTP/2
         - 30 for HTTP/3
-
-        :rtype: int"""
+        """
         return self.raw.version if self.raw else None
 
     def raise_for_status(self) -> None:

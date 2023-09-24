@@ -264,8 +264,6 @@ def from_key_val_list(value: typing.Any | None) -> OrderedDict | None:
         ValueError: cannot encode objects that are not 2-tuples
         >>> from_key_val_list({'key': 'val'})
         OrderedDict([('key', 'val')])
-
-    :rtype: OrderedDict
     """
     if value is None:
         return None
@@ -296,8 +294,6 @@ def to_key_val_list(
         Traceback (most recent call last):
         ...
         ValueError: cannot encode objects that are not 2-tuples
-
-    :rtype: list
     """
     if value is None:
         raise ValueError("cannot accept None in to_key_val_list")
@@ -333,7 +329,6 @@ def parse_list_header(value: str) -> list[str]:
 
     :param value: a string with a list header.
     :return: :class:`list`
-    :rtype: list
     """
     result = []
     for item in _parse_list_header(value):
@@ -364,7 +359,6 @@ def parse_dict_header(value: str) -> typing.Mapping[str, str | None]:
 
     :param value: a string with a dict header.
     :return: :class:`dict`
-    :rtype: dict
     """
     result: typing.MutableMapping[str, str | None] = {}
     for item in _parse_list_header(value):
@@ -385,7 +379,6 @@ def unquote_header_value(value: str, is_filename: bool = False) -> str:
     using for quoting.
 
     :param value: the header value to unquote.
-    :rtype: str
     """
     if value and value[0] == value[-1] == '"':
         # this is not the real unquoting, but fixing this so that the
@@ -408,19 +401,19 @@ def dict_from_cookiejar(cj: CookieJar) -> dict[str, str | None]:
     """Returns a key/value dictionary from a CookieJar.
 
     :param cj: CookieJar object to extract cookies from.
-    :rtype: dict
     """
 
     cookie_dict = {cookie.name: cookie.value for cookie in cj}
     return cookie_dict
 
 
-def add_dict_to_cookiejar(cj: RequestsCookieJar, cookie_dict):
+def add_dict_to_cookiejar(
+    cj: RequestsCookieJar, cookie_dict
+) -> RequestsCookieJar | CookieJar:
     """Returns a CookieJar from a key/value dictionary.
 
     :param cj: CookieJar to insert cookies into.
     :param cookie_dict: Dict of key/values to insert into CookieJar.
-    :rtype: CookieJar
     """
 
     return cookiejar_from_dict(cookie_dict, cj)
@@ -459,7 +452,6 @@ def get_encoding_from_headers(headers: typing.Mapping[str, str]) -> str | None:
     """Returns encodings from given HTTP Header Dict.
 
     :param headers: dictionary to extract encoding from.
-    :rtype: str
     """
 
     content_type = headers.get("content-type")
@@ -523,8 +515,6 @@ UNRESERVED_SET = frozenset(
 def unquote_unreserved(uri: str) -> str:
     """Un-escape any percent-escape sequences in a URI that are unreserved
     characters. This leaves all reserved, illegal and non-ASCII bytes encoded.
-
-    :rtype: str
     """
     parts = uri.split("%")
     for i in range(1, len(parts)):
@@ -549,8 +539,6 @@ def requote_uri(uri: str) -> str:
 
     This function passes the given URI through an unquote/quote cycle to
     ensure that it is fully and consistently quoted.
-
-    :rtype: str
     """
     safe_with_percent = "!#$%&'()*+,/:;=?@[]~"
     safe_without_percent = "!#$&'()*+,/:;=?@[]~"
@@ -571,8 +559,6 @@ def address_in_network(ip: str, net: str) -> bool:
 
     Example: returns True if ip = 192.168.1.1 and net = 192.168.1.0/24
              returns False if ip = 192.168.1.1 and net = 192.168.100.0/24
-
-    :rtype: bool
     """
     ipaddr = struct.unpack("=L", socket.inet_aton(ip))[0]
     netaddr, bits = net.split("/")
@@ -585,17 +571,12 @@ def dotted_netmask(mask: int) -> str:
     """Converts mask from /xx format to xxx.xxx.xxx.xxx
 
     Example: if mask is 24 function returns 255.255.255.0
-
-    :rtype: str
     """
     bits = 0xFFFFFFFF ^ (1 << 32 - mask) - 1
     return socket.inet_ntoa(struct.pack(">I", bits))
 
 
 def is_ipv4_address(string_ip: str) -> bool:
-    """
-    :rtype: bool
-    """
     try:
         socket.inet_aton(string_ip)
     except OSError:
@@ -606,8 +587,6 @@ def is_ipv4_address(string_ip: str) -> bool:
 def is_valid_cidr(string_network: str) -> bool:
     """
     Very simple check of the cidr format in no_proxy variable.
-
-    :rtype: bool
     """
     if string_network.count("/") == 1:
         try:
@@ -652,8 +631,6 @@ def set_environ(env_name: str, value: str | None) -> typing.Generator[None, None
 def should_bypass_proxies(url: str, no_proxy: str | None) -> bool:
     """
     Returns whether we should bypass proxies or not.
-
-    :rtype: bool
     """
 
     # Prioritize lowercase environment variables over uppercase
@@ -715,8 +692,6 @@ def should_bypass_proxies(url: str, no_proxy: str | None) -> bool:
 def get_environ_proxies(url: str, no_proxy: str | None = None) -> dict[str, str]:
     """
     Return a dict of environment proxies.
-
-    :rtype: dict
     """
     if should_bypass_proxies(url, no_proxy=no_proxy):
         return {}
@@ -764,8 +739,6 @@ def resolve_proxies(
     :param request: Request or PreparedRequest
     :param proxies: A dictionary of schemes or schemes and hosts to proxy URLs
     :param trust_env: Boolean declaring whether to trust environment configs
-
-    :rtype: dict
     """
     proxies = proxies if proxies is not None else {}
     url = request.url
@@ -789,16 +762,11 @@ def resolve_proxies(
 def default_user_agent(name: str = "niquests") -> str:
     """
     Return a string representing the default user agent.
-
-    :rtype: str
     """
     return f"{name}/{__version__}"
 
 
 def default_headers() -> CaseInsensitiveDict:
-    """
-    :rtype: requests.structures.CaseInsensitiveDict
-    """
     return CaseInsensitiveDict(
         {
             "User-Agent": default_user_agent(),
@@ -813,8 +781,6 @@ def parse_header_links(value: str) -> list[dict[str, str]]:
     """Return a list of parsed link headers proxies.
 
     i.e. Link: <http:/.../front.jpeg>; rel=front; type="image/jpeg",<http://.../back.jpeg>; rel=back;type="image/jpeg"
-
-    :rtype: list
     """
 
     links: list[dict[str, str]] = []
@@ -849,8 +815,6 @@ def parse_header_links(value: str) -> list[dict[str, str]]:
 def prepend_scheme_if_needed(url: str, new_scheme: str) -> str:
     """Given a URL that may or may not have a scheme, prepend the given scheme.
     Does not replace a present scheme with the one provided as an argument.
-
-    :rtype: str
     """
     parsed = parse_url(url)
     scheme, auth, host, port, path, query, fragment = parsed
@@ -878,8 +842,6 @@ def prepend_scheme_if_needed(url: str, new_scheme: str) -> str:
 def get_auth_from_url(url: str) -> tuple[str, str]:
     """Given a url with authentication components, extract them into a tuple of
     username,password.
-
-    :rtype: (str,str)
     """
     parsed = urlparse(url)
 
@@ -930,8 +892,6 @@ def _validate_header_part(
 def urldefragauth(url: str) -> str:
     """
     Given a url remove the fragment and the authentication part.
-
-    :rtype: str
     """
     scheme, netloc, path, params, query, fragment = urlparse(url)
 

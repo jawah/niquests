@@ -153,11 +153,9 @@ def extract_cookies_to_jar(
     jar.extract_cookies(res, req)  # type: ignore[arg-type]
 
 
-def get_cookie_header(jar, request):
+def get_cookie_header(jar, request) -> str | None:
     """
     Produce an appropriate Cookie header string to be sent with `request`, or None.
-
-    :rtype: str
     """
     r = MockRequest(request)
     jar.add_cookie_header(r)
@@ -310,8 +308,6 @@ class RequestsCookieJar(cookielib.CookieJar, MutableMapping):
     def multiple_domains(self) -> bool:
         """Returns True if there are multiple domains in the jar.
         Returns False otherwise.
-
-        :rtype: bool
         """
         domains = []
         for cookie in iter(self):
@@ -326,8 +322,6 @@ class RequestsCookieJar(cookielib.CookieJar, MutableMapping):
         """Takes as an argument an optional domain and path and returns a plain
         old Python dict of name-value pairs of cookies that meet the
         requirements.
-
-        :rtype: dict
         """
         dictionary = {}
         for cookie in iter(self):
@@ -548,7 +542,6 @@ def cookiejar_from_dict(
     :param cookiejar: (optional) A cookiejar to add the cookies to.
     :param overwrite: (optional) If False, will not replace cookies
         already in the jar with new ones.
-    :rtype: CookieJar
     """
     if cookiejar is None:
         cookiejar = RequestsCookieJar()
@@ -565,12 +558,11 @@ def cookiejar_from_dict(
 def merge_cookies(
     cookiejar: RequestsCookieJar | cookielib.CookieJar,
     cookies: typing.Mapping[str, str] | RequestsCookieJar | CookieJar,
-):
+) -> RequestsCookieJar | cookielib.CookieJar:
     """Add cookies to cookiejar and returns a merged CookieJar.
 
     :param cookiejar: CookieJar object to add the cookies to.
     :param cookies: Dictionary or CookieJar object to be added.
-    :rtype: CookieJar
     """
     if not isinstance(cookiejar, cookielib.CookieJar):
         raise ValueError("You can only merge into CookieJar")
