@@ -99,12 +99,13 @@ class BaseAdapter:
         :param timeout: (optional) How long to wait for the server to send
             data before giving up, as a float, or a :ref:`(connect timeout,
             read timeout) <timeouts>` tuple.
-        :type timeout: float or tuple
         :param verify: (optional) Either a boolean, in which case it controls whether we verify
             the server's TLS certificate, or a string, in which case it must be a path
             to a CA bundle to use
         :param cert: (optional) Any user-provided SSL certificate to be trusted.
         :param proxies: (optional) The proxies dictionary to apply to the request.
+        :param on_post_connection: (optional) A callable that should be invoked just after the pool mgr picked up a live
+            connection. The function is expected to takes one positional argument and return nothing.
         """
         raise NotImplementedError
 
@@ -509,7 +510,6 @@ class HTTPAdapter(BaseAdapter):
         :param timeout: (optional) How long to wait for the server to send
             data before giving up, as a float, or a :ref:`(connect timeout,
             read timeout) <timeouts>` tuple.
-        :type timeout: float or tuple or urllib3 Timeout object
         :param verify: (optional) Either a boolean, in which case it controls whether
             we verify the server's TLS certificate, or a string, in which case it
             must be a path to a CA bundle to use
