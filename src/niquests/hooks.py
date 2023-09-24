@@ -6,6 +6,10 @@ This module provides the capabilities for the Requests hooks system.
 
 Available hooks:
 
+``pre_request``:
+    The prepared request just got built. You may alter it prior to be sent through HTTP.
+``pre_send``:
+    The prepared request got his ConnectionInfo injected. This event is triggered just after picking a live connection from the pool.
 ``response``:
     The response generated from a Request.
 """

@@ -210,7 +210,7 @@ class Session:
         self.verify: TLSVerifyType = True
 
         #: SSL client certificate default, if String, path to ssl client
-        #: cert file (.pem). If Tuple, ('cert', 'key') pair.
+        #: cert file (.pem). If Tuple, ('cert', 'key') pair, or ('cert', 'key', 'key_password').
         self.cert: TLSClientCertType | None = None
 
         #: Maximum number of redirects allowed. If the request exceeds this
@@ -346,8 +346,9 @@ class Session:
             certificates, which will make your application vulnerable to
             man-in-the-middle (MitM) attacks. Setting verify to ``False``
             may be useful during local development or testing.
+            It is also possible to put the certificates (directly) in a string or bytes.
         :param cert: (optional) if String, path to ssl client cert file (.pem).
-            If Tuple, ('cert', 'key') pair.
+            If Tuple, ('cert', 'key') pair, or ('cert', 'key', 'key_password').
         """
         # Kept for BC-purposes. One may use lowercase http verb.
         if method.isupper() is False:
@@ -432,8 +433,9 @@ class Session:
             certificates, which will make your application vulnerable to
             man-in-the-middle (MitM) attacks. Setting verify to ``False``
             may be useful during local development or testing.
+            It is also possible to put the certificates (directly) in a string or bytes.
         :param cert: (optional) if String, path to ssl client cert file (.pem).
-            If Tuple, ('cert', 'key') pair.
+            If Tuple, ('cert', 'key') pair, or ('cert', 'key', 'key_password').
         """
 
         return self.request(
@@ -497,8 +499,9 @@ class Session:
             certificates, which will make your application vulnerable to
             man-in-the-middle (MitM) attacks. Setting verify to ``False``
             may be useful during local development or testing.
+            It is also possible to put the certificates (directly) in a string or bytes.
         :param cert: (optional) if String, path to ssl client cert file (.pem).
-            If Tuple, ('cert', 'key') pair.
+            If Tuple, ('cert', 'key') pair, or ('cert', 'key', 'key_password').
         """
 
         return self.request(
@@ -526,6 +529,7 @@ class Session:
         cookies: CookiesType | None = None,
         auth: HttpAuthenticationType | None = None,
         timeout: TimeoutType | None = READ_DEFAULT_TIMEOUT,
+        allow_redirects: bool = True,
         proxies: ProxyType | None = None,
         hooks: HookType | None = None,
         verify: TLSVerifyType = True,
@@ -546,6 +550,7 @@ class Session:
         :param timeout: (optional) How long to wait for the server to send
             data before giving up, as a float, or a :ref:`(connect timeout,
             read timeout) <timeouts>` tuple.
+        :param allow_redirects: (optional) Set to False by default.
         :param proxies: (optional) Dictionary mapping protocol or protocol and
             hostname to the URL of the proxy.
         :param hooks: (optional) Dictionary mapping hook name to one event or
@@ -560,8 +565,9 @@ class Session:
             certificates, which will make your application vulnerable to
             man-in-the-middle (MitM) attacks. Setting verify to ``False``
             may be useful during local development or testing.
+            It is also possible to put the certificates (directly) in a string or bytes.
         :param cert: (optional) if String, path to ssl client cert file (.pem).
-            If Tuple, ('cert', 'key') pair.
+            If Tuple, ('cert', 'key') pair, or ('cert', 'key', 'key_password').
         """
 
         return self.request(
@@ -572,12 +578,12 @@ class Session:
             cookies=cookies,
             auth=auth,
             timeout=timeout,
+            allow_redirects=allow_redirects,
             proxies=proxies,
             hooks=hooks,
             verify=verify,
             stream=stream,
             cert=cert,
-            allow_redirects=False,
         )
 
     def post(
@@ -634,8 +640,9 @@ class Session:
             certificates, which will make your application vulnerable to
             man-in-the-middle (MitM) attacks. Setting verify to ``False``
             may be useful during local development or testing.
+            It is also possible to put the certificates (directly) in a string or bytes.
         :param cert: (optional) if String, path to ssl client cert file (.pem).
-            If Tuple, ('cert', 'key') pair.
+            If Tuple, ('cert', 'key') pair, or ('cert', 'key', 'key_password').
         """
 
         return self.request(
@@ -711,8 +718,9 @@ class Session:
             certificates, which will make your application vulnerable to
             man-in-the-middle (MitM) attacks. Setting verify to ``False``
             may be useful during local development or testing.
+            It is also possible to put the certificates (directly) in a string or bytes.
         :param cert: (optional) if String, path to ssl client cert file (.pem).
-            If Tuple, ('cert', 'key') pair.
+            If Tuple, ('cert', 'key') pair, or ('cert', 'key', 'key_password').
         """
 
         return self.request(
@@ -788,8 +796,9 @@ class Session:
             certificates, which will make your application vulnerable to
             man-in-the-middle (MitM) attacks. Setting verify to ``False``
             may be useful during local development or testing.
+            It is also possible to put the certificates (directly) in a string or bytes.
         :param cert: (optional) if String, path to ssl client cert file (.pem).
-            If Tuple, ('cert', 'key') pair.
+            If Tuple, ('cert', 'key') pair, or ('cert', 'key', 'key_password').
         """
 
         return self.request(
@@ -856,8 +865,9 @@ class Session:
             certificates, which will make your application vulnerable to
             man-in-the-middle (MitM) attacks. Setting verify to ``False``
             may be useful during local development or testing.
+            It is also possible to put the certificates (directly) in a string or bytes.
         :param cert: (optional) if String, path to ssl client cert file (.pem).
-            If Tuple, ('cert', 'key') pair.
+            If Tuple, ('cert', 'key') pair, or ('cert', 'key', 'key_password').
         """
 
         return self.request(

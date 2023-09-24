@@ -4,7 +4,7 @@
 Community Updates
 =================
 
-If you'd like to stay up to date on the community and development of Requests,
+If you'd like to stay up to date on the community and development of Niquests,
 there are several options:
 
 

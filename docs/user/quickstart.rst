@@ -6,12 +6,12 @@ Quickstart
 .. module:: niquests.models
 
 Eager to get started? This page gives a good introduction in how to get started
-with Requests.
+with Niquests.
 
 First, make sure that:
 
-* Requests is :ref:`installed <install>`
-* Requests is :ref:`up-to-date <updates>`
+* Niquests is :ref:`installed <install>`
+* Niquests is :ref:`up-to-date <updates>`
 
 
 Let's get started with some simple examples.
@@ -20,11 +20,11 @@ Let's get started with some simple examples.
 Make a Request
 --------------
 
-Making a request with Requests is very simple.
+Making a request with Niquests is very simple.
 
-Begin by importing the Requests module::
+Begin by importing the Niquests module::
 
-    >>> import requests
+    >>> import niquests
 
 Now, let's try to get a webpage. For this example, let's get GitHub's public
 timeline::
@@ -34,7 +34,7 @@ timeline::
 Now, we have a :class:`Response <niquests.Response>` object called ``r``. We can
 get all the information we need from this object.
 
-Requests' simple API means that all forms of HTTP request are as obvious. For
+Niquests' simple API means that all forms of HTTP request are as obvious. For
 example, this is how you make an HTTP POST request::
 
     >>> r = niquests.post('https://httpbin.org/post', data={'key': 'value'})
@@ -47,7 +47,7 @@ OPTIONS? These are all just as simple::
     >>> r = niquests.head('https://httpbin.org/get')
     >>> r = niquests.options('https://httpbin.org/get')
 
-That's all well and good, but it's also only the start of what Requests can
+That's all well and good, but it's also only the start of what Niquests can
 do.
 
 
@@ -57,7 +57,7 @@ Passing Parameters In URLs
 You often want to send some sort of data in the URL's query string. If
 you were constructing the URL by hand, this data would be given as key/value
 pairs in the URL after a question mark, e.g. ``httpbin.org/get?key=val``.
-Requests allows you to provide these arguments as a dictionary of strings,
+Niquests allows you to provide these arguments as a dictionary of strings,
 using the ``params`` keyword argument. As an example, if you wanted to pass
 ``key1=value1`` and ``key2=value2`` to ``httpbin.org/get``, you would use the
 following code::
@@ -87,23 +87,25 @@ Response Content
 We can read the content of the server's response. Consider the GitHub timeline
 again::
 
-    >>> import requests
+    >>> import niquests
 
     >>> r = niquests.get('https://api.github.com/events')
     >>> r.text
     '[{"repository":{"open_issues":0,"url":"https://github.com/...
 
-Requests will automatically decode content from the server. Most unicode
+Niquests will automatically decode content from the server. Most unicode
 charsets are seamlessly decoded.
 
-When you make a request, Requests makes educated guesses about the encoding of
-the response based on the HTTP headers. The text encoding guessed by Requests
-is used when you access ``r.text``. You can find out what encoding Requests is
+When you make a request, Niquests makes educated guesses about the encoding of
+the response based on the HTTP headers. The text encoding guessed by Niquests
+is used when you access ``r.text``. You can find out what encoding Niquests is
 using, and change it, using the ``r.encoding`` property::
 
     >>> r.encoding
     'utf-8'
     >>> r.encoding = 'ISO-8859-1'
+
+.. warning:: If Niquests is unable to decode the content to string with confidence, it simply return None.
 
 If you change the encoding, Requests will use the new value of ``r.encoding``
 whenever you call ``r.text``. You might want to do this in any situation where
@@ -354,12 +356,6 @@ support this, but there is a separate package which does -
 For sending multiple files in one request refer to the :ref:`advanced <advanced>`
 section.
 
-.. warning:: It is strongly recommended that you open files in :ref:`binary
-             mode <tut-files>`. This is because Requests may attempt to provide
-             the ``Content-Length`` header for you, and if it does this value
-             will be set to the number of *bytes* in the file. Errors may occur
-             if you open the file in *text mode*.
-
 
 Response Status Codes
 ---------------------
@@ -496,7 +492,7 @@ For example, GitHub redirects all HTTP requests to HTTPS::
     200
 
     >>> r.history
-    [<Response [301]>]
+    [<Response HTTP/2 [301]>]
 
 
 If you're using GET, OPTIONS, POST, PUT, PATCH or DELETE, you can disable
@@ -518,7 +514,7 @@ If you're using HEAD, you can enable redirection as well::
     'https://github.com/'
 
     >>> r.history
-    [<Response [301]>]
+    [<Response HTTP/2 [301]>]
 
 
 Timeouts
@@ -526,8 +522,8 @@ Timeouts
 
 You can tell Requests to stop waiting for a response after a given number of
 seconds with the ``timeout`` parameter. Nearly all production code should use
-this parameter in nearly all niquests. Failure to do so can cause your program
-to hang indefinitely::
+this parameter in nearly all niquests. By default GET, HEAD, OPTIONS ships with a
+30 seconds timeout delay and 120 seconds for the rest::
 
     >>> niquests.get('https://github.com/', timeout=0.001)
     Traceback (most recent call last):
@@ -540,8 +536,8 @@ to hang indefinitely::
     ``timeout`` is not a time limit on the entire response download;
     rather, an exception is raised if the server has not issued a
     response for ``timeout`` seconds (more precisely, if no bytes have been
-    received on the underlying socket for ``timeout`` seconds). If no timeout is specified explicitly, requests do
-    not time out.
+    received on the underlying socket for ``timeout`` seconds). If no timeout is specified explicitly, requests
+    use the default according to your HTTP verb. Either 30 seconds or 120 seconds.
 
 
 Errors and Exceptions
@@ -569,10 +565,28 @@ HTTP/3 over QUIC
 **Niquests** relies on urllib3.future that relies on the qh3 package.
 The underlying package may or may not be installed on your environment.
 
-If it is not present, no HTTP/3 support will be present.
+If it is not present, no HTTP/3 or QUIC support will be present.
 
 If you uninstall the qh3 package it disable the support for HTTP/3 without breaking anything.
 On the overhand, installing it manually (require compilation/non native wheel) will bring its support.
+
+Find a quick way to know if your environment is capable of emitting HTTP/3 requests by::
+
+    >>> from niquests import get
+
+    >>> r = get("https://1.1.1.1")
+    >>> r
+    <Response HTTP/2 [200]>
+    >>> r = get("https://1.1.1.1")
+    >>> r
+    <Response HTTP/3 [200]>
+
+The underlying library natively understand the ``Alt-Svc`` header and is constantly looking for the ``h3``
+alternative service. Once it finds it, and is deemed valid, it opens up a QUIC connection to the target.
+It is saved in-memory by Niquests.
+
+You may also run the following command ``python -m niquests.help`` to find out if you support HTTP/3.
+In 95 percents of the case, the answer is yes!
 
 -----------------------
 

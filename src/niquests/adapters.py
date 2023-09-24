@@ -101,7 +101,7 @@ class BaseAdapter:
             read timeout) <timeouts>` tuple.
         :param verify: (optional) Either a boolean, in which case it controls whether we verify
             the server's TLS certificate, or a string, in which case it must be a path
-            to a CA bundle to use
+            to a CA bundle to use. It is also possible to put the certificates (directly) in a string or bytes.
         :param cert: (optional) Any user-provided SSL certificate to be trusted.
         :param proxies: (optional) The proxies dictionary to apply to the request.
         :param on_post_connection: (optional) A callable that should be invoked just after the pool mgr picked up a live
@@ -293,7 +293,7 @@ class HTTPAdapter(BaseAdapter):
         :param url: The requested URL.
         :param verify: Either a boolean, in which case it controls whether we verify
             the server's TLS certificate, or a string, in which case it must be a path
-            to a CA bundle to use
+            to a CA bundle to use. It is also possible to put the certificates (directly) in a string or bytes.
         :param cert: The SSL certificate to verify.
         """
         if url.lower().startswith("https") and verify:
@@ -512,7 +512,8 @@ class HTTPAdapter(BaseAdapter):
             read timeout) <timeouts>` tuple.
         :param verify: (optional) Either a boolean, in which case it controls whether
             we verify the server's TLS certificate, or a string, in which case it
-            must be a path to a CA bundle to use
+            must be a path to a CA bundle to use. It is also possible to put the certificates
+            (directly) in a string or bytes.
         :param cert: (optional) Any user-provided SSL certificate to be trusted.
         :param proxies: (optional) The proxies dictionary to apply to the request.
         """

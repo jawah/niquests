@@ -7,6 +7,7 @@ import ssl
 import sys
 
 import charset_normalizer
+import h2  # type: ignore
 import idna
 import urllib3
 
@@ -21,6 +22,11 @@ except (ImportError, AttributeError):
 else:
     import cryptography  # type: ignore
     import OpenSSL  # type: ignore
+
+try:
+    import qh3
+except ImportError:
+    qh3 = None  # type: ignore
 
 
 def _implementation():
@@ -99,14 +105,20 @@ def info():
         "platform": platform_info,
         "implementation": implementation_info,
         "system_ssl": system_ssl_info,
-        "using_pyopenssl": pyopenssl is not None,
         "pyOpenSSL": pyopenssl_info,
-        "urllib3": urllib3_info,
+        "urllib3.future": urllib3_info,
         "charset_normalizer": charset_normalizer_info,
         "cryptography": cryptography_info,
         "idna": idna_info,
         "requests": {
             "version": requests_version,
+        },
+        "http3": {
+            "enabled": qh3 is not None,
+            "qh3": qh3.__version__ if qh3 is not None else None,
+        },
+        "http2": {
+            "h2": h2.__version__,
         },
     }
 

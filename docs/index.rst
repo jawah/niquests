@@ -30,7 +30,7 @@ is designed to be a drop-in replacement for **Requests** that is no longer under
 
 -------------------
 
-**Behold, the power of Requests**::
+**Behold, the power of Niquests**::
 
     >>> r = niquests.get('https://api.github.com/user', auth=('user', 'pass'))
     >>> r.status_code
@@ -44,7 +44,7 @@ is designed to be a drop-in replacement for **Requests** that is no longer under
     >>> r.json()
     {'private_gists': 419, 'total_private_repos': 77, ...}
 
-See `similar code, sans Requests <https://gist.github.com/973705>`_.
+See `similar code, sans Niquests <https://gist.github.com/973705>`_.
 
 
 **Niquests** allows you to send HTTP/1.1, HTTP/2 and HTTP/3 requests extremely easily.
@@ -55,35 +55,36 @@ are 100% automatic, thanks to `urllib3 <https://github.com/urllib3/urllib3>`_.
 Beloved Features
 ----------------
 
-Requests is ready for today's web.
+Niquests is ready for today's web.
 
+- Automatic Content Decompression and Decoding
+- OS truststore by default, no more certifi!
+- Browser-style TLS/SSL Verification
+- Sessions with Cookie Persistence
 - Keep-Alive & Connection Pooling
 - International Domains and URLs
-- Sessions with Cookie Persistence
-- Browser-style SSL Verification
-- Automatic Content Decoding
-- Basic/Digest Authentication
-- Elegant Key/Value Cookies
-- Automatic Decompression
-- Unicode Response Bodies
-- HTTP(S) Proxy Support
-- Multipart File Uploads
-- Streaming Downloads
+- Automatic honoring of ``.netrc``
+- Basic & Digest Authentication
+- Familiar ``dict``–like Cookies
+- Object-oriented headers
+- Multi-part File Uploads
+- Chunked HTTP Requests
+- Fully type-annotated!
+- SOCKS Proxy Support
 - Connection Timeouts
-- Chunked Requests
-- ``.netrc`` Support
-- HTTP/2 Support
-- HTTP/3 over QUIC Support
+- Streaming Downloads
+- HTTP/3 over QUIC
+- HTTP/2
 
-Requests officially supports Python 3.7+, and runs great on PyPy.
+Niquests officially supports Python 3.7+, and runs great on PyPy.
 
 
 The User Guide
 --------------
 
 This part of the documentation, which is mostly prose, begins with some
-background information about Requests, then focuses on step-by-step
-instructions for getting the most out of Requests.
+background information about Niquests, then focuses on step-by-step
+instructions for getting the most out of Niquests.
 
 .. toctree::
    :maxdepth: 2
@@ -98,14 +99,13 @@ The Community Guide
 -------------------
 
 This part of the documentation, which is mostly prose, details the
-Requests ecosystem and community.
+Niquests ecosystem and community.
 
 .. toctree::
    :maxdepth: 2
 
    community/recommended
    community/faq
-   community/out-there
    community/support
    community/vulnerabilities
    community/release-process
