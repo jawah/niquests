@@ -16,6 +16,9 @@ Release History
 - Warning emitted when passing a file opened in text-mode instead of binary. urllib3.future can overrule
   the content-length if it detects an error. You should not encounter broken request being sent.
 
+**Fixed**
+- Top-level init now specify correctly the exposed api. Fixes mypy error `.. does not explicitly export attribute ..`.
+
 3.0.0b1 (2023-09-22)
 -------------------
 

@@ -44,24 +44,24 @@ Niquests officially supports Python 3.7+.
 
 Niquests is ready for the demands of building robust and reliable HTTP–speaking applications, for the needs of today.
 
+- Automatic Content Decompression and Decoding
+- OS truststore by default, no more certifi!
+- Browser-style TLS/SSL Verification
+- Sessions with Cookie Persistence
 - Keep-Alive & Connection Pooling
 - International Domains and URLs
-- Sessions with Cookie Persistence
-- Browser-style TLS/SSL Verification
+- Automatic honoring of `.netrc`
 - Basic & Digest Authentication
 - Familiar `dict`–like Cookies
-- Automatic Content Decompression and Decoding
+- Object-oriented headers
 - Multi-part File Uploads
+- Chunked HTTP Requests
+- Fully type-annotated!
 - SOCKS Proxy Support
 - Connection Timeouts
 - Streaming Downloads
-- Automatic honoring of `.netrc`
-- Chunked HTTP Requests
-- HTTP/2
 - HTTP/3 over QUIC
-- Fully type-annotated!
-- OS truststore by default, no more certifi!
-- Object-oriented headers
+- HTTP/2
 
 ## API Reference and User Guide available on [Read the Docs](https://niquests.readthedocs.io)
 
