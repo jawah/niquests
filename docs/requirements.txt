@@ -2,3 +2,4 @@
 # Used by RTD to generate docs.
 Sphinx==4.2.0
 urllib3.future>=2.0.934
+wassima>=1,<2
