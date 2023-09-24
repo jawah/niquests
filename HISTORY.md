@@ -1,6 +1,17 @@
 Release History
 ===============
 
+3.0.0b2 (2023-09-24)
+--------------------
+
+**Added**
+- Property `conn_info` to the `PreparedRequest` and `Response` that hold a reference to a `ConnectionInfo`.
+  This class exposes the following properties: `certificate_der` _(bytes)_, `certificate_dict` _(dict)_ as provided by the standard
+  library (ssl), `destination_address` _(tuple[ipAddress, portNumber])_, `cipher` _(str)_, `tls_version` _(TLSVersion)_, and `http_version`.
+- Two hooks, namely `pre_send` and `pre_request`. The `pre_request` event is fired just after the initial construction of
+  a `PreparedRequest` instance. Finally, the `pre_send` will be triggered just after picking a (live) connection
+  for your request. The two events receive a `PreparedRequest` instance.
+
 3.0.0b1 (2023-09-22)
 -------------------
 

@@ -40,7 +40,7 @@ if sys.argv[-1] == "publish":
 requires = [
     "charset_normalizer>=2,<4",
     "idna>=2.5,<4",
-    "urllib3.future>=2.0.933,<3",
+    "urllib3.future>=2.0.934,<3",
     "wassima>=1.0.0,<2",
     "kiss_headers>=2,<4",
 ]

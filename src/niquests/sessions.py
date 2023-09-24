@@ -18,6 +18,8 @@ from http import cookiejar as cookielib
 from http.cookiejar import CookieJar
 from urllib.parse import urljoin, urlparse
 
+from urllib3 import ConnectionInfo
+
 from ._constant import DEFAULT_RETRIES, READ_DEFAULT_TIMEOUT, WRITE_DEFAULT_TIMEOUT
 from ._internal_utils import to_native_string
 from ._typing import (
@@ -368,7 +370,8 @@ class Session:
             cookies=cookies,
             hooks=hooks,
         )
-        prep = self.prepare_request(req)
+
+        prep = dispatch_hook("pre_request", hooks, self.prepare_request(req))
 
         assert prep.url is not None
 
@@ -698,6 +701,13 @@ class Session:
         allow_redirects = kwargs.pop("allow_redirects", True)
         stream = kwargs.get("stream")
         hooks = request.hooks
+
+        def on_post_connection(conn_info: ConnectionInfo) -> None:
+            nonlocal request
+            request.conn_info = conn_info
+            dispatch_hook("pre_send", hooks, request)
+
+        kwargs.setdefault("on_post_connection", on_post_connection)
 
         assert request.url is not None
 
