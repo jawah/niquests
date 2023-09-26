@@ -1,6 +1,16 @@
 Release History
 ===============
 
+3.0.1 (2023-09-26)
+------------------
+
+**Fixed**
+- Method `head` not accepting `allow_redirect` named argument.
+- `PreparedRequest` did not uppercase the HTTP verb when constructed manually.
+
+**Changed**
+- Minor code refactor in the `text`, and `json` methods within the `Response` class to be more concise.
+
 3.0.0 (2023-09-24)
 ------------------
 
