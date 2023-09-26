@@ -293,7 +293,7 @@ class PreparedRequest:
 
     def prepare_method(self, method: HttpMethodType | None) -> None:
         """Prepares the given HTTP method."""
-        self.method = method
+        self.method = method.upper() if method else method
 
     @staticmethod
     def _get_idna_encoded_host(host: str) -> str:
@@ -1076,16 +1076,12 @@ class Response:
         non-HTTP knowledge to make a better guess at the encoding, you should
         set ``r.encoding`` appropriately before accessing this property.
         """
-
-        # Try charset from content-type
-        encoding = self.encoding
-
         if not self.content:
             return ""
 
-        if encoding is not None:
+        if self.encoding is not None:
             try:
-                info = codecs.lookup(encoding)
+                info = codecs.lookup(self.encoding)
 
                 if (
                     hasattr(info, "_is_text_encoding")
@@ -1093,17 +1089,22 @@ class Response:
                 ):
                     return None
             except LookupError:
-                encoding = None
+                #: We cannot accept unsupported or nonexistent encoding. Override.
+                self.encoding = None
 
         # Fallback to auto-detected encoding.
         if self.encoding is None:
             encoding_guess = from_bytes(self.content).best()
-            encoding = encoding_guess.encoding if encoding_guess else None
 
-        if encoding is None:
+            if encoding_guess:
+                #: We shall cache this inference.
+                self.encoding = encoding_guess.encoding
+                return str(encoding_guess)
+
+        if self.encoding is None:
             return None
 
-        return str(self.content, encoding, errors="replace")
+        return str(self.content, self.encoding, errors="replace")
 
     def json(self, **kwargs: typing.Any) -> typing.Any:
         r"""Returns the json-encoded content of a response, if any.
@@ -1113,12 +1114,15 @@ class Response:
             contain valid json or if content-type is not about json.
         """
 
-        if "json" not in self.headers.get("content-type", "").lower():
+        if (
+            not self.content
+            or "json" not in self.headers.get("content-type", "").lower()
+        ):
             raise RequestsJSONDecodeError(
-                "response content-type is not JSON", self.text or "", 0
+                "response content is not JSON", self.text or "", 0
             )
 
-        if not self.encoding and self.content:
+        if not self.encoding:
             # No encoding set. JSON RFC 4627 section 3 states we should expect
             # UTF-8, -16 or -32. Detect which one to use; If the detection or
             # decoding fails, fall back to `self.text` (using charset_normalizer to make
