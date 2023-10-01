@@ -8,25 +8,27 @@ import sys
 
 import charset_normalizer
 import h2  # type: ignore
+import h11
 import idna
 import urllib3
+import wassima
 
 from . import __version__ as requests_version
 
 try:
-    from urllib3.contrib import pyopenssl
-except (ImportError, AttributeError):
-    pyopenssl = None  # type: ignore
-    OpenSSL = None  # type: ignore
-    cryptography = None  # type: ignore
-else:
-    import cryptography  # type: ignore
-    import OpenSSL  # type: ignore
-
-try:
-    import qh3
+    import qh3  # type: ignore
 except ImportError:
     qh3 = None  # type: ignore
+
+try:
+    import certifi  # type: ignore
+except ImportError:
+    certifi = None  # type: ignore
+
+try:
+    import cryptography  # type: ignore
+except ImportError:
+    cryptography = None  # type: ignore
 
 
 def _implementation():
@@ -82,15 +84,6 @@ def info():
 
     charset_normalizer_info = {"version": charset_normalizer.__version__}
 
-    pyopenssl_info = {
-        "version": None,
-        "openssl_version": "",
-    }
-    if OpenSSL:
-        pyopenssl_info = {
-            "version": OpenSSL.__version__,
-            "openssl_version": f"{OpenSSL.SSL.OPENSSL_VERSION_NUMBER:x}",
-        }
     cryptography_info = {
         "version": getattr(cryptography, "__version__", ""),
     }
@@ -105,7 +98,6 @@ def info():
         "platform": platform_info,
         "implementation": implementation_info,
         "system_ssl": system_ssl_info,
-        "pyOpenSSL": pyopenssl_info,
         "urllib3.future": urllib3_info,
         "charset_normalizer": charset_normalizer_info,
         "cryptography": cryptography_info,
@@ -119,6 +111,14 @@ def info():
         },
         "http2": {
             "h2": h2.__version__,
+        },
+        "http1": {
+            "h11": h11.__version__,
+        },
+        "wassima": {
+            "enabled": wassima.RUSTLS_LOADED,
+            "certifi_fallback": wassima.RUSTLS_LOADED is False and certifi is not None,
+            "version": wassima.__version__,
         },
     }
 

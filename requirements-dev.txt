@@ -6,3 +6,4 @@ httpbin==0.10.1
 trustme
 wheel
 cryptography<40.0.0; python_version <= '3.7' and platform_python_implementation == 'PyPy'
+werkzeug<3
