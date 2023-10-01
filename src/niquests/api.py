@@ -33,9 +33,7 @@ from ._typing import (
 from .models import Response
 
 #: This is a non-thread safe in-memory cache for the AltSvc / h3
-_SHARED_QUIC_CACHE: CacheLayerAltSvcType = {
-    # ("pie.dev", 443): ("pie.dev", 443)
-}
+_SHARED_QUIC_CACHE: CacheLayerAltSvcType = {}
 
 
 def request(

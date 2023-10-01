@@ -1,6 +1,14 @@
 Release History
 ===============
 
+3.0.2 (2023-10-01)
+------------------
+
+**Changed**
+- niquests.help show more information about direct dependencies.
+- urllib3.future minimal version raised to 2.0.936 due to an important fixe on the QUIC layer.
+- wassima minimal version raised to 1.0.1 in order to support certifi as fallback in rare case.
+
 3.0.1 (2023-09-26)
 ------------------
 
