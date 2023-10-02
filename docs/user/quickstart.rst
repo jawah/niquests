@@ -107,7 +107,7 @@ using, and change it, using the ``r.encoding`` property::
 
 .. warning:: If Niquests is unable to decode the content to string with confidence, it simply return None.
 
-If you change the encoding, Requests will use the new value of ``r.encoding``
+If you change the encoding, Niquests will use the new value of ``r.encoding``
 whenever you call ``r.text``. You might want to do this in any situation where
 you can apply special logic to work out what the encoding of the content will
 be. For example, HTML and XML have the ability to specify their encoding in
@@ -115,10 +115,10 @@ their body. In situations like this, you should use ``r.content`` to find the
 encoding, and then set ``r.encoding``. This will let you use ``r.text`` with
 the correct encoding.
 
-Requests will also use custom encodings in the event that you need them. If
+Niquests will also use custom encodings in the event that you need them. If
 you have created your own encoding and registered it with the ``codecs``
 module, you can simply use the codec name as the value of ``r.encoding`` and
-Requests will handle the decoding for you.
+Niquests will handle the decoding for you.
 
 Binary Response Content
 -----------------------
@@ -220,13 +220,13 @@ Note: Custom headers are given less precedence than more specific sources of inf
 
 * Authorization headers set with `headers=` will be overridden if credentials
   are specified in ``.netrc``, which in turn will be overridden by the  ``auth=``
-  parameter. Requests will search for the netrc file at `~/.netrc`, `~/_netrc`,
+  parameter. Niquests will search for the netrc file at `~/.netrc`, `~/_netrc`,
   or at the path specified by the `NETRC` environment variable.
 * Authorization headers will be removed if you get redirected off-host.
 * Proxy-Authorization headers will be overridden by proxy credentials provided in the URL.
 * Content-Length headers will be overridden when we can determine the length of the content.
 
-Furthermore, Requests does not change its behavior at all based on which custom headers are specified. The headers are simply passed on into the final request.
+Furthermore, Niquests does not change its behavior at all based on which custom headers are specified. The headers are simply passed on into the final request.
 
 Note: All header values must be a ``string``, bytestring, or unicode. While permitted, it's advised to avoid passing unicode header values.
 
@@ -302,7 +302,7 @@ Note, the ``json`` parameter is ignored if either ``data`` or ``files`` is passe
 POST a Multipart-Encoded File
 -----------------------------
 
-Requests makes it simple to upload Multipart-encoded files::
+Niquests makes it simple to upload Multipart-encoded files::
 
     >>> url = 'https://httpbin.org/post'
     >>> files = {'file': open('report.xls', 'rb')}
@@ -348,7 +348,7 @@ If you want, you can send strings to be received as files::
     }
 
 In the event you are posting a very large file as a ``multipart/form-data``
-request, you may want to stream the request. By default, ``requests`` does not
+request, you may want to stream the request. By default, ``niquests`` does not
 support this, but there is a separate package which does -
 ``requests-toolbelt``. You should read `the toolbelt's documentation
 <https://toolbelt.readthedocs.io>`_ for more details about how to use it.
@@ -366,7 +366,7 @@ We can check the response status code::
     >>> r.status_code
     200
 
-Requests also comes with a built-in status code lookup object for easy
+Niquests also comes with a built-in status code lookup object for easy
 reference::
 
     >>> r.status_code == niquests.codes.ok
@@ -433,6 +433,23 @@ represented in the dictionary within a single mapping, as per
     of the message, by appending each subsequent field value to the combined
     field value in order, separated by a comma.
 
+It most cases you'd rather quickly access specific key element of headers.
+Fortunately, you can access HTTP headers as they were objects.
+Like so::
+
+    >>> r.oheaders.content_type.charset
+    'utf-8'
+    >>> r.oheaders.report_to.max_age
+    '604800'
+    >>> str(r.oheaders.date)
+    'Mon, 02 Oct 2023 05:34:48 GMT'
+    >>> from kiss_headers import get_polymorphic, Date
+    >>> h = get_polymorphic(r.oheaders.date, Date)
+    >>> repr(h.get_datetime())
+    datetime.datetime(2023, 10, 2, 5, 39, 46, tzinfo=datetime.timezone.utc)
+
+To explore possibilities, visit the ``kiss-headers`` documentation at https://ousret.github.io/kiss-headers/
+
 Cookies
 -------
 
@@ -471,7 +488,7 @@ also be passed in to requests::
 Redirection and History
 -----------------------
 
-By default Requests will perform location redirection for all verbs except
+By default Niquests will perform location redirection for all verbs except
 HEAD.
 
 We can use the ``history`` property of the Response object to track redirection.
@@ -520,7 +537,7 @@ If you're using HEAD, you can enable redirection as well::
 Timeouts
 --------
 
-You can tell Requests to stop waiting for a response after a given number of
+You can tell Niquests to stop waiting for a response after a given number of
 seconds with the ``timeout`` parameter. Nearly all production code should use
 this parameter in nearly all niquests. By default GET, HEAD, OPTIONS ships with a
 30 seconds timeout delay and 120 seconds for the rest::
@@ -544,7 +561,7 @@ Errors and Exceptions
 ---------------------
 
 In the event of a network problem (e.g. DNS failure, refused connection, etc),
-Requests will raise a :exc:`~niquests.exceptions.ConnectionError` exception.
+Niquests will raise a :exc:`~niquests.exceptions.ConnectionError` exception.
 
 :meth:`Response.raise_for_status() <niquests.Response.raise_for_status>` will
 raise an :exc:`~niquests.exceptions.HTTPError` if the HTTP request
@@ -556,7 +573,7 @@ raised.
 If a request exceeds the configured number of maximum redirections, a
 :exc:`~niquests.exceptions.TooManyRedirects` exception is raised.
 
-All exceptions that Requests explicitly raises inherit from
+All exceptions that Niquests explicitly raises inherit from
 :exc:`niquests.exceptions.RequestException`.
 
 HTTP/3 over QUIC

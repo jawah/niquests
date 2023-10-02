@@ -61,7 +61,7 @@ OAuth 1 Authentication
 ----------------------
 
 A common form of authentication for several web APIs is OAuth. The ``requests-oauthlib``
-library allows Requests users to easily make OAuth 1 authenticated requests::
+library allows Niquests users to easily make OAuth 1 authenticated requests::
 
     >>> import niquests
     >>> from requests_oauthlib import OAuth1
@@ -92,7 +92,7 @@ details of the various OAuth 2 credential management flows:
 Other Authentication
 --------------------
 
-Requests is designed to allow other forms of authentication to be easily and
+Niquests is designed to allow other forms of authentication to be easily and
 quickly plugged in. Members of the open-source community frequently write
 authentication handlers for more complicated or less commonly-used forms of
 authentication. Some of the best have been brought together under the
@@ -109,7 +109,7 @@ New Forms of Authentication
 ---------------------------
 
 If you can't find a good implementation of the form of authentication you
-want, you can implement it yourself. Requests makes it easy to add your own
+want, you can implement it yourself. Niquests makes it easy to add your own
 forms of authentication.
 
 To do so, subclass :class:`AuthBase <niquests.auth.AuthBase>` and implement the

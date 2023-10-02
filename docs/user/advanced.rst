@@ -297,7 +297,7 @@ You have nothing to do.
 
 .. _HTTP persistent connection: https://en.wikipedia.org/wiki/HTTP_persistent_connection
 .. _connection pooling: https://urllib3.readthedocs.io/en/latest/reference/index.html#module-urllib3.connectionpool
-.. wassima: https://github.com/jawah/wassima
+.. _wassima: https://github.com/jawah/wassima
 .. _body-content-workflow:
 
 Body Content Workflow
@@ -359,11 +359,9 @@ file-like object for your body::
     with open('massive-body', 'rb') as f:
         niquests.post('http://some.url/streamed', data=f)
 
-.. warning:: It is strongly recommended that you open files in :ref:`binary
-             mode <tut-files>`. This is because Niquests may attempt to provide
-             the ``Content-Length`` header for you, and if it does this value
-             will be set to the number of *bytes* in the file. Errors may occur
-             if you open the file in *text mode*.
+.. warning:: It is recommended that you open files in :ref:`binary
+             mode <tut-files>`. Errors may occur if you open the file in *text mode*.
+             due to the fact that this will be re-encoded later in the process.
 
 
 .. _chunk-encoding:
@@ -414,11 +412,9 @@ To do that, just set files to a list of tuples of ``(form_field_name, file_info)
       ...
     }
 
-.. warning:: It is strongly recommended that you open files in :ref:`binary
-             mode <tut-files>`. This is because Requests may attempt to provide
-             the ``Content-Length`` header for you, and if it does this value
-             will be set to the number of *bytes* in the file. Errors may occur
-             if you open the file in *text mode*.
+.. warning:: It is recommended that you open files in :ref:`binary
+             mode <tut-files>`. Errors may occur if you open the file in *text mode*.
+             This because it is going to be re-encoded later in the process.
 
 
 .. _event-hooks:
@@ -516,13 +512,13 @@ List of tangible use-cases:
 Custom Authentication
 ---------------------
 
-Requests allows you to specify your own authentication mechanism.
+Niquests allows you to specify your own authentication mechanism.
 
 Any callable which is passed as the ``auth`` argument to a request method will
 have the opportunity to modify the request before it is dispatched.
 
 Authentication implementations are subclasses of :class:`AuthBase <niquests.auth.AuthBase>`,
-and are easy to define. Requests provides two common authentication scheme
+and are easy to define. Niquests provides two common authentication scheme
 implementations in ``niquests.auth``: :class:`HTTPBasicAuth <niquests.auth.HTTPBasicAuth>` and
 :class:`HTTPDigestAuth <niquests.auth.HTTPDigestAuth>`.
 
@@ -642,10 +638,10 @@ Alternatively you can configure it once for an entire
     See `#2018 <https://github.com/psf/requests/issues/2018>`_ for details.
 
 When the proxies configuration is not overridden per request as shown above,
-Requests relies on the proxy configuration defined by standard
+Niquests relies on the proxy configuration defined by standard
 environment variables ``http_proxy``, ``https_proxy``, ``no_proxy``,
 and ``all_proxy``. Uppercase variants of these variables are also supported.
-You can therefore set them to configure Requests (only set the ones relevant
+You can therefore set them to configure Niquests (only set the ones relevant
 to your needs)::
 
     $ export HTTP_PROXY="http://10.10.1.10:3128"
@@ -680,10 +676,10 @@ Note that proxy URLs must include the scheme.
 
 Finally, note that using a proxy for https connections typically requires your
 local machine to trust the proxy's root certificate. By default the list of
-certificates trusted by Requests can be found with::
+certificates trusted by Niquests can be found with::
 
-    from niquests.utils import DEFAULT_CA_BUNDLE_PATH
-    print(DEFAULT_CA_BUNDLE_PATH)
+    from wassima import generate_ca_bundle
+    print(generate_ca_bundle)  # it is a single concatenated list of PEM (string)
 
 You override this default certificate bundle by setting the ``REQUESTS_CA_BUNDLE``
 (or ``CURL_CA_BUNDLE``) environment variable to another file path::
@@ -700,7 +696,7 @@ SOCKS
 
 .. versionadded:: 2.10.0
 
-In addition to basic HTTP proxies, Requests also supports proxies using the
+In addition to basic HTTP proxies, Niquests also supports proxies using the
 SOCKS protocol. This is an optional feature that requires that additional
 third-party libraries be installed before use.
 
@@ -725,7 +721,7 @@ Using the scheme ``socks5`` causes the DNS resolution to happen on the client, r
 Compliance
 ----------
 
-Requests is intended to be compliant with all relevant specifications and
+Niquests is intended to be compliant with all relevant specifications and
 RFCs where that compliance will not cause difficulties for users. This
 attention to the specification can lead to some behaviour that may seem
 unusual to those not familiar with the relevant specification.
@@ -733,31 +729,39 @@ unusual to those not familiar with the relevant specification.
 Encodings
 ^^^^^^^^^
 
-When you receive a response, Requests makes a guess at the encoding to
+When you receive a response, Niquests makes a guess at the encoding to
 use for decoding the response when you access the :attr:`Response.text
-<niquests.Response.text>` attribute. Requests will first check for an
-encoding in the HTTP header, and if none is present, will use
-`charset_normalizer <https://pypi.org/project/charset_normalizer/>`_
+<niquests.Response.text>` attribute. Niquests will first check for an
+encoding in the HTTP header, and if none is present or if specified is invalid,
+will use `charset_normalizer <https://pypi.org/project/charset_normalizer/>`_
 to attempt to guess the encoding.
 
 If you require a different encoding, you can
 manually set the :attr:`Response.encoding <niquests.Response.encoding>`
 property, or use the raw :attr:`Response.content <niquests.Response.content>`.
 
+You should keep in mind that if Niquests fail to choose a suitable encoding,
+the ``text`` method from ``Response`` will return ``None``. This is the default
+since the version 3.
+We choose to return None in those cases because of numerous things, like for example:
+
+- Avoid accidentally decoding a large binary.
+- Avoid rare type of attacks where hacker expect you to decode an invalid payload and expect you to be non-strict.
+
 .. _http-verbs:
 
 HTTP Verbs
 ----------
 
-Requests provides access to almost the full range of HTTP verbs: GET, OPTIONS,
+Niquests provides access to almost the full range of HTTP verbs: GET, OPTIONS,
 HEAD, POST, PUT, PATCH and DELETE. The following provides detailed examples of
-using these various verbs in Requests, using the GitHub API.
+using these various verbs in Niquests, using the GitHub API.
 
 We will begin with the verb most commonly used: GET. HTTP GET is an idempotent
 method that returns a resource from a given URL. As a result, it is the verb
 you ought to use when attempting to retrieve data from a web location. An
 example usage would be attempting to get information about a specific commit
-from GitHub. Suppose we wanted commit ``a050faf`` on Requests. We would get it
+from GitHub. Suppose we wanted commit ``a050faf`` on Niquests. We would get it
 like so::
 
     >>> import niquests
@@ -789,7 +793,7 @@ So, GitHub returns JSON. That's great, we can use the :meth:`r.json
 
 So far, so simple. Well, let's investigate the GitHub API a little bit. Now,
 we could look at the documentation, but we might have a little more fun if we
-use Requests instead. We can take advantage of the Requests OPTIONS verb to
+use Niquests instead. We can take advantage of the Niquests OPTIONS verb to
 see what kinds of HTTP methods are supported on the url we just used.
 
 ::
@@ -811,7 +815,7 @@ headers, e.g.
     GET,HEAD,POST,OPTIONS
 
 Turning to the documentation, we see that the only other method allowed for
-commits is POST, which creates a new commit. As we're using the Requests repo,
+commits is POST, which creates a new commit. As we're using the Niquests repo,
 we should probably avoid making ham-handed POSTS to it. Instead, let's play
 with the Issues feature of GitHub.
 
@@ -871,7 +875,7 @@ is to POST to the thread. Let's do it.
     404
 
 Huh, that's weird. We probably need to authenticate. That'll be a pain, right?
-Wrong. Requests makes it easy to use many forms of authentication, including
+Wrong. Niquests makes it easy to use many forms of authentication, including
 the very common Basic Auth.
 
 ::
@@ -968,7 +972,7 @@ in their API, for example::
     >>> r.headers['link']
     '<https://api.github.com/users/kennethreitz/repos?page=2&per_page=10>; rel="next", <https://api.github.com/users/kennethreitz/repos?page=6&per_page=10>; rel="last"'
 
-Requests will automatically parse these link headers and make them easily consumable::
+Niquests will automatically parse these link headers and make them easily consumable::
 
     >>> r.links["next"]
     {'url': 'https://api.github.com/users/kennethreitz/repos?page=2&per_page=10', 'rel': 'next'}
@@ -981,20 +985,20 @@ Requests will automatically parse these link headers and make them easily consum
 Transport Adapters
 ------------------
 
-As of v1.0.0, Requests has moved to a modular internal design. Part of the
+As of v1.0.0, Niquests has moved to a modular internal design. Part of the
 reason this was done was to implement Transport Adapters, originally
 `described here`_. Transport Adapters provide a mechanism to define interaction
 methods for an HTTP service. In particular, they allow you to apply per-service
 configuration.
 
-Requests ships with a single Transport Adapter, the :class:`HTTPAdapter
-<niquests.adapters.HTTPAdapter>`. This adapter provides the default Requests
-interaction with HTTP and HTTPS using the powerful `urllib3`_ library. Whenever
-a Requests :class:`Session <niquests.Session>` is initialized, one of these is
+Niquests ships with a single Transport Adapter, the :class:`HTTPAdapter
+<niquests.adapters.HTTPAdapter>`. This adapter provides the default Niquests
+interaction with HTTP and HTTPS using the powerful `urllib3.future`_ library. Whenever
+a Niquests :class:`Session <niquests.Session>` is initialized, one of these is
 attached to the :class:`Session <niquests.Session>` object for HTTP, and one
 for HTTPS.
 
-Requests enables users to create and use their own Transport Adapters that
+Niquests enables users to create and use their own Transport Adapters that
 provide specific functionality. Once created, a Transport Adapter can be
 mounted to a Session object, along with an indication of which web services
 it should apply to.
@@ -1020,14 +1024,14 @@ case. For more than that, you might look at subclassing the
 Example: Specific SSL Version
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-The Requests team has made a specific choice to use whatever SSL version is
-default in the underlying library (`urllib3`_). Normally this is fine, but from
+The Niquests team has made a specific choice to use whatever SSL version is
+default in the underlying library (`urllib3.future`_). Normally this is fine, but from
 time to time, you might find yourself needing to connect to a service-endpoint
 that uses a version that isn't compatible with the default.
 
 You can use Transport Adapters for this by taking most of the existing
 implementation of HTTPAdapter, and adding a parameter *ssl_version* that gets
-passed-through to `urllib3`. We'll make a Transport Adapter that instructs the
+passed-through to `urllib3.future`. We'll make a Transport Adapter that instructs the
 library to use SSLv3::
 
     import ssl
@@ -1047,9 +1051,9 @@ library to use SSLv3::
 Example: Automatic Retries
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-By default, Requests does not retry failed connections. However, it is possible
+By default, Niquests does not retry failed connections. However, it is possible
 to implement automatic retries with a powerful array of features, including
-backoff, within a Requests :class:`Session <niquests.Session>` using the
+backoff, within a Niquests :class:`Session <niquests.Session>` using the
 `urllib3.util.Retry`_ class::
 
     from urllib3.util import Retry
@@ -1066,15 +1070,15 @@ backoff, within a Requests :class:`Session <niquests.Session>` using the
     s.get("https://1.1.1.1")
 
 .. _`described here`: https://kenreitz.org/essays/2012/06/14/the-future-of-python-http
-.. _`urllib3`: https://github.com/urllib3/urllib3
-.. _`urllib3.util.Retry`: https://urllib3.readthedocs.io/en/stable/reference/urllib3.util.html#urllib3.util.Retry
+.. _`urllib3.future`: https://github.com/jawah/urllib3.future
+.. _`urllib3.util.Retry`: https://urllib3-future.readthedocs.io/en/stable/reference/urllib3.util.html#urllib3.util.Retry
 
 .. _blocking-or-nonblocking:
 
 Blocking Or Non-Blocking?
 -------------------------
 
-With the default Transport Adapter in place, Requests does not provide any kind
+With the default Transport Adapter in place, Niquests does not provide any kind
 of non-blocking IO. The :attr:`Response.content <niquests.Response.content>`
 property will block until the entire response has been downloaded. If
 you require more granularity, the streaming features of the library (see
@@ -1087,7 +1091,7 @@ will be partially rendered useless. There won't be any IO blocking per request.
 Header Ordering
 ---------------
 
-In unusual circumstances you may want to provide headers in an ordered manner. If you pass an ``OrderedDict`` to the ``headers`` keyword argument, that will provide the headers with an ordering. *However*, the ordering of the default headers used by Requests will be preferred, which means that if you override default headers in the ``headers`` keyword argument, they may appear out of order compared to other headers in that keyword argument.
+In unusual circumstances you may want to provide headers in an ordered manner. If you pass an ``OrderedDict`` to the ``headers`` keyword argument, that will provide the headers with an ordering. *However*, the ordering of the default headers used by Niquests will be preferred, which means that if you override default headers in the ``headers`` keyword argument, they may appear out of order compared to other headers in that keyword argument.
 
 If this is problematic, users should consider setting the default headers on a :class:`Session <niquests.Session>` object, by setting :attr:`Session.headers <niquests.Session.headers>` to a custom ``OrderedDict``. That ordering will always be preferred.
 
@@ -1101,7 +1105,7 @@ server is not responding in a timely manner. By default, requests do not time
 out unless a timeout value is set explicitly. Without a timeout, your code may
 hang for minutes.
 
-The **connect** timeout is the number of seconds Requests will wait for your
+The **connect** timeout is the number of seconds Niquests will wait for your
 client to establish a connection to a remote machine (corresponding to the
 `connect()`_) call on the socket. It's a good practice to set connect timeouts
 to slightly larger than a multiple of 3, which is the default `TCP packet
@@ -1122,7 +1126,7 @@ timeouts. Specify a tuple if you would like to set the values separately::
 
     r = niquests.get('https://github.com', timeout=(3.05, 27))
 
-If the remote server is very slow, you can tell Requests to wait forever for
+If the remote server is very slow, you can tell Niquests to wait forever for
 a response, by passing None as a timeout value and then retrieving a cup of
 coffee.::
 
