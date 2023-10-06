@@ -47,7 +47,7 @@ from .structures import CaseInsensitiveDict
 
 if typing.TYPE_CHECKING:
     from .cookies import RequestsCookieJar
-    from .models import PreparedRequest, Request
+    from .models import PreparedRequest, Request, Response
 
 NETRC_FILES = (".netrc", "_netrc")
 
@@ -476,7 +476,7 @@ def get_encoding_from_headers(headers: typing.Mapping[str, str]) -> str | None:
 
 
 def stream_decode_response_unicode(
-    iterator: typing.Iterator[bytes], r
+    iterator: typing.Generator[bytes, None, None], r: Response
 ) -> typing.Generator[bytes | str, None, None]:
     """Stream decodes an iterator."""
 
@@ -494,9 +494,12 @@ def stream_decode_response_unicode(
         yield rv
 
 
+_SV = typing.TypeVar("_SV", str, bytes)
+
+
 def iter_slices(
-    string: str | bytes, slice_length: int | None
-) -> typing.Generator[str | bytes, None, None]:
+    string: _SV, slice_length: int | None
+) -> typing.Generator[_SV, None, None]:
     """Iterate over slices of a string."""
     pos = 0
     if slice_length is None or slice_length <= 0:

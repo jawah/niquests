@@ -30,7 +30,7 @@ from ._typing import (
     TLSClientCertType,
     TLSVerifyType,
 )
-from .models import Response
+from .models import PreparedRequest, Response
 
 #: This is a non-thread safe in-memory cache for the AltSvc / h3
 _SHARED_QUIC_CACHE: CacheLayerAltSvcType = {}
@@ -53,7 +53,7 @@ def request(
     verify: TLSVerifyType = True,
     stream: bool = False,
     cert: TLSClientCertType | None = None,
-    hooks: HookType | None = None,
+    hooks: HookType[PreparedRequest | Response] | None = None,
     retries: RetryType = DEFAULT_RETRIES,
 ) -> Response:
     """Constructs and sends a :class:`Request <Request>`.
@@ -136,7 +136,7 @@ def get(
     verify: TLSVerifyType = True,
     stream: bool = False,
     cert: TLSClientCertType | None = None,
-    hooks: HookType | None = None,
+    hooks: HookType[PreparedRequest | Response] | None = None,
     retries: RetryType = DEFAULT_RETRIES,
 ) -> Response:
     r"""Sends a GET request.
@@ -197,7 +197,7 @@ def options(
     verify: TLSVerifyType = True,
     stream: bool = False,
     cert: TLSClientCertType | None = None,
-    hooks: HookType | None = None,
+    hooks: HookType[PreparedRequest | Response] | None = None,
     retries: RetryType = DEFAULT_RETRIES,
 ) -> Response:
     r"""Sends an OPTIONS request.
@@ -257,7 +257,7 @@ def head(
     verify: TLSVerifyType = True,
     stream: bool = False,
     cert: TLSClientCertType | None = None,
-    hooks: HookType | None = None,
+    hooks: HookType[PreparedRequest | Response] | None = None,
     retries: RetryType = DEFAULT_RETRIES,
 ) -> Response:
     r"""Sends a HEAD request.
@@ -320,7 +320,7 @@ def post(
     verify: TLSVerifyType = True,
     stream: bool = False,
     cert: TLSClientCertType | None = None,
-    hooks: HookType | None = None,
+    hooks: HookType[PreparedRequest | Response] | None = None,
     retries: RetryType = DEFAULT_RETRIES,
 ) -> Response:
     r"""Sends a POST request.
@@ -394,7 +394,7 @@ def put(
     verify: TLSVerifyType = True,
     stream: bool = False,
     cert: TLSClientCertType | None = None,
-    hooks: HookType | None = None,
+    hooks: HookType[PreparedRequest | Response] | None = None,
     retries: RetryType = DEFAULT_RETRIES,
 ) -> Response:
     r"""Sends a PUT request.
@@ -468,7 +468,7 @@ def patch(
     verify: TLSVerifyType = True,
     stream: bool = False,
     cert: TLSClientCertType | None = None,
-    hooks: HookType | None = None,
+    hooks: HookType[PreparedRequest | Response] | None = None,
     retries: RetryType = DEFAULT_RETRIES,
 ) -> Response:
     r"""Sends a PATCH request.
@@ -539,7 +539,7 @@ def delete(
     verify: TLSVerifyType = True,
     stream: bool = False,
     cert: TLSClientCertType | None = None,
-    hooks: HookType | None = None,
+    hooks: HookType[PreparedRequest | Response] | None = None,
     retries: RetryType = DEFAULT_RETRIES,
 ) -> Response:
     r"""Sends a DELETE request.

@@ -26,18 +26,20 @@ HOOKS = [
 ]
 
 
-def default_hooks() -> HookType:
+def default_hooks() -> HookType[_HV]:
     return {event: [] for event in HOOKS}
 
 
 def dispatch_hook(
-    key: str, hooks: HookType | None, hook_data: _HV, **kwargs: typing.Any
+    key: str, hooks: HookType[_HV] | None, hook_data: _HV, **kwargs: typing.Any
 ) -> _HV:
     """Dispatches a hook dictionary on a given piece of data."""
     if hooks is None:
         return hook_data
 
-    callables: list[HookCallableType] | HookCallableType | None = hooks.get(key)
+    callables: list[HookCallableType[_HV]] | HookCallableType[_HV] | None = hooks.get(
+        key
+    )
 
     if callables:
         if callable(callables):
