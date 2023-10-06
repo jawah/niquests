@@ -1,6 +1,12 @@
 Release History
 ===============
 
+3.0.3 (2023-10-??)
+------------------
+
+**Misc**
+- Static typing has been improved to provide a better development experience.
+
 3.0.2 (2023-10-01)
 ------------------
 

@@ -7,6 +7,7 @@ Data structures that power Requests.
 
 from __future__ import annotations
 
+import typing
 from collections import OrderedDict
 from collections.abc import Mapping, MutableMapping
 
@@ -38,34 +39,36 @@ class CaseInsensitiveDict(MutableMapping):
     behavior is undefined.
     """
 
-    def __init__(self, data=None, **kwargs):
-        self._store = OrderedDict()
+    def __init__(self, data=None, **kwargs) -> None:
+        self._store: MutableMapping[
+            bytes | str, tuple[bytes | str, bytes | str]
+        ] = OrderedDict()
         if data is None:
             data = {}
         self.update(data, **kwargs)
 
-    def __setitem__(self, key, value):
+    def __setitem__(self, key: str | bytes, value: str | bytes) -> None:
         # Use the lowercased key for lookups, but store the actual
         # key alongside the value.
         self._store[key.lower()] = (key, value)
 
-    def __getitem__(self, key):
+    def __getitem__(self, key) -> bytes | str:
         return self._store[key.lower()][1]
 
-    def __delitem__(self, key):
+    def __delitem__(self, key) -> None:
         del self._store[key.lower()]
 
-    def __iter__(self):
+    def __iter__(self) -> typing.Iterator[str | bytes]:
         return (casedkey for casedkey, mappedvalue in self._store.values())
 
-    def __len__(self):
+    def __len__(self) -> int:
         return len(self._store)
 
-    def lower_items(self):
+    def lower_items(self) -> typing.Iterator[tuple[bytes | str, bytes | str]]:
         """Like iteritems(), but with all lowercase keys."""
         return ((lowerkey, keyval[1]) for (lowerkey, keyval) in self._store.items())
 
-    def __eq__(self, other):
+    def __eq__(self, other) -> bool:
         if isinstance(other, Mapping):
             other = CaseInsensitiveDict(other)
         else:
@@ -74,18 +77,18 @@ class CaseInsensitiveDict(MutableMapping):
         return dict(self.lower_items()) == dict(other.lower_items())
 
     # Copy is required
-    def copy(self):
+    def copy(self) -> CaseInsensitiveDict:
         return CaseInsensitiveDict(self._store.values())
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return str(dict(self.items()))
 
 
 class LookupDict(dict):
     """Dictionary lookup object."""
 
-    def __init__(self, name=None):
-        self.name = name
+    def __init__(self, name=None) -> None:
+        self.name: str | None = name
         super().__init__()
 
     def __repr__(self):

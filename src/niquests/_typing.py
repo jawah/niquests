@@ -126,10 +126,10 @@ HookCallableType: typing.TypeAlias = typing.Callable[
     [
         _HV,
     ],
-    _HV,
+    typing.Optional[_HV],
 ]
 
-HookType: typing.TypeAlias = typing.Dict[str, typing.List[HookCallableType]]
+HookType: typing.TypeAlias = typing.Dict[str, typing.List[HookCallableType[_HV]]]
 
 CacheLayerAltSvcType: typing.TypeAlias = typing.MutableMapping[
     typing.Tuple[str, int], typing.Optional[typing.Tuple[str, int]]

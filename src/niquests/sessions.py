@@ -54,7 +54,7 @@ from .exceptions import (
     InvalidSchema,
     TooManyRedirects,
 )
-from .hooks import default_hooks, dispatch_hook
+from .hooks import HOOKS, default_hooks, dispatch_hook
 
 # formerly defined here, reexposed here for backward compatibility
 from .models import (  # noqa: F401
@@ -86,7 +86,15 @@ else:
     preferred_clock = time.time
 
 
-def merge_setting(request_setting, session_setting, dict_class=OrderedDict):
+_MSI = typing.TypeVar("_MSI", bound=typing.Mapping)
+_MSI_EX = typing.TypeVar("_MSI_EX", typing.Any, None)
+
+
+def merge_setting(
+    request_setting: _MSI | _MSI_EX,
+    session_setting: _MSI | _MSI_EX,
+    dict_class=OrderedDict,
+) -> _MSI | _MSI_EX:
     """Determines appropriate setting for a given request, taking into account
     the explicit setting on that request, and the setting in the session. If a
     setting is a dictionary, they will be merged together using `dict_class`
@@ -117,20 +125,39 @@ def merge_setting(request_setting, session_setting, dict_class=OrderedDict):
 
 
 def merge_hooks(
-    request_hooks: HookType, session_hooks: HookType, dict_class=OrderedDict
-):
+    request_hooks: HookType,
+    session_hooks: HookType,
+    dict_class=OrderedDict,
+) -> HookType:
     """Properly merges both requests and session hooks.
 
     This is necessary because when request_hooks == {'response': []}, the
     merge breaks Session hooks entirely.
     """
-    if session_hooks is None or session_hooks.get("response") == []:
+    if session_hooks is None:
         return request_hooks
 
-    if request_hooks is None or request_hooks.get("response") == []:
+    if request_hooks is None:
         return session_hooks
 
-    return merge_setting(request_hooks, session_hooks, dict_class)
+    tmp_request_hooks: HookType = {}
+    tmp_session_hooks: HookType = {}
+
+    for hook_type in HOOKS:
+        if len(request_hooks[hook_type]):
+            tmp_request_hooks[hook_type] = request_hooks[hook_type]
+        if len(session_hooks[hook_type]):
+            tmp_session_hooks[hook_type] = session_hooks[hook_type]
+
+    merged_hooks: HookType = merge_setting(
+        tmp_request_hooks, tmp_session_hooks, dict_class
+    )
+
+    for hook_type in HOOKS:
+        if hook_type not in merged_hooks:
+            merged_hooks[hook_type] = []
+
+    return merged_hooks
 
 
 class Session:
@@ -189,7 +216,7 @@ class Session:
         self.proxies: ProxyType = {}
 
         #: Event-handling hooks.
-        self.hooks = default_hooks()
+        self.hooks: HookType[PreparedRequest | Response] = default_hooks()
 
         #: Dictionary of querystring data to attach to each
         #: :class:`Request <Request>`. The dictionary values may be lists for
@@ -303,7 +330,7 @@ class Session:
         timeout: TimeoutType | None = WRITE_DEFAULT_TIMEOUT,
         allow_redirects: bool = True,
         proxies: ProxyType | None = None,
-        hooks: HookType | None = None,
+        hooks: HookType[PreparedRequest | Response] | None = None,
         stream: bool | None = None,
         verify: TLSVerifyType | None = None,
         cert: TLSClientCertType | None = None,
@@ -368,7 +395,9 @@ class Session:
             hooks=hooks,
         )
 
-        prep = dispatch_hook("pre_request", hooks, self.prepare_request(req))
+        prep: PreparedRequest = dispatch_hook(
+            "pre_request", hooks, self.prepare_request(req)  # type: ignore[arg-type]
+        )
 
         assert prep.url is not None
 
@@ -399,7 +428,7 @@ class Session:
         timeout: TimeoutType | None = READ_DEFAULT_TIMEOUT,
         allow_redirects: bool = True,
         proxies: ProxyType | None = None,
-        hooks: HookType | None = None,
+        hooks: HookType[PreparedRequest | Response] | None = None,
         verify: TLSVerifyType = True,
         stream: bool = False,
         cert: TLSClientCertType | None = None,
@@ -465,7 +494,7 @@ class Session:
         timeout: TimeoutType | None = READ_DEFAULT_TIMEOUT,
         allow_redirects: bool = True,
         proxies: ProxyType | None = None,
-        hooks: HookType | None = None,
+        hooks: HookType[PreparedRequest | Response] | None = None,
         verify: TLSVerifyType = True,
         stream: bool = False,
         cert: TLSClientCertType | None = None,
@@ -531,7 +560,7 @@ class Session:
         timeout: TimeoutType | None = READ_DEFAULT_TIMEOUT,
         allow_redirects: bool = True,
         proxies: ProxyType | None = None,
-        hooks: HookType | None = None,
+        hooks: HookType[PreparedRequest | Response] | None = None,
         verify: TLSVerifyType = True,
         stream: bool = False,
         cert: TLSClientCertType | None = None,
@@ -600,7 +629,7 @@ class Session:
         timeout: TimeoutType | None = WRITE_DEFAULT_TIMEOUT,
         allow_redirects: bool = True,
         proxies: ProxyType | None = None,
-        hooks: HookType | None = None,
+        hooks: HookType[PreparedRequest | Response] | None = None,
         verify: TLSVerifyType = True,
         stream: bool = False,
         cert: TLSClientCertType | None = None,
@@ -678,7 +707,7 @@ class Session:
         timeout: TimeoutType | None = WRITE_DEFAULT_TIMEOUT,
         allow_redirects: bool = True,
         proxies: ProxyType | None = None,
-        hooks: HookType | None = None,
+        hooks: HookType[PreparedRequest | Response] | None = None,
         verify: TLSVerifyType = True,
         stream: bool = False,
         cert: TLSClientCertType | None = None,
@@ -756,7 +785,7 @@ class Session:
         timeout: TimeoutType | None = WRITE_DEFAULT_TIMEOUT,
         allow_redirects: bool = True,
         proxies: ProxyType | None = None,
-        hooks: HookType | None = None,
+        hooks: HookType[PreparedRequest | Response] | None = None,
         verify: TLSVerifyType = True,
         stream: bool = False,
         cert: TLSClientCertType | None = None,
@@ -831,7 +860,7 @@ class Session:
         timeout: TimeoutType | None = WRITE_DEFAULT_TIMEOUT,
         allow_redirects: bool = True,
         proxies: ProxyType | None = None,
-        hooks: HookType | None = None,
+        hooks: HookType[PreparedRequest | Response] | None = None,
         verify: TLSVerifyType = True,
         stream: bool = False,
         cert: TLSClientCertType | None = None,
@@ -909,7 +938,7 @@ class Session:
         def on_post_connection(conn_info: ConnectionInfo) -> None:
             nonlocal request
             request.conn_info = conn_info
-            dispatch_hook("pre_send", hooks, request)
+            dispatch_hook("pre_send", hooks, request)  # type: ignore[arg-type]
 
         kwargs.setdefault("on_post_connection", on_post_connection)
 
@@ -929,7 +958,7 @@ class Session:
         r.elapsed = timedelta(seconds=elapsed)
 
         # Response manipulation hooks
-        r = dispatch_hook("response", hooks, r, **kwargs)
+        r = dispatch_hook("response", hooks, r, **kwargs)  # type: ignore[arg-type]
 
         # Persist cookies
         if r.history:
@@ -1056,10 +1085,20 @@ class Session:
             # This causes incorrect handling of UTF8 encoded location headers.
             # To solve this, we re-encode the location in latin1.
             try:
-                return to_native_string(location.encode("latin1"), "utf8")
+                return to_native_string(
+                    location.encode("latin1")
+                    if isinstance(location, str)
+                    else location,
+                    "utf8",
+                )
             except UnicodeDecodeError:
                 try:
-                    return to_native_string(location.encode("utf-8"), "utf8")
+                    return to_native_string(
+                        location.encode("utf-8")
+                        if isinstance(location, str)
+                        else location,
+                        "utf8",
+                    )
                 except (UnicodeDecodeError, UnicodeEncodeError) as e:
                     raise HTTPError(
                         "Response specify a Location header but is unreadable. This is a violation."

@@ -188,7 +188,7 @@ class HTTPAdapter(BaseAdapter):
             quic_cache_layer=quic_cache_layer,
         )
 
-    def __getstate__(self):
+    def __getstate__(self) -> dict[str, typing.Any | None]:
         return {attr: getattr(self, attr, None) for attr in self.__attrs__}
 
     def __setstate__(self, state):

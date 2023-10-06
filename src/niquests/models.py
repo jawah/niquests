@@ -42,6 +42,7 @@ from ._typing import (
     CookiesType,
     HeadersType,
     HookCallableType,
+    HookType,
     HttpAuthenticationType,
     HttpMethodType,
     MultiPartFilesAltType,
@@ -140,7 +141,7 @@ class Request:
         params: QueryParameterType | None = None,
         auth: HttpAuthenticationType | None = None,
         cookies: CookiesType | None = None,
-        hooks=None,
+        hooks: HookType | None = None,
         json: typing.Any | None = None,
     ):
         # Default empty dicts for dict params.
@@ -150,7 +151,7 @@ class Request:
         params = {} if params is None else params
         hooks = {} if hooks is None else hooks
 
-        self.hooks = default_hooks()
+        self.hooks: HookType[Response | PreparedRequest] = default_hooks()
         for k, v in list(hooks.items()):
             self.register_hook(event=k, hook=v)
 
@@ -168,7 +169,10 @@ class Request:
         return f"<Request [{self.method}]>"
 
     def register_hook(
-        self, event: str, hook: HookCallableType | list[HookCallableType]
+        self,
+        event: str,
+        hook: HookCallableType[Response | PreparedRequest]
+        | list[HookCallableType[Response | PreparedRequest]],
     ) -> None:
         """Properly register a hook."""
 
@@ -180,7 +184,9 @@ class Request:
         elif isinstance(hook, list):
             self.hooks[event].extend(h for h in hook if callable(h))
 
-    def deregister_hook(self, event: str, hook: HookCallableType) -> bool:
+    def deregister_hook(
+        self, event: str, hook: HookCallableType[Response | PreparedRequest]
+    ) -> bool:
         """Deregister a previously registered hook.
         Returns True if the hook existed, False if not.
         """
@@ -243,7 +249,7 @@ class PreparedRequest:
         #: request body to send to the server.
         self.body: BodyType | None = None
         #: dictionary of callback hooks, for internal usage.
-        self.hooks = default_hooks()
+        self.hooks: HookType[Response | PreparedRequest] = default_hooks()
         #: integer denoting starting position of a readable file-like body.
         self._body_position: int | object | None = None
         #: valuable intel about the opened connection.
@@ -259,7 +265,7 @@ class PreparedRequest:
         params: QueryParameterType | None = None,
         auth: HttpAuthenticationType | None = None,
         cookies: CookiesType | None = None,
-        hooks=None,
+        hooks: HookType[Response | PreparedRequest] | None = None,
         json: typing.Any | None = None,
     ) -> None:
         """Prepares the entire request with the given parameters."""
@@ -876,7 +882,7 @@ class Response:
 
         return f"<Response HTTP/{http_revision} [{self.status_code}]>"
 
-    def __bool__(self):
+    def __bool__(self) -> bool:
         """Returns True if :attr:`status_code` is less than 400.
 
         This attribute checks if the status code of the response is between
@@ -886,9 +892,9 @@ class Response:
         """
         return self.ok
 
-    def __iter__(self):
+    def __iter__(self) -> typing.Generator[bytes, None, None]:
         """Allows you to use a response as an iterator."""
-        return self.iter_content(128)
+        return self.iter_content(128)  # type: ignore[return-value]
 
     @property
     def ok(self) -> bool:
@@ -931,7 +937,9 @@ class Response:
             return self.request.conn_info
         return None
 
-    def iter_content(self, chunk_size: int = 1, decode_unicode: bool = False):
+    def iter_content(
+        self, chunk_size: int = 1, decode_unicode: bool = False
+    ) -> typing.Generator[bytes | str, None, None]:
         """Iterates over the response data.  When stream=True is set on the
         request, this avoids reading the content at once into memory for
         large responses.  The chunk size is the number of bytes it should
@@ -948,7 +956,7 @@ class Response:
         available encoding based on the response.
         """
 
-        def generate():
+        def generate() -> typing.Generator[bytes, None, None]:
             assert self.raw is not None
             # Special case for urllib3.
             if hasattr(self.raw, "stream"):
@@ -986,7 +994,7 @@ class Response:
         chunks = reused_chunks if self._content_consumed else stream_chunks
 
         if decode_unicode:
-            chunks = stream_decode_response_unicode(chunks, self)
+            return stream_decode_response_unicode(chunks, self)
 
         return chunks
 
@@ -1002,6 +1010,14 @@ class Response:
 
         .. note:: This method is not reentrant safe.
         """
+        if (
+            delimiter is not None
+            and decode_unicode is False
+            and isinstance(delimiter, str)
+        ):
+            raise ValueError(
+                "delimiter MUST match the desired output type. e.g. if decode_unicode is set to True, delimiter MUST be a str, otherwise we expect a bytes-like variable."
+            )
 
         pending = None
 
@@ -1012,7 +1028,7 @@ class Response:
                 chunk = pending + chunk
 
             if delimiter:
-                lines = chunk.split(delimiter)
+                lines = chunk.split(delimiter)  # type: ignore[arg-type]
             else:
                 lines = chunk.splitlines()
 
@@ -1057,7 +1073,7 @@ class Response:
             if self.status_code == 0 or self.raw is None:
                 self._content = None
             else:
-                self._content = b"".join(self.iter_content(CONTENT_CHUNK_SIZE)) or b""
+                self._content = b"".join(self.iter_content(CONTENT_CHUNK_SIZE)) or b""  # type: ignore[arg-type]
 
         self._content_consumed = True
         # don't need to release the connection; that's been handled by urllib3
