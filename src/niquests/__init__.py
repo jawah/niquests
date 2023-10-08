@@ -42,41 +42,30 @@ from __future__ import annotations
 
 import warnings
 
-import charset_normalizer
 import urllib3
 
 from .exceptions import RequestsDependencyWarning
 
 
-def check_compatibility(urllib3_version, charset_normalizer_version) -> None:
-    urllib3_version = urllib3_version.split(".")
-    assert urllib3_version != ["dev"]  # Verify urllib3 isn't installed from git.
-
-    # Sometimes, urllib3 only reports its version as 16.1.
-    if len(urllib3_version) == 2:
-        urllib3_version.append("0")
+def check_compatibility(urllib3_version: str) -> None:
+    urllib3_version_split = [int(n) for n in urllib3_version.split(".")]
 
     # Check urllib3 for compatibility.
-    major, minor, patch = urllib3_version  # noqa: F811
-    major, minor, patch = int(major), int(minor), int(patch)
+    major, minor, patch = urllib3_version_split  # noqa: F811
     # urllib3 >= 2.0.9xx
     assert major >= 2
     assert patch >= 900
 
-    # Check charset_normalizer for compatibility.
-    major, minor, patch = charset_normalizer_version.split(".")[:3]
-    major, minor, patch = int(major), int(minor), int(patch)
-    # charset_normalizer >= 2.0.0 < 4.0.0
-    assert (2, 0, 0) <= (major, minor, patch) < (4, 0, 0)
-
 
 # Check imported dependencies for compatibility.
 try:
-    check_compatibility(urllib3.__version__, charset_normalizer.__version__)
+    check_compatibility(urllib3.__version__)
 except (AssertionError, ValueError):
     warnings.warn(
-        "urllib3 ({}) or charset_normalizer ({}) doesn't match a supported "
-        "version!".format(urllib3.__version__, charset_normalizer.__version__),
+        f"""Niquests require urllib3.future installed in your environment.
+        Installed urllib3 yield version {urllib3.__version__}. Make sure the patch revision is greater or equal to 900.
+        You may fix this issue by executing `python -m pip uninstall urllib3 urllib3.future`,
+        then `python -m pip install urllib3.future -U`.""",
         RequestsDependencyWarning,
     )
 
@@ -120,10 +109,6 @@ from .sessions import Session
 from .status_codes import codes
 
 logging.getLogger(__name__).addHandler(NullHandler())
-
-# FileModeWarnings go off per the default.
-warnings.simplefilter("default", FileModeWarning, append=True)
-
 
 __all__ = (
     "RequestsDependencyWarning",
