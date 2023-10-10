@@ -31,9 +31,9 @@ from ._typing import (
     TLSVerifyType,
 )
 from .models import PreparedRequest, Response
+from .structures import SharableLimitedDict
 
-#: This is a non-thread safe in-memory cache for the AltSvc / h3
-_SHARED_QUIC_CACHE: CacheLayerAltSvcType = {}
+_SHARED_QUIC_CACHE: CacheLayerAltSvcType = SharableLimitedDict(max_size=12_288)
 
 
 def request(

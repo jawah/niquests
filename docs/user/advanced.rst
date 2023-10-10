@@ -1139,3 +1139,42 @@ It is also possible to use the ``Timeout`` class from ``urllib3`` directly::
     r = niquests.get('https://github.com', timeout=Timeout(3, 9))
 
 .. _`connect()`: https://linux.die.net/man/2/connect
+
+OCSP or Certificate Revocation
+------------------------------
+
+Difficult subject. Short story, when a HTTP client establish a secure connection,
+it verify that the certificate is valid. The problem is that a certificate
+can be both valid and revoked due its immutability, the revocation status must
+be taken from an outside source, most of the revocation are linked to a hack/security violation.
+
+Niquests try to protect you from the evoked problem by doing a post-handshake verification
+using the OCSP protocols via plain HTTP.
+
+Unfortunately, at this moment, no bullet proof solution has emerged against revoked certificate.
+We are aware of this. But still, it is better than nothing!
+
+By default, Niquests operate a soft-fail verification, or non-strict if you prefer.
+
+This feature is broadly available and is enabled by default when ``verify=True``.
+We decided to follow what browsers do by default, so Niquests follows by being non-strict.
+OCSP responses are expected to arrive in less than 200ms, otherwise ignored (e.g. OCSP is dropped).
+Niquests keeps in-memory the results until the size exceed 2,048 entries, then an algorithm choose an entry
+to be deleted (oldest request or the first one that ended in error).
+
+You can at your own discretion enable strict OCSP checks by passing the environment variable ``NIQUESTS_STRICT_OCSP``
+with anything inside but ``0``. In strict mode the maximum delay for response passes from 200ms to 1,000ms and
+raises an error or explicit warning.
+
+In non-strict mode, this security measure will be deactivated automatically if your usage is unreasonable.
+e.g. Making a hundred of requests to a hundred of domains, thus consuming resources that should have been
+allocated to browser users. This was made available for users with a limited target of domains to get
+a complementary security measure.
+
+Unless in strict-mode, the proxy configuration will be respected when given, as long as it specify
+a plain ``http`` proxy. This is meant for people who want privacy.
+
+This feature may not be available if the ``cryptography`` package is missing from your environment.
+Verify the availability by running ``python -m niquests.help``.
+
+.. note:: Access property ``ocsp_verified`` in both ``PreparedRequest``, and ``Response`` to have information about this post handshake verification.

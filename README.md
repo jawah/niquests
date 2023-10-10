@@ -2,7 +2,6 @@
 
 **Niquests** is a simple, yet elegant, HTTP library. It is a drop-in replacement for **Requests** that is no longer under
 feature freeze.
-We will support and maintain v2.x.y that only ships with possible minor breaking changes. All breaking changes are issued in the v3.x that should be available as a pre-release on PyPI.
 
 Why did we pursue this? We don't have to reinvent the wheel all over again, HTTP client **Requests** is well established and
 really plaisant in its usage. We believe that **Requests** have the most inclusive, and developer friendly interfaces. We
@@ -48,6 +47,7 @@ Niquests is ready for the demands of building robust and reliable HTTP–speakin
 
 - Automatic Content Decompression and Decoding
 - OS truststore by default, no more certifi!
+- OCSP Certificate Revocation Verification
 - Browser-style TLS/SSL Verification
 - Sessions with Cookie Persistence
 - Keep-Alive & Connection Pooling
@@ -62,12 +62,8 @@ Niquests is ready for the demands of building robust and reliable HTTP–speakin
 - SOCKS Proxy Support
 - Connection Timeouts
 - Streaming Downloads
+- HTTP/2 by default
 - HTTP/3 over QUIC
-- HTTP/2
-
-## API Reference and User Guide available on [Read the Docs](https://niquests.readthedocs.io)
-
-[![Read the Docs](https://raw.githubusercontent.com/jawah/niquests/main/ext/ss.png)](https://niquests.readthedocs.io)
 
 ---
 

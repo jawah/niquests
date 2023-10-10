@@ -254,6 +254,8 @@ class PreparedRequest:
         self._body_position: int | object | None = None
         #: valuable intel about the opened connection.
         self.conn_info: ConnectionInfo | None = None
+        #: marker about if OCSP post-handshake verification took place.
+        self.ocsp_verified: bool | None = None
 
     def prepare(
         self,
@@ -933,8 +935,16 @@ class Response:
 
     @property
     def conn_info(self) -> ConnectionInfo | None:
+        """Provide context to the established connection that was used to perform the request."""
         if self.request and hasattr(self.request, "conn_info"):
             return self.request.conn_info
+        return None
+
+    @property
+    def ocsp_verified(self) -> bool | None:
+        """Marker that can inform you of the OCSP verification."""
+        if self.request and hasattr(self.request, "ocsp_verified"):
+            return self.request.ocsp_verified
         return None
 
     def iter_content(

@@ -1,11 +1,51 @@
 Release History
 ===============
 
-3.0.3 (2023-10-??)
+3.1.0 (2023-10-10)
 ------------------
 
 **Misc**
 - Static typing has been improved to provide a better development experience.
+
+**Added**
+- Certificate revocation verification via the OCSP protocol.
+
+  This feature is broadly available and is enabled by default when `verify=True`.
+  We decided to follow what browsers do by default, so Niquests follows by being non-strict.
+  OCSP responses are expected to arrive in less than 200ms, otherwise ignored (e.g. OCSP is dropped).
+  Niquests keeps in-memory the results until the size exceed 2,048 entries, then an algorithm choose an entry
+  to be deleted (oldest request or the first one that ended in error).
+
+  You can at your own discretion enable strict OCSP checks by passing the environment variable `NIQUESTS_STRICT_OCSP`
+  with anything inside but `0`. In strict mode the maximum delay for response passes from 200ms to 1,000ms and
+  raises an error or explicit warning.
+
+  In non-strict mode, this security measure will be deactivated automatically if your usage is unreasonable.
+  e.g. Making a hundred of requests to a hundred of domains, thus consuming resources that should have been
+  allocated to browser users. This was made available for users with a limited target of domains to get
+  a complementary security measure.
+
+  Unless in strict-mode, the proxy configuration will be respected when given, as long as it specify
+  a plain `http` proxy. This is meant for people who want privacy.
+
+  This feature may not be available if the `cryptography` package is missing from your environment.
+  Verify the availability after Niquests upgrade by running `python -m niquests.help`.
+
+  There is several downside of using OCSP, Niquests knows it. It is not a silver bullet solution. But better than nothing.
+  It does not apply to HTTPS proxies themselves. For now.
+
+- Add property `ocsp_verified` in both `PreparedRequest`, and `Response` to have a clue on the post handshake verification.
+
+  Will be `None` if no verification took place, `True` if the verification leads to a confirmation from the OCSP server
+  that the certificate is valid, `False` otherwise.
+
+**Changed**
+- Bump lower version requirement for `urllib3.future` to 2.1.900 to ensure compatibility with newer features.
+- Internal in-memory QUIC capabilities is now thread safe and limited to 12,288 entries.
+- Pickling a `Session` object no-longer dump adapters or the QUIC in-memory capabilities, they are reset on setstate.
+
+**Fixed**
+- `conn_info` was unset if the response came after a redirect.
 
 3.0.2 (2023-10-01)
 ------------------

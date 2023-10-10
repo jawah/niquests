@@ -56,6 +56,11 @@ from .exceptions import (
 )
 from .hooks import HOOKS, default_hooks, dispatch_hook
 
+try:
+    from .extensions._ocsp import verify as ocsp_verify
+except ImportError:
+    ocsp_verify = None  # type: ignore[assignment]
+
 # formerly defined here, reexposed here for backward compatibility
 from .models import (  # noqa: F401
     DEFAULT_REDIRECT_LIMIT,
@@ -65,7 +70,7 @@ from .models import (  # noqa: F401
     Response,
 )
 from .status_codes import codes
-from .structures import CaseInsensitiveDict
+from .structures import CaseInsensitiveDict, SharableLimitedDict
 from .utils import (  # noqa: F401
     DEFAULT_PORTS,
     default_headers,
@@ -188,11 +193,10 @@ class Session:
         "params",
         "verify",
         "cert",
-        "adapters",
         "stream",
         "trust_env",
         "max_redirects",
-        "quic_cache_layer",
+        "retries",
     ]
 
     def __init__(
@@ -201,6 +205,9 @@ class Session:
         quic_cache_layer: CacheLayerAltSvcType | None = None,
         retries: RetryType = DEFAULT_RETRIES,
     ):
+        #: Configured retries for current Session
+        self.retries = retries
+
         #: A case-insensitive dictionary of headers to be sent on each
         #: :class:`Request <Request>` sent from this
         #: :class:`Session <Session>`.
@@ -259,7 +266,11 @@ class Session:
         #: A simple dict that allows us to persist which server support QUIC
         #: It is simply forwarded to urllib3.future that handle the caching logic.
         #: Can be any mutable mapping.
-        self.quic_cache_layer = quic_cache_layer
+        self.quic_cache_layer = (
+            quic_cache_layer
+            if quic_cache_layer is not None
+            else SharableLimitedDict(max_size=12_288)
+        )
 
         # Default connection adapters.
         self.adapters: OrderedDict[str, BaseAdapter] = OrderedDict()
@@ -935,10 +946,39 @@ class Session:
         stream = kwargs.get("stream")
         hooks = request.hooks
 
+        ptr_request = request
+
         def on_post_connection(conn_info: ConnectionInfo) -> None:
-            nonlocal request
-            request.conn_info = conn_info
-            dispatch_hook("pre_send", hooks, request)  # type: ignore[arg-type]
+            """This function will be called by urllib3.future just after establishing the connection."""
+            nonlocal ptr_request, request, kwargs
+            ptr_request.conn_info = conn_info
+
+            if (
+                request.url
+                and request.url.startswith("https://")
+                and ocsp_verify is not None
+                and kwargs["verify"]
+            ):
+                strict_ocsp_enabled: bool = (
+                    os.environ.get("NIQUESTS_STRICT_OCSP", "0") != "0"
+                )
+
+                with Session() as ocsp_session:
+                    ocsp_session.trust_env = False
+
+                    if not strict_ocsp_enabled:
+                        ocsp_session.proxies = kwargs["proxies"]
+
+                    ocsp_verify(
+                        ocsp_session,
+                        ptr_request,
+                        strict_ocsp_enabled,
+                        0.2 if not strict_ocsp_enabled else 1.0,
+                    )
+
+            # don't trigger pre_send for redirects
+            if ptr_request == request:
+                dispatch_hook("pre_send", hooks, ptr_request)  # type: ignore[arg-type]
 
         kwargs.setdefault("on_post_connection", on_post_connection)
 
@@ -971,8 +1011,16 @@ class Session:
         # Resolve redirects if allowed.
         if allow_redirects:
             # Redirect resolving generator.
-            gen = self.resolve_redirects(r, request, **kwargs)
-            history = [resp for resp in gen if isinstance(resp, Response)]
+            gen = self.resolve_redirects(
+                r, request, yield_requests_trail=True, **kwargs
+            )
+            history = []
+
+            for resp_or_req in gen:
+                if isinstance(resp_or_req, Response):
+                    history.append(resp_or_req)
+                    continue
+                ptr_request = resp_or_req
         else:
             history = []
 
@@ -1068,6 +1116,17 @@ class Session:
         for attr, value in state.items():
             setattr(self, attr, value)
 
+        self.quic_cache_layer = SharableLimitedDict(max_size=12_288)
+
+        self.adapters = OrderedDict()
+        self.mount(
+            "https://",
+            HTTPAdapter(
+                quic_cache_layer=self.quic_cache_layer, max_retries=self.retries
+            ),
+        )
+        self.mount("http://", HTTPAdapter(max_retries=self.retries))
+
     def get_redirect_target(self, resp: Response) -> str | None:
         """Receives a Response. Returns a redirect URI or ``None``"""
         # Due to the nature of how requests processes redirects this method will
@@ -1147,6 +1206,7 @@ class Session:
         cert: TLSClientCertType | None = None,
         proxies: ProxyType | None = None,
         yield_requests: bool = False,
+        yield_requests_trail: bool = False,
         **adapter_kwargs: typing.Any,
     ) -> typing.Generator[Response | PreparedRequest, None, None]:
         """Receives a Response. Returns a generator of Responses or Requests."""
@@ -1255,6 +1315,8 @@ class Session:
             if yield_requests:
                 yield req
             else:
+                if yield_requests_trail:
+                    yield req
                 resp = self.send(
                     req,
                     stream=stream,
