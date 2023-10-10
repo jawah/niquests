@@ -7,6 +7,7 @@ Data structures that power Requests.
 
 from __future__ import annotations
 
+import threading
 import typing
 from collections import OrderedDict
 from collections.abc import Mapping, MutableMapping
@@ -101,3 +102,33 @@ class LookupDict(dict):
 
     def get(self, key, default=None):
         return self.__dict__.get(key, default)
+
+
+class SharableLimitedDict(typing.MutableMapping):
+    def __init__(self, max_size: int) -> None:
+        self._store: typing.MutableMapping[typing.Any, typing.Any] = {}
+        self._max_size = max_size
+        self._lock = threading.Lock()
+
+    def __delitem__(self, __key) -> None:
+        with self._lock:
+            del self._store[__key]
+
+    def __len__(self) -> int:
+        with self._lock:
+            return len(self._store)
+
+    def __iter__(self) -> typing.Iterator:
+        with self._lock:
+            return iter(self._store)
+
+    def __setitem__(self, key, value):
+        with self._lock:
+            if len(self._store) >= self._max_size:
+                self._store.popitem()
+
+            self._store[key] = value
+
+    def __getitem__(self, item):
+        with self._lock:
+            return self._store[item]

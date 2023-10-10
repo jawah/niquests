@@ -30,6 +30,11 @@ try:
 except ImportError:
     cryptography = None  # type: ignore
 
+try:
+    from .extensions._ocsp import verify as ocsp_verify
+except ImportError:
+    ocsp_verify = None  # type: ignore
+
 
 def _implementation():
     """Return a dict with the Python implementation and version.
@@ -120,6 +125,7 @@ def info():
             "certifi_fallback": wassima.RUSTLS_LOADED is False and certifi is not None,
             "version": wassima.__version__,
         },
+        "ocsp": {"enabled": ocsp_verify is not None},
     }
 
 

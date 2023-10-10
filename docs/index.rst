@@ -59,6 +59,7 @@ Niquests is ready for today's web.
 
 - Automatic Content Decompression and Decoding
 - OS truststore by default, no more certifi!
+- OCSP Certificate Revocation Verification
 - Browser-style TLS/SSL Verification
 - Sessions with Cookie Persistence
 - Keep-Alive & Connection Pooling
@@ -73,8 +74,8 @@ Niquests is ready for today's web.
 - SOCKS Proxy Support
 - Connection Timeouts
 - Streaming Downloads
+- HTTP/2 by default
 - HTTP/3 over QUIC
-- HTTP/2
 
 Niquests officially supports Python 3.7+, and runs great on PyPy.
 
