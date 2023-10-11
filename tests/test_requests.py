@@ -2424,7 +2424,7 @@ class TestTimeout:
     @pytest.mark.parametrize(
         "timeout, error_text",
         (
-            ((3, 4, 5), "(connect, read)"),
+            ((3, 4, 5, 5), "(connect, read, total)"),
             ("foo", "must be an int, float or None"),
         ),
     )

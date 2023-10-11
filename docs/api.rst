@@ -78,16 +78,6 @@ Authentication
 .. autoclass:: niquests.auth.HTTPProxyAuth
 .. autoclass:: niquests.auth.HTTPDigestAuth
 
-
-
-Encodings
----------
-
-.. autofunction:: niquests.utils.get_encodings_from_content
-.. autofunction:: niquests.utils.get_encoding_from_headers
-.. autofunction:: niquests.utils.get_unicode_from_response
-
-
 .. _api-cookies:
 
 Cookies

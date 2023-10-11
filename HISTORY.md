@@ -1,6 +1,13 @@
 Release History
 ===============
 
+3.1.1 (2023-10-11)
+------------------
+
+**Fixed**
+- Fixed `Transfer-Encoding` wrongfully added to headers when body is actually of length 0. Due to ambiguous return of `super_len` in niquests internals.
+- Fixed accepting three-valued tuple for Timeout (connect, read, total) in addition of known (connect, read) tuple.
+
 3.1.0 (2023-10-10)
 ------------------
 

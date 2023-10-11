@@ -30,6 +30,7 @@ from urllib3.util.url import parse_url
 from ..exceptions import RequestException, SSLError
 from ..models import PreparedRequest
 from ._picotls import (
+    ALERT,
     CHANGE_CIPHER,
     HANDSHAKE,
     derive_secret,
@@ -180,6 +181,7 @@ def _ask_nicely_for_issuer(
     for der in der_certificates:
         certificates.append(load_der_x509_certificate(der))
 
+    send_tls(sock, ALERT, b"\x01\x00")
     sock.close()
 
     if len(certificates) <= 1:
