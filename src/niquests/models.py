@@ -470,7 +470,7 @@ class PreparedRequest:
 
             if length:
                 self.headers["Content-Length"] = str(length)
-            else:
+            elif body:
                 self.headers["Transfer-Encoding"] = "chunked"
         else:
             # Multi-part file uploads.

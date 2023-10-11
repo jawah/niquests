@@ -542,15 +542,21 @@ class HTTPAdapter(BaseAdapter):
             proxies=proxies,
         )
 
-        chunked = not (request.body is None or "Content-Length" in request.headers)
+        chunked = not (
+            bool(request.body) is False or "Content-Length" in request.headers
+        )
 
         if isinstance(timeout, tuple):
             try:
-                connect, read = timeout
-                timeout = TimeoutSauce(connect=connect, read=read)
+                if len(timeout) == 3:
+                    connect, read, total = timeout  # type: ignore[assignment]
+                else:
+                    connect, read = timeout  # type: ignore[assignment]
+                    total = None
+                timeout = TimeoutSauce(connect=connect, read=read, total=total)
             except ValueError:
                 raise ValueError(
-                    f"Invalid timeout {timeout}. Pass a (connect, read) timeout tuple, "
+                    f"Invalid timeout {timeout}. Pass a (connect, read) or (connect, read, total) timeout tuple, "
                     f"or a single float to set both timeouts to the same value."
                 )
         elif isinstance(timeout, TimeoutSauce):
