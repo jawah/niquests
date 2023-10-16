@@ -22,9 +22,10 @@ import os
 
 # Insert Requests' path into the system.
 sys.path.insert(0, os.path.abspath("../src"))
-sys.path.insert(0, os.path.abspath("_themes"))
 
 import niquests
+
+sys.modules["requests"] = niquests
 
 
 # -- General configuration ------------------------------------------------
@@ -37,9 +38,9 @@ import niquests
 # ones.
 extensions = [
     "sphinx.ext.autodoc",
-    "sphinx.ext.intersphinx",
     "sphinx.ext.todo",
     "sphinx.ext.viewcode",
+    "sphinx_copybutton",
 ]
 
 # Add any paths that contain templates here, relative to this directory.
@@ -58,7 +59,7 @@ master_doc = "index"
 
 # General information about the project.
 project = u"Niquests"
-copyright = u'MMXVIX. A <a href="https://kenreitz.org/projects">Kenneth Reitz</a> Project'
+copyright = u'MMXVIX. A Kenneth Reitz Project'
 author = u"Kenneth Reitz"
 
 # The version info for the project you're documenting, acts as replacement for
@@ -75,7 +76,7 @@ release = niquests.__version__
 #
 # This is also used if you do content translation via gettext catalogs.
 # Usually you set "language" from the command line for these cases.
-language = None
+language = "en"
 
 # There are two options for replacing |today|: either, you set today to some
 # non-false value, then it is used:
@@ -103,7 +104,8 @@ add_module_names = True
 # show_authors = False
 
 # The name of the Pygments (syntax highlighting) style to use.
-pygments_style = "flask_theme_support.FlaskyStyle"
+pygments_style = "sphinx"
+pygments_dark_style = "monokai"
 
 # A list of ignored prefixes for module index sorting.
 # modindex_common_prefix = []
@@ -119,18 +121,19 @@ todo_include_todos = True
 
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
-html_theme = "alabaster"
+html_theme = "furo"
 
 # Theme options are theme-specific and customize the look and feel of a theme
 # further.  For a list of options available for each theme, see the
 # documentation.
 html_theme_options = {
-    "show_powered_by": False,
-    "github_user": "requests",
-    "github_repo": "requests",
-    "github_banner": True,
-    "show_related": False,
-    "note_bg": "#FFF59C",
+    "source_repository": "https://github.com/jawah/niquests/",
+    "source_branch": "main",
+    "source_directory": "docs/",
+    "light_css_variables": {
+        "color-brand-primary": "#7C4DFF",
+        "color-brand-content": "#7C4DFF",
+    },
 }
 
 # Add any paths that contain custom themes here, relative to this directory.
@@ -171,17 +174,17 @@ html_static_path = ["_static"]
 html_use_smartypants = False
 
 # Custom sidebar templates, maps document names to template names.
-html_sidebars = {
-    "index": ["sidebarintro.html", "sourcelink.html", "searchbox.html", "hacks.html"],
-    "**": [
-        "sidebarlogo.html",
-        "localtoc.html",
-        "relations.html",
-        "sourcelink.html",
-        "searchbox.html",
-        "hacks.html",
-    ],
-}
+# html_sidebars = {
+#     "index": ["sidebarintro.html", "sourcelink.html", "searchbox.html", "hacks.html"],
+#     "**": [
+#         "sidebarlogo.html",
+#         "localtoc.html",
+#         "relations.html",
+#         "sourcelink.html",
+#         "searchbox.html",
+#         "hacks.html",
+#     ],
+# }
 
 # Additional templates that should be rendered to pages, maps page names to
 # template names.
@@ -382,5 +385,5 @@ epub_exclude_files = ["search.html"]
 
 intersphinx_mapping = {
     "python": ("https://docs.python.org/3/", None),
-    "urllib3.future": ("https://urllib3-future.readthedocs.io/en/latest", None),
+    "urllib3.future": ("https://urllib3future.readthedocs.io/en/latest", None),
 }

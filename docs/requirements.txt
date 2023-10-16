@@ -1,6 +1,8 @@
 # Pinning to avoid unexpected breakages.
 # Used by RTD to generate docs.
-Sphinx==4.2.0
-urllib3.future>=2.0.934
+Sphinx==7.2.6
+sphinx-copybutton==0.5.2
+urllib3.future>=2.1.900
 wassima>=1,<2
 kiss_headers>=2,<4
+furo>=2023.9.10

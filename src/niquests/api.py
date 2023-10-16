@@ -31,9 +31,9 @@ from ._typing import (
     TLSVerifyType,
 )
 from .models import PreparedRequest, Response
-from .structures import SharableLimitedDict
+from .structures import QuicSharedCache
 
-_SHARED_QUIC_CACHE: CacheLayerAltSvcType = SharableLimitedDict(max_size=12_288)
+_SHARED_QUIC_CACHE: CacheLayerAltSvcType = QuicSharedCache(max_size=12_288)
 
 
 def request(

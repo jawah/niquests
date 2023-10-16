@@ -132,3 +132,14 @@ class SharableLimitedDict(typing.MutableMapping):
     def __getitem__(self, item):
         with self._lock:
             return self._store[item]
+
+
+class QuicSharedCache(SharableLimitedDict):
+    def add_domain(
+        self, host: str, port: int | None = None, alt_port: int | None = None
+    ) -> None:
+        if port is None:
+            port = 443
+        if alt_port is None:
+            alt_port = port
+        self[(host, port)] = (host, alt_port)

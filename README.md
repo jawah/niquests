@@ -22,6 +22,8 @@ intend to keep it that way.
 {'authenticated': True, ...}
 >>> r
 <Reponse HTTP/2 [200]>
+>>> r.ocsp_verified
+True
 ```
 
 Niquests allows you to send HTTP requests extremely easily. There’s no need to manually add query strings to your URLs, or to form-encode your `PUT` & `POST` data — but nowadays, just use the `json` method!

@@ -17,10 +17,6 @@ Release v\ |version|. (:ref:`Installation <install>`)
     :target: https://pypi.org/project/niquests/
     :alt: License Badge
 
-.. image:: https://img.shields.io/pypi/wheel/niquests.svg
-    :target: https://pypi.org/project/niquests/
-    :alt: Wheel Support Badge
-
 .. image:: https://img.shields.io/pypi/pyversions/niquests.svg
     :target: https://pypi.org/project/niquests/
     :alt: Python Version Support Badge
@@ -43,6 +39,10 @@ is designed to be a drop-in replacement for **Requests** that is no longer under
     '{"type":"User"...'
     >>> r.json()
     {'private_gists': 419, 'total_private_repos': 77, ...}
+    >>> r
+    <Reponse HTTP/2 [200]>
+    >>> r.ocsp_verified
+    True
 
 See `similar code, sans Niquests <https://gist.github.com/973705>`_.
 
@@ -50,7 +50,7 @@ See `similar code, sans Niquests <https://gist.github.com/973705>`_.
 **Niquests** allows you to send HTTP/1.1, HTTP/2 and HTTP/3 requests extremely easily.
 There's no need to manually add query strings to your
 URLs, or to form-encode your POST data. Keep-alive and HTTP connection pooling
-are 100% automatic, thanks to `urllib3 <https://github.com/urllib3/urllib3>`_.
+are 100% automatic, thanks to `urllib3.future <https://github.com/jawah/urllib3.future>`_.
 
 Beloved Features
 ----------------

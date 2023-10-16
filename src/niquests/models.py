@@ -32,7 +32,7 @@ from urllib3.exceptions import (
     SSLError,
 )
 from urllib3.fields import RequestField
-from urllib3.filepost import encode_multipart_formdata
+from urllib3.filepost import choose_boundary, encode_multipart_formdata
 from urllib3.util import parse_url
 
 from ._internal_utils import to_native_string
@@ -257,6 +257,10 @@ class PreparedRequest:
         #: marker about if OCSP post-handshake verification took place.
         self.ocsp_verified: bool | None = None
 
+    @property
+    def oheaders(self) -> Headers:
+        return parse_it(self.headers)
+
     def prepare(
         self,
         method: HttpMethodType | None = None,
@@ -423,6 +427,7 @@ class PreparedRequest:
         # Nottin' on you.
         body: BodyType | None = None
         content_type: str | None = None
+        enforce_form_data = False
 
         if not data and json is not None:
             # urllib3 requires a bytes-like body. Python 2's json.dumps
@@ -492,17 +497,43 @@ class PreparedRequest:
                 (body, content_type) = self._encode_files(files, data)  # type: ignore[arg-type]
             else:
                 if data:
-                    body = self._encode_params(data)
+                    enforce_form_data = (
+                        "content-type" in self.oheaders
+                        and isinstance(self.oheaders.content_type, list) is False
+                        and "multipart/form-data" in self.oheaders.content_type
+                    )
+
+                    if enforce_form_data:
+                        form_data_boundary = (
+                            self.oheaders.content_type.boundary  # type: ignore[union-attr]
+                            if enforce_form_data
+                            and self.oheaders.content_type.get("boundary")  # type: ignore[union-attr]
+                            else choose_boundary()
+                        )
+                    else:
+                        form_data_boundary = None
+
+                    body = self._encode_params(
+                        data,
+                        boundary_for_multipart=form_data_boundary,
+                    )
                     if isinstance(data, str) or hasattr(data, "read"):
                         content_type = None
                     else:
-                        content_type = "application/x-www-form-urlencoded"
+                        if not enforce_form_data:
+                            content_type = "application/x-www-form-urlencoded"
+                        else:
+                            content_type = (
+                                f"multipart/form-data; boundary={form_data_boundary}"
+                            )
 
             assert isinstance(body, (list, dict)) is False
             self.prepare_content_length(body)
 
             # Add content-type if it wasn't explicitly provided.
             if content_type and ("content-type" not in self.headers):
+                self.headers["Content-Type"] = content_type
+            elif content_type and enforce_form_data:
                 self.headers["Content-Type"] = content_type
 
         self.body = body
@@ -635,6 +666,7 @@ class PreparedRequest:
     @staticmethod
     def _encode_params(
         data: QueryParameterType | BodyFormType | typing.IO,
+        boundary_for_multipart: str | None = None,
     ) -> str | bytes | bytearray:
         """Encode parameters in a piece of data.
 
@@ -650,9 +682,13 @@ class PreparedRequest:
         elif hasattr(data, "__iter__"):
             result = []
             for k, vs in to_key_val_list(data):
-                iterable_vs: list[str | bytes]
-                if isinstance(vs, str) or not hasattr(vs, "__iter__"):
-                    iterable_vs = [vs]
+                iterable_vs: typing.Iterable[str | bytes]
+                if isinstance(vs, (str, bytes, int, float)):
+                    # not officially supported, but some people maybe passing ints or float.
+                    if isinstance(vs, (str, bytes)) is False:
+                        iterable_vs = [str(vs)]
+                    else:
+                        iterable_vs = [vs]
                 else:
                     iterable_vs = vs
                 for v in iterable_vs:
@@ -663,6 +699,10 @@ class PreparedRequest:
                                 v.encode("utf-8") if isinstance(v, str) else v,
                             )
                         )
+            if boundary_for_multipart:
+                return encode_multipart_formdata(
+                    result, boundary=boundary_for_multipart  # type: ignore[arg-type]
+                )[0]
             return urlencode(result, doseq=True)
         else:
             raise ValueError(

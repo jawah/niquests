@@ -23,7 +23,7 @@ QueryParameterType: typing.TypeAlias = typing.Union[
 ]
 BodyFormType: typing.TypeAlias = typing.Union[
     typing.List[typing.Tuple[str, str]],
-    typing.Dict[str, str],
+    typing.Dict[str, typing.Union[typing.List[str], str]],
 ]
 #: Accepted types for the payload in POST, PUT, and PATCH requests.
 BodyType: typing.TypeAlias = typing.Union[
