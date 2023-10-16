@@ -299,6 +299,22 @@ and it will be encoded automatically:
 
 Note, the ``json`` parameter is ignored if either ``data`` or ``files`` is passed.
 
+POST a Multipart Form-Data without File
+---------------------------------------
+
+Since Niquests 3.1.2 it is possible to overrule the default conversion to ``application/x-www-form-urlencoded`` type.
+You can submit a form-data by helping Niquests understand what you meant.
+
+    >>> url = 'https://httpbin.org/post'
+    >>> payload = {'some': 'data'}
+
+    >>> r = niquests.post(url, data=payload, headers={"Content-Type": "multipart/form-data"})
+
+Now, instead of submitting a urlencoded body, as per the default, Niquests will send instead a proper
+form-data.
+
+.. note:: You can also specify manually a boundary in the header value. Niquests will reuse it. Otherwise it will assign a random one.
+
 POST a Multipart-Encoded File
 -----------------------------
 

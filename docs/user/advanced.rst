@@ -12,7 +12,7 @@ Session Objects
 
 The Session object allows you to persist certain parameters across
 niquests. It also persists cookies across all requests made from the
-Session instance, and will use ``urllib3``'s `connection pooling`_. So if
+Session instance, and will use ``urllib3.future``'s `connection pooling`_. So if
 you're making several requests to the same host, the underlying TCP
 connection will be reused, which can result in a significant performance
 increase (see `HTTP persistent connection`_).
@@ -640,7 +640,14 @@ Alternatively you can configure it once for an entire
 When the proxies configuration is not overridden per request as shown above,
 Niquests relies on the proxy configuration defined by standard
 environment variables ``http_proxy``, ``https_proxy``, ``no_proxy``,
-and ``all_proxy``. Uppercase variants of these variables are also supported.
+and ``all_proxy``.
+
+.. admonition:: IPv6 in NO_PROXY
+   :class: note
+
+   Available since version 3.1.2
+
+Uppercase variants of these variables are also supported.
 You can therefore set them to configure Niquests (only set the ones relevant
 to your needs)::
 
@@ -1178,3 +1185,27 @@ This feature may not be available if the ``cryptography`` package is missing fro
 Verify the availability by running ``python -m niquests.help``.
 
 .. note:: Access property ``ocsp_verified`` in both ``PreparedRequest``, and ``Response`` to have information about this post handshake verification.
+
+Specify HTTP/3 capable endpoint preemptively
+--------------------------------------------
+
+Preemptively register a website to be HTTP/3 capable prior to the first TLS over TCP handshake.
+You can do so by doing like::
+
+    from niquests import Session
+
+    s = Session()
+    s.quic_cache_layer.add_domain("cloudflare.com")
+
+This will prevent the first request being made with HTTP/2 or HTTP/1.1.
+
+.. note:: You can also specify an alternate destination port if QUIC is being served on anything else than 443.
+
+Sample::
+
+    s.quic_cache_layer.add_domain("cloudflare.com", alt_port=8544)
+
+This would mean that attempting to request ``https://cloudflare.com/a/b`` will be routed through ``https://cloudflare.com:8544/a/b``
+over QUIC.
+
+.. warning:: You cannot specify another hostname for security reasons.

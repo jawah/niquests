@@ -1,6 +1,31 @@
 Release History
 ===============
 
+3.1.2 (2023-10-16)
+------------------
+
+**Fixed**
+- Static type checker not accepting **list\[str\]** in values for argument **data**.
+
+**Misc**
+- Changed the documentation theme by **furo**.
+
+**Added**
+- IPv6 support in the `NO_PROXY` environment variable or in the **proxies** (key no_proxy) argument.
+  Patch taken from idle upstream PR https://github.com/psf/requests/pull/5953
+- Preemptively register a website to be HTTP/3 capable prior to the first TLS over TCP handshake.
+  You can do so by doing like:
+
+  ```python
+  from niquests import Session
+
+  s = Session()
+  s.quic_cache_layer.add_domain("cloudflare.com")
+  ```
+- Passed **data** will be converted to form-data if headers have a Content-Type header and is set to `multipart/form-data`.
+  Otherwise, by default, it is still urlencoded. If you specified a boundary, it will be used, otherwise, a random one will
+  be generated.
+
 3.1.1 (2023-10-11)
 ------------------
 

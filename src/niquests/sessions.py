@@ -70,7 +70,7 @@ from .models import (  # noqa: F401
     Response,
 )
 from .status_codes import codes
-from .structures import CaseInsensitiveDict, SharableLimitedDict
+from .structures import CaseInsensitiveDict, QuicSharedCache
 from .utils import (  # noqa: F401
     DEFAULT_PORTS,
     default_headers,
@@ -269,7 +269,7 @@ class Session:
         self.quic_cache_layer = (
             quic_cache_layer
             if quic_cache_layer is not None
-            else SharableLimitedDict(max_size=12_288)
+            else QuicSharedCache(max_size=12_288)
         )
 
         # Default connection adapters.
@@ -1116,7 +1116,7 @@ class Session:
         for attr, value in state.items():
             setattr(self, attr, value)
 
-        self.quic_cache_layer = SharableLimitedDict(max_size=12_288)
+        self.quic_cache_layer = QuicSharedCache(max_size=12_288)
 
         self.adapters = OrderedDict()
         self.mount(

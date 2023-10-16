@@ -2163,6 +2163,35 @@ class TestRequests:
         assert "Transfer-Encoding" in prepared_request.headers
         assert "Content-Length" not in prepared_request.headers
 
+    def test_data_multipart_without_files(self, httpbin):
+        payload = {"hello": "world", "Niquests": "Welcome you!"}
+        url = httpbin("post")
+        r = niquests.post(
+            url, data=payload, headers={"Content-Type": "multipart/form-data"}
+        )
+
+        assert r.status_code == 200
+        assert b"Content-Disposition: form-data" in r.request.body
+        assert r.json()["form"]["hello"] == "world"
+        assert r.json()["form"]["Niquests"] == "Welcome you!"
+
+    def test_data_multipart_pre_assigned_boundary_without_files(self, httpbin):
+        payload = {"hello": "world", "Niquests": "Welcome you!"}
+        url = httpbin("post")
+        r = niquests.post(
+            url,
+            data=payload,
+            headers={
+                "Content-Type": "multipart/form-data; boundary=c5c0e7f46481be260be8e9f68fcabf12"
+            },
+        )
+
+        assert r.status_code == 200
+        assert b"Content-Disposition: form-data" in r.request.body
+        assert b"--c5c0e7f46481be260be8e9f68fcabf12"
+        assert r.json()["form"]["hello"] == "world"
+        assert r.json()["form"]["Niquests"] == "Welcome you!"
+
     def test_custom_redirect_mixin(self, httpbin):
         """Tests a custom mixin to overwrite ``get_redirect_target``.
 
