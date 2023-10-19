@@ -16,8 +16,8 @@ HttpMethodType: typing.TypeAlias = (
 )
 #: List of formats accepted for URL queries parameters. (e.g. /?param1=a&param2=b)
 QueryParameterType: typing.TypeAlias = typing.Union[
-    typing.List[typing.Tuple[str, str]],
-    typing.Mapping[str, str],
+    typing.List[typing.Tuple[str, typing.Union[str, typing.List[str]]]],
+    typing.Mapping[str, typing.Union[str, typing.List[str]]],
     bytes,
     str,
 ]
@@ -32,6 +32,7 @@ BodyType: typing.TypeAlias = typing.Union[
     bytearray,
     typing.IO,
     BodyFormType,
+    typing.Iterable[bytes],
 ]
 #: HTTP Headers can be represented through three ways. 1) typical dict, 2) internal insensitive dict, and 3) list of tuple.
 HeadersType: typing.TypeAlias = typing.Union[
@@ -123,9 +124,7 @@ FieldsType: typing.TypeAlias = typing.Union[
 _HV = typing.TypeVar("_HV")
 
 HookCallableType: typing.TypeAlias = typing.Callable[
-    [
-        _HV,
-    ],
+    [_HV],
     typing.Optional[_HV],
 ]
 

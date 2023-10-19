@@ -514,7 +514,7 @@ class PreparedRequest:
                         form_data_boundary = None
 
                     body = self._encode_params(
-                        data,
+                        data,  # type: ignore[arg-type]
                         boundary_for_multipart=form_data_boundary,
                     )
                     if isinstance(data, str) or hasattr(data, "read"):
@@ -1108,7 +1108,9 @@ class Response:
         'text/html'
         """
         if self.raw:
-            return parse_it(self.raw)
+            headers = parse_it(self.raw)
+            headers -= "Set-Cookie"
+            return headers
         return parse_it(self.headers)
 
     @property

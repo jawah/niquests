@@ -1209,3 +1209,22 @@ This would mean that attempting to request ``https://cloudflare.com/a/b`` will b
 over QUIC.
 
 .. warning:: You cannot specify another hostname for security reasons.
+
+Increase the default Alt-Svc cache size
+---------------------------------------
+
+When a server yield its support for HTTP/3 over QUIC, the information
+is stored within a local thread safe in-memory storage.
+
+That storage is limited to 12,288 entries by default, and you can override this
+by passing a custom ``QuicSharedCache`` instance like so::
+
+    import niquests
+
+    cache = niquests.structures.QuicSharedCache(max_size=128_000)
+    session = niquests.Session(quic_cache_layer=cache)
+
+
+.. note:: Passing ``None`` to max size actually permit the cache to grow indefinitely. This is unwise and can lead to significant RAM usage.
+
+When the cache is full, the oldest entry is removed.
