@@ -1,6 +1,32 @@
 Release History
 ===============
 
+3.1.3 (2023-10-19)
+------------------
+
+**Fixed**
+- **oheaders** from a Response contains `Set-Cookie` entries when it should not.
+- Static type checker not accepting **list\[str\]** in values for argument **param**.
+- Static type checker not accepting **Iterable\[bytes\]** for **data**.
+- Function proxy_bypass_registry for Windows may be fooled by insufficient control on our end.
+  Patch taken from idle upstream PR https://github.com/psf/requests/pull/6302
+- SSLError message related to the certificate revocation could print `None` instead of `unspecified` for the reason.
+
+**Changed**
+- Allow setting `None` in max_size for **SharableLimitedDict** to remove limits.
+- Using `RLock` instead of `Lock` in **SharableLimitedDict**, and **InMemoryRevocationStatus** classes.
+
+**Misc**
+- Missing assert statements for test test_header_validation.
+- Unrelated warnings are now silent in our test suite.
+- Unexpected warning now trigger an error in our test suite.
+- Removed `tests.compat`.
+- Removed `test-readme`, `flake8`, and `publish` from Makefile.
+
+**Added**
+- Extra-dist install `http3` to force install HTTP/3 support in your environment if not present.
+- Extra-dist install `ocsp` to force install certificate revocation support in your environment if not present.
+
 3.1.2 (2023-10-16)
 ------------------
 

@@ -105,10 +105,10 @@ class LookupDict(dict):
 
 
 class SharableLimitedDict(typing.MutableMapping):
-    def __init__(self, max_size: int) -> None:
+    def __init__(self, max_size: int | None) -> None:
         self._store: typing.MutableMapping[typing.Any, typing.Any] = {}
         self._max_size = max_size
-        self._lock = threading.Lock()
+        self._lock = threading.RLock()
 
     def __delitem__(self, __key) -> None:
         with self._lock:
@@ -124,7 +124,7 @@ class SharableLimitedDict(typing.MutableMapping):
 
     def __setitem__(self, key, value):
         with self._lock:
-            if len(self._store) >= self._max_size:
+            if self._max_size and len(self._store) >= self._max_size:
                 self._store.popitem()
 
             self._store[key] = value

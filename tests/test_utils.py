@@ -6,7 +6,7 @@ import tarfile
 import urllib.parse
 from collections import deque
 from http import cookiejar
-from io import BytesIO
+from io import BytesIO, StringIO
 from unittest import mock
 
 import pytest
@@ -42,18 +42,13 @@ from niquests.utils import (
     urldefragauth,
 )
 
-from .compat import StringIO, cStringIO
-
 
 class TestSuperLen:
     @pytest.mark.parametrize(
         "stream, value",
         (
-            (StringIO.StringIO, "Test"),
+            (StringIO, "Test"),
             (BytesIO, b"Test"),
-            pytest.param(
-                cStringIO, "Test", marks=pytest.mark.skipif("cStringIO is None")
-            ),
         ),
     )
     def test_io_streams(self, stream, value):
@@ -63,7 +58,7 @@ class TestSuperLen:
 
     def test_super_len_correctly_calculates_len_of_partially_read_file(self):
         """Ensure that we handle partially consumed file like objects."""
-        s = StringIO.StringIO()
+        s = StringIO()
         s.write("foobarbogus")
         assert super_len(s) == 0
 
@@ -134,7 +129,7 @@ class TestSuperLen:
         assert super_len(LenFile()) == 5
 
     def test_super_len_with_tell(self):
-        foo = StringIO.StringIO("12345")
+        foo = StringIO("12345")
         assert super_len(foo) == 5
         foo.read(2)
         assert super_len(foo) == 3

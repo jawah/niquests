@@ -48,7 +48,13 @@ dependencies = [
 
 [project.optional-dependencies]
 socks = [
-  "PySocks>=1.5.6, !=1.5.7",
+    "PySocks>=1.5.6, !=1.5.7",
+]
+http3 = [
+    "qh3<1.0.0,>=0.11.3"
+]
+ocsp = [
+    "cryptography<42.0.0,>=41.0.0"
 ]
 
 [project.urls]
@@ -91,3 +97,11 @@ addopts = "--doctest-modules"
 doctest_optionflags = "NORMALIZE_WHITESPACE ELLIPSIS"
 minversion = "6.2"
 testpaths = ["tests"]
+filterwarnings = [
+    "error",
+    '''ignore:'parse_authorization_header' is deprecated and will be removed:DeprecationWarning''',
+    '''ignore:The 'set_digest' method is deprecated and will be removed:UserWarning''',
+    '''ignore:Passing bytes as a header value is deprecated and will:DeprecationWarning''',
+    '''ignore:The 'JSONIFY_PRETTYPRINT_REGULAR' config key is deprecated and will:DeprecationWarning''',
+    '''ignore:unclosed .*:ResourceWarning''',
+]

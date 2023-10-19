@@ -9,10 +9,10 @@ import json
 import os
 import pickle
 import re
-import warnings
 from collections.abc import MutableMapping
 from http import cookiejar as cookielib
 from http.cookies import Morsel
+from io import StringIO
 from json import JSONDecodeError
 from unittest import mock
 from urllib.parse import urlparse
@@ -48,8 +48,6 @@ from niquests.models import PreparedRequest, urlencode
 from niquests.sessions import Session
 from niquests.structures import CaseInsensitiveDict
 
-from . import SNIMissingWarning
-from .compat import StringIO
 from .utils import override_environ
 
 # Requests to this URL should always fail with a connection timeout (nothing
@@ -58,20 +56,6 @@ TARPIT = "http://10.255.255.1"
 
 # This is to avoid waiting the timeout of using TARPIT
 INVALID_PROXY = "http://localhost:1"
-
-try:
-    from ssl import SSLContext
-
-    del SSLContext
-    HAS_MODERN_SSL = True
-except ImportError:
-    HAS_MODERN_SSL = False
-
-try:
-    niquests.pyopenssl
-    HAS_PYOPENSSL = True
-except AttributeError:
-    HAS_PYOPENSSL = False
 
 
 class TestRequests:
@@ -86,6 +70,8 @@ class TestRequests:
         niquests.put
         niquests.patch
         niquests.post
+        niquests.delete
+        niquests.options
 
     @pytest.mark.parametrize(
         "exception, url",
@@ -979,35 +965,6 @@ class TestRequests:
         r = niquests.get(httpbin(), cert=".")
         assert r.status_code == 200
 
-    @pytest.mark.skipif(
-        SNIMissingWarning is None,
-        reason="urllib3 2.0 removed that warning and errors out instead",
-    )
-    def test_https_warnings(self, nosan_server):
-        """warnings are emitted with niquests.get"""
-        host, port, ca_bundle = nosan_server
-        if HAS_MODERN_SSL or HAS_PYOPENSSL:
-            warnings_expected = ("SubjectAltNameWarning",)
-        else:
-            warnings_expected = (
-                "SNIMissingWarning",
-                "InsecurePlatformWarning",
-                "SubjectAltNameWarning",
-            )
-
-        with pytest.warns(None) as warning_records:
-            warnings.simplefilter("always")
-            niquests.get(f"https://localhost:{port}/", verify=ca_bundle)
-
-        warning_records = [
-            item
-            for item in warning_records
-            if item.category.__name__ != "ResourceWarning"
-        ]
-
-        warnings_category = tuple(item.category.__name__ for item in warning_records)
-        assert warnings_category == warnings_expected
-
     def test_certificate_failure(self, httpbin_secure):
         """
         When underlying SSL problems occur, an SSLError is raised.
@@ -1380,7 +1337,7 @@ class TestRequests:
 
     def test_response_is_iterable(self):
         r = niquests.Response()
-        io = StringIO.StringIO("abc")
+        io = StringIO("abc")
         read_ = io.read
 
         def read_mock(amt, decode_content=None):
@@ -1696,7 +1653,7 @@ class TestRequests:
         }
         r = niquests.get(httpbin("get"), headers=valid_headers)
         for key in valid_headers.keys():
-            valid_headers[key] == r.request.headers[key]
+            assert valid_headers[key] == r.request.headers[key]
 
     @pytest.mark.parametrize(
         "invalid_header, key",
@@ -2123,7 +2080,7 @@ class TestRequests:
         Should work when `release_conn` attr doesn't exist on `response.raw`.
         """
         resp = niquests.Response()
-        resp.raw = StringIO.StringIO("test")
+        resp.raw = StringIO("test")
         assert not resp.raw.closed
         resp.close()
         assert resp.raw.closed
@@ -2537,7 +2494,7 @@ class RedirectSession(Session):
         return r
 
     def _build_raw(self):
-        string = StringIO.StringIO("")
+        string = StringIO("")
         setattr(string, "release_conn", lambda *args: args)
         return string
 

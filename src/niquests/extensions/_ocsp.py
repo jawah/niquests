@@ -53,7 +53,9 @@ def _str_fingerprint_of(certificate: Certificate) -> str:
 def _infer_issuer_from(certificate: Certificate) -> Certificate | None:
     issuer: Certificate | None = None
 
-    for der_cert in wassima.root_der_certificates() + _SharedStaplingCache.issuers:
+    for der_cert in (
+        wassima.root_der_certificates() + _SharedRevocationStatusCache.issuers
+    ):
         if isinstance(der_cert, Certificate):
             possible_issuer = der_cert
         else:
@@ -197,7 +199,7 @@ class InMemoryRevocationStatus:
         self._store: dict[str, ocsp.OCSPResponse] = {}
         self._issuers: list[Certificate] = []
         self._timings: list[datetime.datetime] = []
-        self._access_lock: threading.Lock = threading.Lock()
+        self._access_lock = threading.RLock()
         self.hold: bool = False
 
     @property
@@ -295,7 +297,7 @@ class InMemoryRevocationStatus:
                 self._timings.pop(0)
 
 
-_SharedStaplingCache = InMemoryRevocationStatus()
+_SharedRevocationStatusCache = InMemoryRevocationStatus()
 
 
 def verify(
@@ -327,17 +329,17 @@ def verify(
 
     # this feature, by default, is reserved for a reasonable usage.
     if not strict:
-        mean_rate_sec = _SharedStaplingCache.rate()
-        cache_count = len(_SharedStaplingCache)
+        mean_rate_sec = _SharedRevocationStatusCache.rate()
+        cache_count = len(_SharedRevocationStatusCache)
 
         if cache_count >= 10 and mean_rate_sec <= 1.0:
-            _SharedStaplingCache.hold = True
+            _SharedRevocationStatusCache.hold = True
 
-        if _SharedStaplingCache.hold:
+        if _SharedRevocationStatusCache.hold:
             return
 
     peer_certificate = load_der_x509_certificate(conn_info.certificate_der)
-    cached_response = _SharedStaplingCache.check(peer_certificate)
+    cached_response = _SharedRevocationStatusCache.check(peer_certificate)
 
     if cached_response is not None:
         issuer_certificate = _infer_issuer_from(peer_certificate)
@@ -352,7 +354,7 @@ def verify(
                 r.ocsp_verified = False
                 raise SSLError(
                     f"""Unable to establish a secure connection to {r.url} because the certificate has been revoked
-                    by issuer ({cached_response.revocation_reason}).
+                    by issuer ({cached_response.revocation_reason or "unspecified"}).
                     You should avoid trying to request anything from it as the remote has been compromised.
                     See https://en.wikipedia.org/wiki/OCSP_stapling for more information."""
                 )
@@ -479,14 +481,16 @@ def verify(
 
         ocsp_resp = ocsp.load_der_ocsp_response(ocsp_http_response.content)
 
-        _SharedStaplingCache.save(peer_certificate, issuer_certificate, ocsp_resp)
+        _SharedRevocationStatusCache.save(
+            peer_certificate, issuer_certificate, ocsp_resp
+        )
 
         if ocsp_resp.response_status == ocsp.OCSPResponseStatus.SUCCESSFUL:
             if ocsp_resp.certificate_status == ocsp.OCSPCertStatus.REVOKED:
                 r.ocsp_verified = False
                 raise SSLError(
                     f"""Unable to establish a secure connection to {r.url} because the certificate has been revoked
-                    by issuer ({ocsp_resp.revocation_reason}).
+                    by issuer ({ocsp_resp.revocation_reason or "unspecified"}).
                     You should avoid trying to request anything from it as the remote has been compromised.
                     See https://en.wikipedia.org/wiki/OCSP_stapling for more information."""
                 )
