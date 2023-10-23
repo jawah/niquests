@@ -669,6 +669,9 @@ class TestRequests:
             r = niquests.get(url, auth=wrong_auth)
             assert r.status_code == 401
 
+            r = niquests.get(url, headers={"Authorization": "SHOULD DISCARD NETRC!"})
+            assert r.status_code == 401
+
             s = niquests.Session()
 
             # Should use netrc and work.
@@ -677,6 +680,11 @@ class TestRequests:
 
             # Given auth should override and fail.
             s.auth = wrong_auth
+            r = s.get(url)
+            assert r.status_code == 401
+
+            s.auth = None
+            s.headers["Authorization"] = "SHOULD DISCARD NETRC!"
             r = s.get(url)
             assert r.status_code == 401
         finally:

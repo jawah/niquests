@@ -1,6 +1,17 @@
 Release History
 ===============
 
+3.1.4 (2023-10-23)
+------------------
+
+**Fixed**
+- Static type checker not accepting **iterable\[str\]** for **data**. A fix in urllib3.future allows it since v2.1.902.
+- Unattended override of manually provided **Authorization** if `.netrc` existed with an eligible entry.
+  Taken from closed PR https://github.com/psf/requests/pull/6555 and initially raised in https://github.com/psf/requests/issues/3929
+
+**Added**
+- **oheaders** property in `Request`, and `PreparedRequest` in addition to `Response`.
+
 3.1.3 (2023-10-19)
 ------------------
 
