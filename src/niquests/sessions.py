@@ -308,7 +308,11 @@ class Session:
 
         # Set environment's basic authentication if not explicitly set.
         auth = request.auth
-        if self.trust_env and not auth and not self.auth:
+        has_authorization_set = (
+            "authorization" in self.headers or "authorization" in request.oheaders
+        )
+
+        if self.trust_env and not auth and not self.auth and not has_authorization_set:
             auth = get_netrc_auth(request.url)
 
         p = PreparedRequest()

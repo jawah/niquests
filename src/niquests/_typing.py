@@ -33,6 +33,7 @@ BodyType: typing.TypeAlias = typing.Union[
     typing.IO,
     BodyFormType,
     typing.Iterable[bytes],
+    typing.Iterable[str],
 ]
 #: HTTP Headers can be represented through three ways. 1) typical dict, 2) internal insensitive dict, and 3) list of tuple.
 HeadersType: typing.TypeAlias = typing.Union[

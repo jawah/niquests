@@ -165,6 +165,10 @@ class Request:
         self.auth = auth
         self.cookies = cookies
 
+    @property
+    def oheaders(self) -> Headers:
+        return parse_it(self.headers)
+
     def __repr__(self) -> str:
         return f"<Request [{self.method}]>"
 
