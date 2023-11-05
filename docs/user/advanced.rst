@@ -1228,3 +1228,26 @@ by passing a custom ``QuicSharedCache`` instance like so::
 .. note:: Passing ``None`` to max size actually permit the cache to grow indefinitely. This is unwise and can lead to significant RAM usage.
 
 When the cache is full, the oldest entry is removed.
+
+Disable HTTP/2, and/or HTTP/3
+-----------------------------
+
+You can at your own discretion disable a protocol by passing ``disable_http2=True`` or
+``disable_http3=True`` within your ``Session`` constructor.
+
+.. warning:: It is actually forbidden to disable HTTP/1.1 as the underlying library (urllib3.future) does not permit it for now.
+
+Having a session without HTTP/2 enabled should be done that way::
+
+    import niquests
+
+    session = niquests.Session(disable_http2=True)
+
+
+Passing a bearer token
+----------------------
+
+You may use ``auth=my_token`` as a shortcut to passing ``headers={"Authorization": f"Bearer {my_token}"}`` in
+get, post, request, etc...
+
+.. note:: If you pass a token with its custom prefix, it will be taken and passed as-is. e.g. ``auth="NotBearer eyDdx.."``

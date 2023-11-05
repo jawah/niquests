@@ -18,7 +18,7 @@ whenever you're making a lot of web niquests.
 Requests-Toolbelt
 -----------------
 
-`Requests-Toolbelt`_ is a collection of utilities that some users of Requests may desire,
+`Requests-Toolbelt`_ is a collection of utilities that some users of Niquests may desire,
 but do not belong in Niquests proper. This library is actively maintained
 by members of the Requests core team, and reflects the functionality most
 requested by users within the community.

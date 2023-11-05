@@ -23,7 +23,7 @@ from urllib.parse import urlencode, urlsplit, urlunparse
 
 from charset_normalizer import from_bytes
 from kiss_headers import Headers, parse_it
-from urllib3 import BaseHTTPResponse, ConnectionInfo
+from urllib3 import BaseHTTPResponse, ConnectionInfo, ResponsePromise
 from urllib3.exceptions import (
     DecodeError,
     LocationParseError,
@@ -49,7 +49,7 @@ from ._typing import (
     MultiPartFilesType,
     QueryParameterType,
 )
-from .auth import HTTPBasicAuth
+from .auth import BearerTokenAuth, HTTPBasicAuth
 from .cookies import (
     RequestsCookieJar,
     _copy_cookie_jar,
@@ -576,6 +576,8 @@ class PreparedRequest:
             if isinstance(auth, tuple) and len(auth) == 2:
                 # special-case basic HTTP auth
                 auth = HTTPBasicAuth(*auth)
+            elif isinstance(auth, str):
+                auth = BearerTokenAuth(auth)
 
             if not callable(auth):
                 raise ValueError(
@@ -847,6 +849,14 @@ class Response:
         "request",
     ]
 
+    #: internals used for lazy responses. Do not try to access those unless you know what you are doing.
+    #: they don't always exist.
+    _promise: ResponsePromise
+    _gather: typing.Callable[[], None]
+    _resolve_redirect: typing.Callable[
+        [Response, PreparedRequest], PreparedRequest | None
+    ]
+
     def __init__(self) -> None:
         self._content: typing.Literal[False] | bytes | None = False
         self._content_consumed: bool = False
@@ -894,6 +904,54 @@ class Response:
         #: is a response.
         self.request: PreparedRequest | None = None
 
+    @property
+    def lazy(self) -> bool:
+        """
+        Determine if response isn't received and is actually a placeholder.
+        Only significant if request was sent through a multiplexed connection.
+        """
+        return self.raw is None and hasattr(self, "_gather")
+
+    def __getattribute__(self, item):
+        if (
+            item
+            not in [
+                "_gather",
+                "lazy",
+                "request",
+                "_promise",
+                "_resolve_redirect",
+                "__getstate__",
+                "__setstate__",
+                "__enter__",
+                "__exit__",
+            ]
+            and item
+            in Response.__attrs__
+            + [
+                "json",
+                "ok",
+                "links",
+                "content",
+                "text",
+                "iter_lines",
+                "iter_content",
+                "next",
+                "is_redirect",
+                "is_permanent_redirect",
+                "status_code",
+                "cookies",
+                "reason",
+                "encoding",
+                "url",
+                "headers",
+                "next",
+            ]
+            and self.lazy
+        ):
+            self._gather()
+        return super().__getattribute__(item)
+
     def __enter__(self):
         return self
 
@@ -903,6 +961,8 @@ class Response:
     def __getstate__(self):
         # Consume everything; accessing the content attribute makes
         # sure the content has been fully read.
+        if self.lazy:
+            self._gather()
         if not self._content_consumed:
             self.content
 
@@ -917,16 +977,20 @@ class Response:
         setattr(self, "raw", None)
 
     def __repr__(self) -> str:
-        if self.http_version is None:
-            return "<Response Non-Ready>"
-
-        http_revision = self.http_version / 10
+        if (
+            self.request is None
+            or self.request.conn_info is None
+            or self.request.conn_info.http_version is None
+        ):
+            return "<Response Dummy>"
 
         # HTTP/2.0 is not preferred, cast it to HTTP/2 instead.
-        if http_revision.is_integer():
-            http_revision = int(http_revision)
+        http_revision = self.request.conn_info.http_version.value.replace(".0", "")
 
-        return f"<Response HTTP/{http_revision} [{self.status_code}]>"
+        if self.lazy:
+            return f"<ResponsePromise {http_revision}>"
+
+        return f"<Response {http_revision} [{self.status_code}]>"
 
     def __bool__(self) -> bool:
         """Returns True if :attr:`status_code` is less than 400.
@@ -1261,11 +1325,11 @@ class Response:
         """
         return self.raw.version if self.raw else None
 
-    def raise_for_status(self) -> None:
+    def raise_for_status(self) -> Response:
         """Raises :class:`HTTPError`, if one occurred."""
 
         if self.status_code is None:
-            return
+            return self
 
         http_error_msg = ""
         if isinstance(self.reason, bytes):
@@ -1292,6 +1356,8 @@ class Response:
 
         if http_error_msg:
             raise HTTPError(http_error_msg, response=self)
+
+        return self
 
     def close(self) -> None:
         """Releases the connection back to the pool. Once this method has been

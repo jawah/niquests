@@ -6,6 +6,7 @@ except ImportError:
     from BaseHTTPServer import HTTPServer
     from SimpleHTTPServer import SimpleHTTPRequestHandler
 
+import socket
 import ssl
 import threading
 from urllib.parse import urljoin
@@ -57,3 +58,25 @@ def nosan_server(tmp_path_factory):
 
     server.shutdown()
     server_thread.join()
+
+
+_WAN_AVAILABLE = None
+
+
+@pytest.fixture(scope="function")
+def requires_wan() -> None:
+    global _WAN_AVAILABLE
+
+    if _WAN_AVAILABLE is not None:
+        if _WAN_AVAILABLE is False:
+            pytest.skip("Test requires a WAN access to pie.dev")
+        return
+
+    try:
+        sock = socket.create_connection(("pie.dev", 443), timeout=1)
+    except (ConnectionRefusedError, socket.gaierror, TimeoutError):
+        _WAN_AVAILABLE = False
+        pytest.skip("Test requires a WAN access to pie.dev")
+    else:
+        _WAN_AVAILABLE = True
+        sock.close()

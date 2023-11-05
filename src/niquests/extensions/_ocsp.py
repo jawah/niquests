@@ -61,6 +61,10 @@ def _infer_issuer_from(certificate: Certificate) -> Certificate | None:
         else:
             possible_issuer = load_der_x509_certificate(der_cert)
 
+        # detect cryptography old build
+        if not hasattr(certificate, "verify_directly_issued_by"):
+            break
+
         try:
             certificate.verify_directly_issued_by(possible_issuer)
         except ValueError:
@@ -402,7 +406,7 @@ def verify(
                 if issuer_certificate is not None:
                     peer_certificate.verify_directly_issued_by(issuer_certificate)
 
-            except (socket.gaierror, TimeoutError, ConnectionError):
+            except (socket.gaierror, TimeoutError, ConnectionError, AttributeError):
                 pass
             except ValueError:
                 issuer_certificate = None

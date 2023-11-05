@@ -1,6 +1,141 @@
 Release History
 ===============
 
+3.2.0 (2023-11-05)
+------------------
+
+**Changed**
+- Changed method `raise_for_status` in class `Response` to return **self** in order to make the call chainable.
+  Idea taken from upstream https://github.com/psf/requests/issues/6215
+- Bump minimal version supported for `urllib3.future` to 2.2.901 for recently introduced added features (bellow).
+
+**Added**
+- Support for multiplexed connection in HTTP/2 and HTTP/3. Concurrent requests per connection are now a thing, in synchronous code.
+  This feature is the real advantage of using binaries HTTP protocols.
+  It is disabled by default and can be enabled through `Session(multiplexed=True)`, each `Response` object will
+  be 'lazy' loaded. Accessing anything from returned `Response` will block the code until target response is retrieved.
+  Use `Session.gather()` to efficiently receive responses. You may also give a list of responses that you want to load.
+
+  **Example A)** Emitting concurrent requests and loading them via `Session.gather()`
+  ```python
+  from niquests import Session
+  from time import time
+
+  s = Session(multiplexed=True)
+
+  before = time()
+  responses = []
+
+  responses.append(
+    s.get("https://pie.dev/delay/3")
+  )
+
+  responses.append(
+    s.get("https://pie.dev/delay/1")
+  )
+
+  s.gather()
+
+  print(f"waited {time() - before} second(s)")  # will print 3s
+  ```
+
+  **Example B)** Emitting concurrent requests and loading them via direct access
+  ```python
+  from niquests import Session
+  from time import time
+
+  s = Session(multiplexed=True)
+
+  before = time()
+  responses = []
+
+  responses.append(
+    s.get("https://pie.dev/delay/3")
+  )
+
+  responses.append(
+    s.get("https://pie.dev/delay/1")
+  )
+
+  # internally call gather with self (Response)
+  print(responses[0].status_code)  # 200! :! Hidden call to s.gather(responses[0])
+  print(responses[1].status_code)  # 200!
+
+  print(f"waited {time() - before} second(s)")  # will print 3s
+  ```
+  You have nothing to do, everything from streams to connection pooling are handled automagically!
+- Support for in-memory intermediary/client certificate (mTLS).
+  Thanks for support within `urllib3.future`. Unfortunately this feature may not be available depending on your platform.
+  Passing `cert=(a, b, c)` where **a** or/and **b** contains directly the certificate is supported.
+  See https://urllib3future.readthedocs.io/en/latest/advanced-usage.html#in-memory-client-mtls-certificate for more information.
+  It is proposed to circumvent recent pyOpenSSL complete removal.
+- Detect if a new (stable) version is available when invoking `python -m niquests.help` and propose it for installation.
+- Add the possibility to disable a specific protocol (e.g. HTTP/2, and/or HTTP/3) when constructing `Session`.
+  Like so: `s = Session(disable_http2=..., disable_http3=...)` both options are set to `False`, thus letting them enabled.
+  urllib3.future does not permit to disable HTTP/1.1 for now.
+- Support passing a single `str` to `auth=...` in addition to actually supported types. It will be treated as a
+  **Bearer** token, by default to the `Authorization` header. It's a shortcut. You may keep your own token prefix in given
+  string (e.g. if not Bearer).
+- Added `MultiplexingError` exception for anything related to failure with a multiplexed connection.
+- Added **async** support through `AsyncSession` that utilize an underlying thread pool.
+  ```python
+  from niquests import AsyncSession
+  import asyncio
+  from time import time
+
+  async def emit() -> None:
+      responses = []
+
+      async with AsyncSession(multiplexed=True) as s:
+          responses.append(await s.get("https://pie.dev/get"))
+          responses.append(await s.get("https://pie.dev/head"))
+
+          await s.gather()
+
+      print(responses)
+
+  async def main() -> None:
+      foo = asyncio.create_task(emit())
+      bar = asyncio.create_task(emit())
+      await foo
+      await bar
+
+  if __name__ == "__main__":
+      before = time()
+      asyncio.run(main())
+      print(time() - before)
+  ```
+  Or without `multiplexing` if you want to keep multiple connections open per host per request.
+  ```python
+  from niquests import AsyncSession
+  import asyncio
+  from time import time
+
+  async def emit() -> None:
+      responses = []
+
+      async with AsyncSession() as s:
+          responses.append(await s.get("https://pie.dev/get"))
+          responses.append(await s.get("https://pie.dev/head"))
+
+      print(responses)
+
+  async def main() -> None:
+      foo = asyncio.create_task(emit())
+      bar = asyncio.create_task(emit())
+      await foo
+      await bar
+
+  if __name__ == "__main__":
+      before = time()
+      asyncio.run(main())
+      print(time() - before)
+  ```
+  You may disable concurrent threads by setting `AsyncSession.no_thread = True`.
+
+**Security**
+- Certificate revocation verification may not be fired for subsequents requests in a specific condition (redirection).
+
 3.1.4 (2023-10-23)
 ------------------
 

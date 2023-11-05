@@ -165,6 +165,7 @@ failed response (e.g. error details with HTTP 500). Such JSON will be decoded
 and returned. To check that a request is successful, use
 ``r.raise_for_status()`` or check ``r.status_code`` is what you expect.
 
+.. note:: Since Niquests 3.2, ``r.raise_for_status()`` is chainable as it returns self if everything went fine.
 
 Raw Response Content
 --------------------
@@ -620,6 +621,114 @@ It is saved in-memory by Niquests.
 
 You may also run the following command ``python -m niquests.help`` to find out if you support HTTP/3.
 In 95 percents of the case, the answer is yes!
+
+Multiplexed Connection
+----------------------
+
+Starting from Niquests 3.2 you can issue concurrent requests without having multiple connections.
+It can leverage multiplexing when your remote peer support either HTTP/2, or HTTP/3.
+
+The only thing you will ever have to do to get started is to specify ``multiplexed=True`` from
+within your ``Session`` constructor.
+
+Any ``Response`` returned by get, post, put, etc... will be a lazy instance of ``Response``.
+
+.. note::
+
+   An important note about using ``Session(multiplexed=True)`` is that, in order to be efficient
+   and actually leverage its perks, you will have to issue multiple concurrent request before
+   actually trying to access any ``Response`` methods or attributes.
+
+**Example A)** Emitting concurrent requests and loading them via `Session.gather()`::
+
+    from niquests import Session
+    from time import time
+
+    s = Session(multiplexed=True)
+
+    before = time()
+    responses = []
+
+    responses.append(
+      s.get("https://pie.dev/delay/3")
+    )
+
+    responses.append(
+      s.get("https://pie.dev/delay/1")
+    )
+
+    s.gather()
+
+    print(f"waited {time() - before} second(s)")  # will print 3s
+
+
+**Example B)** Emitting concurrent requests and loading them via direct access::
+
+    from niquests import Session
+    from time import time
+
+    s = Session(multiplexed=True)
+
+    before = time()
+    responses = []
+
+    responses.append(
+      s.get("https://pie.dev/delay/3")
+    )
+
+    responses.append(
+      s.get("https://pie.dev/delay/1")
+    )
+
+    # internally call gather with self (Response)
+    print(responses[0].status_code)  # 200! :! Hidden call to s.gather(responses[0])
+    print(responses[1].status_code)  # 200!
+
+    print(f"waited {time() - before} second(s)")  # will print 3s
+
+The possible algorithms are actually nearly limitless, and you may arrange/write you own scheduling technics!
+
+Async session
+-------------
+
+You may have a program that require ``awaitable`` HTTP request. You are in luck as **Niquests** ships with
+an implementation of ``Session`` that support **async**.
+
+All known methods remain the same at the sole difference that it return a coroutine.
+
+.. note:: The underlying main library **urllib3.future** does not support native async but is thread safe. This is why we choose to implement / backport `sync_to_async` from Django that use a ThreadPool under the carpet.
+
+Here is an example::
+
+    from niquests import AsyncSession
+    import asyncio
+    from time import time
+
+    async def emit() -> None:
+        responses = []
+
+        async with AsyncSession() as s:  # it also work well using multiplexed=True
+            responses.append(await s.get("https://pie.dev/get"))
+            responses.append(await s.get("https://pie.dev/delay/3"))
+
+            await s.gather()
+
+        print(responses)
+
+    async def main() -> None:
+        foo = asyncio.create_task(emit())
+        bar = asyncio.create_task(emit())
+        await foo
+        await bar
+
+    if __name__ == "__main__":
+        before = time()
+        asyncio.run(main())
+        print(time() - before)  # 3s!
+
+.. warning:: For the time being **Niquests** only support **asyncio** as the backend library for async. Contributions are welcomed if you want it to be compatible with **anyio** for example.
+
+.. note:: Shortcut functions `get`, `post`, ..., from the top-level package does not support async.
 
 -----------------------
 

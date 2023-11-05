@@ -197,6 +197,7 @@ class Session:
         "trust_env",
         "max_redirects",
         "retries",
+        "multiplexed",
     ]
 
     def __init__(
@@ -204,6 +205,9 @@ class Session:
         *,
         quic_cache_layer: CacheLayerAltSvcType | None = None,
         retries: RetryType = DEFAULT_RETRIES,
+        multiplexed: bool = False,
+        disable_http2: bool = False,
+        disable_http3: bool = False,
     ):
         #: Configured retries for current Session
         self.retries = retries
@@ -232,6 +236,9 @@ class Session:
 
         #: Stream response content default.
         self.stream = False
+
+        #: Toggle to leverage multiplexed connection.
+        self.multiplexed = multiplexed
 
         #: SSL Verification default.
         #: Defaults to `True`, requiring requests to verify the TLS certificate at the
@@ -276,7 +283,12 @@ class Session:
         self.adapters: OrderedDict[str, BaseAdapter] = OrderedDict()
         self.mount(
             "https://",
-            HTTPAdapter(quic_cache_layer=self.quic_cache_layer, max_retries=retries),
+            HTTPAdapter(
+                quic_cache_layer=self.quic_cache_layer,
+                max_retries=retries,
+                disable_http2=disable_http2,
+                disable_http3=disable_http3,
+            ),
         )
         self.mount("http://", HTTPAdapter(max_retries=retries))
 
@@ -958,8 +970,8 @@ class Session:
             ptr_request.conn_info = conn_info
 
             if (
-                request.url
-                and request.url.startswith("https://")
+                ptr_request.url
+                and ptr_request.url.startswith("https://")
                 and ocsp_verify is not None
                 and kwargs["verify"]
             ):
@@ -985,6 +997,7 @@ class Session:
                 dispatch_hook("pre_send", hooks, ptr_request)  # type: ignore[arg-type]
 
         kwargs.setdefault("on_post_connection", on_post_connection)
+        kwargs.setdefault("multiplexed", self.multiplexed)
 
         assert request.url is not None
 
@@ -996,6 +1009,30 @@ class Session:
 
         # Send the request
         r = adapter.send(request, **kwargs)
+
+        # We are leveraging a multiplexed connection
+        if r.raw is None:
+            r._gather = lambda: adapter.gather(r)
+            r._resolve_redirect = lambda x, y: next(self.resolve_redirects(x, y, yield_requests=True, **kwargs), None)  # type: ignore[assignment, arg-type]
+
+            # in multiplexed mode, we are unable to forward this local function for safety reasons.
+            kwargs["on_post_connection"] = None
+
+            # we intentionally set 'niquests' as the prefix. urllib3.future have its own parameters.
+            r._promise.set_parameter("niquests_is_stream", stream)
+            r._promise.set_parameter("niquests_start", start)
+            r._promise.set_parameter("niquests_hooks", hooks)
+            r._promise.set_parameter("niquests_cookies", self.cookies)
+            r._promise.set_parameter("niquests_allow_redirect", allow_redirects)
+            r._promise.set_parameter("niquests_kwargs", kwargs)
+            r._promise.set_parameter("niquests_session_constructor", Session)
+
+            # You may be wondering why we are setting redirect info in promise ctx.
+            # because in multiplexed mode, we are not fully aware of hop/redirect count
+            r._promise.set_parameter("niquests_redirect_count", 0)
+            r._promise.set_parameter("niquests_max_redirects", self.max_redirects)
+
+            return r
 
         # Total elapsed time of the request (approximately)
         elapsed = preferred_clock() - start
@@ -1049,6 +1086,18 @@ class Session:
             r.content
 
         return r
+
+    def gather(self, *responses: Response) -> None:
+        """
+        Call this method to make sure in-flight responses are retrieved efficiently. This is a no-op
+        if multiplexed is set to False (which is the default value).
+        Passing a limited set of responses will wait for given promises and discard others for later.
+        """
+        if self.multiplexed is False:
+            return
+
+        for adapter in self.adapters.values():
+            adapter.gather(*responses)
 
     def merge_environment_settings(
         self,

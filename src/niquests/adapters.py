@@ -9,10 +9,21 @@ from __future__ import annotations
 
 import os.path
 import socket  # noqa: F401
+import sys
+import time
 import typing
+from datetime import timedelta
+from http.cookiejar import CookieJar
 from urllib.parse import urlparse
 
-from urllib3 import HTTPConnectionPool, HTTPSConnectionPool
+# Preferred clock, based on which one is more accurate on a given system.
+if sys.platform == "win32":
+    preferred_clock = time.perf_counter
+else:
+    preferred_clock = time.time
+
+from urllib3 import ConnectionInfo, HTTPConnectionPool, HTTPSConnectionPool
+from urllib3.backend import HttpVersion, ResponsePromise
 from urllib3.exceptions import ClosedPoolError, ConnectTimeoutError
 from urllib3.exceptions import HTTPError as _HTTPError
 from urllib3.exceptions import InvalidHeader as _InvalidHeader
@@ -39,6 +50,7 @@ from ._constant import (
 )
 from ._typing import (
     CacheLayerAltSvcType,
+    HookType,
     ProxyType,
     RetryType,
     TLSClientCertType,
@@ -53,11 +65,14 @@ from .exceptions import (
     InvalidProxyURL,
     InvalidSchema,
     InvalidURL,
+    MultiplexingError,
     ProxyError,
     ReadTimeout,
     RetryError,
     SSLError,
+    TooManyRedirects,
 )
+from .hooks import dispatch_hook
 from .models import PreparedRequest, Response
 from .structures import CaseInsensitiveDict
 from .utils import (
@@ -67,6 +82,11 @@ from .utils import (
     select_proxy,
     urldefragauth,
 )
+
+try:
+    from .extensions._ocsp import verify as ocsp_verify
+except ImportError:
+    ocsp_verify = None  # type: ignore[assignment]
 
 try:
     from urllib3.contrib.socks import SOCKSProxyManager
@@ -91,6 +111,7 @@ class BaseAdapter:
         cert: TLSClientCertType | None = None,
         proxies: ProxyType | None = None,
         on_post_connection: typing.Callable[[typing.Any], None] | None = None,
+        multiplexed: bool = False,
     ) -> Response:
         """Sends PreparedRequest object. Returns Response object.
 
@@ -106,12 +127,20 @@ class BaseAdapter:
         :param proxies: (optional) The proxies dictionary to apply to the request.
         :param on_post_connection: (optional) A callable that should be invoked just after the pool mgr picked up a live
             connection. The function is expected to takes one positional argument and return nothing.
+        :param multiplexed: Determine if we should leverage multiplexed connection.
         """
         raise NotImplementedError
 
     def close(self) -> None:
         """Cleans up adapter specific items."""
         raise NotImplementedError
+
+    def gather(self, *responses: Response) -> None:
+        """
+        Load responses that are still 'lazy'. This method is meant for a multiplexed connection.
+        Implementation is not mandatory.
+        """
+        pass
 
 
 class HTTPAdapter(BaseAdapter):
@@ -148,6 +177,8 @@ class HTTPAdapter(BaseAdapter):
         "_pool_maxsize",
         "_pool_block",
         "_quic_cache_layer",
+        "_disable_http2",
+        "_disable_http3",
     ]
 
     def __init__(
@@ -157,6 +188,8 @@ class HTTPAdapter(BaseAdapter):
         max_retries: RetryType = DEFAULT_RETRIES,
         pool_block: bool = DEFAULT_POOLBLOCK,
         quic_cache_layer: CacheLayerAltSvcType | None = None,
+        disable_http2: bool = False,
+        disable_http3: bool = False,
     ):
         if isinstance(max_retries, bool):
             self.max_retries: RetryType = False
@@ -180,12 +213,25 @@ class HTTPAdapter(BaseAdapter):
         self._pool_maxsize = pool_maxsize
         self._pool_block = pool_block
         self._quic_cache_layer = quic_cache_layer
+        self._disable_http2 = disable_http2
+        self._disable_http3 = disable_http3
+
+        #: we keep a list of pending (lazy) response
+        self._promises: list[Response] = []
+
+        disabled_svn = set()
+
+        if disable_http2:
+            disabled_svn.add(HttpVersion.h2)
+        if disable_http3:
+            disabled_svn.add(HttpVersion.h3)
 
         self.init_poolmanager(
             pool_connections,
             pool_maxsize,
             block=pool_block,
             quic_cache_layer=quic_cache_layer,
+            disabled_svn=disabled_svn,
         )
 
     def __getstate__(self) -> dict[str, typing.Any | None]:
@@ -200,11 +246,19 @@ class HTTPAdapter(BaseAdapter):
         for attr, value in state.items():
             setattr(self, attr, value)
 
+        disabled_svn = set()
+
+        if self._disable_http2:
+            disabled_svn.add(HttpVersion.h2)
+        if self._disable_http3:
+            disabled_svn.add(HttpVersion.h3)
+
         self.init_poolmanager(
             self._pool_connections,
             self._pool_maxsize,
             block=self._pool_block,
             quic_cache_layer=self._quic_cache_layer,
+            disabled_svn=disabled_svn,
         )
 
     def init_poolmanager(
@@ -252,6 +306,11 @@ class HTTPAdapter(BaseAdapter):
         :param proxy_kwargs: Extra keyword arguments used to configure the Proxy Manager.
         :returns: ProxyManager
         """
+        disabled_svn = set()
+
+        if self._disable_http2:
+            disabled_svn.add(HttpVersion.h2)
+
         if proxy in self.proxy_manager:
             manager = self.proxy_manager[proxy]
         elif proxy.lower().startswith("socks"):
@@ -263,6 +322,7 @@ class HTTPAdapter(BaseAdapter):
                 num_pools=self._pool_connections,
                 maxsize=self._pool_maxsize,
                 block=self._pool_block,
+                disabled_svn=disabled_svn,
                 **proxy_kwargs,
             )
         else:
@@ -273,6 +333,7 @@ class HTTPAdapter(BaseAdapter):
                 num_pools=self._pool_connections,
                 maxsize=self._pool_maxsize,
                 block=self._pool_block,
+                disabled_svn=disabled_svn,
                 **proxy_kwargs,
             )
 
@@ -336,11 +397,18 @@ class HTTPAdapter(BaseAdapter):
 
         if cert:
             if not isinstance(cert, str):
-                conn.cert_file = cert[0]
-                conn.key_file = cert[1]
+                if "-----BEGIN CERTIFICATE-----" in cert[0]:
+                    conn.cert_data = cert[0]
+                    conn.key_data = cert[1]
+                else:
+                    conn.cert_file = cert[0]
+                    conn.key_file = cert[1]
                 conn.key_password = cert[2] if len(cert) == 3 else None  # type: ignore[misc]
             else:
-                conn.cert_file = cert
+                if "-----BEGIN CERTIFICATE-----" in cert:
+                    conn.cert_data = cert
+                else:
+                    conn.cert_file = cert
                 conn.key_file = None
                 conn.key_password = None
             if conn.cert_file and not os.path.exists(conn.cert_file):
@@ -353,39 +421,47 @@ class HTTPAdapter(BaseAdapter):
                     f"Could not find the TLS key file, invalid path: {conn.key_file}"
                 )
 
-    def build_response(self, req: PreparedRequest, resp: BaseHTTPResponse) -> Response:
+    def build_response(
+        self, req: PreparedRequest, resp: BaseHTTPResponse | ResponsePromise
+    ) -> Response:
         """Builds a :class:`Response <requests.Response>` object from a urllib3
         response. This should not be called from user code, and is only exposed
         for use when subclassing the
         :class:`HTTPAdapter <requests.adapters.HTTPAdapter>`
 
         :param req: The :class:`PreparedRequest <PreparedRequest>` used to generate the response.
-        :param resp: The urllib3 response object.
+        :param resp: The urllib3 response or promise object.
         """
         response = Response()
 
-        # Fallback to None if there's no status_code, for whatever reason.
-        response.status_code = getattr(resp, "status", None)
+        if isinstance(resp, BaseHTTPResponse):
+            # Fallback to None if there's no status_code, for whatever reason.
+            response.status_code = getattr(resp, "status", None)
 
-        # Make headers case-insensitive.
-        response.headers = CaseInsensitiveDict(getattr(resp, "headers", {}))
+            # Make headers case-insensitive.
+            response.headers = CaseInsensitiveDict(getattr(resp, "headers", {}))
 
-        # Set encoding.
-        response.encoding = get_encoding_from_headers(response.headers)
-        response.raw = resp
-        response.reason = response.raw.reason
+            # Set encoding.
+            response.encoding = get_encoding_from_headers(response.headers)
+            response.raw = resp
+            response.reason = response.raw.reason
 
-        if isinstance(req.url, bytes):
-            response.url = req.url.decode("utf-8")
+            if isinstance(req.url, bytes):
+                response.url = req.url.decode("utf-8")
+            else:
+                response.url = req.url
+
+            # Add new cookies from the server.
+            extract_cookies_to_jar(response.cookies, req, resp)
         else:
-            response.url = req.url
-
-        # Add new cookies from the server.
-        extract_cookies_to_jar(response.cookies, req, resp)
+            self._promises.append(response)
 
         # Give the Response some context.
         response.request = req
         response.connection = self  # type: ignore[attr-defined]
+
+        if isinstance(resp, ResponsePromise):
+            response._promise = resp
 
         return response
 
@@ -502,6 +578,7 @@ class HTTPAdapter(BaseAdapter):
         cert: TLSClientCertType | None = None,
         proxies: ProxyType | None = None,
         on_post_connection: typing.Callable[[typing.Any], None] | None = None,
+        multiplexed: bool = False,
     ) -> Response:
         """Sends PreparedRequest object. Returns Response object.
 
@@ -516,6 +593,10 @@ class HTTPAdapter(BaseAdapter):
             (directly) in a string or bytes.
         :param cert: (optional) Any user-provided SSL certificate to be trusted.
         :param proxies: (optional) The proxies dictionary to apply to the request.
+        :param on_post_connection: (optional) A callable that contain a single positional argument for newly acquired
+            connection. Useful to check acquired connection information.
+        :param multiplexed: Determine if request shall be transmitted by leveraging the multiplexed aspect of the protocol
+            if available. Return a lazy instance of Response pending its retrieval.
         """
 
         assert (
@@ -568,7 +649,7 @@ class HTTPAdapter(BaseAdapter):
             raise ValueError("Body contains unprepared native list or dict.")
 
         try:
-            resp = conn.urlopen(
+            resp_or_promise = conn.urlopen(  # type: ignore[call-overload]
                 method=request.method,
                 url=url,
                 body=request.body,
@@ -581,6 +662,7 @@ class HTTPAdapter(BaseAdapter):
                 timeout=timeout,
                 chunked=chunked,
                 on_post_connection=on_post_connection,
+                multiplexed=multiplexed,
             )
 
         except (ProtocolError, OSError) as err:
@@ -621,4 +703,235 @@ class HTTPAdapter(BaseAdapter):
             else:
                 raise
 
-        return self.build_response(request, resp)
+        return self.build_response(request, resp_or_promise)
+
+    def _future_handler(self, response: Response, low_resp: BaseHTTPResponse) -> None:
+        stream = typing.cast(
+            bool, response._promise.get_parameter("niquests_is_stream")
+        )
+        start = typing.cast(float, response._promise.get_parameter("niquests_start"))
+        hooks = typing.cast(HookType, response._promise.get_parameter("niquests_hooks"))
+        session_cookies = typing.cast(
+            CookieJar, response._promise.get_parameter("niquests_cookies")
+        )
+        allow_redirects = typing.cast(
+            bool, response._promise.get_parameter("niquests_allow_redirect")
+        )
+        max_redirect = typing.cast(
+            int, response._promise.get_parameter("niquests_max_redirects")
+        )
+        redirect_count = typing.cast(
+            int, response._promise.get_parameter("niquests_redirect_count")
+        )
+        kwargs = typing.cast(
+            typing.MutableMapping[str, typing.Any],
+            response._promise.get_parameter("niquests_kwargs"),
+        )
+
+        # mark response as "not lazy" anymore by removing ref to "this"/gather.
+        del response._gather
+
+        req = response.request
+        assert req is not None
+
+        # Total elapsed time of the request (approximately)
+        elapsed = preferred_clock() - start
+        response.elapsed = timedelta(seconds=elapsed)
+
+        # Fallback to None if there's no status_code, for whatever reason.
+        response.status_code = getattr(low_resp, "status", None)
+
+        # Make headers case-insensitive.
+        response.headers = CaseInsensitiveDict(getattr(low_resp, "headers", {}))
+
+        # Set encoding.
+        response.encoding = get_encoding_from_headers(response.headers)
+        response.raw = low_resp
+        response.reason = response.raw.reason
+
+        if isinstance(req.url, bytes):
+            response.url = req.url.decode("utf-8")
+        else:
+            response.url = req.url
+
+        # Add new cookies from the server.
+        extract_cookies_to_jar(response.cookies, req, low_resp)
+        extract_cookies_to_jar(session_cookies, req, low_resp)
+
+        promise_ctx_backup = {
+            k: v
+            for k, v in response._promise._parameters.items()
+            if k.startswith("niquests_")
+        }
+        del response._promise
+
+        if allow_redirects:
+            next_request = response._resolve_redirect(response, req)
+            redirect_count += 1
+
+            if redirect_count > max_redirect + 1:
+                raise TooManyRedirects(
+                    f"Exceeded {max_redirect} redirects", request=next_request
+                )
+
+            if next_request:
+                session_constructor = promise_ctx_backup["niquests_session_constructor"]
+
+                def on_post_connection(conn_info: ConnectionInfo) -> None:
+                    """This function will be called by urllib3.future just after establishing the connection."""
+                    nonlocal session_constructor, next_request, kwargs
+
+                    assert next_request is not None
+                    next_request.conn_info = conn_info
+
+                    if (
+                        next_request.url
+                        and next_request.url.startswith("https://")
+                        and ocsp_verify is not None
+                        and kwargs["verify"]
+                    ):
+                        strict_ocsp_enabled: bool = (
+                            os.environ.get("NIQUESTS_STRICT_OCSP", "0") != "0"
+                        )
+
+                        with session_constructor() as ocsp_session:
+                            ocsp_session.trust_env = False
+
+                            if not strict_ocsp_enabled:
+                                ocsp_session.proxies = kwargs["proxies"]
+
+                            ocsp_verify(
+                                ocsp_session,
+                                next_request,
+                                strict_ocsp_enabled,
+                                0.2 if not strict_ocsp_enabled else 1.0,
+                            )
+
+                kwargs["on_post_connection"] = on_post_connection
+
+                next_promise = self.send(next_request, **kwargs)
+
+                next_promise._gather = lambda: self.gather(response)  # type: ignore[arg-type]
+                next_promise._resolve_redirect = response._resolve_redirect
+
+                if "niquests_origin_response" not in promise_ctx_backup:
+                    promise_ctx_backup["niquests_origin_response"] = response
+
+                promise_ctx_backup["niquests_origin_response"].history.append(
+                    next_promise
+                )
+
+                promise_ctx_backup["niquests_start"] = preferred_clock()
+                promise_ctx_backup["niquests_redirect_count"] = redirect_count
+
+                for k, v in promise_ctx_backup.items():
+                    next_promise._promise.set_parameter(k, v)
+
+                self._promises.remove(response)
+
+                return
+        else:
+            response._next = response._resolve_redirect(response, req)  # type: ignore[assignment]
+
+        del response._resolve_redirect
+
+        # In case we handled redirects in a multiplexed connection, we shall reorder history
+        # and do a swap.
+        if "niquests_origin_response" in promise_ctx_backup:
+            origin_response: Response = promise_ctx_backup["niquests_origin_response"]
+            leaf_response: Response = origin_response.history[-1]
+
+            origin_response.history.pop()
+
+            origin_response.status_code, leaf_response.status_code = (
+                leaf_response.status_code,
+                origin_response.status_code,
+            )
+            origin_response.headers, leaf_response.headers = (
+                leaf_response.headers,
+                origin_response.headers,
+            )
+            origin_response.encoding, leaf_response.encoding = (
+                leaf_response.encoding,
+                origin_response.encoding,
+            )
+            origin_response.raw, leaf_response.raw = (
+                leaf_response.raw,
+                origin_response.raw,
+            )
+            origin_response.reason, leaf_response.reason = (
+                leaf_response.reason,
+                origin_response.reason,
+            )
+            origin_response.url, leaf_response.url = (
+                leaf_response.url,
+                origin_response.url,
+            )
+            origin_response.elapsed, leaf_response.elapsed = (
+                leaf_response.elapsed,
+                origin_response.elapsed,
+            )
+            origin_response.request, leaf_response.request = (
+                leaf_response.request,
+                origin_response.request,
+            )
+
+            origin_response.history = [leaf_response] + origin_response.history
+
+        # Response manipulation hooks
+        response = dispatch_hook("response", hooks, response, **kwargs)  # type: ignore[arg-type]
+
+        if response.history:
+            # If the hooks create history then we want those cookies too
+            for sub_resp in response.history:
+                extract_cookies_to_jar(session_cookies, sub_resp.request, sub_resp.raw)
+
+        if not stream:
+            response.content
+
+        self._promises.remove(response)
+
+    def gather(self, *responses: Response) -> None:
+        if not self._promises:
+            return
+
+        # Either we did not have a list of promises to fulfill...
+        if not responses:
+            while True:
+                response = None
+                low_resp = self.poolmanager.get_response()
+
+                if low_resp is None:
+                    break
+
+                for response in self._promises:
+                    if low_resp.is_from_promise(response._promise):
+                        break
+
+                if response is None:
+                    raise MultiplexingError(
+                        "Underlying library yield an unexpected response that did not match any of sent request by us"
+                    )
+
+                self._future_handler(response, low_resp)
+        else:
+            # ...Or we have a list on which we should focus.
+            for response in responses:
+                req = response.request
+
+                assert req is not None
+
+                if not hasattr(response, "_promise"):
+                    continue
+
+                low_resp = self.poolmanager.get_response(promise=response._promise)
+
+                if low_resp is None:
+                    raise MultiplexingError(
+                        "Underlying library did not recognize our promise when asked to retrieve it"
+                    )
+
+                self._future_handler(response, low_resp)
+
+        if self._promises:
+            self.gather()

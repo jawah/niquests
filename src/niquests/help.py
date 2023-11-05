@@ -5,6 +5,8 @@ import json
 import platform
 import ssl
 import sys
+import warnings
+from json import JSONDecodeError
 
 import charset_normalizer
 import h2  # type: ignore
@@ -13,7 +15,9 @@ import idna
 import urllib3
 import wassima
 
-from . import __version__ as requests_version
+from . import RequestException
+from . import __version__ as niquests_version
+from . import get
 
 try:
     import qh3  # type: ignore
@@ -97,7 +101,9 @@ def info():
     }
 
     system_ssl = ssl.OPENSSL_VERSION_NUMBER
-    system_ssl_info = {"version": f"{system_ssl:x}" if system_ssl is not None else ""}
+    system_ssl_info = {
+        "version": f"{system_ssl:x}" if system_ssl is not None else "N/A"
+    }
 
     return {
         "platform": platform_info,
@@ -108,7 +114,7 @@ def info():
         "cryptography": cryptography_info,
         "idna": idna_info,
         "requests": {
-            "version": requests_version,
+            "version": niquests_version,
         },
         "http3": {
             "enabled": qh3 is not None,
@@ -131,6 +137,24 @@ def info():
 
 def main() -> None:
     """Pretty-print the bug information as JSON."""
+    try:
+        response = get("https://pypi.org/pypi/niquests/json")
+        package_info = response.json()
+
+        if (
+            isinstance(package_info, dict)
+            and "info" in package_info
+            and "version" in package_info["info"]
+        ):
+            if package_info["info"]["version"] != niquests_version:
+                warnings.warn(
+                    f"You are using Niquests {niquests_version} and PyPI yield version ({package_info['info']['version']}) as the stable one. "
+                    "We invite you to install this version as soon as possible. Run `python -m pip install niquests -U`.",
+                    UserWarning,
+                )
+    except (RequestException, JSONDecodeError):
+        pass
+
     print(json.dumps(info(), sort_keys=True, indent=2))
 
 
