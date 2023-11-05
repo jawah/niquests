@@ -76,6 +76,8 @@ Niquests is ready for today's web.
 - Streaming Downloads
 - HTTP/2 by default
 - HTTP/3 over QUIC
+- Multiplexed!
+- Async!
 
 Niquests officially supports Python 3.7+, and runs great on PyPy.
 

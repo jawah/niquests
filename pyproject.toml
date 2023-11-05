@@ -8,7 +8,7 @@ description = "Python HTTP for Humans."
 readme = "README.md"
 license-files = { paths = ["LICENSE"] }
 license = "Apache-2.0"
-keywords = ["requests", "http/2", "http/3", "QUIC", "http", "https", "http client", "http/1.1", "ocsp", "revocation", "tls"]
+keywords = ["requests", "http/2", "http/3", "QUIC", "http", "https", "http client", "http/1.1", "ocsp", "revocation", "tls", "multiplexed"]
 authors = [
   {name = "Kenneth Reitz", email = "me@kennethreitz.org"}
 ]
@@ -41,7 +41,7 @@ dynamic = ["version"]
 dependencies = [
     "charset_normalizer>=2,<4",
     "idna>=2.5,<4",
-    "urllib3.future>=2.1.900,<3",
+    "urllib3.future>=2.2.901,<3",
     "wassima>=1.0.1,<2",
     "kiss_headers>=2,<4",
 ]
@@ -51,7 +51,7 @@ socks = [
     "PySocks>=1.5.6, !=1.5.7",
 ]
 http3 = [
-    "qh3<1.0.0,>=0.11.3"
+    "qh3<1.0.0,>=0.13.0"
 ]
 ocsp = [
     "cryptography<42.0.0,>=41.0.0"
@@ -104,4 +104,5 @@ filterwarnings = [
     '''ignore:Passing bytes as a header value is deprecated and will:DeprecationWarning''',
     '''ignore:The 'JSONIFY_PRETTYPRINT_REGULAR' config key is deprecated and will:DeprecationWarning''',
     '''ignore:unclosed .*:ResourceWarning''',
+    '''ignore:Parsed a negative serial number:cryptography.utils.CryptographyDeprecationWarning''',
 ]

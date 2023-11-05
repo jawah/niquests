@@ -86,16 +86,4 @@ if upgrading is not an option.
 Previous CVEs
 -------------
 
-- Fixed in 2.20.0
-  - `CVE 2018-18074 <https://cve.mitre.org/cgi-bin/cvename.cgi?name=2018-18074>`_
-
-- Fixed in 2.6.0
-
-  - `CVE 2015-2296 <https://cve.mitre.org/cgi-bin/cvename.cgi?name=2015-2296>`_,
-    reported by Matthew Daley of `BugFuzz <https://bugfuzz.com/>`_.
-
-- Fixed in 2.3.0
-
-  - `CVE 2014-1829 <https://cve.mitre.org/cgi-bin/cvename.cgi?name=2014-1829>`_
-
-  - `CVE 2014-1830 <https://cve.mitre.org/cgi-bin/cvename.cgi?name=2014-1830>`_
+None to date.

@@ -46,6 +46,29 @@ class AuthBase:
         raise NotImplementedError("Auth hooks must be callable.")
 
 
+class BearerTokenAuth(AuthBase):
+    """Simple token injection in Authorization header"""
+
+    def __init__(self, token: str):
+        self.token = token
+
+    def __eq__(self, other) -> bool:
+        return self.token == getattr(other, "token", None)
+
+    def __ne__(self, other) -> bool:
+        return not self == other
+
+    def __call__(self, r):
+        detect_token_type: list[str] = self.token.split(" ", maxsplit=1)
+
+        if len(detect_token_type) == 1:
+            r.headers["Authorization"] = f"Bearer {self.token}"
+        else:
+            r.headers["Authorization"] = self.token
+
+        return r
+
+
 class HTTPBasicAuth(AuthBase):
     """Attaches HTTP Basic Authentication to the given Request object."""
 

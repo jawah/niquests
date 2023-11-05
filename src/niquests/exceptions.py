@@ -139,6 +139,10 @@ class UnrewindableBodyError(RequestException):
     """Requests encountered an error when trying to rewind a body."""
 
 
+class MultiplexingError(RequestException):
+    """Requests encountered an unresolvable error in multiplexed mode."""
+
+
 # Warnings
 
 

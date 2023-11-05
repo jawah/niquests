@@ -69,6 +69,7 @@ TimeoutType: typing.TypeAlias = typing.Union[
 #: Can be a custom authentication mechanism that derive from AuthBase.
 HttpAuthenticationType: typing.TypeAlias = typing.Union[
     typing.Tuple[typing.Union[str, bytes], typing.Union[str, bytes]],
+    str,
     AuthBase,
 ]
 #: Map for each protocol (http, https) associated proxy to be used.

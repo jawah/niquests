@@ -2,6 +2,7 @@
 pytest>=2.8.0,<=7.4.2
 pytest-cov
 pytest-httpbin==2.0.0
+pytest-asyncio>=0.21.1,<1.0
 httpbin==0.10.1
 trustme
 wheel
