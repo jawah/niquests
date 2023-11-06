@@ -190,6 +190,7 @@ class HTTPAdapter(BaseAdapter):
         quic_cache_layer: CacheLayerAltSvcType | None = None,
         disable_http2: bool = False,
         disable_http3: bool = False,
+        max_in_flight_multiplexed: int | None = None,
     ):
         if isinstance(max_retries, bool):
             self.max_retries: RetryType = False
@@ -217,7 +218,12 @@ class HTTPAdapter(BaseAdapter):
         self._disable_http3 = disable_http3
 
         #: we keep a list of pending (lazy) response
-        self._promises: list[Response] = []
+        self._promises: dict[str, Response] = {}
+        self._max_in_flight_multiplexed = (
+            max_in_flight_multiplexed
+            if max_in_flight_multiplexed is not None
+            else self._pool_connections * 200
+        )
 
         disabled_svn = set()
 
@@ -454,7 +460,7 @@ class HTTPAdapter(BaseAdapter):
             # Add new cookies from the server.
             extract_cookies_to_jar(response.cookies, req, resp)
         else:
-            self._promises.append(response)
+            self._promises[resp.uid] = response
 
         # Give the Response some context.
         response.request = req
@@ -604,6 +610,10 @@ class HTTPAdapter(BaseAdapter):
             and request.headers is not None
             and request.method is not None
         ), "Tried to send a non-initialized PreparedRequest"
+
+        # We enforce a limit to avoid burning out our connection pool.
+        if multiplexed and len(self._promises) >= self._max_in_flight_multiplexed:
+            self.gather()
 
         try:
             conn = self.get_connection(request.url, proxies)
@@ -763,6 +773,8 @@ class HTTPAdapter(BaseAdapter):
             for k, v in response._promise._parameters.items()
             if k.startswith("niquests_")
         }
+
+        response_promise = response._promise
         del response._promise
 
         if allow_redirects:
@@ -827,7 +839,7 @@ class HTTPAdapter(BaseAdapter):
                 for k, v in promise_ctx_backup.items():
                     next_promise._promise.set_parameter(k, v)
 
-                self._promises.remove(response)
+                del self._promises[response_promise.uid]
 
                 return
         else:
@@ -889,7 +901,7 @@ class HTTPAdapter(BaseAdapter):
         if not stream:
             response.content
 
-        self._promises.remove(response)
+        del self._promises[response_promise.uid]
 
     def gather(self, *responses: Response) -> None:
         if not self._promises:
@@ -898,15 +910,22 @@ class HTTPAdapter(BaseAdapter):
         # Either we did not have a list of promises to fulfill...
         if not responses:
             while True:
-                response = None
                 low_resp = self.poolmanager.get_response()
 
                 if low_resp is None:
                     break
 
-                for response in self._promises:
-                    if low_resp.is_from_promise(response._promise):
-                        break
+                assert (
+                    low_resp._fp is not None
+                    and hasattr(low_resp._fp, "from_promise")
+                    and low_resp._fp.from_promise is not None
+                )
+
+                response = (
+                    self._promises[low_resp._fp.from_promise.uid]
+                    if low_resp._fp.from_promise.uid in self._promises
+                    else None
+                )
 
                 if response is None:
                     raise MultiplexingError(
