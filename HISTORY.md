@@ -1,6 +1,16 @@
 Release History
 ===============
 
+3.2.1 (2023-11-06)
+------------------
+
+**Fixed**
+- Performance issues in HTTP/2, and HTTP/3, with or without multiplexed connections.
+
+**Changed**
+- Enforced a maximum in-flight request when using multiplexed connections. Default to 200 per connections
+  so, actually 2000 per Session (_default is 10 connections_). This can be overriden in our `HTTPAdapter` for advanced users.
+
 3.2.0 (2023-11-05)
 ------------------
 

@@ -3,7 +3,7 @@
 **Niquests** is a simple, yet elegant, HTTP library. It is a drop-in replacement for **Requests** that is no longer under
 feature freeze.
 
-Niquests, is the “**Safest**, **Fastest**, **Easiest**, and **Most advanced**” Python HTTP Client.
+Niquests, is the “**Safest**, **Fastest<sup>*</sup>**, **Easiest**, and **Most advanced**” Python HTTP Client.
 
 ```python
 >>> import niquests
@@ -70,6 +70,10 @@ Niquests is ready for the demands of building robust and reliable HTTP–speakin
 We don't have to reinvent the wheel all over again, HTTP client **Requests** is well established and
 really plaisant in its usage. We believe that **Requests** have the most inclusive, and developer friendly interfaces.
 We intend to keep it that way. As long as we can, long live Niquests!
+
+---
+
+<small><sup>(*)</sup> performance measured when leveraging a multiplexed connection with or without uses of any form of concurrency as of november 2023.</small>
 
 ---
 
