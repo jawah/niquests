@@ -750,10 +750,15 @@ def get_environ_proxies(url: str, no_proxy: str | None = None) -> dict[str, str]
     """
     Return a dict of environment proxies.
     """
+    proxies = getproxies()
+
+    if not proxies:
+        return {}
+
     if should_bypass_proxies(url, no_proxy=no_proxy):
         return {}
     else:
-        return getproxies()
+        return proxies
 
 
 def select_proxy(
