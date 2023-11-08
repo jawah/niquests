@@ -1,6 +1,19 @@
 Release History
 ===============
 
+3.2.2 (2023-11-08)
+------------------
+
+**Changed**
+- Enforced a maximum in-flight request when using multiplexed connections. Default to 124 per connections
+  so, actually 1240 per Session (_default is 10 connections_). This can be overriden in our `HTTPAdapter` for advanced users.
+  This limit was changed due to constraint in `qh3`, for now we have no way to dynamically set this. We choose the safest
+  lowest common value in h2, and qh3.
+
+**Fixed**
+- Performance issues in `get_environ_proxies()`.
+
+
 3.2.1 (2023-11-06)
 ------------------
 

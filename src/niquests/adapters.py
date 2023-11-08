@@ -222,7 +222,7 @@ class HTTPAdapter(BaseAdapter):
         self._max_in_flight_multiplexed = (
             max_in_flight_multiplexed
             if max_in_flight_multiplexed is not None
-            else self._pool_connections * 200
+            else self._pool_connections * 124
         )
 
         disabled_svn = set()
