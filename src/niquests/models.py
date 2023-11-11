@@ -72,7 +72,6 @@ from .hooks import default_hooks
 from .status_codes import codes
 from .structures import CaseInsensitiveDict
 from .utils import (
-    check_header_validity,
     get_auth_from_url,
     guess_filename,
     iter_slices,
@@ -410,8 +409,6 @@ class PreparedRequest:
                 self.headers.update(CaseInsensitiveDict(headers))
             else:
                 for header in headers.items():
-                    # Raise exception on invalid header value.
-                    check_header_validity(header)
                     name, value = header
                     self.headers[to_native_string(name)] = value
 
@@ -502,16 +499,15 @@ class PreparedRequest:
             else:
                 if data:
                     enforce_form_data = (
-                        "content-type" in self.oheaders
-                        and isinstance(self.oheaders.content_type, list) is False
-                        and "multipart/form-data" in self.oheaders.content_type
+                        "content-type" in self.headers
+                        and "multipart/form-data" in self.headers["content-type"]
                     )
 
                     if enforce_form_data:
                         form_data_boundary = (
                             self.oheaders.content_type.boundary  # type: ignore[union-attr]
                             if enforce_form_data
-                            and self.oheaders.content_type.get("boundary")  # type: ignore[union-attr]
+                            and self.oheaders.content_type.has("boundary")  # type: ignore[union-attr]
                             else choose_boundary()
                         )
                     else:
@@ -836,7 +832,7 @@ class Response:
     server's response to an HTTP request.
     """
 
-    __attrs__ = [
+    __attrs__ = {
         "_content",
         "status_code",
         "headers",
@@ -847,7 +843,35 @@ class Response:
         "cookies",
         "elapsed",
         "request",
-    ]
+    }
+
+    __lazy_attrs__ = {
+        "json",
+        "ok",
+        "links",
+        "content",
+        "text",
+        "iter_lines",
+        "iter_content",
+        "next",
+        "is_redirect",
+        "is_permanent_redirect",
+        "status_code",
+        "cookies",
+        "reason",
+        "encoding",
+        "url",
+        "headers",
+        "next",
+        "_content",
+        "status_code",
+        "headers",
+        "url",
+        "encoding",
+        "reason",
+        "cookies",
+        "elapsed",
+    }
 
     #: internals used for lazy responses. Do not try to access those unless you know what you are doing.
     #: they don't always exist.
@@ -913,42 +937,7 @@ class Response:
         return self.raw is None and hasattr(self, "_gather")
 
     def __getattribute__(self, item):
-        if (
-            item
-            not in [
-                "_gather",
-                "lazy",
-                "request",
-                "_promise",
-                "_resolve_redirect",
-                "__getstate__",
-                "__setstate__",
-                "__enter__",
-                "__exit__",
-            ]
-            and item
-            in Response.__attrs__
-            + [
-                "json",
-                "ok",
-                "links",
-                "content",
-                "text",
-                "iter_lines",
-                "iter_content",
-                "next",
-                "is_redirect",
-                "is_permanent_redirect",
-                "status_code",
-                "cookies",
-                "reason",
-                "encoding",
-                "url",
-                "headers",
-                "next",
-            ]
-            and self.lazy
-        ):
+        if item in Response.__lazy_attrs__ and self.lazy:
             self._gather()
         return super().__getattribute__(item)
 
@@ -1193,7 +1182,19 @@ class Response:
             if self.status_code == 0 or self.raw is None:
                 self._content = None
             else:
-                self._content = b"".join(self.iter_content(CONTENT_CHUNK_SIZE)) or b""  # type: ignore[arg-type]
+                try:
+                    if hasattr(self.raw, "stream"):
+                        self._content = self.raw.read(decode_content=True)  # type: ignore[arg-type]
+                    else:
+                        self._content = self.raw.read()
+                except ProtocolError as e:
+                    raise ChunkedEncodingError(e)
+                except DecodeError as e:
+                    raise ContentDecodingError(e)
+                except ReadTimeoutError as e:
+                    raise ConnectionError(e)
+                except SSLError as e:
+                    raise RequestsSSLError(e)
 
         self._content_consumed = True
         # don't need to release the connection; that's been handled by urllib3

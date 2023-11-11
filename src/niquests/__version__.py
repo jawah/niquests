@@ -9,9 +9,9 @@ __description__: str = "Python HTTP for Humans."
 __url__: str = "https://niquests.readthedocs.io"
 
 __version__: str
-__version__ = "3.2.2"
+__version__ = "3.2.3"
 
-__build__: int = 0x030202
+__build__: int = 0x030203
 __author__: str = "Kenneth Reitz"
 __author_email__: str = "me@kennethreitz.org"
 __license__: str = "Apache-2.0"

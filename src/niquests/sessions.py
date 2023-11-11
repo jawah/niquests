@@ -321,7 +321,8 @@ class Session:
         # Set environment's basic authentication if not explicitly set.
         auth = request.auth
         has_authorization_set = (
-            "authorization" in self.headers or "authorization" in request.oheaders
+            "authorization" in self.headers
+            or "authorization" in CaseInsensitiveDict(request.headers)
         )
 
         if self.trust_env and not auth and not self.auth and not has_authorization_set:
@@ -979,18 +980,12 @@ class Session:
                     os.environ.get("NIQUESTS_STRICT_OCSP", "0") != "0"
                 )
 
-                with Session() as ocsp_session:
-                    ocsp_session.trust_env = False
-
-                    if not strict_ocsp_enabled:
-                        ocsp_session.proxies = kwargs["proxies"]
-
-                    ocsp_verify(
-                        ocsp_session,
-                        ptr_request,
-                        strict_ocsp_enabled,
-                        0.2 if not strict_ocsp_enabled else 1.0,
-                    )
+                ocsp_verify(
+                    ptr_request,
+                    strict_ocsp_enabled,
+                    0.2 if not strict_ocsp_enabled else 1.0,
+                    kwargs["proxies"],
+                )
 
             # don't trigger pre_send for redirects
             if ptr_request == request:
@@ -1025,7 +1020,6 @@ class Session:
             r._promise.set_parameter("niquests_cookies", self.cookies)
             r._promise.set_parameter("niquests_allow_redirect", allow_redirects)
             r._promise.set_parameter("niquests_kwargs", kwargs)
-            r._promise.set_parameter("niquests_session_constructor", Session)
 
             # You may be wondering why we are setting redirect info in promise ctx.
             # because in multiplexed mode, we are not fully aware of hop/redirect count
@@ -1075,12 +1069,13 @@ class Session:
 
         # If redirects aren't being followed, store the response on the Request for Response.next().
         if not allow_redirects:
-            try:
-                r._next = next(
-                    self.resolve_redirects(r, request, yield_requests=True, **kwargs)  # type: ignore[assignment]
-                )
-            except StopIteration:
-                pass
+            if r.is_redirect:
+                try:
+                    r._next = next(
+                        self.resolve_redirects(r, request, yield_requests=True, **kwargs)  # type: ignore[assignment]
+                    )
+                except StopIteration:
+                    pass
 
         if not stream:
             r.content

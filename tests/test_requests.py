@@ -2349,7 +2349,7 @@ class TestCaseInsensitiveDict:
         )
         cid_copy = cid.copy()
         assert cid == cid_copy
-        cid["changed"] = True
+        cid["changed"] = "blabla"
         assert cid != cid_copy
 
 

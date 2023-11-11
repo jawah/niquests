@@ -1,18 +1,13 @@
 from __future__ import annotations
 
 import datetime
-import typing
-import warnings
-from random import randint
-from statistics import mean
-
-if typing.TYPE_CHECKING:
-    from ..sessions import Session
-
 import hmac
 import socket
 import threading
+import warnings
 from hashlib import sha256
+from random import randint
+from statistics import mean
 
 import wassima
 from cryptography.hazmat.primitives import serialization
@@ -27,6 +22,7 @@ from urllib3 import ConnectionInfo
 from urllib3.exceptions import SecurityWarning
 from urllib3.util.url import parse_url
 
+from .._typing import ProxyType
 from ..exceptions import RequestException, SSLError
 from ..models import PreparedRequest
 from ._picotls import (
@@ -305,10 +301,10 @@ _SharedRevocationStatusCache = InMemoryRevocationStatus()
 
 
 def verify(
-    session: Session,
     r: PreparedRequest,
     strict: bool = False,
     timeout: float | int = 0.2,
+    proxies: ProxyType | None = None,
 ) -> None:
     conn_info: ConnectionInfo | None = r.conn_info
 
@@ -375,147 +371,164 @@ def verify(
 
         return
 
-    # When using Python native capabilities, you won't have the issuerCA DER by default.
-    # Unfortunately! But no worries, we can circumvent it!
-    # Three ways are valid to fetch it (in order of preference, safest to riskiest):
-    #   - The issuer can be (but unlikely) a root CA.
-    #   - Retrieve it by asking it from the TLS layer.
-    #   - Downloading it using specified caIssuers from the peer certificate.
-    if conn_info.issuer_certificate_der is None:
-        # It could be a root (self-signed) certificate. Or a previously seen issuer.
-        issuer_certificate = _infer_issuer_from(peer_certificate)
+    from ..sessions import Session
 
-        # If not, try to ask nicely the remote to give us the certificate chain, and extract
-        # from it the immediate issuer.
-        if issuer_certificate is None:
-            try:
-                if r.url is None:
-                    raise ValueError
+    with Session() as session:
+        session.trust_env = False
+        session.proxies = proxies
 
-                url_parsed = parse_url(r.url)
+        # When using Python native capabilities, you won't have the issuerCA DER by default.
+        # Unfortunately! But no worries, we can circumvent it!
+        # Three ways are valid to fetch it (in order of preference, safest to riskiest):
+        #   - The issuer can be (but unlikely) a root CA.
+        #   - Retrieve it by asking it from the TLS layer.
+        #   - Downloading it using specified caIssuers from the peer certificate.
+        if conn_info.issuer_certificate_der is None:
+            # It could be a root (self-signed) certificate. Or a previously seen issuer.
+            issuer_certificate = _infer_issuer_from(peer_certificate)
 
-                if url_parsed.hostname is None or conn_info.destination_address is None:
-                    raise ValueError
+            # If not, try to ask nicely the remote to give us the certificate chain, and extract
+            # from it the immediate issuer.
+            if issuer_certificate is None:
+                try:
+                    if r.url is None:
+                        raise ValueError
 
-                issuer_certificate = _ask_nicely_for_issuer(
-                    url_parsed.hostname,
-                    conn_info.destination_address,
-                    timeout,
-                )
+                    url_parsed = parse_url(r.url)
 
-                if issuer_certificate is not None:
-                    peer_certificate.verify_directly_issued_by(issuer_certificate)
+                    if (
+                        url_parsed.hostname is None
+                        or conn_info.destination_address is None
+                    ):
+                        raise ValueError
 
-            except (socket.gaierror, TimeoutError, ConnectionError, AttributeError):
-                pass
-            except ValueError:
-                issuer_certificate = None
-
-        hint_ca_issuers: list[str] = [ep for ep in list(conn_info.certificate_dict.get("caIssuers", [])) if ep.startswith("http://")]  # type: ignore
-
-        if issuer_certificate is None and hint_ca_issuers:
-            try:
-                raw_intermediary_response = session.get(hint_ca_issuers[0])
-            except RequestException:
-                pass
-            else:
-                if (
-                    raw_intermediary_response.status_code
-                    and 300 > raw_intermediary_response.status_code >= 200
-                ):
-                    raw_intermediary_content = raw_intermediary_response.content
-
-                    if raw_intermediary_content is not None:
-                        # binary DER
-                        if (
-                            b"-----BEGIN CERTIFICATE-----"
-                            not in raw_intermediary_content
-                        ):
-                            issuer_certificate = load_der_x509_certificate(
-                                raw_intermediary_content
-                            )
-                        # b64 PEM
-                        elif b"-----BEGIN CERTIFICATE-----" in raw_intermediary_content:
-                            issuer_certificate = load_pem_x509_certificate(
-                                raw_intermediary_content
-                            )
-
-        # Well! We're out of luck. No further should we go.
-        if issuer_certificate is None:
-            if strict:
-                warnings.warn(
-                    f"""Unable to insure that the remote peer ({r.url}) has a currently valid certificate via OCSP.
-                    You are seeing this warning due to enabling strict mode for OCSP / Revocation check.
-                    Reason: Remote did not provide any intermediaries certificate.""",
-                    SecurityWarning,
-                )
-            return
-
-        conn_info.issuer_certificate_der = issuer_certificate.public_bytes(
-            serialization.Encoding.DER
-        )
-    else:
-        issuer_certificate = load_der_x509_certificate(conn_info.issuer_certificate_der)
-
-    builder = ocsp.OCSPRequestBuilder()
-    builder = builder.add_certificate(peer_certificate, issuer_certificate, SHA1())
-
-    req = builder.build()
-
-    try:
-        ocsp_http_response = session.post(
-            endpoints[randint(0, len(endpoints) - 1)],
-            data=req.public_bytes(serialization.Encoding.DER),
-            headers={"Content-Type": "application/ocsp-request"},
-            timeout=timeout,
-        )
-    except RequestException as e:
-        if strict:
-            warnings.warn(
-                f"""Unable to insure that the remote peer ({r.url}) has a currently valid certificate via OCSP.
-                You are seeing this warning due to enabling strict mode for OCSP / Revocation check.
-                Reason: {e}""",
-                SecurityWarning,
-            )
-        return
-
-    if ocsp_http_response.status_code and 300 > ocsp_http_response.status_code >= 200:
-        if ocsp_http_response.content is None:
-            return
-
-        ocsp_resp = ocsp.load_der_ocsp_response(ocsp_http_response.content)
-
-        _SharedRevocationStatusCache.save(
-            peer_certificate, issuer_certificate, ocsp_resp
-        )
-
-        if ocsp_resp.response_status == ocsp.OCSPResponseStatus.SUCCESSFUL:
-            if ocsp_resp.certificate_status == ocsp.OCSPCertStatus.REVOKED:
-                r.ocsp_verified = False
-                raise SSLError(
-                    f"""Unable to establish a secure connection to {r.url} because the certificate has been revoked
-                    by issuer ({ocsp_resp.revocation_reason or "unspecified"}).
-                    You should avoid trying to request anything from it as the remote has been compromised.
-                    See https://en.wikipedia.org/wiki/OCSP_stapling for more information."""
-                )
-            if ocsp_resp.certificate_status == ocsp.OCSPCertStatus.UNKNOWN:
-                r.ocsp_verified = False
-                if strict is True:
-                    raise SSLError(
-                        f"""Unable to establish a secure connection to {r.url} because the issuer does not know whether
-                        certificate is valid or not. This error occurred because you enabled strict mode for
-                        the OCSP / Revocation check."""
+                    issuer_certificate = _ask_nicely_for_issuer(
+                        url_parsed.hostname,
+                        conn_info.destination_address,
+                        timeout,
                     )
-            else:
-                r.ocsp_verified = True
+
+                    if issuer_certificate is not None:
+                        peer_certificate.verify_directly_issued_by(issuer_certificate)
+
+                except (socket.gaierror, TimeoutError, ConnectionError, AttributeError):
+                    pass
+                except ValueError:
+                    issuer_certificate = None
+
+            hint_ca_issuers: list[str] = [ep for ep in list(conn_info.certificate_dict.get("caIssuers", [])) if ep.startswith("http://")]  # type: ignore
+
+            if issuer_certificate is None and hint_ca_issuers:
+                try:
+                    raw_intermediary_response = session.get(hint_ca_issuers[0])
+                except RequestException:
+                    pass
+                else:
+                    if (
+                        raw_intermediary_response.status_code
+                        and 300 > raw_intermediary_response.status_code >= 200
+                    ):
+                        raw_intermediary_content = raw_intermediary_response.content
+
+                        if raw_intermediary_content is not None:
+                            # binary DER
+                            if (
+                                b"-----BEGIN CERTIFICATE-----"
+                                not in raw_intermediary_content
+                            ):
+                                issuer_certificate = load_der_x509_certificate(
+                                    raw_intermediary_content
+                                )
+                            # b64 PEM
+                            elif (
+                                b"-----BEGIN CERTIFICATE-----"
+                                in raw_intermediary_content
+                            ):
+                                issuer_certificate = load_pem_x509_certificate(
+                                    raw_intermediary_content
+                                )
+
+            # Well! We're out of luck. No further should we go.
+            if issuer_certificate is None:
+                if strict:
+                    warnings.warn(
+                        f"""Unable to insure that the remote peer ({r.url}) has a currently valid certificate via OCSP.
+                        You are seeing this warning due to enabling strict mode for OCSP / Revocation check.
+                        Reason: Remote did not provide any intermediaries certificate.""",
+                        SecurityWarning,
+                    )
+                return
+
+            conn_info.issuer_certificate_der = issuer_certificate.public_bytes(
+                serialization.Encoding.DER
+            )
         else:
+            issuer_certificate = load_der_x509_certificate(
+                conn_info.issuer_certificate_der
+            )
+
+        builder = ocsp.OCSPRequestBuilder()
+        builder = builder.add_certificate(peer_certificate, issuer_certificate, SHA1())
+
+        req = builder.build()
+
+        try:
+            ocsp_http_response = session.post(
+                endpoints[randint(0, len(endpoints) - 1)],
+                data=req.public_bytes(serialization.Encoding.DER),
+                headers={"Content-Type": "application/ocsp-request"},
+                timeout=timeout,
+            )
+        except RequestException as e:
             if strict:
                 warnings.warn(
                     f"""Unable to insure that the remote peer ({r.url}) has a currently valid certificate via OCSP.
                     You are seeing this warning due to enabling strict mode for OCSP / Revocation check.
-                    OCSP Server Status: {ocsp_resp.response_status}""",
+                    Reason: {e}""",
                     SecurityWarning,
                 )
+            return
+
+        if (
+            ocsp_http_response.status_code
+            and 300 > ocsp_http_response.status_code >= 200
+        ):
+            if ocsp_http_response.content is None:
+                return
+
+            ocsp_resp = ocsp.load_der_ocsp_response(ocsp_http_response.content)
+
+            _SharedRevocationStatusCache.save(
+                peer_certificate, issuer_certificate, ocsp_resp
+            )
+
+            if ocsp_resp.response_status == ocsp.OCSPResponseStatus.SUCCESSFUL:
+                if ocsp_resp.certificate_status == ocsp.OCSPCertStatus.REVOKED:
+                    r.ocsp_verified = False
+                    raise SSLError(
+                        f"""Unable to establish a secure connection to {r.url} because the certificate has been revoked
+                        by issuer ({ocsp_resp.revocation_reason or "unspecified"}).
+                        You should avoid trying to request anything from it as the remote has been compromised.
+                        See https://en.wikipedia.org/wiki/OCSP_stapling for more information."""
+                    )
+                if ocsp_resp.certificate_status == ocsp.OCSPCertStatus.UNKNOWN:
+                    r.ocsp_verified = False
+                    if strict is True:
+                        raise SSLError(
+                            f"""Unable to establish a secure connection to {r.url} because the issuer does not know whether
+                            certificate is valid or not. This error occurred because you enabled strict mode for
+                            the OCSP / Revocation check."""
+                        )
+                else:
+                    r.ocsp_verified = True
+            else:
+                if strict:
+                    warnings.warn(
+                        f"""Unable to insure that the remote peer ({r.url}) has a currently valid certificate via OCSP.
+                        You are seeing this warning due to enabling strict mode for OCSP / Revocation check.
+                        OCSP Server Status: {ocsp_resp.response_status}""",
+                        SecurityWarning,
+                    )
 
 
 __all__ = ("verify",)
