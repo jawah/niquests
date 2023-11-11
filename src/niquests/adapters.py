@@ -14,6 +14,7 @@ import time
 import typing
 from datetime import timedelta
 from http.cookiejar import CookieJar
+from threading import RLock
 from urllib.parse import urlparse
 
 # Preferred clock, based on which one is more accurate on a given system.
@@ -224,6 +225,7 @@ class HTTPAdapter(BaseAdapter):
             if max_in_flight_multiplexed is not None
             else self._pool_connections * 124
         )
+        self._promise_lock = RLock()
 
         disabled_svn = set()
 
@@ -460,7 +462,8 @@ class HTTPAdapter(BaseAdapter):
             # Add new cookies from the server.
             extract_cookies_to_jar(response.cookies, req, resp)
         else:
-            self._promises[resp.uid] = response
+            with self._promise_lock:
+                self._promises[resp.uid] = response
 
         # Give the Response some context.
         response.request = req
@@ -612,8 +615,14 @@ class HTTPAdapter(BaseAdapter):
         ), "Tried to send a non-initialized PreparedRequest"
 
         # We enforce a limit to avoid burning out our connection pool.
-        if multiplexed and len(self._promises) >= self._max_in_flight_multiplexed:
-            self.gather()
+        if multiplexed:
+            self._promise_lock.acquire()
+
+            if len(self._promises) >= self._max_in_flight_multiplexed:
+                self._promise_lock.release()
+                self.gather()
+            else:
+                self._promise_lock.release()
 
         try:
             conn = self.get_connection(request.url, proxies)
@@ -676,6 +685,8 @@ class HTTPAdapter(BaseAdapter):
             )
 
         except (ProtocolError, OSError) as err:
+            if "illegal header" in str(err).lower():
+                raise InvalidHeader(err, request=request)
             raise ConnectionError(err, request=request)
 
         except MaxRetryError as e:
@@ -787,11 +798,10 @@ class HTTPAdapter(BaseAdapter):
                 )
 
             if next_request:
-                session_constructor = promise_ctx_backup["niquests_session_constructor"]
 
                 def on_post_connection(conn_info: ConnectionInfo) -> None:
                     """This function will be called by urllib3.future just after establishing the connection."""
-                    nonlocal session_constructor, next_request, kwargs
+                    nonlocal next_request, kwargs
 
                     assert next_request is not None
                     next_request.conn_info = conn_info
@@ -806,18 +816,12 @@ class HTTPAdapter(BaseAdapter):
                             os.environ.get("NIQUESTS_STRICT_OCSP", "0") != "0"
                         )
 
-                        with session_constructor() as ocsp_session:
-                            ocsp_session.trust_env = False
-
-                            if not strict_ocsp_enabled:
-                                ocsp_session.proxies = kwargs["proxies"]
-
-                            ocsp_verify(
-                                ocsp_session,
-                                next_request,
-                                strict_ocsp_enabled,
-                                0.2 if not strict_ocsp_enabled else 1.0,
-                            )
+                        ocsp_verify(
+                            next_request,
+                            strict_ocsp_enabled,
+                            0.2 if not strict_ocsp_enabled else 1.0,
+                            kwargs["proxies"],
+                        )
 
                 kwargs["on_post_connection"] = on_post_connection
 
@@ -904,53 +908,59 @@ class HTTPAdapter(BaseAdapter):
         del self._promises[response_promise.uid]
 
     def gather(self, *responses: Response) -> None:
-        if not self._promises:
-            return
+        with self._promise_lock:
+            if not self._promises:
+                return
 
-        # Either we did not have a list of promises to fulfill...
-        if not responses:
-            while True:
-                low_resp = self.poolmanager.get_response()
+            # Either we did not have a list of promises to fulfill...
+            if not responses:
+                while True:
+                    low_resp = self.poolmanager.get_response()
 
-                if low_resp is None:
-                    break
+                    if low_resp is None:
+                        break
 
-                assert (
-                    low_resp._fp is not None
-                    and hasattr(low_resp._fp, "from_promise")
-                    and low_resp._fp.from_promise is not None
-                )
-
-                response = (
-                    self._promises[low_resp._fp.from_promise.uid]
-                    if low_resp._fp.from_promise.uid in self._promises
-                    else None
-                )
-
-                if response is None:
-                    raise MultiplexingError(
-                        "Underlying library yield an unexpected response that did not match any of sent request by us"
+                    assert (
+                        low_resp._fp is not None
+                        and hasattr(low_resp._fp, "from_promise")
+                        and low_resp._fp.from_promise is not None
                     )
 
-                self._future_handler(response, low_resp)
-        else:
-            # ...Or we have a list on which we should focus.
-            for response in responses:
-                req = response.request
-
-                assert req is not None
-
-                if not hasattr(response, "_promise"):
-                    continue
-
-                low_resp = self.poolmanager.get_response(promise=response._promise)
-
-                if low_resp is None:
-                    raise MultiplexingError(
-                        "Underlying library did not recognize our promise when asked to retrieve it"
+                    response = (
+                        self._promises[low_resp._fp.from_promise.uid]
+                        if low_resp._fp.from_promise.uid in self._promises
+                        else None
                     )
 
-                self._future_handler(response, low_resp)
+                    if response is None:
+                        raise MultiplexingError(
+                            "Underlying library yield an unexpected response that did not match any of sent request by us"
+                        )
+
+                    self._future_handler(response, low_resp)
+            else:
+                # ...Or we have a list on which we should focus.
+                for response in responses:
+                    req = response.request
+
+                    assert req is not None
+
+                    if not hasattr(response, "_promise"):
+                        continue
+
+                    low_resp = self.poolmanager.get_response(promise=response._promise)
+
+                    if low_resp is None:
+                        raise MultiplexingError(
+                            "Underlying library did not recognize our promise when asked to retrieve it"
+                        )
+
+                    self._future_handler(response, low_resp)
+
+        self._promise_lock.acquire()
 
         if self._promises:
+            self._promise_lock.release()
             self.gather()
+        else:
+            self._promise_lock.release()

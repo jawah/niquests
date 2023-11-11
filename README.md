@@ -73,7 +73,7 @@ We intend to keep it that way. As long as we can, long live Niquests!
 
 ---
 
-<small><sup>(*)</sup> performance measured when leveraging a multiplexed connection with or without uses of any form of concurrency as of november 2023.</small>
+<small><sup>(*)</sup> performance measured when leveraging a multiplexed connection with or without uses of any form of concurrency as of november 2023. The research compared `httpx`, `requests`, `aiohttp` against `niquests`. Niquests is faster than Requests in every scenarii.</small>
 
 ---
 

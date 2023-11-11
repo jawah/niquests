@@ -23,6 +23,8 @@ from niquests.utils import (
     get_auth_from_url,
     get_encoding_from_headers,
     get_environ_proxies,
+    getproxies,
+    getproxies_environment,
     guess_filename,
     is_ipv4_address,
     is_valid_cidr,
@@ -190,6 +192,8 @@ class TestGetEnvironProxies:
         monkeypatch.setenv(
             request.param, "192.168.0.0/24,127.0.0.1,localhost.localdomain,172.16.1.1"
         )
+        getproxies.cache_clear()
+        getproxies_environment.cache_clear()
 
     @pytest.mark.parametrize(
         "url",
@@ -758,6 +762,8 @@ def test_should_bypass_proxies_win_registry(url, expected, override, monkeypatch
     monkeypatch.setenv("NO_PROXY", "")
     monkeypatch.setattr(winreg, "OpenKey", OpenKey)
     monkeypatch.setattr(winreg, "QueryValueEx", QueryValueEx)
+    getproxies.cache_clear()
+    getproxies_environment.cache_clear()
     assert should_bypass_proxies(url, None) == expected
 
 
@@ -791,6 +797,8 @@ def test_should_bypass_proxies_win_registry_bad_values(monkeypatch):
     monkeypatch.setenv("NO_PROXY", "")
     monkeypatch.setattr(winreg, "OpenKey", OpenKey)
     monkeypatch.setattr(winreg, "QueryValueEx", QueryValueEx)
+    getproxies.cache_clear()
+    getproxies_environment.cache_clear()
     assert should_bypass_proxies("http://172.16.1.1/", None) is False
 
 

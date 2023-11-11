@@ -12,6 +12,15 @@ import typing
 from collections import OrderedDict
 from collections.abc import Mapping, MutableMapping
 
+from .exceptions import InvalidHeader
+
+
+def _ensure_str_or_bytes(key: typing.Any, value: typing.Any) -> None:
+    if isinstance(key, (bytes, str)) is False or (
+        value is not None and isinstance(value, (bytes, str)) is False
+    ):
+        raise InvalidHeader(f"Illegal header name or value {key}")
+
 
 class CaseInsensitiveDict(MutableMapping):
     """A case-insensitive ``dict``-like object.
@@ -46,11 +55,14 @@ class CaseInsensitiveDict(MutableMapping):
         ] = OrderedDict()
         if data is None:
             data = {}
+        for k, v in data.items() if hasattr(data, "items") else data:
+            _ensure_str_or_bytes(k, v)
         self.update(data, **kwargs)
 
     def __setitem__(self, key: str | bytes, value: str | bytes) -> None:
         # Use the lowercased key for lookups, but store the actual
         # key alongside the value.
+        _ensure_str_or_bytes(key, value)
         self._store[key.lower()] = (key, value)
 
     def __getitem__(self, key) -> bytes | str:

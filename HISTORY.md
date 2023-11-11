@@ -1,6 +1,20 @@
 Release History
 ===============
 
+3.2.3 (2023-11-11)
+------------------
+
+**Fixed**
+- Overall performance improvement.
+- Racing condition in `HTTPAdapter` with multiplexed enabled while in threads.
+
+**Removed**
+- Checks for header validity as it is duplicated (upstream does it already).
+  Warning: Function `check_header_validity` has been removed. It was not public in the first place.
+
+**Changed**
+- Cached proxies from environment to avoid unnecessary scan on each request.
+
 3.2.2 (2023-11-08)
 ------------------
 

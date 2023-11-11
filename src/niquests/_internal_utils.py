@@ -7,20 +7,6 @@ which depend on extremely few external helpers (such as compat)
 """
 from __future__ import annotations
 
-import re
-
-_VALID_HEADER_NAME_RE_BYTE = re.compile(rb"^[^:\s][^:\r\n]*$")
-_VALID_HEADER_NAME_RE_STR = re.compile(r"^[^:\s][^:\r\n]*$")
-_VALID_HEADER_VALUE_RE_BYTE = re.compile(rb"^\S[^\r\n]*$|^$")
-_VALID_HEADER_VALUE_RE_STR = re.compile(r"^\S[^\r\n]*$|^$")
-
-_HEADER_VALIDATORS_STR = (_VALID_HEADER_NAME_RE_STR, _VALID_HEADER_VALUE_RE_STR)
-_HEADER_VALIDATORS_BYTE = (_VALID_HEADER_NAME_RE_BYTE, _VALID_HEADER_VALUE_RE_BYTE)
-HEADER_VALIDATORS = {
-    bytes: _HEADER_VALIDATORS_BYTE,
-    str: _HEADER_VALIDATORS_STR,
-}
-
 
 def to_native_string(string: str | bytes, encoding: str = "ascii") -> str:
     """Given a string object, regardless of type, returns a representation of

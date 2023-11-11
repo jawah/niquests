@@ -18,6 +18,7 @@ import sys
 import tempfile
 import typing
 from collections import OrderedDict
+from functools import lru_cache
 from http.cookiejar import CookieJar
 from urllib.parse import quote, unquote, urlparse, urlunparse
 from urllib.request import (  # type: ignore[attr-defined]
@@ -35,19 +36,18 @@ from urllib3.util import make_headers, parse_url
 from .__version__ import __version__
 
 # to_native_string is unused here, but imported here for backwards compatibility
-from ._internal_utils import (  # noqa: F401
-    _HEADER_VALIDATORS_BYTE,
-    _HEADER_VALIDATORS_STR,
-    HEADER_VALIDATORS,
-    to_native_string,
-)
+from ._internal_utils import to_native_string  # noqa: F401
 from .cookies import cookiejar_from_dict
-from .exceptions import InvalidHeader, InvalidURL, UnrewindableBodyError
+from .exceptions import InvalidURL, UnrewindableBodyError
 from .structures import CaseInsensitiveDict
 
 if typing.TYPE_CHECKING:
     from .cookies import RequestsCookieJar
     from .models import PreparedRequest, Request, Response
+
+
+getproxies = lru_cache()(getproxies)
+getproxies_environment = lru_cache()(getproxies_environment)
 
 NETRC_FILES = (".netrc", "_netrc")
 
@@ -164,6 +164,7 @@ def super_len(o: typing.Any) -> int:
     return max(0, total_length - current_position)
 
 
+@lru_cache(maxsize=64)
 def get_netrc_auth(
     url: str | None, raise_errors: bool = False
 ) -> tuple[str, str] | None:
@@ -913,42 +914,6 @@ def get_auth_from_url(url: str) -> tuple[str, str]:
         auth = ("", "")
 
     return auth
-
-
-def check_header_validity(header: tuple[str | bytes, str | bytes]) -> None:
-    """Verifies that header parts don't contain leading whitespace
-    reserved characters, or return characters.
-
-    :param header: tuple, in the format (name, value).
-    """
-    name, value = header
-    _validate_header_part(header, name, 0)
-    _validate_header_part(header, value, 1)
-
-
-def _validate_header_part(
-    header: tuple[str | bytes, str | bytes],
-    header_part: str | bytes,
-    header_validator_index: int,
-) -> None:
-    results: re.Match[bytes] | re.Match[str] | None
-
-    if isinstance(header_part, str):
-        results = _HEADER_VALIDATORS_STR[header_validator_index].match(header_part)
-    elif isinstance(header_part, bytes):
-        results = _HEADER_VALIDATORS_BYTE[header_validator_index].match(header_part)
-    else:
-        raise InvalidHeader(
-            f"Header part ({header_part!r}) from {header} "
-            f"must be of type str or bytes, not {type(header_part)}"
-        )
-
-    if not results:
-        header_kind = "name" if header_validator_index == 0 else "value"
-        raise InvalidHeader(
-            f"Invalid leading whitespace, reserved character(s), or return"
-            f"character(s) in header {header_kind}: {header_part!r}"
-        )
 
 
 def urldefragauth(url: str) -> str:
