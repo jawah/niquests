@@ -1,4 +1,6 @@
-# Niquests
+<div align="center">
+    <img src="https://user-images.githubusercontent.com/9326700/282852138-160f32e9-e6cf-495f-b39d-99891602acf9.png" alt="Niquests Logo"/>
+</div>
 
 **Niquests** is a simple, yet elegant, HTTP library. It is a drop-in replacement for **Requests** that is no longer under
 feature freeze.
@@ -77,4 +79,4 @@ We intend to keep it that way. As long as we can, long live Niquests!
 
 ---
 
-[![Kenneth Reitz](https://raw.githubusercontent.com/jawah/niquests/main/ext/kr.png)](https://kennethreitz.org) [![Python Software Foundation](https://raw.githubusercontent.com/psf/requests/main/ext/psf.png)](https://www.python.org/psf)
+[![Kenneth Reitz](https://raw.githubusercontent.com/jawah/niquests/main/ext/kr.png)](https://kennethreitz.org)

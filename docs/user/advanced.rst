@@ -286,6 +286,12 @@ You may specify the private key passphrase using the following example::
     >>> niquests.get('https://kennethreitz.org', cert=('/path/client.cert', '/path/client.key', 'my_key_password'))
     <Response HTTP/2 [200]>
 
+In-memory Certificates
+----------------------
+
+The ``cert=...`` and ``verify=...`` can actually take the certificates themselves. Niquests support
+in-memory certificates instead of file paths.
+
 .. _ca-certificates:
 
 CA Certificates

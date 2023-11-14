@@ -37,7 +37,7 @@ netrc Authentication
 ~~~~~~~~~~~~~~~~~~~~
 
 If no authentication method is given with the ``auth`` argument and the
-Authorization header has not been set, Requests will attempt to get the
+Authorization header has not been set, Niquests will attempt to get the
 authentication credentials for the URL's hostname from the user's netrc file.
 
 If credentials for the hostname are found, the request is sent with HTTP Basic
