@@ -832,7 +832,7 @@ class Response:
     server's response to an HTTP request.
     """
 
-    __attrs__ = {
+    __attrs__ = [
         "_content",
         "status_code",
         "headers",
@@ -843,7 +843,7 @@ class Response:
         "cookies",
         "elapsed",
         "request",
-    }
+    ]
 
     __lazy_attrs__ = {
         "json",
@@ -934,7 +934,7 @@ class Response:
         Determine if response isn't received and is actually a placeholder.
         Only significant if request was sent through a multiplexed connection.
         """
-        return self.raw is None and hasattr(self, "_gather")
+        return hasattr(self, "raw") and self.raw is None and hasattr(self, "_gather")
 
     def __getattribute__(self, item):
         if item in Response.__lazy_attrs__ and self.lazy:
