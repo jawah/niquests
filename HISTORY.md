@@ -1,6 +1,15 @@
 Release History
 ===============
 
+3.2.4 (2023-11-15)
+------------------
+
+**Fixed**
+- Compatibility with some third-party mock tools.
+
+**Changed**
+- Relax IllegalHeader constraint when value is an integer, or float.
+
 3.2.3 (2023-11-11)
 ------------------
 

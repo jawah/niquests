@@ -442,7 +442,7 @@ class HTTPAdapter(BaseAdapter):
         """
         response = Response()
 
-        if isinstance(resp, BaseHTTPResponse):
+        if isinstance(resp, ResponsePromise) is False:
             # Fallback to None if there's no status_code, for whatever reason.
             response.status_code = getattr(resp, "status", None)
 
@@ -451,8 +451,8 @@ class HTTPAdapter(BaseAdapter):
 
             # Set encoding.
             response.encoding = get_encoding_from_headers(response.headers)
-            response.raw = resp
-            response.reason = response.raw.reason
+            response.raw = resp  # type: ignore[assignment]
+            response.reason = response.raw.reason  # type: ignore[union-attr]
 
             if isinstance(req.url, bytes):
                 response.url = req.url.decode("utf-8")
@@ -460,10 +460,10 @@ class HTTPAdapter(BaseAdapter):
                 response.url = req.url
 
             # Add new cookies from the server.
-            extract_cookies_to_jar(response.cookies, req, resp)
+            extract_cookies_to_jar(response.cookies, req, resp)  # type: ignore[arg-type]
         else:
             with self._promise_lock:
-                self._promises[resp.uid] = response
+                self._promises[resp.uid] = response  # type: ignore[union-attr]
 
         # Give the Response some context.
         response.request = req

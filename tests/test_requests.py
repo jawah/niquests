@@ -1666,7 +1666,7 @@ class TestRequests:
     @pytest.mark.parametrize(
         "invalid_header, key",
         (
-            ({"foo": 3}, "foo"),
+            ({"foo": ...}, "foo"),
             ({"bar": {"foo": "bar"}}, "bar"),
             ({"baz": ["foo", "bar"]}, "baz"),
         ),
