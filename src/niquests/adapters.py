@@ -110,7 +110,10 @@ except ImportError:
     ocsp_verify = None  # type: ignore[assignment]
 
 try:
-    from urllib3.contrib.socks import SOCKSProxyManager
+    if HAS_LEGACY_URLLIB3 is False:
+        from urllib3.contrib.socks import SOCKSProxyManager
+    else:
+        from urllib3_future.contrib.socks import SOCKSProxyManager  # type: ignore
 except ImportError:
 
     def SOCKSProxyManager(*args: typing.Any, **kwargs: typing.Any) -> None:  # type: ignore[no-redef]

@@ -1,6 +1,12 @@
 Release History
 ===============
 
+3.3.1 (2023-11-18)
+------------------
+
+**Fixed**
+- Warning filter (ignore) for `DependencyWarning` within urllib3.future wasn't applied in time.
+
 3.3.0 (2023-11-18)
 ------------------
 
