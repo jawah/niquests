@@ -45,6 +45,20 @@ import logging
 import warnings
 from logging import NullHandler
 
+from ._compat import HAS_LEGACY_URLLIB3
+
+if HAS_LEGACY_URLLIB3 is False:
+    from urllib3.exceptions import DependencyWarning
+else:
+    from urllib3_future.exceptions import DependencyWarning  # type: ignore[assignment]
+
+# urllib3's DependencyWarnings should be silenced.
+warnings.simplefilter("ignore", DependencyWarning)
+# Some Microsoft root CAs may use a negative serial number. It is known and safe. They know about it.
+warnings.filterwarnings(
+    "ignore", "Parsed a negative serial number", module="cryptography"
+)
+
 from . import utils
 from .__version__ import (
     __author__,
@@ -59,7 +73,6 @@ from .__version__ import (
     __version__,
 )
 from ._async import AsyncSession
-from ._compat import HAS_LEGACY_URLLIB3
 from .api import delete, get, head, options, patch, post, put, request
 from .exceptions import (
     ConnectionError,
@@ -77,17 +90,6 @@ from .exceptions import (
 from .models import PreparedRequest, Request, Response
 from .sessions import Session
 from .status_codes import codes
-
-if HAS_LEGACY_URLLIB3:
-    from urllib3.exceptions import DependencyWarning
-else:
-    from urllib3_future.exceptions import DependencyWarning  # type: ignore[assignment]
-
-warnings.filterwarnings(
-    "ignore", "Parsed a negative serial number", module="cryptography"
-)
-# urllib3's DependencyWarnings should be silenced.
-warnings.simplefilter("ignore", DependencyWarning)
 
 logging.getLogger(__name__).addHandler(NullHandler())
 
