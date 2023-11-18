@@ -13,4 +13,5 @@ DEFAULT_POOLBLOCK: bool = False
 DEFAULT_POOLSIZE: int = 10
 DEFAULT_RETRIES: RetryType = 0
 
+#: Kept for BC
 DEFAULT_CA_BUNDLE: str = wassima.generate_ca_bundle()

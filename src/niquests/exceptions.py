@@ -9,7 +9,12 @@ from __future__ import annotations
 import typing
 from json import JSONDecodeError as CompatJSONDecodeError
 
-from urllib3.exceptions import HTTPError as BaseHTTPError
+from ._compat import HAS_LEGACY_URLLIB3
+
+if HAS_LEGACY_URLLIB3 is False:
+    from urllib3.exceptions import HTTPError as BaseHTTPError
+else:
+    from urllib3_future.exceptions import HTTPError as BaseHTTPError  # type: ignore
 
 if typing.TYPE_CHECKING:
     from .models import PreparedRequest, Response

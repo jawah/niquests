@@ -343,8 +343,8 @@ class AsyncSession(Session):
             cert=cert,
         )
 
-    async def gather(self, *responses: Response) -> None:  # type: ignore[override]
+    async def gather(self, *responses: Response, max_fetch: int | None = None) -> None:  # type: ignore[override]
         return await sync_to_async(
             super().gather,
             thread_sensitive=AsyncSession.disable_thread,
-        )(*responses)
+        )(*responses, max_fetch=max_fetch)

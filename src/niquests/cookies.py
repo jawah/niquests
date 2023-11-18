@@ -19,7 +19,12 @@ from http.cookiejar import CookieJar
 from http.cookies import Morsel
 from urllib.parse import urlparse, urlunparse
 
-from urllib3 import BaseHTTPResponse
+from ._compat import HAS_LEGACY_URLLIB3
+
+if HAS_LEGACY_URLLIB3 is False:
+    from urllib3 import BaseHTTPResponse
+else:
+    from urllib3_future import BaseHTTPResponse  # type: ignore[assignment]
 
 from ._internal_utils import to_native_string
 

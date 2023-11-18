@@ -18,9 +18,17 @@ from cryptography.x509 import (
     load_pem_x509_certificate,
     ocsp,
 )
-from urllib3 import ConnectionInfo
-from urllib3.exceptions import SecurityWarning
-from urllib3.util.url import parse_url
+
+from .._compat import HAS_LEGACY_URLLIB3
+
+if HAS_LEGACY_URLLIB3 is False:
+    from urllib3 import ConnectionInfo
+    from urllib3.exceptions import SecurityWarning
+    from urllib3.util.url import parse_url
+else:
+    from urllib3_future import ConnectionInfo  # type: ignore[assignment]
+    from urllib3_future.exceptions import SecurityWarning  # type: ignore[assignment]
+    from urllib3_future.util.url import parse_url  # type: ignore[assignment]
 
 from .._typing import ProxyType
 from ..exceptions import RequestException, SSLError

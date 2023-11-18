@@ -12,12 +12,17 @@ import charset_normalizer
 import h2  # type: ignore
 import h11
 import idna
-import urllib3
 import wassima
 
 from . import RequestException
 from . import __version__ as niquests_version
 from . import get
+from ._compat import HAS_LEGACY_URLLIB3
+
+if HAS_LEGACY_URLLIB3 is True:
+    import urllib3_future as urllib3
+else:
+    import urllib3  # type: ignore[no-redef]
 
 try:
     import qh3  # type: ignore

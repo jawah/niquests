@@ -4,8 +4,15 @@ import typing
 from http.cookiejar import CookieJar
 
 from kiss_headers import Headers
-from urllib3 import Retry, Timeout
-from urllib3.fields import RequestField
+
+from ._compat import HAS_LEGACY_URLLIB3
+
+if HAS_LEGACY_URLLIB3 is False:
+    from urllib3 import Retry, Timeout
+    from urllib3.fields import RequestField
+else:
+    from urllib3_future import Retry, Timeout  # type: ignore[assignment]
+    from urllib3_future.fields import RequestField  # type: ignore[assignment]
 
 from .auth import AuthBase
 from .structures import CaseInsensitiveDict

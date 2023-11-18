@@ -18,7 +18,12 @@ from http import cookiejar as cookielib
 from http.cookiejar import CookieJar
 from urllib.parse import urljoin, urlparse
 
-from urllib3 import ConnectionInfo
+from ._compat import HAS_LEGACY_URLLIB3
+
+if HAS_LEGACY_URLLIB3 is False:
+    from urllib3 import ConnectionInfo
+else:
+    from urllib3_future import ConnectionInfo  # type: ignore[assignment]
 
 from ._constant import DEFAULT_RETRIES, READ_DEFAULT_TIMEOUT, WRITE_DEFAULT_TIMEOUT
 from ._internal_utils import to_native_string
@@ -1082,17 +1087,19 @@ class Session:
 
         return r
 
-    def gather(self, *responses: Response) -> None:
+    def gather(self, *responses: Response, max_fetch: int | None = None) -> None:
         """
         Call this method to make sure in-flight responses are retrieved efficiently. This is a no-op
         if multiplexed is set to False (which is the default value).
         Passing a limited set of responses will wait for given promises and discard others for later.
+        :param max_fetch: Maximal number of response to be fetched before exiting the loop. By default,
+            it waits until all pending (lazy) response are resolved.
         """
         if self.multiplexed is False:
             return
 
         for adapter in self.adapters.values():
-            adapter.gather(*responses)
+            adapter.gather(*responses, max_fetch=max_fetch)
 
     def merge_environment_settings(
         self,

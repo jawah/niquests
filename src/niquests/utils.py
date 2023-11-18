@@ -31,7 +31,12 @@ from urllib.request import (  # type: ignore[attr-defined]
     proxy_bypass_environment,
 )
 
-from urllib3.util import make_headers, parse_url
+from ._compat import HAS_LEGACY_URLLIB3
+
+if HAS_LEGACY_URLLIB3 is False:
+    from urllib3.util import make_headers, parse_url
+else:
+    from urllib3_future.util import make_headers, parse_url  # type: ignore[assignment]
 
 from .__version__ import __version__
 

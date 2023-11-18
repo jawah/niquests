@@ -1,6 +1,25 @@
 Release History
 ===============
 
+3.3.0 (2023-11-18)
+------------------
+
+**Added**
+- Maximum of (lazy) response(s) to be resolved when calling `Session.gather(..., max_fetch = ...)`.
+  Specifying a valid int to `max_fetch` will stop right after having resolved the right amount of responses.
+
+**Changed**
+- urllib3.future minimal version raised to 2.3.900 to leverage the fallback top-level package `urllib3_future`.
+
+**Fixed**
+- Error when having accidentally overriden `urllib3.future` by an external dependency.
+- Undesirable warning yielded by `cryptography` because of a Microsoft root certificate.
+  "Parsed a negative serial number, which is disallowed by RFC 5280."
+- Take into account newly registered custom CA when using `wassima.register_ca(...)`.
+
+**Removed**
+- Dependency check at runtime for `urllib3`. There's no more check and warnings at runtime for that subject. Ever.
+
 3.2.4 (2023-11-15)
 ------------------
 
