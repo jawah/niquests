@@ -40,42 +40,9 @@ is at <https://niquests.readthedocs.io>.
 
 from __future__ import annotations
 
-import warnings
-
-import urllib3
-
-from .exceptions import RequestsDependencyWarning
-
-
-def check_compatibility(urllib3_version: str) -> None:
-    urllib3_version_split = [int(n) for n in urllib3_version.split(".")]
-
-    # Check urllib3 for compatibility.
-    major, minor, patch = urllib3_version_split  # noqa: F811
-    # urllib3 >= 2.0.9xx
-    assert major >= 2
-    assert patch >= 900
-
-
-# Check imported dependencies for compatibility.
-try:
-    check_compatibility(urllib3.__version__)
-except (AssertionError, ValueError):
-    warnings.warn(
-        f"""Niquests require urllib3.future installed in your environment.
-        Installed urllib3 yield version {urllib3.__version__}. Make sure the patch revision is greater or equal to 900.
-        You may fix this issue by executing `python -m pip uninstall urllib3 urllib3.future`,
-        then `python -m pip install urllib3.future -U`.""",
-        RequestsDependencyWarning,
-    )
-
-# urllib3's DependencyWarnings should be silenced.
-from urllib3.exceptions import DependencyWarning
-
-warnings.simplefilter("ignore", DependencyWarning)
-
 # Set default logging handler to avoid "No handler found" warnings.
 import logging
+import warnings
 from logging import NullHandler
 
 from . import utils
@@ -92,6 +59,7 @@ from .__version__ import (
     __version__,
 )
 from ._async import AsyncSession
+from ._compat import HAS_LEGACY_URLLIB3
 from .api import delete, get, head, options, patch, post, put, request
 from .exceptions import (
     ConnectionError,
@@ -101,6 +69,7 @@ from .exceptions import (
     JSONDecodeError,
     ReadTimeout,
     RequestException,
+    RequestsDependencyWarning,
     Timeout,
     TooManyRedirects,
     URLRequired,
@@ -108,6 +77,17 @@ from .exceptions import (
 from .models import PreparedRequest, Request, Response
 from .sessions import Session
 from .status_codes import codes
+
+if HAS_LEGACY_URLLIB3:
+    from urllib3.exceptions import DependencyWarning
+else:
+    from urllib3_future.exceptions import DependencyWarning  # type: ignore[assignment]
+
+warnings.filterwarnings(
+    "ignore", "Parsed a negative serial number", module="cryptography"
+)
+# urllib3's DependencyWarnings should be silenced.
+warnings.simplefilter("ignore", DependencyWarning)
 
 logging.getLogger(__name__).addHandler(NullHandler())
 

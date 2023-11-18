@@ -23,17 +23,33 @@ from urllib.parse import urlencode, urlsplit, urlunparse
 
 from charset_normalizer import from_bytes
 from kiss_headers import Headers, parse_it
-from urllib3 import BaseHTTPResponse, ConnectionInfo, ResponsePromise
-from urllib3.exceptions import (
-    DecodeError,
-    LocationParseError,
-    ProtocolError,
-    ReadTimeoutError,
-    SSLError,
-)
-from urllib3.fields import RequestField
-from urllib3.filepost import choose_boundary, encode_multipart_formdata
-from urllib3.util import parse_url
+
+from ._compat import HAS_LEGACY_URLLIB3
+
+if HAS_LEGACY_URLLIB3 is False:
+    from urllib3 import BaseHTTPResponse, ConnectionInfo, ResponsePromise
+    from urllib3.exceptions import (
+        DecodeError,
+        LocationParseError,
+        ProtocolError,
+        ReadTimeoutError,
+        SSLError,
+    )
+    from urllib3.fields import RequestField
+    from urllib3.filepost import choose_boundary, encode_multipart_formdata
+    from urllib3.util import parse_url
+else:
+    from urllib3_future import BaseHTTPResponse, ConnectionInfo, ResponsePromise  # type: ignore[assignment]
+    from urllib3_future.exceptions import (  # type: ignore[assignment]
+        DecodeError,
+        LocationParseError,
+        ProtocolError,
+        ReadTimeoutError,
+        SSLError,
+    )
+    from urllib3_future.fields import RequestField  # type: ignore[assignment]
+    from urllib3_future.filepost import choose_boundary, encode_multipart_formdata  # type: ignore[assignment]
+    from urllib3_future.util import parse_url  # type: ignore[assignment]
 
 from ._internal_utils import to_native_string
 from ._typing import (

@@ -17,38 +17,58 @@ from http.cookiejar import CookieJar
 from threading import RLock
 from urllib.parse import urlparse
 
+import wassima
+
 # Preferred clock, based on which one is more accurate on a given system.
 if sys.platform == "win32":
     preferred_clock = time.perf_counter
 else:
     preferred_clock = time.time
 
-from urllib3 import ConnectionInfo, HTTPConnectionPool, HTTPSConnectionPool
-from urllib3.backend import HttpVersion, ResponsePromise
-from urllib3.exceptions import ClosedPoolError, ConnectTimeoutError
-from urllib3.exceptions import HTTPError as _HTTPError
-from urllib3.exceptions import InvalidHeader as _InvalidHeader
-from urllib3.exceptions import (
-    LocationValueError,
-    MaxRetryError,
-    NewConnectionError,
-    ProtocolError,
-)
-from urllib3.exceptions import ProxyError as _ProxyError
-from urllib3.exceptions import ReadTimeoutError, ResponseError
-from urllib3.exceptions import SSLError as _SSLError
-from urllib3.poolmanager import PoolManager, ProxyManager, proxy_from_url
-from urllib3.response import BaseHTTPResponse
-from urllib3.util import Timeout as TimeoutSauce
-from urllib3.util import parse_url
-from urllib3.util.retry import Retry
+from ._compat import HAS_LEGACY_URLLIB3
 
-from ._constant import (
-    DEFAULT_CA_BUNDLE,
-    DEFAULT_POOLBLOCK,
-    DEFAULT_POOLSIZE,
-    DEFAULT_RETRIES,
-)
+if HAS_LEGACY_URLLIB3 is False:
+    from urllib3 import ConnectionInfo, HTTPConnectionPool, HTTPSConnectionPool
+    from urllib3.backend import HttpVersion, ResponsePromise
+    from urllib3.exceptions import ClosedPoolError, ConnectTimeoutError
+    from urllib3.exceptions import HTTPError as _HTTPError
+    from urllib3.exceptions import InvalidHeader as _InvalidHeader
+    from urllib3.exceptions import (
+        LocationValueError,
+        MaxRetryError,
+        NewConnectionError,
+        ProtocolError,
+    )
+    from urllib3.exceptions import ProxyError as _ProxyError
+    from urllib3.exceptions import ReadTimeoutError, ResponseError
+    from urllib3.exceptions import SSLError as _SSLError
+    from urllib3.poolmanager import PoolManager, ProxyManager, proxy_from_url
+    from urllib3.response import BaseHTTPResponse
+    from urllib3.util import Timeout as TimeoutSauce
+    from urllib3.util import parse_url
+    from urllib3.util.retry import Retry
+else:
+    from urllib3_future import ConnectionInfo, HTTPConnectionPool, HTTPSConnectionPool  # type: ignore[assignment]
+    from urllib3_future.backend import HttpVersion, ResponsePromise  # type: ignore[assignment]
+    from urllib3_future.exceptions import ClosedPoolError, ConnectTimeoutError  # type: ignore[assignment]
+    from urllib3_future.exceptions import HTTPError as _HTTPError  # type: ignore[assignment]
+    from urllib3_future.exceptions import InvalidHeader as _InvalidHeader  # type: ignore[assignment]
+    from urllib3_future.exceptions import (  # type: ignore[assignment]
+        LocationValueError,
+        MaxRetryError,
+        NewConnectionError,
+        ProtocolError,
+    )
+    from urllib3_future.exceptions import ProxyError as _ProxyError  # type: ignore[assignment]
+    from urllib3_future.exceptions import ReadTimeoutError, ResponseError  # type: ignore[assignment]
+    from urllib3_future.exceptions import SSLError as _SSLError  # type: ignore[assignment]
+    from urllib3_future.poolmanager import PoolManager, ProxyManager, proxy_from_url  # type: ignore[assignment]
+    from urllib3_future.response import BaseHTTPResponse  # type: ignore[assignment]
+    from urllib3_future.util import Timeout as TimeoutSauce  # type: ignore[assignment]
+    from urllib3_future.util import parse_url  # type: ignore[assignment]
+    from urllib3_future.util.retry import Retry  # type: ignore[assignment]
+
+from ._constant import DEFAULT_POOLBLOCK, DEFAULT_POOLSIZE, DEFAULT_RETRIES
 from ._typing import (
     CacheLayerAltSvcType,
     HookType,
@@ -136,10 +156,12 @@ class BaseAdapter:
         """Cleans up adapter specific items."""
         raise NotImplementedError
 
-    def gather(self, *responses: Response) -> None:
+    def gather(self, *responses: Response, max_fetch: int | None = None) -> None:
         """
         Load responses that are still 'lazy'. This method is meant for a multiplexed connection.
         Implementation is not mandatory.
+        :param max_fetch: Maximal number of response to be fetched before exiting the loop. By default,
+            it waits until all pending (lazy) response are resolved.
         """
         pass
 
@@ -367,7 +389,7 @@ class HTTPAdapter(BaseAdapter):
         """
         if url.lower().startswith("https") and verify:
             cert_loc: str | None = None
-            cert_data: str = DEFAULT_CA_BUNDLE
+            cert_data: str = wassima.generate_ca_bundle()
 
             if isinstance(verify, str) and "-----BEGIN CERTIFICATE-----" in verify:
                 cert_data = verify
@@ -907,7 +929,7 @@ class HTTPAdapter(BaseAdapter):
 
         del self._promises[response_promise.uid]
 
-    def gather(self, *responses: Response) -> None:
+    def gather(self, *responses: Response, max_fetch: int | None = None) -> None:
         with self._promise_lock:
             if not self._promises:
                 return
@@ -915,10 +937,16 @@ class HTTPAdapter(BaseAdapter):
             # Either we did not have a list of promises to fulfill...
             if not responses:
                 while True:
+                    if max_fetch is not None and max_fetch == 0:
+                        break
+
                     low_resp = self.poolmanager.get_response()
 
                     if low_resp is None:
                         break
+
+                    if max_fetch is not None:
+                        max_fetch -= 1
 
                     assert (
                         low_resp._fp is not None
@@ -941,6 +969,9 @@ class HTTPAdapter(BaseAdapter):
             else:
                 # ...Or we have a list on which we should focus.
                 for response in responses:
+                    if max_fetch is not None and max_fetch == 0:
+                        break
+
                     req = response.request
 
                     assert req is not None
@@ -954,6 +985,9 @@ class HTTPAdapter(BaseAdapter):
                         raise MultiplexingError(
                             "Underlying library did not recognize our promise when asked to retrieve it"
                         )
+
+                    if max_fetch is not None:
+                        max_fetch -= 1
 
                     self._future_handler(response, low_resp)
 
