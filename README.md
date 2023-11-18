@@ -7,6 +7,9 @@ feature freeze.
 
 Niquests, is the “**Safest**, **Fastest<sup>*</sup>**, **Easiest**, and **Most advanced**” Python HTTP Client.
 
+✔️ **Try before you switch:** [See Multiplexed in Action](https://replit.com/@ahmedtahri4/Python#main.py)<br>
+📖 **See why you should switch:** [Read about 10 reasons you should](https://medium.com/dev-genius/10-reasons-you-should-quit-your-http-client-98fd4c94bef3)
+
 ```python
 >>> import niquests
 >>> r = niquests.get('https://httpbin.org/basic-auth/user/pass', auth=('user', 'pass'))
