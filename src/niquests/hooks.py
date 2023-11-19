@@ -45,7 +45,10 @@ def dispatch_hook(
         if callable(callables):
             callables = [callables]
         for hook in callables:
-            _hook_data = hook(hook_data, **kwargs)
+            try:
+                _hook_data = hook(hook_data, **kwargs)
+            except TypeError:
+                _hook_data = hook(hook_data)
             if _hook_data is not None:
                 hook_data = _hook_data
 
