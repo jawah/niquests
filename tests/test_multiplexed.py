@@ -3,6 +3,7 @@ from __future__ import annotations
 import pytest
 
 from niquests import Session
+from niquests.exceptions import MultiplexingError
 
 
 @pytest.mark.usefixtures("requires_wan")
@@ -76,3 +77,34 @@ class TestMultiplexed:
             import json
 
             assert isinstance(json.loads(payload), dict)
+
+    def test_one_at_a_time(self):
+        responses = []
+
+        with Session(multiplexed=True) as s:
+            for _ in [3, 1, 3, 5]:
+                responses.append(s.get(f"https://pie.dev/delay/{_}"))
+
+            assert all(r.lazy for r in responses)
+            promise_count = len(responses)
+
+            while any(r.lazy for r in responses):
+                s.gather(max_fetch=1)
+                promise_count -= 1
+
+                assert len(list(filter(lambda r: r.lazy, responses))) == promise_count
+
+            assert len(list(filter(lambda r: r.lazy, responses))) == 0
+
+    def test_early_close_error(self):
+        responses = []
+
+        with Session(multiplexed=True) as s:
+            for _ in [2, 1, 1]:
+                responses.append(s.get(f"https://pie.dev/delay/{_}"))
+
+            assert all(r.lazy for r in responses)
+
+        with pytest.raises(MultiplexingError) as exc:
+            responses[0].json()
+            assert "Did you close the session too early?" in exc.value.args[0]

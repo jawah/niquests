@@ -688,6 +688,24 @@ Any ``Response`` returned by get, post, put, etc... will be a lazy instance of `
 
 The possible algorithms are actually nearly limitless, and you may arrange/write you own scheduling technics!
 
+.. warning:: Beware that all in-flight (unresolved) lazy responses are lost immediately after closing the ``Session``. Trying to access unresolved and lost responses will result in ``MultiplexingError`` exception being raised.
+
+Session Gather
+--------------
+
+The ``Session`` instance expose a method called ``gather(*responses, max_fetch = None)``, you may call it to
+improve the efficiency of resolving your _lazy_ responses.
+
+Here are the possible outcome of invocation::
+
+    s.gather()  # resolve all pending "lazy" responses
+    s.gather(resp)  # resolve given "resp" only
+    s.gather(max_fetch=2)  # resolve two responses (the first two that come)
+    s.gather(resp_a, resp_b, resp_c)  # resolve all three
+    s.gather(resp_a, resp_b, resp_c, max_fetch=1)  # only resolve the first one
+
+.. note:: Call to ``s.gather`` is optional, you can access at will the responses properties and methods at any time.
+
 Async session
 -------------
 
@@ -698,37 +716,69 @@ All known methods remain the same at the sole difference that it return a corout
 
 .. note:: The underlying main library **urllib3.future** does not support native async but is thread safe. This is why we choose to implement / backport `sync_to_async` from Django that use a ThreadPool under the carpet.
 
-Here is an example::
+Here is a basic example::
 
-    from niquests import AsyncSession
     import asyncio
-    from time import time
+    from niquests import AsyncSession, Response
 
-    async def emit() -> None:
-        responses = []
+    async def fetch(url: str) -> Response:
+        with AsyncSession() as s:
+            return await s.get(url)
 
-        async with AsyncSession() as s:  # it also work well using multiplexed=True
-            responses.append(await s.get("https://pie.dev/get"))
-            responses.append(await s.get("https://pie.dev/delay/3"))
+    async def main() -> None:
+        tasks = []
 
-            await s.gather()
+        for _ in range(10):
+            tasks.append(asyncio.create_task(fetch("https://pie.dev/delay/1")))
+
+        responses = await asyncio.gather(*tasks)
 
         print(responses)
 
-    async def main() -> None:
-        foo = asyncio.create_task(emit())
-        bar = asyncio.create_task(emit())
-        await foo
-        await bar
 
     if __name__ == "__main__":
-        before = time()
         asyncio.run(main())
-        print(time() - before)  # 3s!
+
 
 .. warning:: For the time being **Niquests** only support **asyncio** as the backend library for async. Contributions are welcomed if you want it to be compatible with **anyio** for example.
 
 .. note:: Shortcut functions `get`, `post`, ..., from the top-level package does not support async.
+
+Async and Multiplex
+-------------------
+
+You can leverage a multiplexed connection while in an async context!
+It's the perfect solution while dealing with two or more hosts that support HTTP/2 onward.
+
+Look at this basic sample::
+
+    import asyncio
+    from niquests import AsyncSession, Response
+
+    async def fetch(url: str) -> list[Response]:
+        responses = []
+
+        with AsyncSession(multiplexed=True) as s:
+            for _ in range(10):
+                responses.append(await s.get(url))
+
+            await s.gather()
+
+            return responses
+
+    async def main() -> None:
+        tasks = []
+
+        for _ in range(10):
+            tasks.append(asyncio.create_task(fetch("https://pie.dev/delay/1")))
+
+        responses_responses = await asyncio.gather(*tasks)
+        responses = [item for sublist in responses_responses for item in sublist]
+
+        print(responses)
+
+    if __name__ == "__main__":
+        asyncio.run(main())
 
 -----------------------
 

@@ -1,6 +1,17 @@
 Release History
 ===============
 
+3.3.2 (2023-11-19)
+------------------
+
+**Fixed**
+- Hooks that does not accept keyword arguments are rejected.
+- Applying `max_fetch` to `Session.gather(...)` did not prevent the adapter to drain all pending responses.
+- Closed session having unconsumed multiplexed requests leaked an exception from urllib3.future.
+
+**Changed**
+- Aligned `qh3` version constraint in `http3` extra with urllib3.future.
+
 3.3.1 (2023-11-18)
 ------------------
 

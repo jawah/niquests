@@ -941,7 +941,7 @@ class HTTPAdapter(BaseAdapter):
             if not responses:
                 while True:
                     if max_fetch is not None and max_fetch == 0:
-                        break
+                        return
 
                     low_resp = self.poolmanager.get_response()
 
@@ -973,7 +973,7 @@ class HTTPAdapter(BaseAdapter):
                 # ...Or we have a list on which we should focus.
                 for response in responses:
                     if max_fetch is not None and max_fetch == 0:
-                        break
+                        return
 
                     req = response.request
 
@@ -982,11 +982,16 @@ class HTTPAdapter(BaseAdapter):
                     if not hasattr(response, "_promise"):
                         continue
 
-                    low_resp = self.poolmanager.get_response(promise=response._promise)
+                    try:
+                        low_resp = self.poolmanager.get_response(
+                            promise=response._promise
+                        )
+                    except ValueError:
+                        low_resp = None
 
                     if low_resp is None:
                         raise MultiplexingError(
-                            "Underlying library did not recognize our promise when asked to retrieve it"
+                            "Underlying library did not recognize our promise when asked to retrieve it. Did you close the session too early?"
                         )
 
                     if max_fetch is not None:
