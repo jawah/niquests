@@ -24,7 +24,7 @@ Niquests, is the “**Safest**, **Fastest<sup>*</sup>**, **Easiest**, and **Most
 >>> r.json()
 {'authenticated': True, ...}
 >>> r
-<Reponse HTTP/2 [200]>
+<Response HTTP/2 [200]>
 >>> r.ocsp_verified
 True
 ```
@@ -72,13 +72,18 @@ Niquests is ready for the demands of building robust and reliable HTTP–speakin
 
 ## Why did we pursue this?
 
+For many years now, **Requests** has been frozen and blocked millions of developers, left in a vegetative state
+regarding evolutions in the field.
+
 We don't have to reinvent the wheel all over again, HTTP client **Requests** is well established and
 really plaisant in its usage. We believe that **Requests** have the most inclusive, and developer friendly interfaces.
 We intend to keep it that way. As long as we can, long live Niquests!
 
+How about a nice refresher with a mere `CTRL+H` _import requests_ **to** _import niquests as requests_ ?
+
 ---
 
-<small><sup>(*)</sup> performance measured when leveraging a multiplexed connection with or without uses of any form of concurrency as of november 2023. The research compared `httpx`, `requests`, `aiohttp` against `niquests`. Niquests is faster than Requests in every scenarii.</small>
+<small><sup>(*)</sup> performance measured when leveraging a multiplexed connection with or without uses of any form of concurrency as of november 2023. The research compared `httpx`, `requests`, `aiohttp` against `niquests`.</small>
 
 ---
 

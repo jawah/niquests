@@ -37,4 +37,9 @@ def test_hooks_with_kwargs(hooks_list, result):
 
 
 def test_default_hooks():
-    assert hooks.default_hooks() == {"pre_request": [], "pre_send": [], "response": []}
+    assert hooks.default_hooks() == {
+        "pre_request": [],
+        "pre_send": [],
+        "on_upload": [],
+        "response": [],
+    }

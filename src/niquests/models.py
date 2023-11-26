@@ -118,6 +118,28 @@ CONTENT_CHUNK_SIZE = 10 * 1024
 ITER_CHUNK_SIZE = 512
 
 
+class TransferProgress:
+    def __init__(self):
+        self.total: int = 0
+        self.content_length: int | None = None
+        self.is_completed: bool = False
+        self.any_error: bool = False
+
+    @property
+    def percentage(self) -> float | None:
+        if self.content_length is None:
+            return None
+
+        return round((self.total / self.content_length) * 100.0, 3)
+
+    def __repr__(self) -> str:
+        if self.content_length:
+            return (
+                f"<Progress {self.percentage} % ({self.total} / {self.content_length})>"
+            )
+        return f"<Progress {self.total} bytes sent ({'in progress' if self.is_completed is False else 'completed'})>"
+
+
 class Request:
     """A user-created :class:`Request <Request>` object.
 
@@ -275,6 +297,8 @@ class PreparedRequest:
         self.conn_info: ConnectionInfo | None = None
         #: marker about if OCSP post-handshake verification took place.
         self.ocsp_verified: bool | None = None
+        #: upload progress if any.
+        self.upload_progress: TransferProgress | None = None
 
     @property
     def oheaders(self) -> Headers:

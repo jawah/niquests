@@ -73,6 +73,7 @@ from .models import (  # noqa: F401
     PreparedRequest,
     Request,
     Response,
+    TransferProgress,
 )
 from .status_codes import codes
 from .structures import CaseInsensitiveDict, QuicSharedCache
@@ -996,7 +997,27 @@ class Session:
             if ptr_request == request:
                 dispatch_hook("pre_send", hooks, ptr_request)  # type: ignore[arg-type]
 
+        def handle_upload_progress(
+            total_sent: int,
+            content_length: int | None,
+            is_completed: bool,
+            any_error: bool,
+        ) -> None:
+            nonlocal ptr_request, request, kwargs
+            if ptr_request != request:
+                return
+            if request.upload_progress is None:
+                request.upload_progress = TransferProgress()
+
+            request.upload_progress.total = total_sent
+            request.upload_progress.content_length = content_length
+            request.upload_progress.is_completed = is_completed
+            request.upload_progress.any_error = any_error
+
+            dispatch_hook("on_upload", hooks, request)  # type: ignore[arg-type]
+
         kwargs.setdefault("on_post_connection", on_post_connection)
+        kwargs.setdefault("on_upload_body", handle_upload_progress)
         kwargs.setdefault("multiplexed", self.multiplexed)
 
         assert request.url is not None

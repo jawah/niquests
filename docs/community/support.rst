@@ -3,15 +3,7 @@
 Support
 =======
 
-If you have questions or issues about Niquests, there are several options:
-
-Stack Overflow
---------------
-
-If your question does not contain sensitive (possibly proprietary)
-information or can be properly anonymized, please ask a question on
-`Stack Overflow <https://stackoverflow.com/questions/tagged/python-requests>`_
-and use the tag ``python-niquests``.
+If you have questions or issues about Niquests, you may:
 
 
 File an Issue

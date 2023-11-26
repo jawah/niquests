@@ -40,7 +40,7 @@ is designed to be a drop-in replacement for **Requests** that is no longer under
     >>> r.json()
     {'private_gists': 419, 'total_private_repos': 77, ...}
     >>> r
-    <Reponse HTTP/2 [200]>
+    <Response HTTP/2 [200]>
     >>> r.ocsp_verified
     True
 

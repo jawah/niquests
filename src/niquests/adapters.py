@@ -135,6 +135,8 @@ class BaseAdapter:
         cert: TLSClientCertType | None = None,
         proxies: ProxyType | None = None,
         on_post_connection: typing.Callable[[typing.Any], None] | None = None,
+        on_upload_body: typing.Callable[[int, int | None, bool, bool], None]
+        | None = None,
         multiplexed: bool = False,
     ) -> Response:
         """Sends PreparedRequest object. Returns Response object.
@@ -612,6 +614,8 @@ class HTTPAdapter(BaseAdapter):
         cert: TLSClientCertType | None = None,
         proxies: ProxyType | None = None,
         on_post_connection: typing.Callable[[typing.Any], None] | None = None,
+        on_upload_body: typing.Callable[[int, int | None, bool, bool], None]
+        | None = None,
         multiplexed: bool = False,
     ) -> Response:
         """Sends PreparedRequest object. Returns Response object.
@@ -706,6 +710,7 @@ class HTTPAdapter(BaseAdapter):
                 timeout=timeout,
                 chunked=chunked,
                 on_post_connection=on_post_connection,
+                on_upload_body=on_upload_body,
                 multiplexed=multiplexed,
             )
 
