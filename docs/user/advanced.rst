@@ -437,6 +437,9 @@ Available hooks:
     The response generated from a Request.
 ``pre_send``:
     The prepared request got his ConnectionInfo injected. This event is triggered just after picking a live connection from the pool.
+``on_upload``:
+    Permit to monitor the upload progress of passed body. This event is triggered each time a block of data is transmitted to the remote peer.
+    Use this hook carefully as it may impact the overall performance.
 ``pre_request``:
     The prepared request just got built. You may alter it prior to be sent through HTTP.
 
@@ -508,10 +511,39 @@ You can explore the following data in it.
 List of tangible use-cases:
 
 
-- Doing a OCSP request to verify whenever a certificate is revoked.
 - Displaying cool stuff on the screen for CLI based tools.
 - Also debugging, obviously.
 - Among others thing.
+
+Track upload progress
+---------------------
+
+You may use the ``on_upload`` hook to track the upload progress of a request.
+The callable will receive the ``PreparedRequest`` that will contain a property named ``upload_progress``.
+
+.. note:: ``upload_progress`` is a ``TransferProgress`` instance.
+
+You may find bellow a plausible example::
+
+    import niquests
+
+    if __name__ == "__main__":
+        def track(req):
+            print(req.upload_progress)
+
+        with niquests.Session() as s:
+            s.post("https://pie.dev/post", data=b"foo"*16800*1024, hooks={"on_upload": [track]})
+
+.. note:: Niquests recommend the excellent tqdm library to create progress bars with ease.
+
+``upload_progress`` contains the following properties:
+
+
+- **percentage** (optional) Basic percentage expressed via float from 0% to 100%
+- **content_length** (optional) The expected total bytes to be sent (may be unset due to some body formats, e.g. blind iterator / generator)
+- **total** : Amount of bytes sent to the remote peer
+- **is_completed** : Determine if the transfer ended
+- **any_error** : Simple boolean that indicate whenever a error occurred during transfer (like early response from peer)
 
 .. _custom-auth:
 
@@ -550,6 +582,8 @@ Then, we can make a request using our Pizza Auth::
 
     >>> niquests.get('http://pizzabin.org/admin', auth=PizzaAuth('kenneth'))
     <Response HTTP/2 [200]>
+
+.. note:: In case you want a clever shortcut to passing a ``Bearer`` token, you can pass directly (as a string) the token to ``auth=...`` instead.
 
 .. _streaming-requests:
 
@@ -1091,15 +1125,15 @@ backoff, within a Niquests :class:`Session <niquests.Session>` using the
 Blocking Or Non-Blocking?
 -------------------------
 
-With the default Transport Adapter in place, Niquests does not provide any kind
-of non-blocking IO. The :attr:`Response.content <niquests.Response.content>`
-property will block until the entire response has been downloaded. If
-you require more granularity, the streaming features of the library (see
-:ref:`streaming-requests`) allow you to retrieve smaller quantities of the
-response at a time. However, these calls will still block.
+The :attr:`Response.content <niquests.Response.content>`
+property will block until the entire response has been downloaded by default in HTTP/1.1
+In HTTP/2 onward, non-consumed response (body, aka. stream=True) will no longer block the connection.
 
-We plan to support multiplexed requests when using HTTP/2 or HTTP/3. Async usage
-will be partially rendered useless. There won't be any IO blocking per request.
+But if you leverage a full multiplexed connection, Niquests no longer block your synchronous
+loop. You are free of the IO blocking per request.
+
+You may also use the ``AsyncSession`` that provide you with the same methods as the regular
+``Session`` but with asyncio support.
 
 Header Ordering
 ---------------

@@ -119,6 +119,23 @@ class TestRequests:
         assert "Content-Length" in r.headers
         assert r.headers["Content-Length"] == "not zero"
 
+    def test_upload_progress(self, httpbin):
+        pulse = []
+
+        def track(req):
+            nonlocal pulse
+            pulse.append(req.upload_progress)
+
+        r = niquests.post(
+            httpbin("post"), data=b"foo" * 1024 * 10, hooks={"on_upload": [track]}
+        )
+        assert r.status_code == 200
+
+        assert all(item is not None for item in pulse)
+        assert pulse[-1].is_completed
+        assert pulse[0].content_length == 3 * 1024 * 10
+        assert len(pulse) > 1
+
     def test_path_is_not_double_encoded(self):
         request = niquests.Request("GET", "http://0.0.0.0/get/test case").prepare()
 

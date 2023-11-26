@@ -10,6 +10,9 @@ Available hooks:
     The prepared request just got built. You may alter it prior to be sent through HTTP.
 ``pre_send``:
     The prepared request got his ConnectionInfo injected. This event is triggered just after picking a live connection from the pool.
+``on_upload``:
+    Permit to monitor the upload progress of passed body. This event is triggered each time a block of data is transmitted to the remote peer.
+    Use this hook carefully as it may impact the overall performance.
 ``response``:
     The response generated from a Request.
 """
@@ -22,6 +25,7 @@ from ._typing import _HV, HookCallableType, HookType
 HOOKS = [
     "pre_request",
     "pre_send",
+    "on_upload",
     "response",
 ]
 
