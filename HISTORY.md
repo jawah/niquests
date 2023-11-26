@@ -5,12 +5,8 @@ Release History
 ------------------
 
 **Added**
-- Hook `on_upload` that allows you to monitor / track the upload progress.
+- Hook `on_upload` that allows you to monitor/track the upload progress.
 - Model `TransferProgress` that is used in `PreparedRequest` as public property `upload_progress`.
-
-**Changed**
-- urllib3.future minimal version raised to 2.3.901 in order to be able to track upload progress.
-  This version also ships with various performance improvements.
 
 3.3.2 (2023-11-19)
 ------------------
