@@ -81,6 +81,16 @@ We intend to keep it that way. As long as we can, long live Niquests!
 
 How about a nice refresher with a mere `CTRL+H` _import requests_ **to** _import niquests as requests_ ?
 
+## 💼 For Enterprise
+
+Professional support for Niquests is available as part of the [Tidelift
+Subscription][1]. Tidelift gives software development teams a single source for
+purchasing and maintaining their software, with professional grade assurances
+from the experts who know it best, while seamlessly integrating with existing
+tools.
+
+[1]: https://tidelift.com/subscription/pkg/pypi-niquests?utm_source=pypi-niquests&utm_medium=readme
+
 ---
 
 <small><sup>(*)</sup> performance measured when leveraging a multiplexed connection with or without uses of any form of concurrency as of november 2023. The research compared `httpx`, `requests`, `aiohttp` against `niquests`.</small>
