@@ -32,6 +32,13 @@ for using it::
 Providing the credentials in a tuple like this is exactly the same as the
 ``HTTPBasicAuth`` example above.
 
+Passing a bearer token
+----------------------
+
+You may use ``auth=my_token`` as a shortcut to passing ``headers={"Authorization": f"Bearer {my_token}"}`` in
+get, post, request, etc...
+
+.. note:: If you pass a token with its custom prefix, it will be taken and passed as-is. e.g. ``auth="NotBearer eyDdx.."``
 
 netrc Authentication
 ~~~~~~~~~~~~~~~~~~~~

@@ -26,7 +26,6 @@ else:
     from urllib3_future import ConnectionInfo  # type: ignore[assignment]
 
 from ._constant import DEFAULT_RETRIES, READ_DEFAULT_TIMEOUT, WRITE_DEFAULT_TIMEOUT
-from ._internal_utils import to_native_string
 from ._typing import (
     BodyType,
     CacheLayerAltSvcType,
@@ -1220,20 +1219,16 @@ class Session:
             # This causes incorrect handling of UTF8 encoded location headers.
             # To solve this, we re-encode the location in latin1.
             try:
-                return to_native_string(
-                    location.encode("latin1")
-                    if isinstance(location, str)
-                    else location,
-                    "utf8",
-                )
+                return (
+                    location.encode("latin1") if isinstance(location, str) else location
+                ).decode("utf-8")
             except UnicodeDecodeError:
                 try:
-                    return to_native_string(
+                    return (
                         location.encode("utf-8")
                         if isinstance(location, str)
-                        else location,
-                        "utf8",
-                    )
+                        else location
+                    ).decode("utf-8")
                 except (UnicodeDecodeError, UnicodeEncodeError) as e:
                     raise HTTPError(
                         "Response specify a Location header but is unreadable. This is a violation."
@@ -1317,7 +1312,10 @@ class Session:
             # Handle redirection without scheme (see: RFC 1808 Section 4)
             if url.startswith("//"):
                 parsed_rurl = urlparse(resp.url)
-                url = ":".join([to_native_string(parsed_rurl.scheme), url])
+                target_scheme = parsed_rurl.scheme
+                if isinstance(target_scheme, bytes):
+                    target_scheme = target_scheme.decode()
+                url = ":".join([target_scheme, url])
 
             # Normalize url case and attach previous fragment if needed (RFC 7231 7.1.2)
             parsed = urlparse(url)
@@ -1342,7 +1340,11 @@ class Session:
             else:
                 url = requote_uri(url)
 
-            prepared_request.url = to_native_string(url)
+            # this shouldn't happen, but kept in extreme case of being nice with BC.
+            if isinstance(url, bytes):
+                url = url.decode("utf-8")
+
+            prepared_request.url = url
             assert prepared_request.headers is not None
 
             self.rebuild_method(prepared_request, resp)

@@ -15,6 +15,10 @@ import datetime
 import encodings.idna  # noqa: F401
 import json as _json
 import typing
+
+if typing.TYPE_CHECKING:
+    from typing_extensions import Literal
+
 from collections.abc import Mapping
 from http import cookiejar as cookielib
 from http.cookiejar import CookieJar
@@ -51,7 +55,6 @@ else:
     from urllib3_future.filepost import choose_boundary, encode_multipart_formdata  # type: ignore[assignment]
     from urllib3_future.util import parse_url  # type: ignore[assignment]
 
-from ._internal_utils import to_native_string
 from ._typing import (
     BodyFormType,
     BodyType,
@@ -184,7 +187,7 @@ class Request:
         # Default empty dicts for dict params.
         data = [] if data is None else data
         files = [] if files is None else files
-        headers = {} if headers is None else headers
+        headers = CaseInsensitiveDict() if headers is None else headers
         params = {} if params is None else params
         hooks = {} if hooks is None else hooks
 
@@ -424,8 +427,8 @@ class PreparedRequest:
             path = "/"
 
         if params:
-            if isinstance(params, (str, bytes)):
-                params = to_native_string(params)
+            if isinstance(params, bytes):
+                params = params.decode("utf-8")
 
             enc_params = self._encode_params(params)
             if enc_params:
@@ -450,7 +453,9 @@ class PreparedRequest:
             else:
                 for header in headers.items():
                     name, value = header
-                    self.headers[to_native_string(name)] = value
+                    if isinstance(name, bytes):
+                        name = name.decode()
+                    self.headers[name] = value
 
     def prepare_body(
         self,
@@ -725,8 +730,8 @@ class PreparedRequest:
             result = []
             for k, vs in to_key_val_list(data):
                 iterable_vs: typing.Iterable[str | bytes]
-                if isinstance(vs, (str, bytes, int, float)):
-                    # not officially supported, but some people maybe passing ints or float.
+                if isinstance(vs, (str, bytes, int, float, bool)):
+                    # not officially supported, but some people maybe passing ints, float or bool.
                     if isinstance(vs, (str, bytes)) is False:
                         iterable_vs = [str(vs)]
                     else:
@@ -922,7 +927,7 @@ class Response:
     ]
 
     def __init__(self) -> None:
-        self._content: typing.Literal[False] | bytes | None = False
+        self._content: Literal[False] | bytes | None = False
         self._content_consumed: bool = False
         self._next: PreparedRequest | None = None
 
@@ -1084,6 +1089,18 @@ class Response:
             return self.request.ocsp_verified
         return None
 
+    @typing.overload
+    def iter_content(
+        self, chunk_size: int = ..., decode_unicode: Literal[False] = ...
+    ) -> typing.Generator[bytes, None, None]:
+        ...
+
+    @typing.overload
+    def iter_content(
+        self, chunk_size: int = ..., *, decode_unicode: Literal[True]
+    ) -> typing.Generator[str, None, None]:
+        ...
+
     def iter_content(
         self, chunk_size: int = 1, decode_unicode: bool = False
     ) -> typing.Generator[bytes | str, None, None]:
@@ -1145,6 +1162,25 @@ class Response:
 
         return chunks
 
+    @typing.overload
+    def iter_lines(
+        self,
+        chunk_size: int = ...,
+        decode_unicode: Literal[False] = ...,
+        delimiter: str | bytes | None = ...,
+    ) -> typing.Generator[bytes, None, None]:
+        ...
+
+    @typing.overload
+    def iter_lines(
+        self,
+        chunk_size: int = ...,
+        *,
+        decode_unicode: Literal[True],
+        delimiter: str | bytes | None = ...,
+    ) -> typing.Generator[str, None, None]:
+        ...
+
     def iter_lines(
         self,
         chunk_size: int = ITER_CHUNK_SIZE,
@@ -1168,7 +1204,7 @@ class Response:
 
         pending = None
 
-        for chunk in self.iter_content(
+        for chunk in self.iter_content(  # type: ignore[call-overload]
             chunk_size=chunk_size, decode_unicode=decode_unicode
         ):
             if pending is not None:

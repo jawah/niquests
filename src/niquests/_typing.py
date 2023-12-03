@@ -45,6 +45,8 @@ BodyType: typing.TypeAlias = typing.Union[
 #: HTTP Headers can be represented through three ways. 1) typical dict, 2) internal insensitive dict, and 3) list of tuple.
 HeadersType: typing.TypeAlias = typing.Union[
     typing.MutableMapping[typing.Union[str, bytes], typing.Union[str, bytes]],
+    typing.MutableMapping[str, str],
+    typing.MutableMapping[bytes, bytes],
     CaseInsensitiveDict,
     typing.List[typing.Tuple[typing.Union[str, bytes], typing.Union[str, bytes]]],
     Headers,

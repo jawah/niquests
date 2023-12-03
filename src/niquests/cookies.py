@@ -26,8 +26,6 @@ if HAS_LEGACY_URLLIB3 is False:
 else:
     from urllib3_future import BaseHTTPResponse  # type: ignore[assignment]
 
-from ._internal_utils import to_native_string
-
 if typing.TYPE_CHECKING:
     from .models import PreparedRequest, Request
 
@@ -64,7 +62,9 @@ class MockRequest:
         if not self._r.headers.get("Host"):
             return self._r.url
         # If they did set it, retrieve it and reconstruct the expected domain
-        host = to_native_string(self._r.headers["Host"], encoding="utf-8")
+        host = self._r.headers["Host"]
+        if isinstance(host, bytes):
+            host = host.decode("utf-8")
         parsed = urlparse(self._r.url)
         # Reconstruct the URL as we expect it
         return urlunparse(

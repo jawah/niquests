@@ -118,7 +118,7 @@ def info():
         "charset_normalizer": charset_normalizer_info,
         "cryptography": cryptography_info,
         "idna": idna_info,
-        "requests": {
+        "niquests": {
             "version": niquests_version,
         },
         "http3": {

@@ -43,11 +43,3 @@ released the previous version. If the previous version of Niquests released
 
 Hotfixes will **not** include upgrades to vendored dependencies after
 ``v2.6.2``
-
-Reasoning
----------
-
-In the 2.5 and 2.6 release series, the Requests core team upgraded vendored
-dependencies and caused a great deal of headaches for both users and the core
-team. To reduce this pain, we're forming a concrete set of procedures so
-expectations will be properly set.
