@@ -5,7 +5,7 @@
 **Niquests** is a simple, yet elegant, HTTP library. It is a drop-in replacement for **Requests** that is no longer under
 feature freeze.
 
-Niquests, is the “**Safest**, **Fastest<sup>*</sup>**, **Easiest**, and **Most advanced**” Python HTTP Client.
+Niquests, is the “**Safest**, **Fastest<sup>*</sup>**, **Easiest**, and **Most advanced**” Python HTTP Client. Production Ready!
 
 ✔️ **Try before you switch:** [See Multiplexed in Action](https://replit.com/@ahmedtahri4/Python#main.py)<br>
 📖 **See why you should switch:** [Read about 10 reasons why](https://medium.com/dev-genius/10-reasons-you-should-quit-your-http-client-98fd4c94bef3)
@@ -51,6 +51,7 @@ Niquests is ready for the demands of building robust and reliable HTTP–speakin
 - Automatic Content Decompression and Decoding
 - OS truststore by default, no more certifi!
 - OCSP Certificate Revocation Verification
+- In-memory certificates (CAs, and mTLS)
 - Browser-style TLS/SSL Verification
 - Sessions with Cookie Persistence
 - Keep-Alive & Connection Pooling

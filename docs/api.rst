@@ -103,149 +103,47 @@ Status Code Lookup
 .. automodule:: niquests.status_codes
 
 
-Migrating to 1.x
+Migrating to 3.x
 ----------------
 
-This section details the main differences between 0.x and 1.x and is meant
-to ease the pain of upgrading.
-
-
-API Changes
-~~~~~~~~~~~
-
-* ``Response.json`` is now a callable and not a property of a response.
-
-  ::
-
-      import requests
-      r = niquests.get('https://api.github.com/events')
-      r.json()   # This *call* raises an exception if JSON decoding fails
-
-* The ``Session`` API has changed. Sessions objects no longer take parameters.
-  ``Session`` is also now capitalized, but it can still be
-  instantiated with a lowercase ``session`` for backwards compatibility.
-
-  ::
-
-      s = niquests.Session()    # formerly, session took parameters
-      s.auth = auth
-      s.headers.update(headers)
-      r = s.get('https://httpbin.org/headers')
-
-* All request hooks have been removed except 'response'.
-
-* Authentication helpers have been broken out into separate modules. See
-  requests-oauthlib_ and requests-kerberos_.
-
-.. _requests-oauthlib: https://github.com/requests/requests-oauthlib
-.. _requests-kerberos: https://github.com/requests/requests-kerberos
-
-* The parameter for streaming requests was changed from ``prefetch`` to
-  ``stream`` and the logic was inverted. In addition, ``stream`` is now
-  required for raw response reading.
-
-  ::
-
-      # in 0.x, passing prefetch=False would accomplish the same thing
-      r = niquests.get('https://api.github.com/events', stream=True)
-      for chunk in r.iter_content(8192):
-          ...
-
-* The ``config`` parameter to the requests method has been removed. Some of
-  these options are now configured on a ``Session`` such as keep-alive and
-  maximum number of redirects. The verbosity option should be handled by
-  configuring logging.
-
-  ::
-
-      import requests
-      import logging
-
-      # Enabling debugging at http.client level (requests->urllib3->http.client)
-      # you will see the REQUEST, including HEADERS and DATA, and RESPONSE with HEADERS but without DATA.
-      # the only thing missing will be the response.body which is not logged.
-      try: # for Python 3
-          from http.client import HTTPConnection
-      except ImportError:
-          from httplib import HTTPConnection
-      HTTPConnection.debuglevel = 1
-
-      logging.basicConfig() # you need to initialize logging, otherwise you will not see anything from requests
-      logging.getLogger().setLevel(logging.DEBUG)
-      requests_log = logging.getLogger("urllib3")
-      requests_log.setLevel(logging.DEBUG)
-      requests_log.propagate = True
-
-      niquests.get('https://httpbin.org/headers')
-
-
-
-Licensing
-~~~~~~~~~
-
-One key difference that has nothing to do with the API is a change in the
-license from the ISC_ license to the `Apache 2.0`_ license. The Apache 2.0
-license ensures that contributions to Niquests are also covered by the Apache
-2.0 license.
-
-.. _ISC: https://opensource.org/licenses/ISC
-.. _Apache 2.0: https://opensource.org/licenses/Apache-2.0
-
-
-Migrating to 2.x
-----------------
-
-
-Compared with the 1.0 release, there were relatively few backwards
+Compared with the 2.0 release, there were relatively few backwards
 incompatible changes, but there are still a few issues to be aware of with
 this major release.
 
-For more details on the changes in this release including new APIs, links
-to the relevant GitHub issues and some of the bug fixes, read Cory's blog_
-on the subject.
 
-.. _blog: https://lukasa.co.uk/2013/09/Requests_20/
+Removed
+~~~~~~~
 
-
-API Changes
-~~~~~~~~~~~
-
-* There were a couple changes to how Niquests handles exceptions.
-  ``RequestException`` is now a subclass of ``IOError`` rather than
-  ``RuntimeError`` as that more accurately categorizes the type of error.
-  In addition, an invalid URL escape sequence now raises a subclass of
-  ``RequestException`` rather than a ``ValueError``.
-
-  ::
-
-      niquests.get('http://%zz/')   # raises niquests.exceptions.InvalidURL
-
-  Lastly, ``httplib.IncompleteRead`` exceptions caused by incorrect chunked
-  encoding will now raise a Requests ``ChunkedEncodingError`` instead.
-
-* The proxy API has changed slightly. The scheme for a proxy URL is now
-  required.
-
-  ::
-
-      proxies = {
-        "http": "10.10.1.10:3128",    # use http://10.10.1.10:3128 instead
-      }
-
-      # In requests 1.x, this was legal, in requests 2.x,
-      #  this raises niquests.exceptions.MissingSchema
-      niquests.get("http://example.org", proxies=proxies)
-
+* Property ``apparent_encoding`` in favor of a discrete internal inference.
+* Support for the legacy ``chardet`` detector in case it was present in environment.
+  Extra ``chardet_on_py3`` is now unavailable.
+* **requests.compat** no longer hold reference to _chardet_.
+* Deprecated ``requests.packages`` that was meant to avoid breakage from people importing ``urllib3`` or ``chardet`` within this package.
+  They were _vendored_ in early versions of Requests. A long time ago.
+* Deprecated function ``get_encodings_from_content`` from utils.
+* Deprecated function ``get_unicode_from_response`` from utils.
+* BasicAuth middleware no-longer support anything else than ``bytes`` or ``str`` for username and password.
+* ``requests.compat`` is stripped of every reference that no longer vary between supported interpreter version.
+* Charset fall back **ISO-8859-1** when content-type is text and no charset was specified.
+* Main function ``get``, ``post``, ``put``, ``patch``, ``delete``, and ``head`` no longer accept **kwargs**. They have a fixed list of typed argument.
+  It is no longer possible to specify non-supported additional keyword argument from a ``Session`` instance or directly through ``requests.api`` functions.
+  e.g. function ``delete`` no-longer accept ``json``, or ``files`` arguments. as per RFCs specifications. You can still override this behavior through the ``request`` function.
+* Mixin classes ``RequestEncodingMixin``, and ``RequestHooksMixin`` due to OOP violations. Now deported directly into child classes.
+* Function ``unicode_is_ascii`` as it is part of the stable ``str`` stdlib on Python 3 or greater.
+* Alias function ``session`` for ``Session`` context manager that was kept for BC reasons since the v1.
+* pyOpenSSL/urllib3 injection in case built-in ssl module does not have SNI support as it is not the case anymore for every supported interpreters.
+* Constant ``DEFAULT_CA_BUNDLE_PATH``, and submodule ``certs`` due to dropping ``certifi``.
+* Function ``extract_zipped_paths`` because rendered useless as it was made to handle an edge case where ``certifi`` is "zipped".
+* Extra ``security`` when installing this package. It was previously emptied in the previous major.
+* Warning emitted when passing a file opened in text-mode instead of binary. urllib3.future can overrule
+  the content-length if it detects an error. You should not encounter broken request being sent.
+* Support for ``simplejson`` if was present in environment.
+* Submodule ``compat``.
+* Dependency check at runtime for ``urllib3``. There's no more check and warnings at runtime for that subject. Ever.
 
 Behavioural Changes
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-* Keys in the ``headers`` dictionary are now native strings on all Python
-  versions, i.e. bytestrings on Python 2 and unicode on Python 3. If the
-  keys are not native strings (unicode on Python 2 or bytestrings on Python 3)
-  they will be converted to the native string type assuming UTF-8 encoding.
-
-* Values in the ``headers`` dictionary should always be strings. This has
-  been the project's position since before 1.0 but a recent change
-  (since version 2.11.0) enforces this more strictly. It's advised to avoid
-  passing header values as unicode when possible.
+* Niquests negotiate for a HTTP/2 connection by default, fallback to HTTP/1.1 if not available.
+* Support for HTTP/3 can be present by default if your platform support the pre-built wheel for qh3.
+* Server capability for HTTP/3 is remembered automatically (in-memory) for subsequent requests.

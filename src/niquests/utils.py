@@ -39,9 +39,6 @@ else:
     from urllib3_future.util import make_headers, parse_url  # type: ignore[assignment]
 
 from .__version__ import __version__
-
-# to_native_string is unused here, but imported here for backwards compatibility
-from ._internal_utils import to_native_string  # noqa: F401
 from .cookies import cookiejar_from_dict
 from .exceptions import InvalidURL, UnrewindableBodyError
 from .structures import CaseInsensitiveDict

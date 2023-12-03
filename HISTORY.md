@@ -1,6 +1,16 @@
 Release History
 ===============
 
+3.3.4 (2023-12-03)
+------------------
+
+**Fixed**
+- Overall static typing experience have been improved.
+- Code HTTP 425 is now registered as `too_early` in addition to the legacy `unordered_collection`.
+
+**Removed**
+- Private module `niquests._internal_utils` has been removed as it no longer serve its purposes.
+
 3.3.3 (2023-11-26)
 ------------------
 

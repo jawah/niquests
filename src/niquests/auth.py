@@ -15,7 +15,6 @@ import typing
 from base64 import b64encode
 from urllib.parse import urlparse
 
-from ._internal_utils import to_native_string
 from .cookies import extract_cookies_to_jar
 from .utils import parse_dict_header
 
@@ -32,9 +31,7 @@ def _basic_auth_str(username: str | bytes, password: str | bytes) -> str:
     if isinstance(password, str):
         password = password.encode("utf-8")
 
-    authstr = "Basic " + to_native_string(
-        b64encode(b":".join((username, password))).strip()
-    )
+    authstr = "Basic " + b64encode(b":".join((username, password))).strip().decode()
 
     return authstr
 
