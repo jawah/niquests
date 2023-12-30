@@ -33,7 +33,7 @@ jobs:
         cache: 'pip'
     - name: Install dependencies
       run: |
-        make
+        pip install nox
     - name: Run tests
       run: |
-        make ci
+        nox -s "test-${{ startsWith(matrix.python-version, 'pypy') && 'pypy' || matrix.python-version }}"

@@ -21,6 +21,8 @@ env/
 .pytest_cache/
 .vscode/
 .eggs/
+.nox/
+.ruff_cache/
 
 .workon
 

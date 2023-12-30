@@ -142,7 +142,7 @@ Removed
 * Dependency check at runtime for ``urllib3``. There's no more check and warnings at runtime for that subject. Ever.
 
 Behavioural Changes
-~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~
 
 * Niquests negotiate for a HTTP/2 connection by default, fallback to HTTP/1.1 if not available.
 * Support for HTTP/3 can be present by default if your platform support the pre-built wheel for qh3.

@@ -11,6 +11,7 @@ import os
 import sys
 import time
 import typing
+import warnings
 from collections import OrderedDict
 from collections.abc import Mapping
 from datetime import timedelta
@@ -18,7 +19,7 @@ from http import cookiejar as cookielib
 from http.cookiejar import CookieJar
 from urllib.parse import urljoin, urlparse
 
-from ._compat import HAS_LEGACY_URLLIB3
+from ._compat import HAS_LEGACY_URLLIB3, urllib3_ensure_type
 
 if HAS_LEGACY_URLLIB3 is False:
     from urllib3 import ConnectionInfo
@@ -38,6 +39,7 @@ from ._typing import (
     MultiPartFilesType,
     ProxyType,
     QueryParameterType,
+    ResolverType,
     RetryType,
     TimeoutType,
     TLSClientCertType,
@@ -87,6 +89,7 @@ from .utils import (  # noqa: F401
     rewind_body,
     should_bypass_proxies,
     to_key_val_list,
+    create_resolver,
 )
 
 # Preferred clock, based on which one is more accurate on a given system.
@@ -203,19 +206,39 @@ class Session:
         "max_redirects",
         "retries",
         "multiplexed",
+        "source_address",
+        "_disable_ipv4",
+        "_disable_ipv6",
+        "_disable_http2",
+        "_disable_http3",
     ]
 
     def __init__(
         self,
         *,
+        resolver: ResolverType | None = None,
+        source_address: tuple[str, int] | None = None,
         quic_cache_layer: CacheLayerAltSvcType | None = None,
         retries: RetryType = DEFAULT_RETRIES,
         multiplexed: bool = False,
         disable_http2: bool = False,
         disable_http3: bool = False,
+        disable_ipv6: bool = False,
+        disable_ipv4: bool = False,
     ):
+        if [disable_ipv4, disable_ipv6].count(True) == 2:
+            raise RuntimeError("Cannot disable both IPv4 and IPv6")
+
         #: Configured retries for current Session
         self.retries = retries
+
+        if (
+            self.retries
+            and HAS_LEGACY_URLLIB3
+            and hasattr(self.retries, "total")
+            and "urllib3_future" not in str(type(self.retries))
+        ):
+            self.retries = urllib3_ensure_type(self.retries)  # type: ignore[type-var]
 
         #: A case-insensitive dictionary of headers to be sent on each
         #: :class:`Request <Request>` sent from this
@@ -244,6 +267,20 @@ class Session:
 
         #: Toggle to leverage multiplexed connection.
         self.multiplexed = multiplexed
+
+        #: Custom DNS resolution method.
+        self.resolver = create_resolver(resolver)
+        #: Internal use, know whether we should/can close it on session close.
+        self._own_resolver: bool = resolver != self.resolver
+
+        #: Bind to address/network adapter
+        self.source_address = source_address
+
+        self._disable_http2 = disable_http2
+        self._disable_http3 = disable_http3
+
+        self._disable_ipv4 = disable_ipv4
+        self._disable_ipv6 = disable_ipv6
 
         #: SSL Verification default.
         #: Defaults to `True`, requiring requests to verify the TLS certificate at the
@@ -293,9 +330,22 @@ class Session:
                 max_retries=retries,
                 disable_http2=disable_http2,
                 disable_http3=disable_http3,
+                resolver=resolver,
+                source_address=source_address,
+                disable_ipv4=disable_ipv4,
+                disable_ipv6=disable_ipv6,
             ),
         )
-        self.mount("http://", HTTPAdapter(max_retries=retries))
+        self.mount(
+            "http://",
+            HTTPAdapter(
+                max_retries=retries,
+                resolver=resolver,
+                source_address=source_address,
+                disable_ipv4=disable_ipv4,
+                disable_ipv6=disable_ipv6,
+            ),
+        )
 
     def __enter__(self):
         return self
@@ -429,7 +479,9 @@ class Session:
         )
 
         prep: PreparedRequest = dispatch_hook(
-            "pre_request", hooks, self.prepare_request(req)  # type: ignore[arg-type]
+            "pre_request",
+            hooks,  # type: ignore[arg-type]
+            self.prepare_request(req),
         )
 
         assert prep.url is not None
@@ -955,8 +1007,18 @@ class Session:
         kwargs.setdefault("stream", self.stream)
         kwargs.setdefault("verify", self.verify)
         kwargs.setdefault("cert", self.cert)
+
         if "proxies" not in kwargs:
             kwargs["proxies"] = resolve_proxies(request, self.proxies, self.trust_env)
+
+        if (
+            "timeout" in kwargs
+            and kwargs["timeout"]
+            and HAS_LEGACY_URLLIB3
+            and hasattr(kwargs["timeout"], "total")
+            and "urllib3_future" not in str(type(kwargs["timeout"]))
+        ):
+            kwargs["timeout"] = urllib3_ensure_type(kwargs["timeout"])
 
         # It's possible that users might accidentally send a Request object.
         # Guard against that specific failure case.
@@ -990,6 +1052,7 @@ class Session:
                     strict_ocsp_enabled,
                     0.2 if not strict_ocsp_enabled else 1.0,
                     kwargs["proxies"],
+                    resolver=self.resolver,
                 )
 
             # don't trigger pre_send for redirects
@@ -1021,6 +1084,40 @@ class Session:
 
         assert request.url is not None
 
+        # Recycle the resolver if unavailable
+        if not self.resolver.is_available():
+            if not self._own_resolver:
+                warnings.warn(
+                    "A externally instantiated resolver was closed. Attempt to recycling it internally, "
+                    "the Session will detach itself from given resolver.",
+                    ResourceWarning,
+                )
+            self.close()
+            self.resolver = self.resolver.recycle()
+            self.mount(
+                "https://",
+                HTTPAdapter(
+                    quic_cache_layer=self.quic_cache_layer,
+                    max_retries=self.retries,
+                    disable_http2=self._disable_http2,
+                    disable_http3=self._disable_http3,
+                    resolver=self.resolver,
+                    source_address=self.source_address,
+                    disable_ipv4=self._disable_ipv4,
+                    disable_ipv6=self._disable_ipv6,
+                ),
+            )
+            self.mount(
+                "http://",
+                HTTPAdapter(
+                    max_retries=self.retries,
+                    resolver=self.resolver,
+                    source_address=self.source_address,
+                    disable_ipv4=self._disable_ipv4,
+                    disable_ipv6=self._disable_ipv6,
+                ),
+            )
+
         # Get the appropriate adapter to use
         adapter = self.get_adapter(url=request.url)
 
@@ -1033,7 +1130,10 @@ class Session:
         # We are leveraging a multiplexed connection
         if r.raw is None:
             r._gather = lambda: adapter.gather(r)
-            r._resolve_redirect = lambda x, y: next(self.resolve_redirects(x, y, yield_requests=True, **kwargs), None)  # type: ignore[assignment, arg-type]
+            r._resolve_redirect = lambda x, y: next(
+                self.resolve_redirects(x, y, yield_requests=True, **kwargs),  # type: ignore
+                None,
+            )
 
             # in multiplexed mode, we are unable to forward this local function for safety reasons.
             kwargs["on_post_connection"] = None
@@ -1097,7 +1197,9 @@ class Session:
             if r.is_redirect:
                 try:
                     r._next = next(
-                        self.resolve_redirects(r, request, yield_requests=True, **kwargs)  # type: ignore[assignment]
+                        self.resolve_redirects(
+                            r, request, yield_requests=True, **kwargs
+                        )  # type: ignore[assignment]
                     )
                 except StopIteration:
                     pass
@@ -1110,10 +1212,11 @@ class Session:
     def gather(self, *responses: Response, max_fetch: int | None = None) -> None:
         """
         Call this method to make sure in-flight responses are retrieved efficiently. This is a no-op
-        if multiplexed is set to False (which is the default value).
-        Passing a limited set of responses will wait for given promises and discard others for later.
-        :param max_fetch: Maximal number of response to be fetched before exiting the loop. By default,
-            it waits until all pending (lazy) response are resolved.
+        if multiplexed is set to False (which is the default value). Passing a limited set of responses
+        will wait for given promises and discard others for later.
+
+        :param max_fetch: Maximal number of response to be fetched before exiting the loop.
+               By default, it waits until all pending (lazy) response are resolved.
         """
         if self.multiplexed is False:
             return
@@ -1171,6 +1274,8 @@ class Session:
         """Closes all adapters and as such the session"""
         for v in self.adapters.values():
             v.close()
+        if self._own_resolver:
+            self.resolver.close()
 
     def mount(self, prefix: str, adapter: BaseAdapter) -> None:
         """Registers a connection adapter to a prefix.
@@ -1192,15 +1297,33 @@ class Session:
             setattr(self, attr, value)
 
         self.quic_cache_layer = QuicSharedCache(max_size=12_288)
+        self.resolver = create_resolver(None)
+        self._own_resolver = True
 
         self.adapters = OrderedDict()
         self.mount(
             "https://",
             HTTPAdapter(
-                quic_cache_layer=self.quic_cache_layer, max_retries=self.retries
+                quic_cache_layer=self.quic_cache_layer,
+                max_retries=self.retries,
+                disable_http2=self._disable_http2,
+                disable_http3=self._disable_http3,
+                source_address=self.source_address,
+                disable_ipv4=self._disable_ipv4,
+                disable_ipv6=self._disable_ipv6,
+                resolver=self.resolver,
             ),
         )
-        self.mount("http://", HTTPAdapter(max_retries=self.retries))
+        self.mount(
+            "http://",
+            HTTPAdapter(
+                max_retries=self.retries,
+                source_address=self.source_address,
+                disable_ipv4=self._disable_ipv4,
+                disable_ipv6=self._disable_ipv6,
+                resolver=self.resolver,
+            ),
+        )
 
     def get_redirect_target(self, resp: Response) -> str | None:
         """Receives a Response. Returns a redirect URI or ``None``"""

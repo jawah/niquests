@@ -12,11 +12,14 @@ Niquests, is the “**Safest**, **Fastest<sup>*</sup>**, **Easiest**, and **Most
 
 ```python
 >>> import niquests
->>> r = niquests.get('https://httpbin.org/basic-auth/user/pass', auth=('user', 'pass'))
+>>> s = niquests.Session(resolver="doh+google://", multiplexed=True)
+>>> r = s.get('https://pie.dev/basic-auth/user/pass', auth=('user', 'pass'))
 >>> r.status_code
 200
 >>> r.headers['content-type']
 'application/json; charset=utf8'
+>>> r.oheaders.content_type.charset
+'utf8'
 >>> r.encoding
 'utf-8'
 >>> r.text
@@ -24,9 +27,11 @@ Niquests, is the “**Safest**, **Fastest<sup>*</sup>**, **Easiest**, and **Most
 >>> r.json()
 {'authenticated': True, ...}
 >>> r
-<Response HTTP/2 [200]>
+<Response HTTP/3 [200]>
 >>> r.ocsp_verified
 True
+>>> r.conn_info.established_latency
+datetime.timedelta(microseconds=38)
 ```
 
 Niquests allows you to send HTTP requests extremely easily. There’s no need to manually add query strings to your URLs, or to form-encode your `PUT` & `POST` data — but nowadays, just use the `json` method!
@@ -48,9 +53,11 @@ Niquests officially supports Python or PyPy 3.7+.
 
 Niquests is ready for the demands of building robust and reliable HTTP–speaking applications, for the needs of today.
 
+- DNS over HTTPS, DNS over QUIC, DNS over TLS, and DNS over UDP
 - Automatic Content Decompression and Decoding
 - OS truststore by default, no more certifi!
 - OCSP Certificate Revocation Verification
+- Advanced connection timings inspection
 - In-memory certificates (CAs, and mTLS)
 - Browser-style TLS/SSL Verification
 - Sessions with Cookie Persistence
@@ -59,6 +66,7 @@ Niquests is ready for the demands of building robust and reliable HTTP–speakin
 - Automatic honoring of `.netrc`
 - Basic & Digest Authentication
 - Familiar `dict`–like Cookies
+- Network settings fine-tuning
 - Object-oriented headers
 - Multi-part File Uploads
 - Chunked HTTP Requests
@@ -69,7 +77,11 @@ Niquests is ready for the demands of building robust and reliable HTTP–speakin
 - HTTP/2 by default
 - HTTP/3 over QUIC
 - Multiplexed!
+- Thread-safe!
+- DNSSEC!
 - Async!
+
+Need something more? Create an issue, we listen.
 
 ## Why did we pursue this?
 

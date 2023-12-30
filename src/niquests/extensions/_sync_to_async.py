@@ -45,7 +45,7 @@ from typing import Any, Callable, Coroutine, Generic, TypeVar, overload
 if sys.version_info >= (3, 10):
     from typing import ParamSpec
 else:
-    from typing import _type_check
+    from typing import _type_check  # type: ignore[attr-defined]
 
     class _Immutable:
         """Mixin to indicate that object should not be copied."""
@@ -120,7 +120,7 @@ else:
         """Mixin for TypeVarLike defaults."""
 
         __slots__ = ()
-        __init__ = _set_default
+        __init__ = _set_default  # type: ignore[assignment]
 
     def _caller(depth=2):
         try:
@@ -135,7 +135,7 @@ else:
     _marker = _Sentinel()
 
     # Inherits from list as a workaround for Callable checks in Python < 3.9.2.
-    class ParamSpec(list, _DefaultMixin):
+    class ParamSpec(list, _DefaultMixin):  # type: ignore[no-redef]
         """Parameter specification variable.
 
         Usage::
@@ -183,7 +183,7 @@ else:
         """
 
         # Trick Generic __parameters__.
-        __class__ = TypeVar
+        __class__ = TypeVar  # type: ignore[assignment]
 
         @property
         def args(self):
@@ -246,6 +246,13 @@ else:
 
 _F = TypeVar("_F", bound=Callable[..., Any])
 _P = ParamSpec("_P")
+
+# Circumvent strict check at runtime for PyPy
+# TypeError: Parameters to Generic[...] must all be type variables
+# TODO: Find a better way.
+if sys.implementation.name == "pypy" and (3, 10) > sys.version_info:
+    _P = TypeVar("_P")  # type: ignore
+
 _R = TypeVar("_R")
 
 

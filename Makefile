@@ -1,15 +1,15 @@
 .PHONY: docs
 init:
-	python -m pip install -r requirements-dev.txt
+	python -m pip install nox coverage
 test:
 	# This runs all of the tests on all supported Python versions.
-	tox -p
+	nox -s test
 ci:
-	python -m pytest tests --verbose --junitxml=report.xml
+	nox -s test
 
 coverage:
-	python -m pytest --cov-config .coveragerc --verbose --cov-report term --cov-report xml --cov=niquests tests
+	python -m coverage combine && python -m coverage report --ignore-errors --show-missing
 
 docs:
-	cd docs && make html
+	nox -s docs
 	@echo "\033[95m\n\nBuild successful! View the docs homepage at docs/_build/html/index.html.\n\033[0m"

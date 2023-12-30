@@ -28,21 +28,27 @@ is designed to be a drop-in replacement for **Requests** that is no longer under
 
 **Behold, the power of Niquests**::
 
-    >>> r = niquests.get('https://api.github.com/user', auth=('user', 'pass'))
-    >>> r.status_code
-    200
-    >>> r.headers['content-type']
-    'application/json; charset=utf8'
-    >>> r.encoding
-    'utf-8'
-    >>> r.text
-    '{"type":"User"...'
-    >>> r.json()
-    {'private_gists': 419, 'total_private_repos': 77, ...}
-    >>> r
-    <Response HTTP/2 [200]>
-    >>> r.ocsp_verified
-    True
+   >>> import niquests
+   >>> s = niquests.Session(resolver="doh+google://", multiplexed=True)
+   >>> r = s.get('https://pie.dev/basic-auth/user/pass', auth=('user', 'pass'))
+   >>> r.status_code
+   200
+   >>> r.headers['content-type']
+   'application/json; charset=utf8'
+   >>> r.oheaders.content_type.charset
+   'utf8'
+   >>> r.encoding
+   'utf-8'
+   >>> r.text
+   '{"authenticated": true, ...'
+   >>> r.json()
+   {'authenticated': True, ...}
+   >>> r
+   <Response HTTP/3 [200]>
+   >>> r.ocsp_verified
+   True
+   >>> r.conn_info.established_latency
+   datetime.timedelta(microseconds=38)
 
 See `similar code, sans Niquests <https://gist.github.com/973705>`_.
 
@@ -57,16 +63,19 @@ Beloved Features
 
 Niquests is ready for today's web.
 
+- DNS over HTTPS, DNS over QUIC, DNS over TLS, and DNS over UDP
 - Automatic Content Decompression and Decoding
 - OS truststore by default, no more certifi!
 - OCSP Certificate Revocation Verification
+- Advanced connection timings inspection
+- In-memory certificates (CAs, and mTLS)
 - Browser-style TLS/SSL Verification
 - Sessions with Cookie Persistence
 - Keep-Alive & Connection Pooling
 - International Domains and URLs
-- Automatic honoring of ``.netrc``
+- Automatic honoring of `.netrc`
 - Basic & Digest Authentication
-- Familiar ``dict``–like Cookies
+- Familiar `dict`–like Cookies
 - Object-oriented headers
 - Multi-part File Uploads
 - Chunked HTTP Requests
@@ -77,6 +86,8 @@ Niquests is ready for today's web.
 - HTTP/2 by default
 - HTTP/3 over QUIC
 - Multiplexed!
+- Thread-safe!
+- DNSSEC!
 - Async!
 
 Niquests officially supports Python 3.7+, and runs great on PyPy.

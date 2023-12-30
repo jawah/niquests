@@ -478,7 +478,7 @@ class PreparedRequest:
         if not data and json is not None:
             # urllib3 requires a bytes-like body. Python 2's json.dumps
             # provides this natively, but Python 3 gives a Unicode string.
-            content_type = "application/json"
+            content_type = 'application/json; charset="utf-8"'
 
             try:
                 body = _json.dumps(json, allow_nan=False)
@@ -748,7 +748,8 @@ class PreparedRequest:
                         )
             if boundary_for_multipart:
                 return encode_multipart_formdata(
-                    result, boundary=boundary_for_multipart  # type: ignore[arg-type]
+                    result,  # type: ignore[arg-type]
+                    boundary=boundary_for_multipart,
                 )[0]
             return urlencode(result, doseq=True)
         else:

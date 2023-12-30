@@ -17,6 +17,7 @@ import struct
 import sys
 import tempfile
 import typing
+import wassima
 from collections import OrderedDict
 from functools import lru_cache
 from http.cookiejar import CookieJar
@@ -35,8 +36,20 @@ from ._compat import HAS_LEGACY_URLLIB3
 
 if HAS_LEGACY_URLLIB3 is False:
     from urllib3.util import make_headers, parse_url
+    from urllib3.contrib.resolver import (
+        BaseResolver,
+        ProtocolResolver,
+        ResolverDescription,
+        ManyResolver,
+    )
 else:
     from urllib3_future.util import make_headers, parse_url  # type: ignore[assignment]
+    from urllib3_future.contrib.resolver import (  # type: ignore[assignment]
+        BaseResolver,
+        ProtocolResolver,
+        ResolverDescription,
+        ManyResolver,
+    )
 
 from .__version__ import __version__
 from .cookies import cookiejar_from_dict
@@ -46,6 +59,7 @@ from .structures import CaseInsensitiveDict
 if typing.TYPE_CHECKING:
     from .cookies import RequestsCookieJar
     from .models import PreparedRequest, Request, Response
+    from ._typing import ResolverType
 
 
 getproxies = lru_cache()(getproxies)
@@ -285,7 +299,7 @@ _VT = typing.TypeVar("_VT")
 
 
 def to_key_val_list(
-    value: dict[_KT, _VT] | typing.Mapping[_KT, _VT] | typing.Iterable[tuple[_KT, _VT]]
+    value: dict[_KT, _VT] | typing.Mapping[_KT, _VT] | typing.Iterable[tuple[_KT, _VT]],
 ) -> list[tuple[_KT, _VT]]:
     """Take an object and test to see if it can be represented as a
     dictionary. If it can be, return a list of tuples, e.g.,
@@ -947,3 +961,76 @@ def rewind_body(prepared_request: PreparedRequest) -> None:
             )
     else:
         raise UnrewindableBodyError("Unable to rewind request body for redirect.")
+
+
+def create_resolver(definition: ResolverType | None) -> BaseResolver:
+    """Instantiate a unique resolver, reusable across the Session scope."""
+    if definition is None:
+        overrule_dns = os.environ.get("NIQUESTS_DNS_URL", None)
+        if overrule_dns is not None:
+            definition = ResolverDescription.from_url(overrule_dns)
+        else:
+            return ResolverDescription(ProtocolResolver.SYSTEM).new()
+
+    if isinstance(definition, BaseResolver):
+        return definition
+
+    if isinstance(definition, str):
+        resolver = [ResolverDescription.from_url(definition)]
+    elif isinstance(definition, ResolverDescription):
+        resolver = [definition]
+    else:
+        raise ValueError("invalid resolver definition given")
+
+    resolvers: list[ResolverDescription] = []
+
+    can_resolve_localhost: bool = False
+
+    for resolver_description in resolver:
+        if isinstance(resolver_description, str):
+            resolvers.append(ResolverDescription.from_url(resolver_description))
+
+            if resolvers[-1].protocol == ProtocolResolver.SYSTEM:
+                can_resolve_localhost = True
+
+            if "verify" in resolvers[-1] and resolvers[-1].kwargs["verify"] is False:
+                resolvers[-1]["cert_reqs"] = 0
+                del resolvers[-1].kwargs["verify"]
+
+            continue
+
+        resolvers.append(resolver_description)
+
+        if "verify" in resolvers[-1] and resolvers[-1].kwargs["verify"] is False:
+            resolvers[-1]["cert_reqs"] = 0
+            del resolvers[-1].kwargs["verify"]
+
+        if resolvers[-1].protocol == ProtocolResolver.SYSTEM:
+            can_resolve_localhost = True
+
+    if not can_resolve_localhost:
+        resolvers.append(
+            ResolverDescription.from_url("system://default?hosts=localhost")
+        )
+
+    #: We want to automatically forward ca_cert_data, ca_cert_dir, and ca_certs.
+    for rd in resolvers:
+        # If no CA bundle is provided, inject the system's default!
+        if (
+            "ca_cert_data" not in rd
+            and "ca_cert_dir" not in rd
+            and "ca_certs" not in rd
+        ):
+            rd["ca_cert_data"] = wassima.generate_ca_bundle()
+
+    return ManyResolver(*[r.new() for r in resolvers])
+
+
+def resolve_socket_family(
+    disable_ipv4: bool, disable_ipv6: bool
+) -> socket.AddressFamily:
+    if disable_ipv4:
+        return socket.AF_INET6
+    if disable_ipv6:
+        return socket.AF_INET
+    return socket.AF_UNSPEC
