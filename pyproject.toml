@@ -8,7 +8,7 @@ description = "Python HTTP for Humans."
 readme = "README.md"
 license-files = { paths = ["LICENSE"] }
 license = "Apache-2.0"
-keywords = ["requests", "http/2", "http/3", "QUIC", "http", "https", "http client", "http/1.1", "ocsp", "revocation", "tls", "multiplexed"]
+keywords = ["requests", "http/2", "http/3", "QUIC", "http", "https", "http client", "http/1.1", "ocsp", "revocation", "tls", "multiplexed", "dns-over-quic", "doq", "dns-over-tls", "dot", "dns-over-https", "doh", "dnssec"]
 authors = [
   {name = "Kenneth Reitz", email = "me@kennethreitz.org"}
 ]
@@ -41,17 +41,17 @@ dynamic = ["version"]
 dependencies = [
     "charset_normalizer>=2,<4",
     "idna>=2.5,<4",
-    "urllib3.future>=2.3.900,<3",
+    "urllib3.future>=2.4.901,<3",
     "wassima>=1.0.1,<2",
     "kiss_headers>=2,<4",
 ]
 
 [project.optional-dependencies]
 socks = [
-    "PySocks>=1.5.6, !=1.5.7",
+    "urllib3.future[socks]>=2.4.901,<3",
 ]
 http3 = [
-    "qh3<1.0.0,>=0.14.0"
+    "urllib3.future[qh3]>=2.4.901,<3"
 ]
 ocsp = [
     "cryptography<42.0.0,>=41.0.0"

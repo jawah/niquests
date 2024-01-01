@@ -25,10 +25,12 @@ if HAS_LEGACY_URLLIB3 is False:
     from urllib3 import ConnectionInfo
     from urllib3.exceptions import SecurityWarning
     from urllib3.util.url import parse_url
+    from urllib3.contrib.resolver import BaseResolver
 else:
     from urllib3_future import ConnectionInfo  # type: ignore[assignment]
     from urllib3_future.exceptions import SecurityWarning  # type: ignore[assignment]
     from urllib3_future.util.url import parse_url  # type: ignore[assignment]
+    from urllib3_future.contrib.resolver import BaseResolver  # type: ignore[assignment]
 
 from .._typing import ProxyType
 from ..exceptions import RequestException, SSLError
@@ -313,6 +315,7 @@ def verify(
     strict: bool = False,
     timeout: float | int = 0.2,
     proxies: ProxyType | None = None,
+    resolver: BaseResolver | None = None,
 ) -> None:
     conn_info: ConnectionInfo | None = r.conn_info
 
@@ -381,7 +384,7 @@ def verify(
 
     from ..sessions import Session
 
-    with Session() as session:
+    with Session(resolver=resolver) as session:
         session.trust_env = False
         session.proxies = proxies
 
@@ -424,7 +427,11 @@ def verify(
                 except ValueError:
                     issuer_certificate = None
 
-            hint_ca_issuers: list[str] = [ep for ep in list(conn_info.certificate_dict.get("caIssuers", [])) if ep.startswith("http://")]  # type: ignore
+            hint_ca_issuers: list[str] = [
+                ep  # type: ignore
+                for ep in list(conn_info.certificate_dict.get("caIssuers", []))  # type: ignore
+                if ep.startswith("http://")  # type: ignore
+            ]
 
             if issuer_certificate is None and hint_ca_issuers:
                 try:

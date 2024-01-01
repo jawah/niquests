@@ -286,6 +286,27 @@ You may specify the private key passphrase using the following example::
     >>> niquests.get('https://kennethreitz.org', cert=('/path/client.cert', '/path/client.key', 'my_key_password'))
     <Response HTTP/2 [200]>
 
+DNS with mTLS
+~~~~~~~~~~~~~
+
+You can pass your client side certificate to authenticate yourself against the given resolver.
+To do so, you will have to do as follow::
+
+    from urllib3 import ResolverDescription
+    from niquests import Session
+
+    rd = ResolverDescription.from_url("doq://my-resolver.tld")
+    rd["cert_data"] = in_memory_cert  # not a path, it should contain your cert content PEM format directly
+    rd["cert_key"] = ...
+    rd["key_password"] = ...
+
+    with Session(resolver=rd) as s:
+        ...
+
+.. note:: Instead of in-memory cert, you can pass file path instead with ``cert_file``, ``key_file``.
+
+This method of authentication is broadly used with DNS over TLS, QUIC, and HTTPS.
+
 In-memory Certificates
 ----------------------
 
@@ -345,7 +366,7 @@ make the request within a ``with`` statement to ensure it's always closed::
 Keep-Alive
 ----------
 
-Excellent news — thanks to urllib3, keep-alive is 100% automatic within a session!
+Excellent news — thanks to urllib3.future, keep-alive is 100% automatic within a session!
 Any requests that you make within a session will automatically reuse the appropriate
 connection!
 
@@ -365,9 +386,7 @@ file-like object for your body::
     with open('massive-body', 'rb') as f:
         niquests.post('http://some.url/streamed', data=f)
 
-.. warning:: It is recommended that you open files in :ref:`binary
-             mode <tut-files>`. Errors may occur if you open the file in *text mode*.
-             due to the fact that this will be re-encoded later in the process.
+.. warning:: It is recommended that you open files in binary mode.
 
 
 .. _chunk-encoding:
@@ -500,11 +519,18 @@ You can find a example of how to retrieve the connection information just before
 Here, ``r`` is the ``PreparedRequest`` and ``conn_info`` contains a ``ConnectionInfo``.
 You can explore the following data in it.
 
-- **certificate_der**: The certificate in DER format (binary)
-- **certificate_dict**: The certificate as a dictionary like ``ssl.SSLSocket.getpeercert(binary_from=False)`` output it.
+- **certificate_der**: The peer certificate in DER format (binary)
+- **certificate_dict**: The peer certificate as a dictionary like ``ssl.SSLSocket.getpeercert(binary_from=False)`` output it.
 - **tls_version**: TLS version.
 - **cipher**: Cipher used.
 - **http_version**: Http version that is about to be used.
+- **destination_address**: The remote peer address given to us by the DNS resolver.
+- **issuer_certificate_der**: Immediate issuer (in the TLS certificate chain) in DER format (binary)
+- **issuer_certificate_dict**: Immediate issuer (in the TLS certificate chain) as a dictionary
+- **established_latency**: The amount of time consumed to get an ESTABLISHED network link.
+- **resolution_latency**: The amount of time consumed for the hostname resolution.
+- **tls_handshake_latency**: The amount of time consumed for the TLS handshake completion.
+- **request_sent_latency**: The amount of time consumed to encode and send the whole request through the socket.
 
 .. warning:: Depending on your platform and interpreter, some key element might not be available and be assigned ``None`` everytime. Like **certificate_dict** on MacOS.
 
@@ -1291,3 +1317,49 @@ Niquests is meant to be thread-safe. Any error or unattended behaviors are cover
 Both main scenarios are eligible, meaning Thread and Async, with Thread and Sync.
 
 Support include notable performance issues like abusive lock.
+
+Use a custom CA without loosing the official ones
+-------------------------------------------------
+
+There's an interesting use-case where a user may want to be able to request both private
+and public HTTP endpoints without doing some gymnastic with ``verify=...``.
+
+Thanks to our underlying library ``wassima`` you can register globally your own set
+of certificate authorities like so::
+
+    import wassima
+
+    wassima.register_ca(my_own_ca_pem_str)
+
+That's it! Niquests will now automatically recognize it and use it to verify your secure endpoints.
+You'll have to register it prior to your HTTP requests.
+
+.. note:: While doing local development with HTTPS, we recommend using tool like ``mkcert`` that will register the CA into your local machine trust store. Niquests is natively capable of picking them up.
+
+Disable either IPv4 or IPv6
+---------------------------
+
+You may be interested in controlling what kind of address you would accept connecting to.
+Since Niquests 3.4+, you can configure that aspect per ``Session`` instance.
+
+Having a session without IPv6 enabled should be done that way::
+
+    import niquests
+
+    session = niquests.Session(disable_ipv6=True)
+
+.. warning:: You cannot set both ``disable_ipv4`` and ``disable_ipv6`` at the cost of receiving a RuntimeError exception.
+
+Setting the source network adapter
+----------------------------------
+
+In a complex scenario, you could face the following: "I have multiple network adapters, some can access this and other that.."
+Since Niquests 3.4+, you can configure that aspect per ``Session`` instance.
+
+Having a session without IPv6 enabled should be done that way::
+
+    import niquests
+
+    session = niquests.Session(source_address=(10.10.4.1, 4444))
+
+It will be passed down the the lower stack. No effort required.

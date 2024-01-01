@@ -36,7 +36,9 @@ class AsyncSession(Session):
         return self
 
     async def __aexit__(self, exc, value, tb):
-        super().__exit__()
+        await sync_to_async(
+            super().__exit__, thread_sensitive=AsyncSession.disable_thread
+        )()
 
     async def send(self, request: PreparedRequest, **kwargs: typing.Any) -> Response:  # type: ignore[override]
         return await sync_to_async(
@@ -81,7 +83,9 @@ class AsyncSession(Session):
         )
 
         prep: PreparedRequest = dispatch_hook(
-            "pre_request", hooks, self.prepare_request(req)  # type: ignore[arg-type]
+            "pre_request",
+            hooks,  # type: ignore[arg-type]
+            self.prepare_request(req),
         )
 
         assert prep.url is not None

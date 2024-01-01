@@ -28,7 +28,12 @@ else:
 from ._compat import HAS_LEGACY_URLLIB3
 
 if HAS_LEGACY_URLLIB3 is False:
-    from urllib3 import ConnectionInfo, HTTPConnectionPool, HTTPSConnectionPool
+    from urllib3 import (
+        ConnectionInfo,
+        HTTPConnectionPool,
+        HTTPSConnectionPool,
+        ResolverDescription,
+    )
     from urllib3.backend import HttpVersion, ResponsePromise
     from urllib3.exceptions import ClosedPoolError, ConnectTimeoutError
     from urllib3.exceptions import HTTPError as _HTTPError
@@ -48,7 +53,12 @@ if HAS_LEGACY_URLLIB3 is False:
     from urllib3.util import parse_url
     from urllib3.util.retry import Retry
 else:
-    from urllib3_future import ConnectionInfo, HTTPConnectionPool, HTTPSConnectionPool  # type: ignore[assignment]
+    from urllib3_future import (  # type: ignore[assignment]
+        ConnectionInfo,
+        HTTPConnectionPool,
+        HTTPSConnectionPool,
+        ResolverDescription,
+    )
     from urllib3_future.backend import HttpVersion, ResponsePromise  # type: ignore[assignment]
     from urllib3_future.exceptions import ClosedPoolError, ConnectTimeoutError  # type: ignore[assignment]
     from urllib3_future.exceptions import HTTPError as _HTTPError  # type: ignore[assignment]
@@ -73,6 +83,7 @@ from ._typing import (
     CacheLayerAltSvcType,
     HookType,
     ProxyType,
+    ResolverType,
     RetryType,
     TLSClientCertType,
     TLSVerifyType,
@@ -102,6 +113,7 @@ from .utils import (
     prepend_scheme_if_needed,
     select_proxy,
     urldefragauth,
+    resolve_socket_family,
 )
 
 try:
@@ -165,6 +177,7 @@ class BaseAdapter:
         """
         Load responses that are still 'lazy'. This method is meant for a multiplexed connection.
         Implementation is not mandatory.
+
         :param max_fetch: Maximal number of response to be fetched before exiting the loop. By default,
             it waits until all pending (lazy) response are resolved.
         """
@@ -207,6 +220,9 @@ class HTTPAdapter(BaseAdapter):
         "_quic_cache_layer",
         "_disable_http2",
         "_disable_http3",
+        "_source_address",
+        "_disable_ipv4",
+        "_disable_ipv6",
     ]
 
     def __init__(
@@ -219,6 +235,10 @@ class HTTPAdapter(BaseAdapter):
         disable_http2: bool = False,
         disable_http3: bool = False,
         max_in_flight_multiplexed: int | None = None,
+        resolver: ResolverType | None = None,
+        source_address: tuple[str, int] | None = None,
+        disable_ipv4: bool = False,
+        disable_ipv6: bool = False,
     ):
         if isinstance(max_retries, bool):
             self.max_retries: RetryType = False
@@ -244,6 +264,10 @@ class HTTPAdapter(BaseAdapter):
         self._quic_cache_layer = quic_cache_layer
         self._disable_http2 = disable_http2
         self._disable_http3 = disable_http3
+        self._resolver = resolver
+        self._source_address = source_address
+        self._disable_ipv4 = disable_ipv4
+        self._disable_ipv6 = disable_ipv6
 
         #: we keep a list of pending (lazy) response
         self._promises: dict[str, Response] = {}
@@ -267,6 +291,9 @@ class HTTPAdapter(BaseAdapter):
             block=pool_block,
             quic_cache_layer=quic_cache_layer,
             disabled_svn=disabled_svn,
+            resolver=resolver,
+            source_address=source_address,
+            socket_family=resolve_socket_family(disable_ipv4, disable_ipv6),
         )
 
     def __getstate__(self) -> dict[str, typing.Any | None]:
@@ -281,6 +308,8 @@ class HTTPAdapter(BaseAdapter):
         for attr, value in state.items():
             setattr(self, attr, value)
 
+        self._resolver = ResolverDescription.from_url("system://").new()
+
         disabled_svn = set()
 
         if self._disable_http2:
@@ -294,6 +323,8 @@ class HTTPAdapter(BaseAdapter):
             block=self._pool_block,
             quic_cache_layer=self._quic_cache_layer,
             disabled_svn=disabled_svn,
+            source_address=self._source_address,
+            socket_family=resolve_socket_family(self._disable_ipv4, self._disable_ipv6),
         )
 
     def init_poolmanager(
@@ -346,6 +377,9 @@ class HTTPAdapter(BaseAdapter):
         if self._disable_http2:
             disabled_svn.add(HttpVersion.h2)
 
+        if self._source_address and "source_address" not in proxy_kwargs:
+            proxy_kwargs["source_address"] = self._source_address
+
         if proxy in self.proxy_manager:
             manager = self.proxy_manager[proxy]
         elif proxy.lower().startswith("socks"):
@@ -358,6 +392,7 @@ class HTTPAdapter(BaseAdapter):
                 maxsize=self._pool_maxsize,
                 block=self._pool_block,
                 disabled_svn=disabled_svn,
+                resolver=self._resolver,
                 **proxy_kwargs,
             )
         else:
@@ -369,6 +404,7 @@ class HTTPAdapter(BaseAdapter):
                 maxsize=self._pool_maxsize,
                 block=self._pool_block,
                 disabled_svn=disabled_svn,
+                resolver=self._resolver,
                 **proxy_kwargs,
             )
 

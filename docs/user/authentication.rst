@@ -32,6 +32,17 @@ for using it::
 Providing the credentials in a tuple like this is exactly the same as the
 ``HTTPBasicAuth`` example above.
 
+For DNS
+~~~~~~~
+
+Doing basic authorization using for DNS over HTTPS resolver can be done easily.
+You must provide the user and pass into the DNS url as such::
+
+    from niquests import Session
+
+    with Session(resolver="doh://user:pass@my-resolver.tld") as s:
+        resp = s.get("pie.dev/get")
+
 Passing a bearer token
 ----------------------
 
@@ -39,6 +50,17 @@ You may use ``auth=my_token`` as a shortcut to passing ``headers={"Authorization
 get, post, request, etc...
 
 .. note:: If you pass a token with its custom prefix, it will be taken and passed as-is. e.g. ``auth="NotBearer eyDdx.."``
+
+For DNS
+~~~~~~~
+
+Doing a bearer token using for DNS over HTTPS resolver can be done easily.
+You must provide the token directly into the DNS url as such::
+
+    from niquests import Session
+
+    with Session(resolver="doh://token@my-resolver.tld") as s:
+        resp = s.get("pie.dev/get")
 
 netrc Authentication
 ~~~~~~~~~~~~~~~~~~~~

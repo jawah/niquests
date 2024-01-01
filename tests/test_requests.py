@@ -931,10 +931,11 @@ class TestRequests:
         INVALID_PATH = "/garbage"
         with pytest.raises(IOError) as e:
             niquests.get(httpbin_secure(), verify=INVALID_PATH)
-        assert str(
-            e.value
-        ) == "Could not find a suitable TLS CA certificate bundle, invalid path: {}".format(
-            INVALID_PATH
+        assert (
+            str(e.value)
+            == "Could not find a suitable TLS CA certificate bundle, invalid path: {}".format(
+                INVALID_PATH
+            )
         )
 
     def test_invalid_ssl_certificate_files(self, httpbin_secure):

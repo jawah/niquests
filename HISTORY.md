@@ -1,6 +1,28 @@
 Release History
 ===============
 
+3.4.0 (2024-01-01)
+------------------
+
+**Added**
+- Support for specifying a custom DNS resolver in `Session`.
+- Support for passing the source address in `Session`.
+- Support for disabling either IPv4 or IPv6 within a `Session`.
+
+**Changed**
+- PySocks is no longer used for SOCKS proxies. Replaced by **python-socks** instead.
+- urllib3.future minimal version raised to 2.4+ to leverage newly added features.
+- Improve compatibility when end-user inadvertently pass a `Timeout` or `Retry` instance from the legacy `urllib3` instead of `urllib3_future`.
+
+**Fixed**
+- Blocking the event loop when closing the `AsyncSession` using `with`.
+- Rare exception on older PyPy interpreters due to Generic having unsupported type variable in `extensions._sync_to_async` module.
+
+**Misc**
+- Project extras aligned with **urllib3.future**.
+- Using nox instead of tox.
+- Switch to ruff instead of black and isort.
+
 3.3.4 (2023-12-03)
 ------------------
 

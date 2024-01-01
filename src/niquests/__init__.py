@@ -59,6 +59,7 @@ warnings.filterwarnings(
     "ignore", "Parsed a negative serial number", module="cryptography"
 )
 
+# ruff: noqa: E402
 from . import utils
 from .__version__ import (
     __author__,

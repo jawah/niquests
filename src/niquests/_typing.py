@@ -8,11 +8,13 @@ from kiss_headers import Headers
 from ._compat import HAS_LEGACY_URLLIB3
 
 if HAS_LEGACY_URLLIB3 is False:
-    from urllib3 import Retry, Timeout
+    from urllib3 import ResolverDescription, Retry, Timeout
+    from urllib3.contrib.resolver import BaseResolver
     from urllib3.fields import RequestField
 else:
-    from urllib3_future import Retry, Timeout  # type: ignore[assignment]
+    from urllib3_future import Retry, Timeout, ResolverDescription  # type: ignore[assignment]
     from urllib3_future.fields import RequestField  # type: ignore[assignment]
+    from urllib3_future.contrib.resolver import BaseResolver  # type: ignore[assignment]
 
 from .auth import AuthBase
 from .structures import CaseInsensitiveDict
@@ -146,3 +148,11 @@ CacheLayerAltSvcType: typing.TypeAlias = typing.MutableMapping[
 ]
 
 RetryType: typing.TypeAlias = typing.Union[bool, int, Retry]
+
+ResolverType: typing.TypeAlias = typing.Union[
+    str,
+    ResolverDescription,
+    BaseResolver,
+    typing.List[str],
+    typing.List[ResolverDescription],
+]

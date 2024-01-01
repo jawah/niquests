@@ -133,6 +133,8 @@ The ``gzip`` and ``deflate`` transfer-encodings are automatically decoded for yo
 The ``br``  transfer-encoding is automatically decoded for you if a Brotli library
 like `brotli <https://pypi.org/project/brotli>`_ or `brotlicffi <https://pypi.org/project/brotlicffi>`_ is installed.
 
+The ``zstd``  transfer-encoding is automatically decoded for you if the zstandard library `zstandard <https://pypi.org/project/zstandard>`_ is installed.
+
 For example, to create an image from binary data returned by a request, you can
 use the following code::
 
@@ -158,6 +160,8 @@ the response gets a 204 (No Content), or if the response contains invalid JSON,
 attempting ``r.json()`` raises ``niquests.exceptions.JSONDecodeError``. This wrapper exception
 provides interoperability for multiple exceptions that may be thrown by different
 python versions and json serialization libraries.
+
+.. warning:: It should be noted that this method will raise ``niquests.exceptions.JSONDecodeError`` if the proper Content-Type isn't set to anything that refer to JSON.
 
 It should be noted that the success of the call to ``r.json()`` does **not**
 indicate the success of the response. Some servers may return a JSON object in a
@@ -622,6 +626,8 @@ It is saved in-memory by Niquests.
 You may also run the following command ``python -m niquests.help`` to find out if you support HTTP/3.
 In 95 percents of the case, the answer is yes!
 
+.. note:: Since urllib3.future version 2.4+ we support negotiating HTTP/3 without a first TCP connection if the remote peer indicated in a HTTPS (DNS) record that the server support HTTP/3.
+
 Multiplexed Connection
 ----------------------
 
@@ -779,6 +785,84 @@ Look at this basic sample::
 
     if __name__ == "__main__":
         asyncio.run(main())
+
+
+DNS Resolution
+--------------
+
+Niquests has a built-in support for DNS over HTTPS, DNS over TLS, DNS over UDP, and DNS over QUIC.
+Thanks to our built-in system trust store access, you don't have to worry one bit about certificates validation.
+
+This feature is based on the native implementation brought to you by the awesome **urllib3.future**.
+Once you have specified a custom resolver (e.g. not the system default), you will automatically be protected with
+DNSSEC in additions to specifics security perks on chosen protocol.
+
+Specify your own resolver
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+In order to specify a resolver, you have to use a ``Session``. Each ``Session`` can have a different resolver.
+Here is a basic example that leverage Google public DNS over HTTPS::
+
+    from niquests import Session
+
+    with Session(resolver="doh+google://") as s:
+        resp = s.get("pie.dev/get")
+
+Here, the domain name (**pie.dev**) will be resolved using the provided DNS url.
+
+.. note:: By default, Niquests still use the good old, often insecure, system DNS.
+
+Use multiple resolvers
+~~~~~~~~~~~~~~~~~~~~~~
+
+You may specify a list of resolvers to be tested in order::
+
+    from niquests import Session
+
+    with Session(resolver=["doh+google://", "doh://cloudflare-dns.com"]) as s:
+        resp = s.get("pie.dev/get")
+
+The second entry ``doh://cloudflare-dns.com`` will only be tested if ``doh+google://`` failed to provide a usable answer.
+
+.. note:: In a multi-threaded context, both resolvers are going to be used in order to improve performance.
+
+Supported DNS url
+~~~~~~~~~~~~~~~~~
+
+Niquests support a wide range of DNS protocols. Here are a few examples::
+
+    "doh+google://"  # shortcut url for Google DNS over HTTPS
+    "dot+google://"  # shortcut url for Google DNS over TLS
+    "doh+cloudflare://" # shortcut url for Cloudflare DNS over HTTPS
+    "doq+adguard://" # shortcut url for Adguard DNS over QUIC
+    "dou://1.1.1.1"  # url for DNS over UDP (Plain resolver)
+    "dou://1.1.1.1:8853" # url for DNS over UDP using port 8853 (Plain resolver)
+    "doh://my-resolver.tld" # url for DNS over HTTPS using server my-resolver.tld
+
+.. note:: Learn more by looking at the **urllib3.future** documentation: https://urllib3future.readthedocs.io/en/latest/advanced-usage.html#using-a-custom-dns-resolver
+
+Set DNS via environment
+~~~~~~~~~~~~~~~~~~~~~~~
+
+You can set the ``NIQUESTS_DNS_URL`` environment variable with desired resolver, it will be
+used in every Session **that does not manually specify a resolver.**
+
+Example::
+
+    export NIQUESTS_DNS_URL="doh://google.dns"
+
+Disable DNS certificate verification
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Simply add ``verify=false`` into your DNS url to pursue::
+
+    from niquests import Session
+
+    with Session(resolver="doh+google://default/?verify=false") as s:
+        resp = s.get("pie.dev/get")
+
+
+.. warning:: Doing a ``s.get("pie.dev/get", verify=False)`` does not impact the resolver.
 
 -----------------------
 
