@@ -230,12 +230,11 @@ def get_netrc_auth(
         try:
             _netrc = netrc(netrc_path).authenticators(host)
             if _netrc:
-                # Return with login / password
-                login_i = 0 if _netrc[0] else 1
-                return (_netrc[login_i], _netrc[2])
+                # Assurez-vous que login et password ne sont pas None
+                login = _netrc[0] if _netrc[0] else ""
+                password = _netrc[2] if _netrc[2] else ""
+                return (login, password)
         except (NetrcParseError, OSError):
-            # If there was a parsing error or a permissions issue reading the file,
-            # we'll just skip netrc auth unless explicitly asked to raise errors.
             if raise_errors:
                 raise
 
