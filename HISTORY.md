@@ -1,6 +1,13 @@
 Release History
 ===============
 
+3.4.1 (2024-01-07)
+------------------
+
+**Fixed**
+- CaseInsensibleDict did not properly convert HTTPHeaderDict from urllib3 thus only letting the last entry in.
+- Redirect chain lead to a non waited coroutine in `AsyncSession`.
+
 3.4.0 (2024-01-01)
 ------------------
 

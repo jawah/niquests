@@ -17,6 +17,13 @@ class TestAsyncWithoutMultiplex:
             assert resp.lazy is False
             assert resp.status_code == 200
 
+    async def test_awaitable_redirect_chain(self):
+        async with AsyncSession() as s:
+            resp = await s.get("https://pie.dev/redirect/2")
+
+            assert resp.lazy is False
+            assert resp.status_code == 200
+
     async def test_concurrent_task_get(self):
         async def emit():
             responses = []
