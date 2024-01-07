@@ -68,6 +68,9 @@ class CaseInsensitiveDict(MutableMapping):
         ] = OrderedDict()
         if data is None:
             data = {}
+        fmt_data = str(type(data))
+        if "urllib3" in fmt_data and "HTTPHeaderDict" in fmt_data:
+            data = dict(data)
         normalized_items = []
         for k, v in data.items() if hasattr(data, "items") else data:
             normalized_items.append(_ensure_str_or_bytes(k, v))

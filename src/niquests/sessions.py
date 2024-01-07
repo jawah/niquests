@@ -1518,16 +1518,28 @@ class Session:
             else:
                 if yield_requests_trail:
                     yield req
-                resp = self.send(
-                    req,
-                    stream=stream,
-                    timeout=timeout,
-                    verify=verify,
-                    cert=cert,
-                    proxies=proxies,
-                    allow_redirects=False,
-                    **adapter_kwargs,
-                )
+                if "AsyncSession" not in str(type(self)):
+                    resp = self.send(
+                        req,
+                        stream=stream,
+                        timeout=timeout,
+                        verify=verify,
+                        cert=cert,
+                        proxies=proxies,
+                        allow_redirects=False,
+                        **adapter_kwargs,
+                    )
+                else:
+                    resp = super(self.__class__, self).send(  # type: ignore[misc]
+                        req,
+                        stream=stream,
+                        timeout=timeout,
+                        verify=verify,
+                        cert=cert,
+                        proxies=proxies,
+                        allow_redirects=False,
+                        **adapter_kwargs,
+                    )
 
                 extract_cookies_to_jar(self.cookies, prepared_request, resp.raw)
 
