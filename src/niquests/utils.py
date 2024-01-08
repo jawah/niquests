@@ -183,7 +183,7 @@ def super_len(o: typing.Any) -> int:
 @lru_cache(maxsize=64)
 def get_netrc_auth(
     url: str | None, raise_errors: bool = False
-) -> tuple[str | bytes, str | bytes] | None:
+) -> tuple[str, str] | None:
     """Returns the Requests tuple auth for a given url from netrc."""
 
     from netrc import NetrcParseError, netrc
@@ -211,18 +211,18 @@ def get_netrc_auth(
             return None
 
         ri = urlparse(url)
-        host = ri.netloc.split(":")[0]
+        host = ri.hostname
 
         _netrc = netrc(netrc_path).authenticators(host)
         if _netrc:
-            login = _netrc[0] if isinstance(_netrc[0], bytes) else _netrc[0].encode()
-            password = _netrc[2].encode() if isinstance(_netrc[2], str) else _netrc[2]
-            password = password if password is not None else b""
+            login = _netrc[0]
+            password = _netrc[2]
+            password = password if password is not None else ""
             return (login, password)
     except (NetrcParseError, OSError):
         if raise_errors:
             raise
-    except (ImportError, AttributeError):
+    except AttributeError:
         pass
 
     return None
