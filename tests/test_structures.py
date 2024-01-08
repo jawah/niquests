@@ -3,6 +3,7 @@ from __future__ import annotations
 import pytest
 
 from niquests.structures import CaseInsensitiveDict, LookupDict
+from urllib3 import HTTPHeaderDict
 
 
 class TestCaseInsensitiveDict:
@@ -51,6 +52,16 @@ class TestCaseInsensitiveDict:
     )
     def test_instance_equality(self, other, result):
         assert (self.case_insensitive_dict == other) is result
+
+    def test_lossless_convert_into_mono_entry(self):
+        o = HTTPHeaderDict()
+        o.add("Hello", "1")
+        o.add("Hello", "2")
+        o.add("Hello", "3")
+
+        u = CaseInsensitiveDict(o)
+
+        assert u["Hello"] == "1, 2, 3"
 
 
 class TestLookupDict:
