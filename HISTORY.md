@@ -1,6 +1,15 @@
 Release History
 ===============
 
+3.4.2 (2024-01-11)
+------------------
+
+**Fixed**
+- Connection information kept targeting its original copy, thus always keeping the latest timings inside while expecting the historical ones.
+
+**Added**
+- `AsyncSession` now returns a `AsyncResponse` when `stream` is set to True in order to handle properly streams in an async context.
+
 3.4.1 (2024-01-07)
 ------------------
 

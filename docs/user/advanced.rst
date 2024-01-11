@@ -1276,6 +1276,8 @@ over QUIC.
 
 .. warning:: You cannot specify another hostname for security reasons.
 
+.. note:: Using a custom DNS resolver can solve the problem as we can probe the HTTPS record for the given hostname and connect directly using HTTP/3 over QUIC.
+
 Increase the default Alt-Svc cache size
 ---------------------------------------
 

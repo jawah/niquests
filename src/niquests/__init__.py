@@ -73,7 +73,7 @@ from .__version__ import (
     __url__,
     __version__,
 )
-from ._async import AsyncSession
+from ._async import AsyncSession, AsyncResponse
 from .api import delete, get, head, options, patch, post, put, request
 from .exceptions import (
     ConnectionError,
@@ -131,4 +131,5 @@ __all__ = (
     "Session",
     "codes",
     "AsyncSession",
+    "AsyncResponse",
 )

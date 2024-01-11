@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import codecs
 import datetime
+import warnings
 
 # Import encoding now, to avoid implicit import later.
 # Implicit import within threads may cause LookupError when standard library is in a ZIP,
@@ -984,6 +985,12 @@ class Response:
 
     def __getattribute__(self, item):
         if item in Response.__lazy_attrs__ and self.lazy:
+            if self.__class__ is not Response and "Async" in str(self.__class__):
+                warnings.warn(
+                    "Accessing a lazy response in an asynchronous context is going to block the event loop. "
+                    "Use await session.gather() instead before accessing the response.",
+                    ResourceWarning,
+                )
             self._gather()
         return super().__getattribute__(item)
 

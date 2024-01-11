@@ -514,6 +514,27 @@ def stream_decode_response_unicode(
         yield rv
 
 
+async def astream_decode_response_unicode(
+    iterator: typing.AsyncGenerator[bytes, None], r: Response
+) -> typing.AsyncGenerator[bytes | str, None]:
+    """Stream decodes an iterator."""
+
+    if r.encoding is None:
+        async for chunk in iterator:
+            yield chunk
+        return
+
+    decoder = codecs.getincrementaldecoder(r.encoding)(errors="replace")
+
+    async for chunk in iterator:
+        rv = decoder.decode(chunk)
+        if rv:
+            yield rv
+    rv = decoder.decode(b"", final=True)
+    if rv:
+        yield rv
+
+
 _SV = typing.TypeVar("_SV", str, bytes)
 
 
