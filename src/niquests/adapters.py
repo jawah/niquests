@@ -150,6 +150,7 @@ class BaseAdapter:
         on_upload_body: typing.Callable[[int, int | None, bool, bool], None]
         | None = None,
         multiplexed: bool = False,
+        mutate_response_class: type | None = None,
     ) -> Response:
         """Sends PreparedRequest object. Returns Response object.
 
@@ -653,6 +654,7 @@ class HTTPAdapter(BaseAdapter):
         on_upload_body: typing.Callable[[int, int | None, bool, bool], None]
         | None = None,
         multiplexed: bool = False,
+        mutate_response_class: type | None = None,
     ) -> Response:
         """Sends PreparedRequest object. Returns Response object.
 
@@ -790,7 +792,16 @@ class HTTPAdapter(BaseAdapter):
             else:
                 raise
 
-        return self.build_response(request, resp_or_promise)
+        r = self.build_response(request, resp_or_promise)
+
+        if mutate_response_class:
+            if not issubclass(mutate_response_class, Response):
+                raise TypeError(
+                    f"Unable to mutate Response to {mutate_response_class} as it does not inherit from Response."
+                )
+            r.__class__ = mutate_response_class
+
+        return r
 
     def _future_handler(self, response: Response, low_resp: BaseHTTPResponse) -> None:
         stream = typing.cast(

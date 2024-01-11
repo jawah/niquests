@@ -787,6 +787,91 @@ Look at this basic sample::
         asyncio.run(main())
 
 
+.. warning:: Combining AsyncSession with ``multiplexed=True`` and passing ``stream=True`` produces ``AsyncResponse``, make sure to call ``await session.gather()`` before trying to access directly the lazy instance of response.
+
+AsyncResponse for streams
+-------------------------
+
+Delaying the content consumption in an async context can be easily achieved using::
+
+    import niquests
+    import asyncio
+
+    async def main() -> None:
+
+        async with niquests.AsyncSession() as s:
+            r = await s.get("https://pie.dev/get", stream=True)
+
+            async for chunk in await r.iter_content(16):
+                print(chunk)
+
+
+    if __name__ == "__main__":
+
+        asyncio.run(main())
+
+Or simply by doing::
+
+    import niquests
+    import asyncio
+
+    async def main() -> None:
+
+        async with niquests.AsyncSession() as s:
+            r = await s.get("https://pie.dev/get", stream=True)
+            payload = await r.json()
+
+    if __name__ == "__main__":
+
+        asyncio.run(main())
+
+When you specify ``stream=True`` within a ``AsyncSession``, the returned object will be of type ``AsyncResponse``.
+So that the following methods and properties will be coroutines (aka. awaitable):
+
+- iter_content(...)
+- iter_lines(...)
+- content
+- json(...)
+- text(...)
+
+When enabling multiplexing while in an async context, you will have to issue a call to ``await s.gather()``
+to avoid blocking your event loop.
+
+Here is a basic example of how you would do it::
+
+    import niquests
+    import asyncio
+
+
+    async def main() -> None:
+
+        responses = []
+
+        async with niquests.AsyncSession(multiplexed=True) as s:
+            responses.append(
+                await s.get("https://pie.dev/get", stream=True)
+            )
+            responses.append(
+                await s.get("https://pie.dev/get", stream=True)
+            )
+
+            print(responses)
+
+            await s.gather()
+
+            print(responses)
+
+            for response in responses:
+                async for chunk in await response.iter_content(16):
+                    print(chunk)
+
+
+    if __name__ == "__main__":
+
+        asyncio.run(main())
+
+.. warning:: Accessing a lazy ``AsyncResponse`` without a call to ``s.gather()`` will raise a warning.
+
 DNS Resolution
 --------------
 

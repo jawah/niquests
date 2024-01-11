@@ -14,6 +14,7 @@ import typing
 import warnings
 from collections import OrderedDict
 from collections.abc import Mapping
+from copy import deepcopy
 from datetime import timedelta
 from http import cookiejar as cookielib
 from http.cookiejar import CookieJar
@@ -1126,6 +1127,9 @@ class Session:
 
         # Send the request
         r = adapter.send(request, **kwargs)
+        # Make sure the timings data are kept as is, conn_info is a reference to
+        # urllib3-future conn_info.
+        request.conn_info = deepcopy(request.conn_info)
 
         # We are leveraging a multiplexed connection
         if r.raw is None:

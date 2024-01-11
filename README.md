@@ -33,6 +33,16 @@ True
 >>> r.conn_info.established_latency
 datetime.timedelta(microseconds=38)
 ```
+or using async/await! <small>you'll need to enclose the code within proper async function, see the docs for more.</small>
+```python
+import niquests
+>>> s = niquests.AsyncSession(resolver="doh+google://")
+>>> r = await s.get('https://pie.dev/basic-auth/user/pass', auth=('user', 'pass'), stream=True)
+>>> r
+<Response HTTP/3 [200]>
+>>> await r.json()
+{'authenticated': True, ...}
+```
 
 Niquests allows you to send HTTP requests extremely easily. There’s no need to manually add query strings to your URLs, or to form-encode your `PUT` & `POST` data — but nowadays, just use the `json` method!
 
