@@ -186,7 +186,8 @@ def get_netrc_auth(
 ) -> tuple[str, str] | None:
     """Returns the Requests tuple auth for a given url from netrc."""
 
-    from netrc import NetrcParseError, netrc
+    from netrc import NetrcParseError
+    from netrc import netrc
 
     if url is None:
         return None
@@ -212,19 +213,26 @@ def get_netrc_auth(
 
         ri = urlparse(url)
         host = ri.hostname
+        if host is None:
+            return None
 
         _netrc = netrc(netrc_path).authenticators(host)
         if _netrc:
-            login = _netrc[0]
-            password = _netrc[2]
-            password = password if password is not None else ""
-            return (login, password)
-    except (NetrcParseError, OSError):
+            login, _, password = _netrc
+            if login and password:
+                return (login, password)
+            return None
+    except NetrcParseError as e:
         if raise_errors:
-            raise
-    except AttributeError:
-        pass
-
+            raise ValueError("Syntax error in netrc file") from e
+    except OSError as e:
+        if raise_errors:
+            raise OSError("Problem accessing or reading the netrc file") from e
+    except AttributeError as e:
+        if raise_errors:
+            raise RuntimeError(
+                "Unexpected error while retrieving netrc authenticators"
+            ) from e
     return None
 
 
