@@ -724,7 +724,7 @@ class AsyncResponse(Response):
         return self
 
     async def __aiter__(self) -> typing.AsyncIterator[bytes]:
-        async for chunk in await self.iter_content(128):
+        async for chunk in await self.iter_content(ITER_CHUNK_SIZE):
             yield chunk
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
@@ -743,7 +743,7 @@ class AsyncResponse(Response):
         ...
 
     async def iter_content(  # type: ignore[override]
-        self, chunk_size: int = 1, decode_unicode: bool = False
+        self, chunk_size: int = ITER_CHUNK_SIZE, decode_unicode: bool = False
     ) -> typing.AsyncGenerator[bytes | str, None]:
         async def generate() -> (
             typing.AsyncGenerator[

@@ -1133,7 +1133,6 @@ class Session:
 
         # We are leveraging a multiplexed connection
         if r.raw is None:
-            r._gather = lambda: adapter.gather(r)
             r._resolve_redirect = lambda x, y: next(
                 self.resolve_redirects(x, y, yield_requests=True, **kwargs),  # type: ignore
                 None,

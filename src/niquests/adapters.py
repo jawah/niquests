@@ -12,6 +12,7 @@ import socket  # noqa: F401
 import sys
 import time
 import typing
+from copy import deepcopy
 from datetime import timedelta
 from http.cookiejar import CookieJar
 from threading import RLock
@@ -803,7 +804,9 @@ class HTTPAdapter(BaseAdapter):
 
         return r
 
-    def _future_handler(self, response: Response, low_resp: BaseHTTPResponse) -> None:
+    def _future_handler(
+        self, response: Response, low_resp: BaseHTTPResponse
+    ) -> Response | None:
         stream = typing.cast(
             bool, response._promise.get_parameter("niquests_is_stream")
         )
@@ -826,8 +829,10 @@ class HTTPAdapter(BaseAdapter):
             response._promise.get_parameter("niquests_kwargs"),
         )
 
-        # mark response as "not lazy" anymore by removing ref to "this"/gather.
-        del response._gather
+        # This mark the response as no longer "lazy"
+        response.raw = low_resp
+        response_promise = response._promise
+        del response._promise
 
         req = response.request
         assert req is not None
@@ -844,7 +849,6 @@ class HTTPAdapter(BaseAdapter):
 
         # Set encoding.
         response.encoding = get_encoding_from_headers(response.headers)
-        response.raw = low_resp
         response.reason = response.raw.reason
 
         if isinstance(req.url, bytes):
@@ -858,12 +862,9 @@ class HTTPAdapter(BaseAdapter):
 
         promise_ctx_backup = {
             k: v
-            for k, v in response._promise._parameters.items()
+            for k, v in response_promise._parameters.items()
             if k.startswith("niquests_")
         }
-
-        response_promise = response._promise
-        del response._promise
 
         if allow_redirects:
             next_request = response._resolve_redirect(response, req)
@@ -875,6 +876,7 @@ class HTTPAdapter(BaseAdapter):
                 )
 
             if next_request:
+                del self._promises[response_promise.uid]
 
                 def on_post_connection(conn_info: ConnectionInfo) -> None:
                     """This function will be called by urllib3.future just after establishing the connection."""
@@ -904,7 +906,7 @@ class HTTPAdapter(BaseAdapter):
 
                 next_promise = self.send(next_request, **kwargs)
 
-                next_promise._gather = lambda: self.gather(response)  # type: ignore[arg-type]
+                next_request.conn_info = deepcopy(next_request.conn_info)
                 next_promise._resolve_redirect = response._resolve_redirect
 
                 if "niquests_origin_response" not in promise_ctx_backup:
@@ -920,14 +922,11 @@ class HTTPAdapter(BaseAdapter):
                 for k, v in promise_ctx_backup.items():
                     next_promise._promise.set_parameter(k, v)
 
-                del self._promises[response_promise.uid]
-
-                return
+                return next_promise
         else:
             response._next = response._resolve_redirect(response, req)  # type: ignore[assignment]
 
         del response._resolve_redirect
-
         # In case we handled redirects in a multiplexed connection, we shall reorder history
         # and do a swap.
         if "niquests_origin_response" in promise_ctx_backup:
@@ -984,6 +983,8 @@ class HTTPAdapter(BaseAdapter):
 
         del self._promises[response_promise.uid]
 
+        return None
+
     def gather(self, *responses: Response, max_fetch: int | None = None) -> None:
         with self._promise_lock:
             if not self._promises:
@@ -1016,12 +1017,12 @@ class HTTPAdapter(BaseAdapter):
                     )
 
                     if response is None:
-                        raise MultiplexingError(
-                            "Underlying library yield an unexpected response that did not match any of sent request by us"
-                        )
+                        continue
 
                     self._future_handler(response, low_resp)
             else:
+                still_redirects = []
+
                 # ...Or we have a list on which we should focus.
                 for response in responses:
                     if max_fetch is not None and max_fetch == 0:
@@ -1043,18 +1044,25 @@ class HTTPAdapter(BaseAdapter):
 
                     if low_resp is None:
                         raise MultiplexingError(
-                            "Underlying library did not recognize our promise when asked to retrieve it. Did you close the session too early?"
+                            "Underlying library did not recognize our promise when asked to retrieve it. "
+                            "Did you close the session too early?"
                         )
 
                     if max_fetch is not None:
                         max_fetch -= 1
 
-                    self._future_handler(response, low_resp)
+                    next_resp = self._future_handler(response, low_resp)
 
-        self._promise_lock.acquire()
+                    if next_resp:
+                        still_redirects.append(next_resp)
 
-        if self._promises:
-            self._promise_lock.release()
-            self.gather()
-        else:
-            self._promise_lock.release()
+                if still_redirects:
+                    self.gather(*still_redirects)
+
+                return
+
+        with self._promise_lock:
+            if not self._promise_lock:
+                return
+
+        self.gather()

@@ -352,7 +352,7 @@ urllib3 :class:`urllib3.HTTPResponse <urllib3.response.HTTPResponse>` at
 :attr:`Response.raw <niquests.Response.raw>`.
 
 If you set ``stream`` to ``True`` when making a request, Niquests cannot
-release the connection back to the pool unless you consume all the data or call
+release the connection back to the pool unless you consume all the data (HTTP/1.1 only) or call
 :meth:`Response.close <niquests.Response.close>`. This can lead to
 inefficiency with connections. If you find yourself partially reading request
 bodies (or not reading them at all) while using ``stream=True``, you should
@@ -1358,10 +1358,14 @@ Setting the source network adapter
 In a complex scenario, you could face the following: "I have multiple network adapters, some can access this and other that.."
 Since Niquests 3.4+, you can configure that aspect per ``Session`` instance.
 
-Having a session without IPv6 enabled should be done that way::
+Having a session that explicitly bind to "10.10.4.1" on port 4444 should be done that way::
 
     import niquests
 
-    session = niquests.Session(source_address=(10.10.4.1, 4444))
+    session = niquests.Session(source_address=("10.10.4.1", 4444))
 
 It will be passed down the the lower stack. No effort required.
+
+.. note:: You can set **0** instead of 4444 to select a random port.
+
+.. note:: You can set **0.0.0.0** to select the network adapter automatically instead, if you wish to set the port only.

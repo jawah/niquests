@@ -9,6 +9,7 @@ from __future__ import annotations
 import codecs
 import datetime
 import warnings
+import idna
 
 # Import encoding now, to avoid implicit import later.
 # Implicit import within threads may cause LookupError when standard library is in a ZIP,
@@ -119,7 +120,7 @@ REDIRECT_STATI = (
 
 DEFAULT_REDIRECT_LIMIT = 30
 CONTENT_CHUNK_SIZE = 10 * 1024
-ITER_CHUNK_SIZE = 512
+ITER_CHUNK_SIZE = -1
 
 
 class TransferProgress:
@@ -354,16 +355,6 @@ class PreparedRequest:
         """Prepares the given HTTP method."""
         self.method = method.upper() if method else method
 
-    @staticmethod
-    def _get_idna_encoded_host(host: str) -> str:
-        import idna
-
-        try:
-            host = idna.encode(host, uts46=True).decode("utf-8")
-        except idna.IDNAError:
-            raise UnicodeError
-        return host
-
     def prepare_url(self, url: str | None, params: QueryParameterType | None) -> None:
         """Prepares the given HTTP URL."""
         assert url is not None, "Missing URL in PreparedRequest"
@@ -409,8 +400,8 @@ class PreparedRequest:
         # it doesn't start with a wildcard (*), before allowing the unencoded hostname.
         if not host.isascii():
             try:
-                host = self._get_idna_encoded_host(host)
-            except UnicodeError:
+                host = idna.encode(host, uts46=True).decode("utf-8")
+            except idna.IDNAError:
                 raise InvalidURL("URL has an invalid label.")
         elif host.startswith(("*", ".")):
             raise InvalidURL("URL has an invalid label.")
@@ -923,7 +914,6 @@ class Response:
     #: internals used for lazy responses. Do not try to access those unless you know what you are doing.
     #: they don't always exist.
     _promise: ResponsePromise
-    _gather: typing.Callable[[], None]
     _resolve_redirect: typing.Callable[
         [Response, PreparedRequest], PreparedRequest | None
     ]
@@ -981,7 +971,12 @@ class Response:
         Determine if response isn't received and is actually a placeholder.
         Only significant if request was sent through a multiplexed connection.
         """
-        return hasattr(self, "raw") and self.raw is None and hasattr(self, "_gather")
+        return hasattr(self, "raw") and self.raw is None and hasattr(self, "_promise")
+
+    def _gather(self) -> None:
+        """internals used for lazy responses. Do not try to access this unless you know what you are doing."""
+        if hasattr(self, "_promise") and hasattr(self, "connection"):
+            self.connection.gather(self)
 
     def __getattribute__(self, item):
         if item in Response.__lazy_attrs__ and self.lazy:
@@ -1046,7 +1041,7 @@ class Response:
 
     def __iter__(self) -> typing.Generator[bytes, None, None]:
         """Allows you to use a response as an iterator."""
-        return self.iter_content(128)  # type: ignore[return-value]
+        return self.iter_content(ITER_CHUNK_SIZE)  # type: ignore[return-value]
 
     @property
     def ok(self) -> bool:
@@ -1110,7 +1105,7 @@ class Response:
         ...
 
     def iter_content(
-        self, chunk_size: int = 1, decode_unicode: bool = False
+        self, chunk_size: int = ITER_CHUNK_SIZE, decode_unicode: bool = False
     ) -> typing.Generator[bytes | str, None, None]:
         """Iterates over the response data.  When stream=True is set on the
         request, this avoids reading the content at once into memory for
