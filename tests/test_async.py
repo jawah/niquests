@@ -56,7 +56,21 @@ class TestAsyncWithMultiplex:
 
             assert resp.lazy is True
             await s.gather()
+            assert resp.status_code == 200
 
+    async def test_awaitable_redirect_with_lazy(self):
+        async with AsyncSession(multiplexed=True) as s:
+            resp = await s.get("https://pie.dev/redirect/3")
+
+            assert resp.lazy is True
+            await s.gather()
+            assert resp.status_code == 200
+
+    async def test_awaitable_redirect_direct_access_with_lazy(self):
+        async with AsyncSession(multiplexed=True) as s:
+            resp = await s.get("https://pie.dev/redirect/3")
+
+            assert resp.lazy is True
             assert resp.status_code == 200
 
     async def test_awaitable_get_direct_access_lazy(self):

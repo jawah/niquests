@@ -1,6 +1,18 @@
 Release History
 ===============
 
+3.4.3 (2024-01-16)
+------------------
+
+**Fixed**
+- Accessing a lazy response (multiplexed enabled) that have multiple redirects did not work appropriately.
+
+**Changed**
+- Response `iter_content` and `iter_line` read chunks as they arrive by default. The default chunk size is now `-1`.
+  `-1` mean to instruct that the chunks can be of variable sizes, depending on how packets arrives. It improves
+  overall performances.
+- urllib3.future lower bound constraint has been raised to version 2.4.904 in order to accept `-1` as a chunk size.
+
 3.4.2 (2024-01-11)
 ------------------
 
