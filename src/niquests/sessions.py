@@ -1544,6 +1544,12 @@ class Session:
                         **adapter_kwargs,
                     )
 
+                # If the initial request was intended to be lazy but didn't meet required criteria
+                # e.g. Setting multiplexed=True, requesting HTTP/1.1 only capable and getting redirected
+                # to an HTTP/2+ endpoint.
+                if resp.lazy:
+                    resp.status_code
+
                 extract_cookies_to_jar(self.cookies, prepared_request, resp.raw)
 
                 # extract redirect url, if any, for the next loop
