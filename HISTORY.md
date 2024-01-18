@@ -7,6 +7,10 @@ Release History
 **Fixed**
 - Issuing a request with `Session(multiplexed=True)` that weren't eligible (e.g. HTTP/1.1) but was redirected to an
   eligible server (HTTP/2+) caused a rare error.
+- An anonymous netrc entry (e.g. username only) could be wrongfully used when it should be discarded. (PR #61)
+
+**Added**
+- Awaitable close method within `AsyncSession`.
 
 3.4.3 (2024-01-16)
 ------------------

@@ -68,9 +68,7 @@ class AsyncSession(Session):
         return self
 
     async def __aexit__(self, exc, value, tb):
-        await sync_to_async(
-            super().__exit__, thread_sensitive=AsyncSession.disable_thread
-        )()
+        await self.close()
 
     async def send(  # type: ignore[override]
         self, request: PreparedRequest, **kwargs: typing.Any
@@ -717,6 +715,12 @@ class AsyncSession(Session):
             super().gather,
             thread_sensitive=AsyncSession.disable_thread,
         )(*responses, max_fetch=max_fetch)
+
+    async def close(self) -> None:  # type: ignore[override]
+        await sync_to_async(
+            super().close,
+            thread_sensitive=AsyncSession.disable_thread,
+        )()
 
 
 class AsyncResponse(Response):
