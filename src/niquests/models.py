@@ -246,6 +246,7 @@ class Request:
     def prepare(self) -> PreparedRequest:
         """Constructs a :class:`PreparedRequest <PreparedRequest>` for transmission and returns it."""
         p = PreparedRequest()
+
         p.prepare(
             method=self.method,
             url=self.url,
@@ -258,6 +259,7 @@ class Request:
             cookies=self.cookies,
             hooks=self.hooks,
         )
+
         return p
 
 

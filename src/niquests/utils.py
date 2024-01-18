@@ -31,6 +31,7 @@ from urllib.request import (  # type: ignore[attr-defined]
     proxy_bypass,
     proxy_bypass_environment,
 )
+from netrc import NetrcParseError, netrc
 
 from ._compat import HAS_LEGACY_URLLIB3
 
@@ -185,64 +186,53 @@ def get_netrc_auth(
     url: str | None, raise_errors: bool = False
 ) -> tuple[str, str] | None:
     """Returns the Requests tuple auth for a given url from netrc."""
+
     if url is None:
         return None
 
     netrc_file = os.environ.get("NETRC")
-    netrc_locations: tuple[str, ...]
-
-    if netrc_file is not None:
-        netrc_locations = (netrc_file,)
-    else:
-        netrc_locations = tuple(f"~/{f}" for f in NETRC_FILES)
+    netrc_locations: tuple[str, ...] = (
+        (netrc_file,)
+        if netrc_file is not None
+        else tuple(f"~/{f}" for f in NETRC_FILES)
+    )
 
     try:
-        from netrc import NetrcParseError, netrc
-
-        netrc_path = None
-
-        for f in netrc_locations:
-            try:
-                loc = os.path.expanduser(f)
-            except KeyError:
-                # os.path.expanduser can fail when $HOME is undefined and
-                # getpwuid fails. See https://bugs.python.org/issue20164 &
-                # https://github.com/psf/requests/issues/1846
-                return None
-
-            if os.path.exists(loc):
-                netrc_path = loc
-                break
-
-        # Abort early if there isn't one.
+        netrc_path = next(
+            (
+                os.path.expanduser(f)
+                for f in netrc_locations
+                if os.path.exists(os.path.expanduser(f))
+            ),
+            None,
+        )
         if netrc_path is None:
             return None
 
         ri = urlparse(url)
+        host = ri.hostname
 
-        # Strip port numbers from netloc. This weird `if...encode`` dance is
-        # used for Python 3.2, which doesn't support unicode literals.
-        splitstr: str | bytes = b":"
-        if isinstance(url, str):
-            splitstr = splitstr.decode("ascii")  # type: ignore[union-attr]
-        host = ri.netloc.split(splitstr)[0]
+        if host is None:
+            return None
 
-        try:
-            _netrc = netrc(netrc_path).authenticators(host)
-            if _netrc:
-                # Return with login / password
-                login_i = 0 if _netrc[0] else 1
-                return (_netrc[login_i], _netrc[2])
-        except (NetrcParseError, OSError):
-            # If there was a parsing error or a permissions issue reading the file,
-            # we'll just skip netrc auth unless explicitly asked to raise errors.
-            if raise_errors:
-                raise
+        _netrc = netrc(netrc_path).authenticators(host)
 
-    # App Engine hackiness.
-    except (ImportError, AttributeError):
-        pass
-
+        if _netrc:
+            login, _, password = _netrc
+            if login and password:
+                return login, password
+            return None
+    except NetrcParseError as e:
+        if raise_errors:
+            raise ValueError("Syntax error in netrc file") from e
+    except OSError as e:
+        if raise_errors:
+            raise OSError("Problem accessing or reading the netrc file") from e
+    except AttributeError as e:
+        if raise_errors:
+            raise RuntimeError(
+                "Unexpected error while retrieving netrc authenticators"
+            ) from e
     return None
 
 
