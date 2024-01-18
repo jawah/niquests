@@ -31,6 +31,7 @@ from urllib.request import (  # type: ignore[attr-defined]
     proxy_bypass,
     proxy_bypass_environment,
 )
+from netrc import NetrcParseError, netrc
 
 from ._compat import HAS_LEGACY_URLLIB3
 
@@ -186,9 +187,6 @@ def get_netrc_auth(
 ) -> tuple[str, str] | None:
     """Returns the Requests tuple auth for a given url from netrc."""
 
-    from netrc import NetrcParseError
-    from netrc import netrc
-
     if url is None:
         return None
 
@@ -213,14 +211,16 @@ def get_netrc_auth(
 
         ri = urlparse(url)
         host = ri.hostname
+
         if host is None:
             return None
 
         _netrc = netrc(netrc_path).authenticators(host)
+
         if _netrc:
             login, _, password = _netrc
             if login and password:
-                return (login, password)
+                return login, password
             return None
     except NetrcParseError as e:
         if raise_errors:

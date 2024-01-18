@@ -241,11 +241,11 @@ class Request:
         except ValueError:
             return False
 
-    def create_prepared_request(self) -> PreparedRequest:
-        return PreparedRequest()
+    def prepare(self) -> PreparedRequest:
+        """Constructs a :class:`PreparedRequest <PreparedRequest>` for transmission and returns it."""
+        p = PreparedRequest()
 
-    def configure_prepared_request(self, prepared_request: PreparedRequest):
-        prepared_request.prepare(
+        p.prepare(
             method=self.method,
             url=self.url,
             headers=self.headers,
@@ -258,10 +258,7 @@ class Request:
             hooks=self.hooks,
         )
 
-    def prepare(self) -> PreparedRequest:
-        prepared_request = self.create_prepared_request()
-        self.configure_prepared_request(prepared_request)
-        return prepared_request
+        return p
 
 
 class PreparedRequest:
