@@ -1,6 +1,13 @@
 Release History
 ===============
 
+3.4.4 (2024-01-18)
+------------------
+
+**Fixed**
+- Issuing a request with `Session(multiplexed=True)` that weren't eligible (e.g. HTTP/1.1) but was redirected to an
+  eligible server (HTTP/2+) caused a rare error.
+
 3.4.3 (2024-01-16)
 ------------------
 
