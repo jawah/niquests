@@ -2,8 +2,7 @@
     <img src="https://user-images.githubusercontent.com/9326700/282852138-160f32e9-e6cf-495f-b39d-99891602acf9.png" alt="Niquests Logo"/>
 </div>
 
-**Niquests** is a simple, yet elegant, HTTP library. It is a drop-in replacement for **Requests** that is no longer under
-feature freeze.
+**Niquests** is a simple, yet elegant, HTTP library. It is a drop-in replacement for **Requests**, which is under feature freeze.
 
 Niquests, is the “**Safest**, **Fastest<sup>*</sup>**, **Easiest**, and **Most advanced**” Python HTTP Client. Production Ready!
 
@@ -44,7 +43,7 @@ import niquests
 {'authenticated': True, ...}
 ```
 
-Niquests allows you to send HTTP requests extremely easily. There’s no need to manually add query strings to your URLs, or to form-encode your `PUT` & `POST` data — but nowadays, just use the `json` method!
+Niquests allows you to send HTTP requests extremely easily. There’s no need to manually add query strings to your URLs, or to form-encode your `PUT` & `POST` data — just use the `json` method!
 
 [![Downloads](https://static.pepy.tech/badge/niquests/month)](https://pepy.tech/project/niquests)
 [![Supported Versions](https://img.shields.io/pypi/pyversions/niquests.svg)](https://pypi.org/project/niquests)
@@ -61,7 +60,7 @@ Niquests officially supports Python or PyPy 3.7+.
 
 ## Supported Features & Best–Practices
 
-Niquests is ready for the demands of building robust and reliable HTTP–speaking applications, for the needs of today.
+Niquests is ready for the demands of building modern, robust and reliable HTTP–speaking applications.
 
 - DNS over HTTPS, DNS over QUIC, DNS over TLS, and DNS over UDP
 - Automatic Content Decompression and Decoding
@@ -95,11 +94,10 @@ Need something more? Create an issue, we listen.
 
 ## Why did we pursue this?
 
-For many years now, **Requests** has been frozen and blocked millions of developers, left in a vegetative state
-regarding evolutions in the field.
+For many years now, **Requests** has been frozen. Being left in a vegetative state and not evolving, tihs blocked millions of developers from using more advanced features.
 
 We don't have to reinvent the wheel all over again, HTTP client **Requests** is well established and
-really plaisant in its usage. We believe that **Requests** have the most inclusive, and developer friendly interfaces.
+really pleasant in its usage. We believe that **Requests** has the most inclusive and developer friendly interfaces.
 We intend to keep it that way. As long as we can, long live Niquests!
 
 How about a nice refresher with a mere `CTRL+H` _import requests_ **to** _import niquests as requests_ ?
