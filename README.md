@@ -60,7 +60,7 @@ Niquests officially supports Python or PyPy 3.7+.
 
 ## Supported Features & Best–Practices
 
-Niquests is ready for the demands of building modern, robust and reliable HTTP–speaking applications.
+Niquests is ready for the demands of building scalable, robust and reliable HTTP–speaking applications.
 
 - DNS over HTTPS, DNS over QUIC, DNS over TLS, and DNS over UDP
 - Automatic Content Decompression and Decoding
