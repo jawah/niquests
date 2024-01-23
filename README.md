@@ -94,7 +94,7 @@ Need something more? Create an issue, we listen.
 
 ## Why did we pursue this?
 
-For many years now, **Requests** has been frozen. Being left in a vegetative state and not evolving, tihs blocked millions of developers from using more advanced features.
+For many years now, **Requests** has been frozen. Being left in a vegetative state and not evolving, this blocked millions of developers from using more advanced features.
 
 We don't have to reinvent the wheel all over again, HTTP client **Requests** is well established and
 really pleasant in its usage. We believe that **Requests** has the most inclusive and developer friendly interfaces.
