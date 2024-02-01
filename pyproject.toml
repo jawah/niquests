@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "niquests"
-description = "Python HTTP for Humans."
+description = "Niquests is a simple, yet elegant, HTTP library. It is a drop-in replacement for Requests, which is under feature freeze."
 readme = "README.md"
 license-files = { paths = ["LICENSE"] }
 license = "Apache-2.0"
@@ -41,7 +41,7 @@ dynamic = ["version"]
 dependencies = [
     "charset_normalizer>=2,<4",
     "idna>=2.5,<4",
-    "urllib3.future>=2.4.904,<3",
+    "urllib3.future>=2.5.900,<3",
     "wassima>=1.0.1,<2",
     "kiss_headers>=2,<4",
 ]
@@ -54,7 +54,7 @@ http3 = [
     "urllib3.future[qh3]"
 ]
 ocsp = [
-    "cryptography<42.0.0,>=41.0.0"
+    "cryptography<43.0.0,>=41.0.0"
 ]
 
 [project.urls]
