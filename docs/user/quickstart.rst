@@ -694,8 +694,6 @@ Any ``Response`` returned by get, post, put, etc... will be a lazy instance of `
 
 The possible algorithms are actually nearly limitless, and you may arrange/write you own scheduling technics!
 
-.. warning:: Beware that all in-flight (unresolved) lazy responses are lost immediately after closing the ``Session``. Trying to access unresolved and lost responses will result in ``MultiplexingError`` exception being raised.
-
 Session Gather
 --------------
 
@@ -871,6 +869,23 @@ Here is a basic example of how you would do it::
         asyncio.run(main())
 
 .. warning:: Accessing a lazy ``AsyncResponse`` without a call to ``s.gather()`` will raise a warning.
+
+Scale your Session / Pool
+-------------------------
+
+By default, Niquests allow, concurrently 10 hosts, and 10 connections per host.
+You can at your own discretion increase or decrease the values.
+
+To do so, you are invited to set the following parameters within a Session constructor:
+
+``Session(pool_connections=10, pool_maxsize=10)``
+
+- **pool_connections** means the number of host target (or pool of connections if you prefer).
+- **pool_maxsize** means the maximum of concurrent connexion per host target/pool.
+
+.. warning:: Due to the multiplexed aspect of both HTTP/2, and HTTP/3 you can issue, usually, more than 200 requests per connection without ever needing to create another one.
+
+.. note:: This setting is most useful for multi-threading application.
 
 DNS Resolution
 --------------

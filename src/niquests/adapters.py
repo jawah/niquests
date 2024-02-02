@@ -753,6 +753,8 @@ class HTTPAdapter(BaseAdapter):
                 multiplexed=multiplexed,
             )
 
+            if hasattr(self.poolmanager.pools, "memorize"):
+                self.poolmanager.pools.memorize(resp_or_promise, conn)
         except (ProtocolError, OSError) as err:
             if "illegal header" in str(err).lower():
                 raise InvalidHeader(err, request=request)
@@ -935,6 +937,9 @@ class HTTPAdapter(BaseAdapter):
 
             origin_response.history.pop()
 
+            origin_response._content = False
+            origin_response._content_consumed = False
+
             origin_response.status_code, leaf_response.status_code = (
                 leaf_response.status_code,
                 origin_response.status_code,
@@ -1053,7 +1058,7 @@ class HTTPAdapter(BaseAdapter):
 
                     next_resp = self._future_handler(response, low_resp)
 
-                    if next_resp:
+                    if next_resp is not None:
                         still_redirects.append(next_resp)
 
                 if still_redirects:

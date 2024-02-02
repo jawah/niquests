@@ -27,7 +27,12 @@ if HAS_LEGACY_URLLIB3 is False:
 else:
     from urllib3_future import ConnectionInfo  # type: ignore[assignment]
 
-from ._constant import DEFAULT_RETRIES, READ_DEFAULT_TIMEOUT, WRITE_DEFAULT_TIMEOUT
+from ._constant import (
+    DEFAULT_RETRIES,
+    READ_DEFAULT_TIMEOUT,
+    WRITE_DEFAULT_TIMEOUT,
+    DEFAULT_POOLSIZE,
+)
 from ._typing import (
     BodyType,
     CacheLayerAltSvcType,
@@ -212,6 +217,8 @@ class Session:
         "_disable_ipv6",
         "_disable_http2",
         "_disable_http3",
+        "_pool_connections",
+        "_pool_maxsize",
     ]
 
     def __init__(
@@ -226,7 +233,22 @@ class Session:
         disable_http3: bool = False,
         disable_ipv6: bool = False,
         disable_ipv4: bool = False,
+        pool_connections: int = DEFAULT_POOLSIZE,
+        pool_maxsize: int = DEFAULT_POOLSIZE,
     ):
+        """
+        :param resolver: Specify a DNS resolver that should be used within this Session.
+        :param source_address: Bind Session to a specific network adapter and/or port so that all outgoing requests.
+        :param quic_cache_layer: Provide an external cache mechanism to store HTTP/3 host capabilities.
+        :param retries: Configure a number of times a request must be automatically retried before giving up.
+        :param multiplexed: Enable or disable concurrent request when the remote host support HTTP/2 onward.
+        :param disable_http2: Toggle to disable negotiating HTTP/2 with remote peers.
+        :param disable_http3: Toggle to disable negotiating HTTP/3 with remote peers.
+        :param disable_ipv6: Toggle to disable using IPv6 even if the remote host supports IPv6.
+        :param disable_ipv4: Toggle to disable using IPv4 even if the remote host supports IPv4.
+        :param pool_connections: Number of concurrent hosts to be handled by this Session at a maximum.
+        :param pool_maxsize: Maximum number of concurrent connections per (single) host at a time.
+        """
         if [disable_ipv4, disable_ipv6].count(True) == 2:
             raise RuntimeError("Cannot disable both IPv4 and IPv6")
 
@@ -283,6 +305,9 @@ class Session:
         self._disable_ipv4 = disable_ipv4
         self._disable_ipv6 = disable_ipv6
 
+        self._pool_connections = pool_connections
+        self._pool_maxsize = pool_maxsize
+
         #: SSL Verification default.
         #: Defaults to `True`, requiring requests to verify the TLS certificate at the
         #: remote end.
@@ -335,6 +360,8 @@ class Session:
                 source_address=source_address,
                 disable_ipv4=disable_ipv4,
                 disable_ipv6=disable_ipv6,
+                pool_connections=pool_connections,
+                pool_maxsize=pool_maxsize,
             ),
         )
         self.mount(
@@ -345,6 +372,8 @@ class Session:
                 source_address=source_address,
                 disable_ipv4=disable_ipv4,
                 disable_ipv6=disable_ipv6,
+                pool_connections=pool_connections,
+                pool_maxsize=pool_maxsize,
             ),
         )
 
@@ -1106,6 +1135,8 @@ class Session:
                     source_address=self.source_address,
                     disable_ipv4=self._disable_ipv4,
                     disable_ipv6=self._disable_ipv6,
+                    pool_connections=self._pool_connections,
+                    pool_maxsize=self._pool_maxsize,
                 ),
             )
             self.mount(
@@ -1116,6 +1147,8 @@ class Session:
                     source_address=self.source_address,
                     disable_ipv4=self._disable_ipv4,
                     disable_ipv6=self._disable_ipv6,
+                    pool_connections=self._pool_connections,
+                    pool_maxsize=self._pool_maxsize,
                 ),
             )
 
@@ -1315,6 +1348,8 @@ class Session:
                 disable_ipv4=self._disable_ipv4,
                 disable_ipv6=self._disable_ipv6,
                 resolver=self.resolver,
+                pool_connections=self._pool_connections,
+                pool_maxsize=self._pool_maxsize,
             ),
         )
         self.mount(
@@ -1325,6 +1360,8 @@ class Session:
                 disable_ipv4=self._disable_ipv4,
                 disable_ipv6=self._disable_ipv6,
                 resolver=self.resolver,
+                pool_connections=self._pool_connections,
+                pool_maxsize=self._pool_maxsize,
             ),
         )
 

@@ -3,7 +3,6 @@ from __future__ import annotations
 import pytest
 
 from niquests import Session
-from niquests.exceptions import MultiplexingError
 
 
 @pytest.mark.usefixtures("requires_wan")
@@ -33,6 +32,16 @@ class TestMultiplexed:
             assert resp.status_code == 200
             assert resp.url == "https://pie.dev/get"
             assert len(resp.history) == 3
+
+    def test_redirect_with_multiplexed_direct_access(self):
+        with Session(multiplexed=True) as s:
+            resp = s.get("https://pie.dev/redirect/3")
+            assert resp.lazy
+
+            assert resp.status_code == 200
+            assert resp.url == "https://pie.dev/get"
+            assert len(resp.history) == 3
+            assert resp.json()
 
     def test_lazy_access_sync_mode(self):
         with Session(multiplexed=True) as s:
@@ -96,7 +105,7 @@ class TestMultiplexed:
 
             assert len(list(filter(lambda r: r.lazy, responses))) == 0
 
-    def test_early_close_error(self):
+    def test_early_close_no_error(self):
         responses = []
 
         with Session(multiplexed=True) as s:
@@ -105,6 +114,6 @@ class TestMultiplexed:
 
             assert all(r.lazy for r in responses)
 
-        with pytest.raises(MultiplexingError) as exc:
-            responses[0].json()
-            assert "Did you close the session too early?" in exc.value.args[0]
+        # since urllib3.future 2.5, the scheduler ensure we kept track of ongoing request even if pool is
+        # shutdown.
+        assert all([r.json() for r in responses])

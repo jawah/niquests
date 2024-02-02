@@ -1,6 +1,20 @@
 Release History
 ===============
 
+3.4.5 (2024-02-02)
+------------------
+
+**Fixed**
+- Thread-safety issue when leveraging a single multiplexed connection across multiple threads.
+- Apparently consumed content when allow_redirect is set to True when accessing a lazy response that follow redirects.
+
+**Changed**
+- urllib3.future lower bound constraint has been raised to version 2.5.900 in order to leverage the advanced multiplexing scheduler.
+  This upgrade come with a noticeable performance bump.
+
+**Added**
+- ``Session`` constructor now accepts both ``pool_connections`` and ``pool_maxsize`` parameters to scale your pools of connections at will.
+
 3.4.4 (2024-01-18)
 ------------------
 
