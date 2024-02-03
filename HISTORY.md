@@ -1,6 +1,12 @@
 Release History
 ===============
 
+3.4.6 (2024-02-03)
+------------------
+
+**Fixed**
+- Unmatched filter for deprecation warning yielded by Cryptography due to some legacy CA available in Windows having a negative serial number.
+
 3.4.5 (2024-02-02)
 ------------------
 

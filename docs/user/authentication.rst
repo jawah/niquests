@@ -41,7 +41,7 @@ You must provide the user and pass into the DNS url as such::
     from niquests import Session
 
     with Session(resolver="doh://user:pass@my-resolver.tld") as s:
-        resp = s.get("pie.dev/get")
+        resp = s.get("https://pie.dev/get")
 
 Passing a bearer token
 ----------------------
@@ -60,7 +60,7 @@ You must provide the token directly into the DNS url as such::
     from niquests import Session
 
     with Session(resolver="doh://token@my-resolver.tld") as s:
-        resp = s.get("pie.dev/get")
+        resp = s.get("https://pie.dev/get")
 
 netrc Authentication
 ~~~~~~~~~~~~~~~~~~~~

@@ -54,10 +54,10 @@ else:
 
 # urllib3's DependencyWarnings should be silenced.
 warnings.simplefilter("ignore", DependencyWarning)
-# Some Microsoft root CAs may use a negative serial number. It is known and safe. They know about it.
-warnings.filterwarnings(
-    "ignore", "Parsed a negative serial number", module="cryptography"
-)
+# Commonly happen on Windows due to some legacy root CA in
+# their trust store. They are aware of it, we silent the warning
+# yield by Cryptography to avoid producing undesired noise to end-users.
+warnings.filterwarnings("ignore", "Parsed a negative serial number")
 
 # ruff: noqa: E402
 from . import utils

@@ -906,7 +906,7 @@ Here is a basic example that leverage Google public DNS over HTTPS::
     from niquests import Session
 
     with Session(resolver="doh+google://") as s:
-        resp = s.get("pie.dev/get")
+        resp = s.get("https://pie.dev/get")
 
 Here, the domain name (**pie.dev**) will be resolved using the provided DNS url.
 
@@ -920,7 +920,7 @@ You may specify a list of resolvers to be tested in order::
     from niquests import Session
 
     with Session(resolver=["doh+google://", "doh://cloudflare-dns.com"]) as s:
-        resp = s.get("pie.dev/get")
+        resp = s.get("https://pie.dev/get")
 
 The second entry ``doh://cloudflare-dns.com`` will only be tested if ``doh+google://`` failed to provide a usable answer.
 
@@ -959,10 +959,10 @@ Simply add ``verify=false`` into your DNS url to pursue::
     from niquests import Session
 
     with Session(resolver="doh+google://default/?verify=false") as s:
-        resp = s.get("pie.dev/get")
+        resp = s.get("https://pie.dev/get")
 
 
-.. warning:: Doing a ``s.get("pie.dev/get", verify=False)`` does not impact the resolver.
+.. warning:: Doing a ``s.get("https://pie.dev/get", verify=False)`` does not impact the resolver.
 
 -----------------------
 
