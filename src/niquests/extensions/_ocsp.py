@@ -65,7 +65,12 @@ def _infer_issuer_from(certificate: Certificate) -> Certificate | None:
         if isinstance(der_cert, Certificate):
             possible_issuer = der_cert
         else:
-            possible_issuer = load_der_x509_certificate(der_cert)
+            try:
+                possible_issuer = load_der_x509_certificate(der_cert)
+            except (
+                ValueError
+            ):  # Defensive: mitigation against future Cryptography evolutions
+                continue
 
         # detect cryptography old build
         if not hasattr(certificate, "verify_directly_issued_by"):
