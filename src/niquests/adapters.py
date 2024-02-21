@@ -684,13 +684,9 @@ class HTTPAdapter(BaseAdapter):
 
         # We enforce a limit to avoid burning out our connection pool.
         if multiplexed:
-            self._promise_lock.acquire()
-
-            if len(self._promises) >= self._max_in_flight_multiplexed:
-                self._promise_lock.release()
-                self.gather()
-            else:
-                self._promise_lock.release()
+            with self._promise_lock:
+                if len(self._promises) >= self._max_in_flight_multiplexed:
+                    self.gather()
 
         try:
             conn = self.get_connection(request.url, proxies)
@@ -734,6 +730,9 @@ class HTTPAdapter(BaseAdapter):
 
         if isinstance(request.body, (list, dict)):
             raise ValueError("Body contains unprepared native list or dict.")
+
+        if multiplexed:
+            self._promise_lock.acquire()
 
         try:
             resp_or_promise = conn.urlopen(  # type: ignore[call-overload]
@@ -796,6 +795,9 @@ class HTTPAdapter(BaseAdapter):
                 raise
 
         r = self.build_response(request, resp_or_promise)
+
+        if multiplexed:
+            self._promise_lock.release()
 
         if mutate_response_class:
             if not issubclass(mutate_response_class, Response):
@@ -907,6 +909,14 @@ class HTTPAdapter(BaseAdapter):
                 kwargs["on_post_connection"] = on_post_connection
 
                 next_promise = self.send(next_request, **kwargs)
+
+                # warning: next_promise could be a non-promise if the redirect location does not support
+                # multiplexing. We'll have to break the 'lazy' aspect.
+                if next_promise.lazy is False:
+                    raise MultiplexingError(
+                        "A multiplexed request led to a non-multiplexed response after a redirect. "
+                        "This is currently unsupported. A patch is in the making to support that edge case."
+                    )
 
                 next_request.conn_info = deepcopy(next_request.conn_info)
                 next_promise._resolve_redirect = response._resolve_redirect
@@ -1021,7 +1031,7 @@ class HTTPAdapter(BaseAdapter):
                         else None
                     )
 
-                    if response is None:
+                    if response is None:  # todo: we should raise an exception instead!
                         continue
 
                     self._future_handler(response, low_resp)
@@ -1066,8 +1076,7 @@ class HTTPAdapter(BaseAdapter):
 
                 return
 
-        with self._promise_lock:
-            if not self._promise_lock:
+            if not self._promises:
                 return
 
-        self.gather()
+            self.gather()

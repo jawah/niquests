@@ -118,6 +118,7 @@ Niquests ecosystem and community.
 .. toctree::
    :maxdepth: 2
 
+   dev/migrate
    community/recommended
    community/faq
    community/support

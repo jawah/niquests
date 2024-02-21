@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import typing
 import json as _json
 from charset_normalizer import from_bytes
@@ -25,7 +26,12 @@ else:
         SSLError,
     )
 
-from ._constant import READ_DEFAULT_TIMEOUT, WRITE_DEFAULT_TIMEOUT
+from ._constant import (
+    READ_DEFAULT_TIMEOUT,
+    WRITE_DEFAULT_TIMEOUT,
+    DEFAULT_RETRIES,
+    DEFAULT_POOLSIZE,
+)
 from ._typing import (
     BodyType,
     CookiesType,
@@ -40,6 +46,9 @@ from ._typing import (
     TimeoutType,
     TLSClientCertType,
     TLSVerifyType,
+    ResolverType,
+    CacheLayerAltSvcType,
+    RetryType,
 )
 from .extensions._sync_to_async import sync_to_async
 from .exceptions import (
@@ -63,6 +72,37 @@ class AsyncSession(Session):
     """
 
     disable_thread: bool = False
+    semaphore: asyncio.Semaphore = asyncio.Semaphore(10)
+
+    def __init__(
+        self,
+        *,
+        resolver: ResolverType | None = None,
+        source_address: tuple[str, int] | None = None,
+        quic_cache_layer: CacheLayerAltSvcType | None = None,
+        retries: RetryType = DEFAULT_RETRIES,
+        multiplexed: bool = False,
+        disable_http2: bool = False,
+        disable_http3: bool = False,
+        disable_ipv6: bool = False,
+        disable_ipv4: bool = False,
+        pool_connections: int = DEFAULT_POOLSIZE,
+        pool_maxsize: int = DEFAULT_POOLSIZE,
+    ):
+        super().__init__(
+            resolver=resolver,
+            source_address=source_address,
+            quic_cache_layer=quic_cache_layer,
+            retries=retries,
+            multiplexed=multiplexed,
+            disable_http2=disable_http2,
+            disable_http3=disable_http3,
+            disable_ipv6=disable_ipv6,
+            disable_ipv4=disable_ipv4,
+            pool_connections=pool_connections,
+            pool_maxsize=pool_maxsize,
+        )
+        self._semaphore = asyncio.Semaphore(pool_maxsize)
 
     async def __aenter__(self):
         return self
@@ -75,10 +115,14 @@ class AsyncSession(Session):
     ) -> Response | AsyncResponse:  # type: ignore[override]
         if "stream" in kwargs and kwargs["stream"]:
             kwargs["mutate_response_class"] = AsyncResponse
-        return await sync_to_async(
-            super().send,
-            thread_sensitive=AsyncSession.disable_thread,
-        )(request=request, **kwargs)
+        await AsyncSession.semaphore.acquire()
+        try:
+            return await sync_to_async(
+                super().send,
+                thread_sensitive=AsyncSession.disable_thread,
+            )(request=request, **kwargs)
+        finally:
+            AsyncSession.semaphore.release()
 
     @typing.overload  # type: ignore[override]
     async def request(

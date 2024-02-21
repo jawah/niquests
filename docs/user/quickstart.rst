@@ -726,7 +726,7 @@ Here is a basic example::
     from niquests import AsyncSession, Response
 
     async def fetch(url: str) -> Response:
-        with AsyncSession() as s:
+        async with AsyncSession() as s:
             return await s.get(url)
 
     async def main() -> None:
@@ -762,7 +762,7 @@ Look at this basic sample::
     async def fetch(url: str) -> list[Response]:
         responses = []
 
-        with AsyncSession(multiplexed=True) as s:
+        async with AsyncSession(multiplexed=True) as s:
             for _ in range(10):
                 responses.append(await s.get(url))
 
