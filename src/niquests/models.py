@@ -544,9 +544,10 @@ class PreparedRequest:
 
                     if enforce_form_data:
                         form_data_boundary = (
-                            self.oheaders.content_type.boundary  # type: ignore[union-attr]
+                            self.oheaders.content_type.get("boundary")  # type: ignore[union-attr]
                             if enforce_form_data
-                            and self.oheaders.content_type.has("boundary")  # type: ignore[union-attr]
+                            and self.oheaders.content_type.has_many("boundary") is False  # type: ignore[union-attr]
+                            and self.oheaders.content_type.get("boundary") is not None  # type: ignore[union-attr]
                             else choose_boundary()
                         )
                     else:
@@ -554,7 +555,7 @@ class PreparedRequest:
 
                     body = self._encode_params(
                         data,  # type: ignore[arg-type]
-                        boundary_for_multipart=form_data_boundary,
+                        boundary_for_multipart=form_data_boundary,  # type: ignore[arg-type]
                     )
                     if isinstance(data, str) or hasattr(data, "read"):
                         content_type = None
