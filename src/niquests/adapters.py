@@ -273,6 +273,7 @@ class HTTPAdapter(BaseAdapter):
 
         #: we keep a list of pending (lazy) response
         self._promises: dict[str, Response] = {}
+        self._orphaned: list[BaseHTTPResponse] = []
         self._max_in_flight_multiplexed = (
             max_in_flight_multiplexed
             if max_in_flight_multiplexed is not None
@@ -731,9 +732,6 @@ class HTTPAdapter(BaseAdapter):
         if isinstance(request.body, (list, dict)):
             raise ValueError("Body contains unprepared native list or dict.")
 
-        if multiplexed:
-            self._promise_lock.acquire()
-
         try:
             resp_or_promise = conn.urlopen(  # type: ignore[call-overload]
                 method=request.method,
@@ -795,9 +793,6 @@ class HTTPAdapter(BaseAdapter):
                 raise
 
         r = self.build_response(request, resp_or_promise)
-
-        if multiplexed:
-            self._promise_lock.release()
 
         if mutate_response_class:
             if not issubclass(mutate_response_class, Response):
@@ -1011,7 +1006,21 @@ class HTTPAdapter(BaseAdapter):
                     if max_fetch is not None and max_fetch == 0:
                         return
 
-                    low_resp = self.poolmanager.get_response()
+                    low_resp = None
+
+                    if self._orphaned:
+                        for orphan in self._orphaned:
+                            try:
+                                if orphan._fp.from_promise.uid in self._promises:  # type: ignore[union-attr]
+                                    low_resp = orphan
+                                    break
+                            except AttributeError:
+                                continue
+                        if low_resp is not None:
+                            self._orphaned.remove(low_resp)
+
+                    if low_resp is None:
+                        low_resp = self.poolmanager.get_response()
 
                     if low_resp is None:
                         break
@@ -1031,7 +1040,8 @@ class HTTPAdapter(BaseAdapter):
                         else None
                     )
 
-                    if response is None:  # todo: we should raise an exception instead!
+                    if response is None:
+                        self._orphaned.append(low_resp)
                         continue
 
                     self._future_handler(response, low_resp)
