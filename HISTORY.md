@@ -1,6 +1,12 @@
 Release History
 ===============
 
+3.4.7 (2024-02-21)
+------------------
+
+**Fixed**
+- Unintentional performance regression with multiple concurrent multiplexed connection within a single Session.
+
 3.4.6 (2024-02-21)
 ------------------
 
