@@ -8,12 +8,19 @@ from kiss_headers import Headers
 from ._compat import HAS_LEGACY_URLLIB3
 
 if HAS_LEGACY_URLLIB3 is False:
-    from urllib3 import ResolverDescription, Retry, Timeout
+    from urllib3 import ResolverDescription, Retry, Timeout, AsyncResolverDescription
     from urllib3.contrib.resolver import BaseResolver
+    from urllib3.contrib.resolver._async import AsyncBaseResolver
     from urllib3.fields import RequestField
 else:
-    from urllib3_future import Retry, Timeout, ResolverDescription  # type: ignore[assignment]
+    from urllib3_future import (  # type: ignore[assignment]
+        Retry,
+        Timeout,
+        ResolverDescription,
+        AsyncResolverDescription,
+    )
     from urllib3_future.fields import RequestField  # type: ignore[assignment]
+    from urllib3_future.contrib.resolver._async import AsyncBaseResolver  # type: ignore[assignment]
     from urllib3_future.contrib.resolver import BaseResolver  # type: ignore[assignment]
 
 from .auth import AuthBase
@@ -143,6 +150,15 @@ HookCallableType: typing.TypeAlias = typing.Callable[
 
 HookType: typing.TypeAlias = typing.Dict[str, typing.List[HookCallableType[_HV]]]
 
+AsyncHookCallableType: typing.TypeAlias = typing.Callable[
+    [_HV],
+    typing.Awaitable[typing.Optional[_HV]],
+]
+
+AsyncHookType: typing.TypeAlias = typing.Dict[
+    str, typing.List[typing.Union[HookCallableType[_HV], AsyncHookCallableType[_HV]]]
+]
+
 CacheLayerAltSvcType: typing.TypeAlias = typing.MutableMapping[
     typing.Tuple[str, int], typing.Optional[typing.Tuple[str, int]]
 ]
@@ -155,4 +171,12 @@ ResolverType: typing.TypeAlias = typing.Union[
     BaseResolver,
     typing.List[str],
     typing.List[ResolverDescription],
+]
+
+AsyncResolverType: typing.TypeAlias = typing.Union[
+    str,
+    AsyncResolverDescription,
+    AsyncBaseResolver,
+    typing.List[str],
+    typing.List[AsyncResolverDescription],
 ]

@@ -418,11 +418,14 @@ def verify(
                     ):
                         raise ValueError
 
-                    issuer_certificate = _ask_nicely_for_issuer(
-                        url_parsed.hostname,
-                        conn_info.destination_address,
-                        timeout,
-                    )
+                    if not proxies:
+                        issuer_certificate = _ask_nicely_for_issuer(
+                            url_parsed.hostname,
+                            conn_info.destination_address,
+                            timeout,
+                        )
+                    else:
+                        issuer_certificate = None
 
                     if issuer_certificate is not None:
                         peer_certificate.verify_directly_issued_by(issuer_certificate)

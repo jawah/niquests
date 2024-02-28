@@ -6,6 +6,7 @@ import json
 import pytest
 
 from niquests import AsyncSession, AsyncResponse, Response
+from niquests.exceptions import MultiplexingError
 
 
 @pytest.mark.usefixtures("requires_wan")
@@ -24,6 +25,14 @@ class TestAsyncWithoutMultiplex:
 
             assert resp.lazy is False
             assert resp.status_code == 200
+
+    async def test_awaitable_redirect_chain_stream(self):
+        async with AsyncSession() as s:
+            resp = await s.get("https://pie.dev/redirect/2", stream=True)
+
+            assert resp.lazy is False
+            assert resp.status_code == 200
+            assert await resp.json()
 
     async def test_concurrent_task_get(self):
         async def emit():
@@ -71,7 +80,30 @@ class TestAsyncWithMultiplex:
             resp = await s.get("https://pie.dev/redirect/3")
 
             assert resp.lazy is True
+
+            with pytest.raises(MultiplexingError):
+                resp.status_code
+
+            await s.gather(resp)
+
             assert resp.status_code == 200
+            assert len(resp.history) == 3
+            assert all(isinstance(_, Response) for _ in resp.history)
+
+    async def test_awaitable_stream_redirect_direct_access_with_lazy(self):
+        async with AsyncSession(multiplexed=True) as s:
+            resp = await s.get("https://pie.dev/redirect/3", stream=True)
+
+            assert isinstance(resp, AsyncResponse)
+            assert resp.lazy is True
+
+            await resp.json()
+
+            assert resp.lazy is False
+
+            assert resp.status_code == 200
+            assert len(resp.history) == 3
+            assert all(isinstance(_, Response) for _ in resp.history)
 
     async def test_awaitable_get_direct_access_lazy(self):
         async with AsyncSession(multiplexed=True) as s:
@@ -79,6 +111,21 @@ class TestAsyncWithMultiplex:
 
             assert resp.lazy is True
             assert isinstance(resp, Response)
+
+            with pytest.raises(MultiplexingError):
+                resp.status_code == 200
+
+            await s.gather(resp)
+            assert resp.status_code == 200
+
+            resp = await s.get("https://pie.dev/get", stream=True)
+
+            assert isinstance(resp, AsyncResponse)
+
+            with pytest.raises(MultiplexingError):
+                resp.status_code
+
+            await resp.content
             assert resp.status_code == 200
 
     async def test_concurrent_task_get(self):

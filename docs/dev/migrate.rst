@@ -25,6 +25,7 @@ with confidence that you can migrate to Niquests without breaking changes.
 Would turn into either
 
 ::
+
     import niquests
     niquests.get(...)
 
@@ -37,7 +38,7 @@ Or simply
 
 
 Maintainer migration
--------------------
+--------------------
 
 In order to migrate your library with confidence, you'll have to also adjust your tests.
 The library itself (sources) should be really easy to migrate (cf. developer migration)

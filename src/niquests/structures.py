@@ -137,7 +137,7 @@ class SharableLimitedDict(typing.MutableMapping):
     def __init__(self, max_size: int | None) -> None:
         self._store: typing.MutableMapping[typing.Any, typing.Any] = {}
         self._max_size = max_size
-        self._lock = threading.RLock()
+        self._lock: threading.RLock | DummyLock = threading.RLock()
 
     def __delitem__(self, __key) -> None:
         with self._lock:
@@ -172,3 +172,17 @@ class QuicSharedCache(SharableLimitedDict):
         if alt_port is None:
             alt_port = port
         self[(host, port)] = (host, alt_port)
+
+
+class AsyncQuicSharedCache(QuicSharedCache):
+    def __init__(self, max_size: int | None) -> None:
+        super().__init__(max_size)
+        self._lock = DummyLock()
+
+
+class DummyLock:
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        return

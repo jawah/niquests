@@ -1,6 +1,23 @@
 Release History
 ===============
 
+3.5.0 (2024-02-28)
+------------------
+
+**Changed**
+- Replaced the thread pool executor for the true asyncio implementation. The asynchronous part is rewritten.
+- urllib3.future lower bound constraint has been raised to version 2.6.900 for the newly added asynchronous interfaces.
+
+**Added**
+- Support for awaitable hooks in AsyncSession.
+- Extendable AsyncBaseAdapter.
+- Support for orjson if installed in environment to dramatically increase performance in JSON deserialization.
+- Extra `speedups` to increase overall performances by including optional dependencies such as zstandard, brotli and orjson.
+
+**Fixed**
+- A rare error when leveraging multiplexing when a proxy is used.
+- Bypass proxies when looking to validate certificate revocation status in Python < 3.10 with OCSP.
+
 3.4.7 (2024-02-21)
 ------------------
 
