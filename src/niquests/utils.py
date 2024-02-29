@@ -43,6 +43,11 @@ if HAS_LEGACY_URLLIB3 is False:
         ResolverDescription,
         ManyResolver,
     )
+    from urllib3.contrib.resolver._async import (
+        AsyncBaseResolver,
+        AsyncResolverDescription,
+        AsyncManyResolver,
+    )
 else:
     from urllib3_future.util import make_headers, parse_url  # type: ignore[assignment]
     from urllib3_future.contrib.resolver import (  # type: ignore[assignment]
@@ -50,6 +55,11 @@ else:
         ProtocolResolver,
         ResolverDescription,
         ManyResolver,
+    )
+    from urllib3_future.contrib.resolver._async import (  # type: ignore[assignment]
+        AsyncBaseResolver,
+        AsyncResolverDescription,
+        AsyncManyResolver,
     )
 
 from .__version__ import __version__
@@ -60,7 +70,8 @@ from .structures import CaseInsensitiveDict
 if typing.TYPE_CHECKING:
     from .cookies import RequestsCookieJar
     from .models import PreparedRequest, Request, Response
-    from ._typing import ResolverType
+    from ._typing import ResolverType, AsyncResolverType
+    from ._async import AsyncResponse
 
 
 getproxies = lru_cache()(getproxies)
@@ -1037,6 +1048,69 @@ def create_resolver(definition: ResolverType | None) -> BaseResolver:
     return ManyResolver(*[r.new() for r in resolvers])
 
 
+def create_async_resolver(definition: AsyncResolverType | None) -> AsyncBaseResolver:
+    """Instantiate a unique resolver, reusable across the Session scope."""
+    if definition is None:
+        overrule_dns = os.environ.get("NIQUESTS_DNS_URL", None)
+        if overrule_dns is not None:
+            definition = AsyncResolverDescription.from_url(overrule_dns)
+        else:
+            return AsyncResolverDescription(ProtocolResolver.SYSTEM).new()
+
+    if isinstance(definition, AsyncBaseResolver):
+        return definition
+
+    if isinstance(definition, str):
+        resolver = [AsyncResolverDescription.from_url(definition)]
+    elif isinstance(definition, AsyncResolverDescription):
+        resolver = [definition]
+    else:
+        raise ValueError("invalid resolver definition given")
+
+    resolvers: list[AsyncResolverDescription] = []
+
+    can_resolve_localhost: bool = False
+
+    for resolver_description in resolver:
+        if isinstance(resolver_description, str):
+            resolvers.append(AsyncResolverDescription.from_url(resolver_description))
+
+            if resolvers[-1].protocol == ProtocolResolver.SYSTEM:
+                can_resolve_localhost = True
+
+            if "verify" in resolvers[-1] and resolvers[-1].kwargs["verify"] is False:
+                resolvers[-1]["cert_reqs"] = 0
+                del resolvers[-1].kwargs["verify"]
+
+            continue
+
+        resolvers.append(resolver_description)
+
+        if "verify" in resolvers[-1] and resolvers[-1].kwargs["verify"] is False:
+            resolvers[-1]["cert_reqs"] = 0
+            del resolvers[-1].kwargs["verify"]
+
+        if resolvers[-1].protocol == ProtocolResolver.SYSTEM:
+            can_resolve_localhost = True
+
+    if not can_resolve_localhost:
+        resolvers.append(
+            AsyncResolverDescription.from_url("system://default?hosts=localhost")
+        )
+
+    #: We want to automatically forward ca_cert_data, ca_cert_dir, and ca_certs.
+    for rd in resolvers:
+        # If no CA bundle is provided, inject the system's default!
+        if (
+            "ca_cert_data" not in rd
+            and "ca_cert_dir" not in rd
+            and "ca_certs" not in rd
+        ):
+            rd["ca_cert_data"] = wassima.generate_ca_bundle()
+
+    return AsyncManyResolver(*[r.new() for r in resolvers])
+
+
 def resolve_socket_family(
     disable_ipv4: bool, disable_ipv6: bool
 ) -> socket.AddressFamily:
@@ -1045,3 +1119,16 @@ def resolve_socket_family(
     if disable_ipv6:
         return socket.AF_INET
     return socket.AF_UNSPEC
+
+
+def _swap_context(response: AsyncResponse | Response) -> None:
+    response_class = response.__class__
+
+    is_async = (
+        len(response_class.__bases__) == 1 and response_class.__bases__[0] is not object
+    )
+
+    if is_async:
+        response.__class__ = response_class.__bases__[0]
+    else:
+        response.__class__ = response_class.__subclasses__()[0]

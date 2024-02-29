@@ -718,8 +718,6 @@ an implementation of ``Session`` that support **async**.
 
 All known methods remain the same at the sole difference that it return a coroutine.
 
-.. note:: The underlying main library **urllib3.future** does not support native async but is thread safe. This is why we choose to implement / backport `sync_to_async` from Django that use a ThreadPool under the carpet.
-
 Here is a basic example::
 
     import asyncio
@@ -831,6 +829,7 @@ So that the following methods and properties will be coroutines (aka. awaitable)
 - content
 - json(...)
 - text(...)
+- close()
 
 When enabling multiplexing while in an async context, you will have to issue a call to ``await s.gather()``
 to avoid blocking your event loop.
@@ -868,7 +867,7 @@ Here is a basic example of how you would do it::
 
         asyncio.run(main())
 
-.. warning:: Accessing a lazy ``AsyncResponse`` without a call to ``s.gather()`` will raise a warning.
+.. warning:: Accessing (non awaitable attribute or method) of a lazy ``AsyncResponse`` without a call to ``s.gather()`` will raise an error.
 
 Scale your Session / Pool
 -------------------------
@@ -963,6 +962,17 @@ Simply add ``verify=false`` into your DNS url to pursue::
 
 
 .. warning:: Doing a ``s.get("https://pie.dev/get", verify=False)`` does not impact the resolver.
+
+Speedups
+--------
+
+Niquests support a wide range of optional dependencies that enable a significant speedup in your
+everyday HTTP flows.
+
+To enable various optimizations, such as native zstandard decompression and faster json serializer/deserializer,
+install Niquests with::
+
+    $ python -m pip install niquests[speedups]
 
 -----------------------
 

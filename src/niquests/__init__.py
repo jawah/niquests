@@ -73,7 +73,7 @@ from .__version__ import (
     __url__,
     __version__,
 )
-from ._async import AsyncSession, AsyncResponse
+from ._async import AsyncSession
 from .api import delete, get, head, options, patch, post, put, request
 from .exceptions import (
     ConnectionError,
@@ -88,7 +88,7 @@ from .exceptions import (
     TooManyRedirects,
     URLRequired,
 )
-from .models import PreparedRequest, Request, Response
+from .models import PreparedRequest, Request, Response, AsyncResponse
 from .sessions import Session
 from .status_codes import codes
 

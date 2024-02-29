@@ -41,7 +41,7 @@ dynamic = ["version"]
 dependencies = [
     "charset_normalizer>=2,<4",
     "idna>=2.5,<4",
-    "urllib3.future>=2.5.900,<3",
+    "urllib3.future>=2.6.900,<3",
     "wassima>=1.0.1,<2",
     "kiss_headers>=2,<4",
 ]
@@ -55,6 +55,10 @@ http3 = [
 ]
 ocsp = [
     "cryptography<43.0.0,>=41.0.0"
+]
+speedups = [
+    "orjson>=3,<4",
+    "urllib3.future[zstd,brotli]"
 ]
 
 [project.urls]
@@ -105,4 +109,6 @@ filterwarnings = [
     '''ignore:The 'JSONIFY_PRETTYPRINT_REGULAR' config key is deprecated and will:DeprecationWarning''',
     '''ignore:unclosed .*:ResourceWarning''',
     '''ignore:Parsed a negative serial number:cryptography.utils.CryptographyDeprecationWarning''',
+    '''ignore:A plugin raised an exception during an old-style hookwrapper teardown''',
+    '''ignore:Exception ignored in:pytest.PytestUnraisableExceptionWarning''',
 ]

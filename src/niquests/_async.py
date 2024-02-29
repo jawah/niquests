@@ -1,30 +1,28 @@
 from __future__ import annotations
 
-import asyncio
+import os
 import typing
-import json as _json
-from charset_normalizer import from_bytes
-import codecs
+import warnings
+from copy import deepcopy
+import sys
+import time
+from http.cookiejar import CookieJar
+from collections import OrderedDict
+from datetime import timedelta
+from urllib.parse import urljoin, urlparse
+from .status_codes import codes
 
 if typing.TYPE_CHECKING:
     from typing_extensions import Literal
 
-from ._compat import HAS_LEGACY_URLLIB3
+from ._compat import HAS_LEGACY_URLLIB3, urllib3_ensure_type
 
 if HAS_LEGACY_URLLIB3 is False:
-    from urllib3.exceptions import (
-        DecodeError,
-        ProtocolError,
-        ReadTimeoutError,
-        SSLError,
-    )
+    from urllib3 import ConnectionInfo
+    from urllib3.contrib.resolver._async import AsyncBaseResolver
 else:
-    from urllib3_future.exceptions import (  # type: ignore[assignment]
-        DecodeError,
-        ProtocolError,
-        ReadTimeoutError,
-        SSLError,
-    )
+    from urllib3_future import ConnectionInfo  # type: ignore[assignment]
+    from urllib3_future.contrib.resolver._async import AsyncBaseResolver  # type: ignore[assignment]
 
 from ._constant import (
     READ_DEFAULT_TIMEOUT,
@@ -46,38 +44,80 @@ from ._typing import (
     TimeoutType,
     TLSClientCertType,
     TLSVerifyType,
-    ResolverType,
+    AsyncResolverType,
     CacheLayerAltSvcType,
     RetryType,
+    AsyncHookType,
 )
-from .extensions._sync_to_async import sync_to_async
 from .exceptions import (
     ChunkedEncodingError,
-    ConnectionError,
     ContentDecodingError,
-    StreamConsumedError,
+    TooManyRedirects,
 )
-from .exceptions import JSONDecodeError as RequestsJSONDecodeError
-from .exceptions import SSLError as RequestsSSLError
-from .hooks import dispatch_hook
-from .models import PreparedRequest, Request, Response, ITER_CHUNK_SIZE
+from .hooks import async_dispatch_hook, default_hooks
+from .models import (
+    PreparedRequest,
+    Request,
+    Response,
+    DEFAULT_REDIRECT_LIMIT,
+    TransferProgress,
+    AsyncResponse,
+)
 from .sessions import Session
-from .utils import astream_decode_response_unicode
+from .utils import (
+    create_async_resolver,
+    default_headers,
+    resolve_proxies,
+    rewind_body,
+    requote_uri,
+    _swap_context,
+)
+from .cookies import (
+    RequestsCookieJar,
+    cookiejar_from_dict,
+    extract_cookies_to_jar,
+    merge_cookies,
+)
+from .structures import AsyncQuicSharedCache
+from .adapters import AsyncBaseAdapter, AsyncHTTPAdapter
+
+try:
+    from .extensions._async_ocsp import verify as ocsp_verify
+except ImportError:
+    ocsp_verify = None  # type: ignore[assignment]
+
+# Preferred clock, based on which one is more accurate on a given system.
+if sys.platform == "win32":
+    preferred_clock = time.perf_counter
+else:
+    preferred_clock = time.time
 
 
 class AsyncSession(Session):
-    """
-    "It's aint much, but its honest work" kind of class.
-    Use a thread pool under the carpet. It's not true async.
+    """A Requests asynchronous session.
+
+    Provides cookie persistence, connection-pooling, and configuration.
+
+    Basic Usage::
+
+      >>> import niquests
+      >>> s = niquests.AsyncSession()
+      >>> await s.get('https://httpbin.org/get')
+      <Response HTTP/2 [200]>
+
+    Or as a context manager::
+
+      >>> async with niquests.AsyncSession() as s:
+      ...     await s.get('https://httpbin.org/get')
+      <Response HTTP/2 [200]>
     """
 
-    disable_thread: bool = False
-    semaphore: asyncio.Semaphore = asyncio.Semaphore(10)
+    disable_thread: bool = False  # no-op since v3.5
 
     def __init__(
         self,
         *,
-        resolver: ResolverType | None = None,
+        resolver: AsyncResolverType | None = None,
         source_address: tuple[str, int] | None = None,
         quic_cache_layer: CacheLayerAltSvcType | None = None,
         retries: RetryType = DEFAULT_RETRIES,
@@ -89,20 +129,140 @@ class AsyncSession(Session):
         pool_connections: int = DEFAULT_POOLSIZE,
         pool_maxsize: int = DEFAULT_POOLSIZE,
     ):
-        super().__init__(
-            resolver=resolver,
-            source_address=source_address,
-            quic_cache_layer=quic_cache_layer,
-            retries=retries,
-            multiplexed=multiplexed,
-            disable_http2=disable_http2,
-            disable_http3=disable_http3,
-            disable_ipv6=disable_ipv6,
-            disable_ipv4=disable_ipv4,
-            pool_connections=pool_connections,
-            pool_maxsize=pool_maxsize,
+        if [disable_ipv4, disable_ipv6].count(True) == 2:
+            raise RuntimeError("Cannot disable both IPv4 and IPv6")
+
+        #: Configured retries for current Session
+        self.retries = retries
+
+        if (
+            self.retries
+            and HAS_LEGACY_URLLIB3
+            and hasattr(self.retries, "total")
+            and "urllib3_future" not in str(type(self.retries))
+        ):
+            self.retries = urllib3_ensure_type(self.retries)  # type: ignore[type-var]
+
+        #: A case-insensitive dictionary of headers to be sent on each
+        #: :class:`Request <Request>` sent from this
+        #: :class:`Session <Session>`.
+        self.headers = default_headers()
+
+        #: Default Authentication tuple or object to attach to
+        #: :class:`Request <Request>`.
+        self.auth = None
+
+        #: Dictionary mapping protocol or protocol and host to the URL of the proxy
+        #: (e.g. {'http': 'foo.bar:3128', 'http://host.name': 'foo.bar:4012'}) to
+        #: be used on each :class:`Request <Request>`.
+        self.proxies: ProxyType = {}
+
+        #: Event-handling hooks.
+        self.hooks: AsyncHookType[
+            PreparedRequest | Response | AsyncResponse
+        ] = default_hooks()  # type: ignore[assignment]
+
+        #: Dictionary of querystring data to attach to each
+        #: :class:`Request <Request>`. The dictionary values may be lists for
+        #: representing multivalued query parameters.
+        self.params: QueryParameterType = {}
+
+        #: Stream response content default.
+        self.stream = False
+
+        #: Toggle to leverage multiplexed connection.
+        self.multiplexed = multiplexed
+
+        #: Custom DNS resolution method.
+        self.resolver: AsyncBaseResolver = create_async_resolver(resolver)
+        #: Internal use, know whether we should/can close it on session close.
+        self._own_resolver: bool = resolver != self.resolver
+
+        #: Bind to address/network adapter
+        self.source_address = source_address
+
+        self._disable_http2 = disable_http2
+        self._disable_http3 = disable_http3
+
+        self._disable_ipv4 = disable_ipv4
+        self._disable_ipv6 = disable_ipv6
+
+        self._pool_connections = pool_connections
+        self._pool_maxsize = pool_maxsize
+
+        #: SSL Verification default.
+        #: Defaults to `True`, requiring requests to verify the TLS certificate at the
+        #: remote end.
+        #: If verify is set to `False`, requests will accept any TLS certificate
+        #: presented by the server, and will ignore hostname mismatches and/or
+        #: expired certificates, which will make your application vulnerable to
+        #: man-in-the-middle (MitM) attacks.
+        #: Only set this to `False` for testing.
+        self.verify: TLSVerifyType = True
+
+        #: SSL client certificate default, if String, path to ssl client
+        #: cert file (.pem). If Tuple, ('cert', 'key') pair, or ('cert', 'key', 'key_password').
+        self.cert: TLSClientCertType | None = None
+
+        #: Maximum number of redirects allowed. If the request exceeds this
+        #: limit, a :class:`TooManyRedirects` exception is raised.
+        #: This defaults to requests.models.DEFAULT_REDIRECT_LIMIT, which is
+        #: 30.
+        self.max_redirects: int = DEFAULT_REDIRECT_LIMIT
+
+        #: Trust environment settings for proxy configuration, default
+        #: authentication and similar.
+        self.trust_env: bool = True
+
+        #: A CookieJar containing all currently outstanding cookies set on this
+        #: session. By default it is a
+        #: :class:`RequestsCookieJar <requests.cookies.RequestsCookieJar>`, but
+        #: may be any other ``cookielib.CookieJar`` compatible object.
+        self.cookies: RequestsCookieJar | CookieJar = cookiejar_from_dict({})
+
+        #: A simple dict that allows us to persist which server support QUIC
+        #: It is simply forwarded to urllib3.future that handle the caching logic.
+        #: Can be any mutable mapping.
+        self.quic_cache_layer = (
+            quic_cache_layer
+            if quic_cache_layer is not None
+            else AsyncQuicSharedCache(max_size=12_288)
         )
-        self._semaphore = asyncio.Semaphore(pool_maxsize)
+
+        # Default connection adapters.
+        self.adapters: OrderedDict[str, AsyncBaseAdapter] = OrderedDict()  # type: ignore[assignment]
+        self.mount(
+            "https://",
+            AsyncHTTPAdapter(
+                quic_cache_layer=self.quic_cache_layer,
+                max_retries=retries,
+                disable_http2=disable_http2,
+                disable_http3=disable_http3,
+                resolver=resolver,
+                source_address=source_address,
+                disable_ipv4=disable_ipv4,
+                disable_ipv6=disable_ipv6,
+                pool_connections=pool_connections,
+                pool_maxsize=pool_maxsize,
+            ),
+        )
+        self.mount(
+            "http://",
+            AsyncHTTPAdapter(
+                max_retries=retries,
+                resolver=resolver,
+                source_address=source_address,
+                disable_ipv4=disable_ipv4,
+                disable_ipv6=disable_ipv6,
+                pool_connections=pool_connections,
+                pool_maxsize=pool_maxsize,
+            ),
+        )
+
+    def __enter__(self) -> typing.NoReturn:
+        raise SyntaxError(
+            'You probably meant "async with". Did you forget to prepend the "async" keyword?'
+        )
 
     async def __aenter__(self):
         return self
@@ -110,19 +270,402 @@ class AsyncSession(Session):
     async def __aexit__(self, exc, value, tb):
         await self.close()
 
+    def mount(self, prefix: str, adapter: AsyncBaseAdapter) -> None:  # type: ignore[override]
+        super().mount(prefix, adapter)  # type: ignore[arg-type]
+
+    def get_adapter(self, url: str) -> AsyncBaseAdapter:  # type: ignore[override]
+        return super().get_adapter(url)  # type: ignore[return-value]
+
     async def send(  # type: ignore[override]
         self, request: PreparedRequest, **kwargs: typing.Any
     ) -> Response | AsyncResponse:  # type: ignore[override]
-        if "stream" in kwargs and kwargs["stream"]:
-            kwargs["mutate_response_class"] = AsyncResponse
-        await AsyncSession.semaphore.acquire()
-        try:
-            return await sync_to_async(
-                super().send,
-                thread_sensitive=AsyncSession.disable_thread,
-            )(request=request, **kwargs)
-        finally:
-            AsyncSession.semaphore.release()
+        """Send a given PreparedRequest."""
+        # Set defaults that the hooks can utilize to ensure they always have
+        # the correct parameters to reproduce the previous request.
+        kwargs.setdefault("stream", self.stream)
+        kwargs.setdefault("verify", self.verify)
+        kwargs.setdefault("cert", self.cert)
+
+        if "proxies" not in kwargs:
+            kwargs["proxies"] = resolve_proxies(request, self.proxies, self.trust_env)
+
+        if (
+            "timeout" in kwargs
+            and kwargs["timeout"]
+            and HAS_LEGACY_URLLIB3
+            and hasattr(kwargs["timeout"], "total")
+            and "urllib3_future" not in str(type(kwargs["timeout"]))
+        ):
+            kwargs["timeout"] = urllib3_ensure_type(kwargs["timeout"])
+
+        # It's possible that users might accidentally send a Request object.
+        # Guard against that specific failure case.
+        if isinstance(request, Request):
+            raise ValueError("You can only send PreparedRequests.")
+
+        # Set up variables needed for resolve_redirects and dispatching of hooks
+        allow_redirects = kwargs.pop("allow_redirects", True)
+        stream = kwargs.get("stream")
+        hooks = request.hooks
+
+        ptr_request = request
+
+        async def on_post_connection(conn_info: ConnectionInfo) -> None:
+            """This function will be called by urllib3.future just after establishing the connection."""
+            nonlocal ptr_request, request, kwargs
+            ptr_request.conn_info = conn_info
+
+            if (
+                ptr_request.url
+                and ptr_request.url.startswith("https://")
+                and ocsp_verify is not None
+                and kwargs["verify"]
+            ):
+                strict_ocsp_enabled: bool = (
+                    os.environ.get("NIQUESTS_STRICT_OCSP", "0") != "0"
+                )
+
+                await ocsp_verify(
+                    ptr_request,
+                    strict_ocsp_enabled,
+                    0.2 if not strict_ocsp_enabled else 1.0,
+                    kwargs["proxies"],
+                    resolver=self.resolver,
+                )
+
+            # don't trigger pre_send for redirects
+            if ptr_request == request:
+                await async_dispatch_hook("pre_send", hooks, ptr_request)  # type: ignore[arg-type]
+
+        async def handle_upload_progress(
+            total_sent: int,
+            content_length: int | None,
+            is_completed: bool,
+            any_error: bool,
+        ) -> None:
+            nonlocal ptr_request, request, kwargs
+            if ptr_request != request:
+                return
+            if request.upload_progress is None:
+                request.upload_progress = TransferProgress()
+
+            request.upload_progress.total = total_sent
+            request.upload_progress.content_length = content_length
+            request.upload_progress.is_completed = is_completed
+            request.upload_progress.any_error = any_error
+
+            await async_dispatch_hook("on_upload", hooks, request)  # type: ignore[arg-type]
+
+        kwargs.setdefault("on_post_connection", on_post_connection)
+        kwargs.setdefault("on_upload_body", handle_upload_progress)
+        kwargs.setdefault("multiplexed", self.multiplexed)
+
+        assert request.url is not None
+
+        # Recycle the resolver if unavailable
+        if not self.resolver.is_available():
+            if not self._own_resolver:
+                warnings.warn(
+                    "A externally instantiated resolver was closed. Attempt to recycling it internally, "
+                    "the Session will detach itself from given resolver.",
+                    ResourceWarning,
+                )
+            await self.close()
+            self.resolver = self.resolver.recycle()
+            self.mount(
+                "https://",
+                AsyncHTTPAdapter(
+                    quic_cache_layer=self.quic_cache_layer,
+                    max_retries=self.retries,
+                    disable_http2=self._disable_http2,
+                    disable_http3=self._disable_http3,
+                    resolver=self.resolver,
+                    source_address=self.source_address,
+                    disable_ipv4=self._disable_ipv4,
+                    disable_ipv6=self._disable_ipv6,
+                    pool_connections=self._pool_connections,
+                    pool_maxsize=self._pool_maxsize,
+                ),
+            )
+            self.mount(
+                "http://",
+                AsyncHTTPAdapter(
+                    max_retries=self.retries,
+                    resolver=self.resolver,
+                    source_address=self.source_address,
+                    disable_ipv4=self._disable_ipv4,
+                    disable_ipv6=self._disable_ipv6,
+                    pool_connections=self._pool_connections,
+                    pool_maxsize=self._pool_maxsize,
+                ),
+            )
+
+        # Get the appropriate adapter to use
+        adapter = self.get_adapter(url=request.url)
+
+        # Start time (approximately) of the request
+        start = preferred_clock()
+
+        # Send the request
+        r = await adapter.send(request, **kwargs)
+
+        # Make sure the timings data are kept as is, conn_info is a reference to
+        # urllib3-future conn_info.
+        request.conn_info = deepcopy(request.conn_info)
+
+        # We are leveraging a multiplexed connection
+        if r.raw is None:
+
+            async def _redirect_method_ref(x, y):
+                try:
+                    return await self.resolve_redirects(
+                        x, y, yield_requests=True, **kwargs
+                    ).__anext__()
+                except StopAsyncIteration:
+                    return None
+
+            r._resolve_redirect = _redirect_method_ref
+
+            # in multiplexed mode, we are unable to forward this local function for safety reasons.
+            kwargs["on_post_connection"] = None
+
+            # we intentionally set 'niquests' as the prefix. urllib3.future have its own parameters.
+            r._promise.set_parameter("niquests_is_stream", stream)
+            r._promise.set_parameter("niquests_start", start)
+            r._promise.set_parameter("niquests_hooks", hooks)
+            r._promise.set_parameter("niquests_cookies", self.cookies)
+            r._promise.set_parameter("niquests_allow_redirect", allow_redirects)
+            r._promise.set_parameter("niquests_kwargs", kwargs)
+
+            # You may be wondering why we are setting redirect info in promise ctx.
+            # because in multiplexed mode, we are not fully aware of hop/redirect count
+            r._promise.set_parameter("niquests_redirect_count", 0)
+            r._promise.set_parameter("niquests_max_redirects", self.max_redirects)
+
+            if not stream:
+                _swap_context(r)
+
+            return r
+
+        # Total elapsed time of the request (approximately)
+        elapsed = preferred_clock() - start
+        r.elapsed = timedelta(seconds=elapsed)
+
+        # Response manipulation hooks
+        r = await async_dispatch_hook("response", hooks, r, **kwargs)  # type: ignore[arg-type]
+
+        # Persist cookies
+        if r.history:
+            # If the hooks create history then we want those cookies too
+            for resp in r.history:
+                extract_cookies_to_jar(self.cookies, resp.request, resp.raw)
+
+        extract_cookies_to_jar(self.cookies, request, r.raw)
+
+        # Resolve redirects if allowed.
+        if allow_redirects:
+            # Redirect resolving generator.
+            gen = self.resolve_redirects(
+                r, request, yield_requests_trail=True, **kwargs
+            )
+            history = []
+
+            async for resp_or_req in gen:
+                if isinstance(resp_or_req, Response):
+                    history.append(resp_or_req)
+                    continue
+                ptr_request = resp_or_req
+        else:
+            history = []
+
+        # Shuffle things around if there's history.
+        if history:
+            # Insert the first (original) request at the start
+            history.insert(0, r)
+            # Get the last request made
+            r = history.pop()
+            for hr in history:
+                if isinstance(hr, AsyncResponse):
+                    _swap_context(hr)
+            r.history = history  # type: ignore[assignment]
+
+        # If redirects aren't being followed, store the response on the Request for Response.next().
+        if not allow_redirects:
+            if r.is_redirect:
+                try:
+                    gen = self.resolve_redirects(
+                        r, request, yield_requests=True, **kwargs
+                    )
+                    r._next = await gen.__anext__()  # type: ignore[assignment]
+                except StopAsyncIteration:
+                    pass
+
+        if not stream:
+            if isinstance(r, AsyncResponse):
+                await r.content
+                _swap_context(r)
+            else:
+                r.content
+
+        return r
+
+    async def resolve_redirects(  # type: ignore[override]
+        self,
+        resp: AsyncResponse,
+        req: PreparedRequest,
+        stream: bool = False,
+        timeout: int | float | None = None,
+        verify: TLSVerifyType = True,
+        cert: TLSClientCertType | None = None,
+        proxies: ProxyType | None = None,
+        yield_requests: bool = False,
+        yield_requests_trail: bool = False,
+        **adapter_kwargs: typing.Any,
+    ) -> typing.AsyncGenerator[AsyncResponse | PreparedRequest, None]:
+        """Receives a Response. Returns a generator of Responses or Requests."""
+
+        hist = []  # keep track of history
+
+        url = self.get_redirect_target(resp)
+        previous_fragment = urlparse(req.url).fragment
+        while url:
+            prepared_request = req.copy()
+
+            # Update history and keep track of redirects.
+            # resp.history must ignore the original request in this loop
+            hist.append(resp)
+            resp.history = hist[1:]  # type: ignore[assignment]
+
+            assert resp.raw is not None
+
+            try:
+                if isinstance(resp, AsyncResponse):
+                    await resp.content  # Consume socket so it can be released
+                else:
+                    resp.content
+            except (ChunkedEncodingError, ContentDecodingError, RuntimeError):
+                await resp.raw.read(decode_content=False)
+
+            if len(resp.history) >= self.max_redirects:
+                raise TooManyRedirects(
+                    f"Exceeded {self.max_redirects} redirects.", response=resp
+                )
+
+            # Release the connection back into the pool.
+            if isinstance(resp, AsyncResponse):
+                await resp.close()
+            else:
+                resp.close()
+
+            # Handle redirection without scheme (see: RFC 1808 Section 4)
+            if url.startswith("//"):
+                parsed_rurl = urlparse(resp.url)
+                target_scheme = parsed_rurl.scheme
+                if isinstance(target_scheme, bytes):
+                    target_scheme = target_scheme.decode()
+                url = ":".join([target_scheme, url])
+
+            # Normalize url case and attach previous fragment if needed (RFC 7231 7.1.2)
+            parsed = urlparse(url)
+            if parsed.fragment == "" and previous_fragment:
+                parsed = parsed._replace(
+                    fragment=previous_fragment
+                    if isinstance(previous_fragment, str)
+                    else previous_fragment.decode("utf-8")
+                )
+            elif parsed.fragment:
+                previous_fragment = parsed.fragment
+            url = parsed.geturl()
+
+            # Facilitate relative 'location' headers, as allowed by RFC 7231.
+            # (e.g. '/path/to/resource' instead of 'http://domain.tld/path/to/resource')
+            # Compliant with RFC3986, we percent encode the url.
+            if not parsed.netloc:
+                url = urljoin(resp.url, requote_uri(url))  # type: ignore[type-var]
+                assert isinstance(
+                    url, str
+                ), f"urljoin produced {type(url)} instead of str"
+            else:
+                url = requote_uri(url)
+
+            # this shouldn't happen, but kept in extreme case of being nice with BC.
+            if isinstance(url, bytes):
+                url = url.decode("utf-8")
+
+            prepared_request.url = url
+            assert prepared_request.headers is not None
+
+            self.rebuild_method(prepared_request, resp)
+
+            # https://github.com/psf/requests/issues/1084
+            if resp.status_code not in (
+                codes.temporary_redirect,  # type: ignore[attr-defined]
+                codes.permanent_redirect,  # type: ignore[attr-defined]
+            ):
+                # https://github.com/psf/requests/issues/3490
+                purged_headers = ("Content-Length", "Content-Type", "Transfer-Encoding")
+                for header in purged_headers:
+                    prepared_request.headers.pop(header, None)
+                prepared_request.body = None
+
+            headers = prepared_request.headers
+
+            headers.pop("Cookie", None)
+
+            assert prepared_request._cookies is not None
+            # Extract any cookies sent on the response to the cookiejar
+            # in the new request. Because we've mutated our copied prepared
+            # request, use the old one that we haven't yet touched.
+            extract_cookies_to_jar(prepared_request._cookies, req, resp.raw)
+            merge_cookies(prepared_request._cookies, self.cookies)
+            prepared_request.prepare_cookies(prepared_request._cookies)
+
+            # Rebuild auth and proxy information.
+            proxies = self.rebuild_proxies(prepared_request, proxies)
+            self.rebuild_auth(prepared_request, resp)
+
+            # A failed tell() sets `_body_position` to `object()`. This non-None
+            # value ensures `rewindable` will be True, allowing us to raise an
+            # UnrewindableBodyError, instead of hanging the connection.
+            rewindable = prepared_request._body_position is not None and (
+                "Content-Length" in headers or "Transfer-Encoding" in headers
+            )
+
+            # Attempt to rewind consumed file-like object.
+            if rewindable:
+                rewind_body(prepared_request)
+
+            # Override the original request.
+            req = prepared_request
+
+            if yield_requests:
+                yield req
+            else:
+                if yield_requests_trail:
+                    yield req
+
+                resp = await self.send(  # type: ignore[assignment]
+                    req,
+                    stream=stream,
+                    timeout=timeout,
+                    verify=verify,
+                    cert=cert,
+                    proxies=proxies,
+                    allow_redirects=False,
+                    **adapter_kwargs,
+                )
+
+                # If the initial request was intended to be lazy but didn't meet required criteria
+                # e.g. Setting multiplexed=True, requesting HTTP/1.1 only capable and getting redirected
+                # to an HTTP/2+ endpoint.
+                if resp.lazy:
+                    await self.gather(resp)
+
+                extract_cookies_to_jar(self.cookies, prepared_request, resp.raw)
+
+                # extract redirect url, if any, for the next loop
+                url = self.get_redirect_target(resp)
+                yield resp
 
     @typing.overload  # type: ignore[override]
     async def request(
@@ -205,7 +748,7 @@ class AsyncSession(Session):
             hooks=hooks,
         )
 
-        prep: PreparedRequest = dispatch_hook(
+        prep: PreparedRequest = await async_dispatch_hook(
             "pre_request",
             hooks,  # type: ignore[arg-type]
             self.prepare_request(req),
@@ -755,236 +1298,11 @@ class AsyncSession(Session):
         )
 
     async def gather(self, *responses: Response, max_fetch: int | None = None) -> None:  # type: ignore[override]
-        return await sync_to_async(
-            super().gather,
-            thread_sensitive=AsyncSession.disable_thread,
-        )(*responses, max_fetch=max_fetch)
+        if self.multiplexed is False:
+            return
+
+        for adapter in self.adapters.values():
+            await adapter.gather(*responses, max_fetch=max_fetch)
 
     async def close(self) -> None:  # type: ignore[override]
-        await sync_to_async(
-            super().close,
-            thread_sensitive=AsyncSession.disable_thread,
-        )()
-
-
-class AsyncResponse(Response):
-    def __aenter__(self) -> AsyncResponse:
-        return self
-
-    async def __aiter__(self) -> typing.AsyncIterator[bytes]:
-        async for chunk in await self.iter_content(ITER_CHUNK_SIZE):
-            yield chunk
-
-    async def __aexit__(self, exc_type, exc_val, exc_tb):
-        await self.close()
-
-    @typing.overload  # type: ignore[override]
-    async def iter_content(
-        self, chunk_size: int = ..., decode_unicode: Literal[False] = ...
-    ) -> typing.AsyncGenerator[bytes, None]:
         ...
-
-    @typing.overload  # type: ignore[override]
-    async def iter_content(
-        self, chunk_size: int = ..., *, decode_unicode: Literal[True]
-    ) -> typing.AsyncGenerator[str, None]:
-        ...
-
-    async def iter_content(  # type: ignore[override]
-        self, chunk_size: int = ITER_CHUNK_SIZE, decode_unicode: bool = False
-    ) -> typing.AsyncGenerator[bytes | str, None]:
-        async def generate() -> (
-            typing.AsyncGenerator[
-                bytes,
-                None,
-            ]
-        ):
-            assert self.raw is not None
-
-            while True:
-                try:
-                    chunk = await sync_to_async(
-                        self.raw.read, thread_sensitive=AsyncSession.disable_thread
-                    )(
-                        chunk_size,
-                        decode_content=True,
-                    )
-                except ProtocolError as e:
-                    raise ChunkedEncodingError(e)
-                except DecodeError as e:
-                    raise ContentDecodingError(e)
-                except ReadTimeoutError as e:
-                    raise ConnectionError(e)
-                except SSLError as e:
-                    raise RequestsSSLError(e)
-
-                if not chunk:
-                    break
-
-                yield chunk
-
-            self._content_consumed = True
-
-        if self._content_consumed and isinstance(self._content, bool):
-            raise StreamConsumedError()
-        elif chunk_size is not None and not isinstance(chunk_size, int):
-            raise TypeError(
-                f"chunk_size must be an int, it is instead a {type(chunk_size)}."
-            )
-
-        stream_chunks = generate()
-
-        if decode_unicode:
-            return astream_decode_response_unicode(stream_chunks, self)
-
-        return stream_chunks
-
-    @typing.overload  # type: ignore[override]
-    async def iter_lines(
-        self,
-        chunk_size: int = ...,
-        decode_unicode: Literal[False] = ...,
-        delimiter: str | bytes | None = ...,
-    ) -> typing.AsyncGenerator[bytes, None]:
-        ...
-
-    @typing.overload  # type: ignore[override]
-    async def iter_lines(
-        self,
-        chunk_size: int = ...,
-        *,
-        decode_unicode: Literal[True],
-        delimiter: str | bytes | None = ...,
-    ) -> typing.AsyncGenerator[str, None]:
-        ...
-
-    async def iter_lines(  # type: ignore[misc]
-        self,
-        chunk_size: int = ITER_CHUNK_SIZE,
-        decode_unicode: bool = False,
-        delimiter: str | bytes | None = None,
-    ) -> typing.AsyncGenerator[bytes | str, None]:
-        if (
-            delimiter is not None
-            and decode_unicode is False
-            and isinstance(delimiter, str)
-        ):
-            raise ValueError(
-                "delimiter MUST match the desired output type. e.g. if decode_unicode is set to True, delimiter MUST be a str, otherwise we expect a bytes-like variable."
-            )
-
-        pending = None
-
-        async for chunk in self.iter_content(  # type: ignore[call-overload]
-            chunk_size=chunk_size, decode_unicode=decode_unicode
-        ):
-            if pending is not None:
-                chunk = pending + chunk
-
-            if delimiter:
-                lines = chunk.split(delimiter)  # type: ignore[arg-type]
-            else:
-                lines = chunk.splitlines()
-
-            if lines and lines[-1] and chunk and lines[-1][-1] == chunk[-1]:
-                pending = lines.pop()
-            else:
-                pending = None
-
-            async for line in lines:
-                yield line
-
-        if pending is not None:
-            yield pending
-
-    @property
-    async def content(self) -> bytes | None:  # type: ignore[override]
-        return await sync_to_async(
-            getattr, thread_sensitive=AsyncSession.disable_thread
-        )(super(), "content")
-
-    @property
-    async def text(self) -> str | None:  # type: ignore[override]
-        content = await self.content
-
-        if not content:
-            return ""
-
-        if self.encoding is not None:
-            try:
-                info = codecs.lookup(self.encoding)
-
-                if (
-                    hasattr(info, "_is_text_encoding")
-                    and info._is_text_encoding is False
-                ):
-                    return None
-            except LookupError:
-                #: We cannot accept unsupported or nonexistent encoding. Override.
-                self.encoding = None
-
-        # Fallback to auto-detected encoding.
-        if self.encoding is None:
-            encoding_guess = from_bytes(content).best()
-
-            if encoding_guess:
-                #: We shall cache this inference.
-                self.encoding = encoding_guess.encoding
-                return str(encoding_guess)
-
-        if self.encoding is None:
-            return None
-
-        return str(content, self.encoding, errors="replace")
-
-    async def json(self, **kwargs: typing.Any) -> typing.Any:  # type: ignore[override]
-        content = await self.content
-
-        if not content or "json" not in self.headers.get("content-type", "").lower():
-            raise RequestsJSONDecodeError(
-                "response content is not JSON", await self.text or "", 0
-            )
-
-        if not self.encoding:
-            # No encoding set. JSON RFC 4627 section 3 states we should expect
-            # UTF-8, -16 or -32. Detect which one to use; If the detection or
-            # decoding fails, fall back to `self.text` (using charset_normalizer to make
-            # a best guess).
-            encoding_guess = from_bytes(
-                content,
-                cp_isolation=[
-                    "ascii",
-                    "utf-8",
-                    "utf-16",
-                    "utf-32",
-                    "utf-16-le",
-                    "utf-16-be",
-                    "utf-32-le",
-                    "utf-32-be",
-                ],
-            ).best()
-
-            if encoding_guess is not None:
-                try:
-                    return _json.loads(str(encoding_guess), **kwargs)
-                except _json.JSONDecodeError as e:
-                    raise RequestsJSONDecodeError(e.msg, e.doc, e.pos)
-
-        plain_content = await self.text
-
-        if plain_content is None:
-            raise RequestsJSONDecodeError(
-                "response cannot lead to decodable JSON", "", 0
-            )
-
-        try:
-            return _json.loads(plain_content, **kwargs)
-        except _json.JSONDecodeError as e:
-            # Catch JSON-related errors and raise as requests.JSONDecodeError
-            # This aliases json.JSONDecodeError and simplejson.JSONDecodeError
-            raise RequestsJSONDecodeError(e.msg, e.doc, e.pos)
-
-    async def close(self) -> None:  # type: ignore[override]
-        await sync_to_async(
-            super().close, thread_sensitive=AsyncSession.disable_thread
-        )()

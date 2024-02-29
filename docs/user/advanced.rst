@@ -437,8 +437,8 @@ To do that, just set files to a list of tuples of ``(form_field_name, file_info)
       ...
     }
 
-.. warning:: It is recommended that you open files in :ref:`binary
-             mode <tut-files>`. Errors may occur if you open the file in *text mode*.
+.. warning:: It is recommended that you open files in binary
+             mode. Errors may occur if you open the file in *text mode*.
              This because it is going to be re-encoded later in the process.
 
 
@@ -540,6 +540,8 @@ List of tangible use-cases:
 - Displaying cool stuff on the screen for CLI based tools.
 - Also debugging, obviously.
 - Among others thing.
+
+.. note:: In a asynchronous HTTP request, you may pass awaitable functions in addition to the usual synchronous ones.
 
 Track upload progress
 ---------------------
@@ -765,7 +767,7 @@ You override this default certificate bundle by setting the ``REQUESTS_CA_BUNDLE
     >>> niquests.get('https://example.org')
 
 SOCKS
-^^^^^
+~~~~~
 
 .. versionadded:: 2.10.0
 
@@ -800,7 +802,7 @@ attention to the specification can lead to some behaviour that may seem
 unusual to those not familiar with the relevant specification.
 
 Encodings
-^^^^^^^^^
+~~~~~~~~~
 
 When you receive a response, Niquests makes a guess at the encoding to
 use for decoding the response when you access the :attr:`Response.text
@@ -1095,7 +1097,7 @@ case. For more than that, you might look at subclassing the
 :class:`BaseAdapter <niquests.adapters.BaseAdapter>`.
 
 Example: Specific SSL Version
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The Niquests team has made a specific choice to use whatever SSL version is
 default in the underlying library (`urllib3.future`_). Normally this is fine, but from
@@ -1122,7 +1124,7 @@ library to use SSLv3::
                 block=block, ssl_version=ssl.PROTOCOL_SSLv3)
 
 Example: Automatic Retries
-^^^^^^^^^^^^^^^^^^^^^^^^^^
+~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 By default, Niquests does not retry failed connections. However, it is possible
 to implement automatic retries with a powerful array of features, including
@@ -1315,7 +1317,7 @@ Having a session without HTTP/2 enabled should be done that way::
 Thread Safety
 -------------
 
-Niquests is meant to be thread-safe. Any error or unattended behaviors are covered by our support for bug policy.
+Niquests is meant to be thread and task safe. Any error or unattended behaviors are covered by our support for bug policy.
 Both main scenarios are eligible, meaning Thread and Async, with Thread and Sync.
 
 Support include notable performance issues like abusive lock.

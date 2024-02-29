@@ -21,8 +21,11 @@ from ._compat import HAS_LEGACY_URLLIB3
 
 if HAS_LEGACY_URLLIB3 is True:
     import urllib3_future as urllib3
+    from urllib3 import __version__ as __legacy_urllib3_version__
 else:
     import urllib3  # type: ignore[no-redef]
+
+    __legacy_urllib3_version__ = None  # type: ignore[assignment]
 
 try:
     import qh3  # type: ignore
@@ -94,7 +97,10 @@ def info():
         }
 
     implementation_info = _implementation()
-    urllib3_info = {"version": urllib3.__version__}
+    urllib3_info = {
+        "version": urllib3.__version__,
+        "cohabitation_version": __legacy_urllib3_version__,
+    }
 
     charset_normalizer_info = {"version": charset_normalizer.__version__}
 

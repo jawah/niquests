@@ -6,16 +6,21 @@ This module contains the primary objects that power Requests.
 """
 from __future__ import annotations
 
+import asyncio
 import codecs
 import datetime
-import warnings
 import idna
 
 # Import encoding now, to avoid implicit import later.
 # Implicit import within threads may cause LookupError when standard library is in a ZIP,
 # such as in Embedded Python. See https://github.com/psf/requests/issues/3578.
 import encodings.idna  # noqa: F401
-import json as _json
+
+try:
+    import orjson as _json  # type: ignore[import]
+except ImportError:
+    import json as _json
+
 import typing
 
 if typing.TYPE_CHECKING:
@@ -33,7 +38,12 @@ from kiss_headers import Headers, parse_it
 from ._compat import HAS_LEGACY_URLLIB3
 
 if HAS_LEGACY_URLLIB3 is False:
-    from urllib3 import BaseHTTPResponse, ConnectionInfo, ResponsePromise
+    from urllib3 import (
+        BaseHTTPResponse,
+        AsyncHTTPResponse as BaseAsyncHTTPResponse,
+        ConnectionInfo,
+        ResponsePromise,
+    )
     from urllib3.exceptions import (
         DecodeError,
         LocationParseError,
@@ -45,7 +55,12 @@ if HAS_LEGACY_URLLIB3 is False:
     from urllib3.filepost import choose_boundary, encode_multipart_formdata
     from urllib3.util import parse_url
 else:
-    from urllib3_future import BaseHTTPResponse, ConnectionInfo, ResponsePromise  # type: ignore[assignment]
+    from urllib3_future import (  # type: ignore[assignment]
+        BaseHTTPResponse,
+        AsyncHTTPResponse as BaseAsyncHTTPResponse,
+        ConnectionInfo,
+        ResponsePromise,
+    )
     from urllib3_future.exceptions import (  # type: ignore[assignment]
         DecodeError,
         LocationParseError,
@@ -84,6 +99,7 @@ from .exceptions import (
     HTTPError,
     InvalidJSONError,
     InvalidURL,
+    MultiplexingError,
 )
 from .exceptions import JSONDecodeError as RequestsJSONDecodeError
 from .exceptions import MissingSchema
@@ -101,6 +117,7 @@ from .utils import (
     stream_decode_response_unicode,
     super_len,
     to_key_val_list,
+    astream_decode_response_unicode,
 )
 
 #: The set of HTTP status codes that indicate an automatically
@@ -473,9 +490,13 @@ class PreparedRequest:
             # urllib3 requires a bytes-like body. Python 2's json.dumps
             # provides this natively, but Python 3 gives a Unicode string.
             content_type = 'application/json; charset="utf-8"'
+            json_kwargs = {}
+
+            if not hasattr(_json, "orjson"):
+                json_kwargs["allow_nan"] = False
 
             try:
-                body = _json.dumps(json, allow_nan=False)
+                body = _json.dumps(json, **json_kwargs)
             except ValueError as ve:
                 raise InvalidJSONError(ve, request=self)
 
@@ -983,13 +1004,14 @@ class Response:
 
     def __getattribute__(self, item):
         if item in Response.__lazy_attrs__ and self.lazy:
-            if self.__class__ is not Response and "Async" in str(self.__class__):
-                warnings.warn(
-                    "Accessing a lazy response in an asynchronous context is going to block the event loop. "
-                    "Use await session.gather() instead before accessing the response.",
-                    ResourceWarning,
+            if asyncio.iscoroutinefunction(self.connection.gather):
+                raise MultiplexingError(
+                    "Accessing a lazy response produced by an AsyncSession is forbidden. "
+                    "Either call await session.gather() or set stream=True to produce an AsyncResponse "
+                    "that you can access directly."
                 )
-            self._gather()
+            else:
+                self._gather()
         return super().__getattribute__(item)
 
     def __enter__(self):
@@ -1002,7 +1024,11 @@ class Response:
         # Consume everything; accessing the content attribute makes
         # sure the content has been fully read.
         if self.lazy:
-            self._gather()
+            if asyncio.iscoroutinefunction(self._gather):
+                asyncio.get_running_loop().run_until_complete(self._gather())
+            else:
+                self._gather()
+
         if not self._content_consumed:
             self.content
 
@@ -1454,3 +1480,293 @@ class Response:
         release_conn = getattr(self.raw, "release_conn", None)
         if release_conn is not None:
             release_conn()
+
+
+class AsyncResponse(Response):
+    raw: BaseAsyncHTTPResponse | None
+    _resolve_redirect: typing.Callable[  # type: ignore[assignment]
+        [Response, PreparedRequest], typing.Awaitable[PreparedRequest | None]
+    ]
+
+    __lazy_attrs__ = {
+        "ok",
+        "links",
+        "next",
+        "is_redirect",
+        "is_permanent_redirect",
+        "status_code",
+        "cookies",
+        "reason",
+        "encoding",
+        "url",
+        "headers",
+        "next",
+        "_content",
+        "status_code",
+        "headers",
+        "url",
+        "encoding",
+        "reason",
+        "cookies",
+        "elapsed",
+    }
+
+    def __aenter__(self) -> AsyncResponse:
+        return self
+
+    async def __aiter__(self) -> typing.AsyncIterator[bytes]:
+        async for chunk in await self.iter_content(ITER_CHUNK_SIZE):
+            yield chunk
+
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        await self.close()
+
+    def __getattribute__(self, item):
+        if item in AsyncResponse.__lazy_attrs__ and self.lazy:
+            raise MultiplexingError(
+                "Accessing a lazy async response produced by an AsyncSession is forbidden this way. "
+                "Either call await session.gather() or await one of (text, json, content, iter_content, iter_line, etc..) "
+                "that are awaitable."
+            )
+        return super(Response, self).__getattribute__(item)
+
+    async def _gather(self) -> None:  # type: ignore[override]
+        """internals used for lazy responses. Do not try to access this unless you know what you are doing."""
+        if hasattr(self, "_promise") and hasattr(self, "connection"):
+            await self.connection.gather(self)
+
+    @typing.overload  # type: ignore[override]
+    async def iter_content(
+        self, chunk_size: int = ..., decode_unicode: Literal[False] = ...
+    ) -> typing.AsyncGenerator[bytes, None]:
+        ...
+
+    @typing.overload  # type: ignore[override]
+    async def iter_content(
+        self, chunk_size: int = ..., *, decode_unicode: Literal[True]
+    ) -> typing.AsyncGenerator[str, None]:
+        ...
+
+    async def iter_content(  # type: ignore[override]
+        self, chunk_size: int = ITER_CHUNK_SIZE, decode_unicode: bool = False
+    ) -> typing.AsyncGenerator[bytes | str, None]:
+        if self.lazy:
+            await self._gather()
+
+        async def generate() -> (
+            typing.AsyncGenerator[
+                bytes,
+                None,
+            ]
+        ):
+            assert self.raw is not None
+
+            while True:
+                try:
+                    chunk = await self.raw.read(chunk_size, decode_content=True)
+                except ProtocolError as e:
+                    raise ChunkedEncodingError(e)
+                except DecodeError as e:
+                    raise ContentDecodingError(e)
+                except ReadTimeoutError as e:
+                    raise ConnectionError(e)
+                except SSLError as e:
+                    raise RequestsSSLError(e)
+
+                if not chunk:
+                    break
+
+                yield chunk
+
+            self._content_consumed = True
+
+        if self._content_consumed and isinstance(self._content, bool):
+            raise StreamConsumedError()
+        elif chunk_size is not None and not isinstance(chunk_size, int):
+            raise TypeError(
+                f"chunk_size must be an int, it is instead a {type(chunk_size)}."
+            )
+
+        stream_chunks = generate()
+
+        if decode_unicode:
+            return astream_decode_response_unicode(stream_chunks, self)
+
+        return stream_chunks
+
+    @typing.overload  # type: ignore[override]
+    async def iter_lines(
+        self,
+        chunk_size: int = ...,
+        decode_unicode: Literal[False] = ...,
+        delimiter: str | bytes | None = ...,
+    ) -> typing.AsyncGenerator[bytes, None]:
+        ...
+
+    @typing.overload  # type: ignore[override]
+    async def iter_lines(
+        self,
+        chunk_size: int = ...,
+        *,
+        decode_unicode: Literal[True],
+        delimiter: str | bytes | None = ...,
+    ) -> typing.AsyncGenerator[str, None]:
+        ...
+
+    async def iter_lines(  # type: ignore[misc]
+        self,
+        chunk_size: int = ITER_CHUNK_SIZE,
+        decode_unicode: bool = False,
+        delimiter: str | bytes | None = None,
+    ) -> typing.AsyncGenerator[bytes | str, None]:
+        if (
+            delimiter is not None
+            and decode_unicode is False
+            and isinstance(delimiter, str)
+        ):
+            raise ValueError(
+                "delimiter MUST match the desired output type. e.g. if decode_unicode is set to True, delimiter MUST be a str, otherwise we expect a bytes-like variable."
+            )
+
+        pending = None
+
+        async for chunk in self.iter_content(  # type: ignore[call-overload]
+            chunk_size=chunk_size, decode_unicode=decode_unicode
+        ):
+            if pending is not None:
+                chunk = pending + chunk
+
+            if delimiter:
+                lines = chunk.split(delimiter)  # type: ignore[arg-type]
+            else:
+                lines = chunk.splitlines()
+
+            if lines and lines[-1] and chunk and lines[-1][-1] == chunk[-1]:
+                pending = lines.pop()
+            else:
+                pending = None
+
+            async for line in lines:
+                yield line
+
+        if pending is not None:
+            yield pending
+
+    @property
+    async def content(self) -> bytes | None:  # type: ignore[override]
+        if self.lazy:
+            await self._gather()
+
+        if self._content is False:
+            # Read the contents.
+            if self._content_consumed:
+                raise RuntimeError("The content for this response was already consumed")
+
+            if self.status_code == 0 or self.raw is None:
+                self._content = None
+            else:
+                try:
+                    if isinstance(self.raw, BaseAsyncHTTPResponse):
+                        self._content = await self.raw.read(decode_content=True)  # type: ignore[arg-type]
+                    else:
+                        raise OSError
+                except ProtocolError as e:
+                    raise ChunkedEncodingError(e)
+                except DecodeError as e:
+                    raise ContentDecodingError(e)
+                except ReadTimeoutError as e:
+                    raise ConnectionError(e)
+                except SSLError as e:
+                    raise RequestsSSLError(e)
+
+        self._content_consumed = True
+        # don't need to release the connection; that's been handled by urllib3
+        # since we exhausted the data.
+        return self._content
+
+    @property
+    async def text(self) -> str | None:  # type: ignore[override]
+        content = await self.content
+
+        if not content:
+            return ""
+
+        if self.encoding is not None:
+            try:
+                info = codecs.lookup(self.encoding)
+
+                if (
+                    hasattr(info, "_is_text_encoding")
+                    and info._is_text_encoding is False
+                ):
+                    return None
+            except LookupError:
+                #: We cannot accept unsupported or nonexistent encoding. Override.
+                self.encoding = None
+
+        # Fallback to auto-detected encoding.
+        if self.encoding is None:
+            encoding_guess = from_bytes(content).best()
+
+            if encoding_guess:
+                #: We shall cache this inference.
+                self.encoding = encoding_guess.encoding
+                return str(encoding_guess)
+
+        if self.encoding is None:
+            return None
+
+        return str(content, self.encoding, errors="replace")
+
+    async def json(self, **kwargs: typing.Any) -> typing.Any:  # type: ignore[override]
+        content = await self.content
+
+        if not content or "json" not in self.headers.get("content-type", "").lower():
+            raise RequestsJSONDecodeError(
+                "response content is not JSON", await self.text or "", 0
+            )
+
+        if not self.encoding:
+            # No encoding set. JSON RFC 4627 section 3 states we should expect
+            # UTF-8, -16 or -32. Detect which one to use; If the detection or
+            # decoding fails, fall back to `self.text` (using charset_normalizer to make
+            # a best guess).
+            encoding_guess = from_bytes(
+                content,
+                cp_isolation=[
+                    "ascii",
+                    "utf-8",
+                    "utf-16",
+                    "utf-32",
+                    "utf-16-le",
+                    "utf-16-be",
+                    "utf-32-le",
+                    "utf-32-be",
+                ],
+            ).best()
+
+            if encoding_guess is not None:
+                try:
+                    return _json.loads(str(encoding_guess), **kwargs)
+                except _json.JSONDecodeError as e:
+                    raise RequestsJSONDecodeError(e.msg, e.doc, e.pos)
+
+        plain_content = await self.text
+
+        if plain_content is None:
+            raise RequestsJSONDecodeError(
+                "response cannot lead to decodable JSON", "", 0
+            )
+
+        try:
+            return _json.loads(plain_content, **kwargs)
+        except _json.JSONDecodeError as e:
+            # Catch JSON-related errors and raise as requests.JSONDecodeError
+            # This aliases json.JSONDecodeError and simplejson.JSONDecodeError
+            raise RequestsJSONDecodeError(e.msg, e.doc, e.pos)
+
+    async def close(self) -> None:  # type: ignore[override]
+        if self.lazy:
+            await self._gather()
+
+        super().close()

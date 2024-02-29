@@ -695,10 +695,30 @@ def recv_tls_and_decrypt(s, key, nonce, seq_num):
     return msg_type, msg
 
 
+async def async_recv_tls_and_decrypt(s, key, nonce, seq_num):
+    rec_type, encrypted_msg = await async_recv_tls(s)
+    assert rec_type == APPLICATION_DATA
+
+    msg_type, msg = do_authenticated_decryption(
+        key, nonce, seq_num, APPLICATION_DATA, encrypted_msg
+    )
+    return msg_type, msg
+
+
 def recv_num_bytes(s, num):
     ret = bytearray()
     while len(ret) < num:
         data = s.recv(min(4096, num - len(ret)))
+        if not data:
+            raise BrokenPipeError
+        ret += data
+    return bytes(ret)
+
+
+async def async_recv_num_bytes(s, num):
+    ret = bytearray()
+    while len(ret) < num:
+        data = await s.recv(min(4096, num - len(ret)))
         if not data:
             raise BrokenPipeError
         ret += data
@@ -719,6 +739,22 @@ def recv_tls(s):
 def send_tls(s, rec_type, msg):
     tls_record = rec_type + LEGACY_TLS_VERSION + num_to_bytes(len(msg), 2) + msg
     s.sendall(tls_record)
+
+
+async def async_recv_tls(s):
+    rec_type = await async_recv_num_bytes(s, 1)
+    tls_version = await async_recv_num_bytes(s, 2)
+
+    assert tls_version == LEGACY_TLS_VERSION
+
+    rec_len = bytes_to_num(await async_recv_num_bytes(s, 2))
+    rec = await async_recv_num_bytes(s, rec_len)
+    return rec_type, rec
+
+
+async def async_send_tls(s, rec_type, msg):
+    tls_record = rec_type + LEGACY_TLS_VERSION + num_to_bytes(len(msg), 2) + msg
+    await s.sendall(tls_record)
 
 
 __all__ = (
