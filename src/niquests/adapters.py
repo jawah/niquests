@@ -12,7 +12,6 @@ import socket  # noqa: F401
 import sys
 import time
 import typing
-from copy import deepcopy
 from datetime import timedelta
 from http.cookiejar import CookieJar
 from threading import RLock
@@ -145,6 +144,7 @@ from .utils import (
     urldefragauth,
     resolve_socket_family,
     _swap_context,
+    _deepcopy_ci,
 )
 
 try:
@@ -996,7 +996,7 @@ class HTTPAdapter(BaseAdapter):
                         "This is currently unsupported. A patch is in the making to support that edge case."
                     )
 
-                next_request.conn_info = deepcopy(next_request.conn_info)
+                next_request.conn_info = _deepcopy_ci(next_request.conn_info)
                 next_promise._resolve_redirect = response._resolve_redirect
 
                 if "niquests_origin_response" not in promise_ctx_backup:
@@ -1910,7 +1910,7 @@ class AsyncHTTPAdapter(AsyncBaseAdapter):
                         "This is currently unsupported. A patch is in the making to support that edge case."
                     )
 
-                next_request.conn_info = deepcopy(next_request.conn_info)
+                next_request.conn_info = _deepcopy_ci(next_request.conn_info)
                 next_promise._resolve_redirect = response._resolve_redirect
 
                 if "niquests_origin_response" not in promise_ctx_backup:

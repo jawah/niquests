@@ -1,6 +1,12 @@
 Release History
 ===============
 
+3.5.1 (2024-03-04)
+------------------
+
+**Changed**
+- General performance improvements.
+
 3.5.0 (2024-02-29)
 ------------------
 

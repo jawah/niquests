@@ -14,7 +14,6 @@ import typing
 import warnings
 from collections import OrderedDict
 from collections.abc import Mapping
-from copy import deepcopy
 from datetime import timedelta
 from http import cookiejar as cookielib
 from http.cookiejar import CookieJar
@@ -96,6 +95,7 @@ from .utils import (  # noqa: F401
     should_bypass_proxies,
     to_key_val_list,
     create_resolver,
+    _deepcopy_ci,
 )
 
 # Preferred clock, based on which one is more accurate on a given system.
@@ -1162,7 +1162,7 @@ class Session:
         r = adapter.send(request, **kwargs)
         # Make sure the timings data are kept as is, conn_info is a reference to
         # urllib3-future conn_info.
-        request.conn_info = deepcopy(request.conn_info)
+        request.conn_info = _deepcopy_ci(request.conn_info)
 
         # We are leveraging a multiplexed connection
         if r.raw is None:
