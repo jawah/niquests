@@ -35,7 +35,7 @@ Niquests, is the “**Safest**, **Fastest[^10]**, **Easiest**, and **Most advanc
 | `SOCKS 4/5 Proxies`                 |    ✅     |     ✅     |       ✅       | ❌             |
 | `HTTP/HTTPS Proxies`                |    ✅     |     ✅     |       ✅       | ✅             |
 | `TLS-in-TLS Support`                |    ✅     |     ✅     |       ✅       | ✅             |
-| `Direct HTTP/3 Negocation`          |  ✅[^9]   |  N/A[^8]  |    N/A[^8]    | N/A[^8]       |
+| `Direct HTTP/3 Negotiation`         |  ✅[^9]   |  N/A[^8]  |    N/A[^8]    | N/A[^8]       |
 | `Package / SLSA Signed`             |    ✅     |     ❌     |       ❌       | ✅             |
 </details>
 

@@ -33,6 +33,8 @@ from urllib.request import (  # type: ignore[attr-defined]
 )
 from netrc import NetrcParseError, netrc
 
+from urllib3 import ConnectionInfo
+
 from ._compat import HAS_LEGACY_URLLIB3
 
 if HAS_LEGACY_URLLIB3 is False:
@@ -809,6 +811,10 @@ def select_proxy(
     :param proxies: A dictionary of schemes or schemes and hosts to proxy URLs
     """
     proxies = proxies or {}
+
+    if not proxies:
+        return None
+
     urlparts = urlparse(url)
     if urlparts.hostname is None:
         return proxies.get(urlparts.scheme, proxies.get("all"))
@@ -1132,3 +1138,15 @@ def _swap_context(response: AsyncResponse | Response) -> None:
         response.__class__ = response_class.__bases__[0]
     else:
         response.__class__ = response_class.__subclasses__()[0]
+
+
+def _deepcopy_ci(o: ConnectionInfo | None) -> ConnectionInfo | None:
+    if o is None:
+        return None
+
+    n = ConnectionInfo()
+
+    for attr, val in vars(o).items():
+        setattr(n, attr, val)
+
+    return n

@@ -3,7 +3,6 @@ from __future__ import annotations
 import os
 import typing
 import warnings
-from copy import deepcopy
 import sys
 import time
 from http.cookiejar import CookieJar
@@ -71,6 +70,7 @@ from .utils import (
     rewind_body,
     requote_uri,
     _swap_context,
+    _deepcopy_ci,
 )
 from .cookies import (
     RequestsCookieJar,
@@ -411,7 +411,7 @@ class AsyncSession(Session):
 
         # Make sure the timings data are kept as is, conn_info is a reference to
         # urllib3-future conn_info.
-        request.conn_info = deepcopy(request.conn_info)
+        request.conn_info = _deepcopy_ci(request.conn_info)
 
         # We are leveraging a multiplexed connection
         if r.raw is None:
