@@ -19,8 +19,14 @@ from urllib.parse import urlparse
 from urllib.request import getproxies
 
 import pytest
-import urllib3
-from urllib3.util import Timeout as Urllib3Timeout
+from niquests._compat import HAS_LEGACY_URLLIB3
+
+if not HAS_LEGACY_URLLIB3:
+    import urllib3
+    from urllib3.util import Timeout as Urllib3Timeout
+else:
+    import urllib3_future as urllib3
+    from urllib3_future.util import Timeout as Urllib3Timeout
 
 import niquests
 from niquests.adapters import HTTPAdapter

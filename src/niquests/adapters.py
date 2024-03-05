@@ -25,7 +25,7 @@ if sys.platform == "win32":
 else:
     preferred_clock = time.time
 
-from ._compat import HAS_LEGACY_URLLIB3
+from ._compat import HAS_LEGACY_URLLIB3, urllib3_ensure_type
 
 if HAS_LEGACY_URLLIB3 is False:
     from urllib3 import (
@@ -335,8 +335,8 @@ class HTTPAdapter(BaseAdapter):
     ):
         if isinstance(max_retries, bool):
             self.max_retries: RetryType = False
-        elif isinstance(max_retries, Retry):
-            self.max_retries = max_retries
+        elif hasattr(max_retries, "get_backoff_time"):
+            self.max_retries = urllib3_ensure_type(max_retries)  # type: ignore[type-var]
         else:
             if max_retries < 0:
                 raise ValueError(
@@ -1233,8 +1233,8 @@ class AsyncHTTPAdapter(AsyncBaseAdapter):
     ):
         if isinstance(max_retries, bool):
             self.max_retries: RetryType = False
-        elif isinstance(max_retries, Retry):
-            self.max_retries = max_retries
+        elif hasattr(max_retries, "get_backoff_time"):
+            self.max_retries = urllib3_ensure_type(max_retries)  # type: ignore[type-var]
         else:
             if max_retries < 0:
                 raise ValueError(
