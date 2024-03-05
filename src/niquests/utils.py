@@ -33,8 +33,6 @@ from urllib.request import (  # type: ignore[attr-defined]
 )
 from netrc import NetrcParseError, netrc
 
-from urllib3 import ConnectionInfo
-
 from ._compat import HAS_LEGACY_URLLIB3
 
 if HAS_LEGACY_URLLIB3 is False:
@@ -50,6 +48,7 @@ if HAS_LEGACY_URLLIB3 is False:
         AsyncResolverDescription,
         AsyncManyResolver,
     )
+    from urllib3 import ConnectionInfo
 else:
     from urllib3_future.util import make_headers, parse_url  # type: ignore[assignment]
     from urllib3_future.contrib.resolver import (  # type: ignore[assignment]
@@ -63,6 +62,7 @@ else:
         AsyncResolverDescription,
         AsyncManyResolver,
     )
+    from urllib3_future import ConnectionInfo  # type: ignore[assignment]
 
 from .__version__ import __version__
 from .cookies import cookiejar_from_dict

@@ -9,7 +9,6 @@ from __future__ import annotations
 
 import threading
 import typing
-from collections import OrderedDict
 from collections.abc import Mapping, MutableMapping
 
 from .exceptions import InvalidHeader
@@ -18,6 +17,8 @@ from .exceptions import InvalidHeader
 def _ensure_str_or_bytes(
     key: typing.Any, value: typing.Any
 ) -> tuple[bytes | str, bytes | str]:
+    if isinstance(key, (bytes, str)) and isinstance(value, (bytes, str)):
+        return key, value
     if isinstance(
         value,
         (
@@ -25,8 +26,6 @@ def _ensure_str_or_bytes(
             int,
         ),
     ):
-        if isinstance(key, bytes):
-            key = key.decode()
         value = str(value)
     if isinstance(key, (bytes, str)) is False or (
         value is not None and isinstance(value, (bytes, str)) is False
@@ -63,14 +62,13 @@ class CaseInsensitiveDict(MutableMapping):
     """
 
     def __init__(self, data=None, **kwargs) -> None:
-        self._store: MutableMapping[
-            bytes | str, tuple[bytes | str, bytes | str]
-        ] = OrderedDict()
+        self._store: MutableMapping[bytes | str, tuple[bytes | str, bytes | str]] = {}
         if data is None:
             data = {}
         upstream_dict: bool = hasattr(data, "getlist")
         if upstream_dict:
-            data = dict(data)
+            self.update(data, **kwargs)
+            return
         normalized_items = []
         for k, v in data.items() if hasattr(data, "items") else data:
             normalized_items.append(

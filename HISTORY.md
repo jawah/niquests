@@ -1,6 +1,15 @@
 Release History
 ===============
 
+3.5.2 (2024-03-05)
+------------------
+
+**Fixed**
+- ImportError in an attempt to retrieve `ConnectionInfo`.
+
+**Changed**
+- General performance improvements.
+
 3.5.1 (2024-03-04)
 ------------------
 

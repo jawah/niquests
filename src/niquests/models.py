@@ -995,7 +995,7 @@ class Response:
         Determine if response isn't received and is actually a placeholder.
         Only significant if request was sent through a multiplexed connection.
         """
-        return hasattr(self, "raw") and self.raw is None and hasattr(self, "_promise")
+        return self.raw is None and hasattr(self, "_promise")
 
     def _gather(self) -> None:
         """internals used for lazy responses. Do not try to access this unless you know what you are doing."""
@@ -1012,6 +1012,7 @@ class Response:
                 )
             else:
                 self._gather()
+
         return super().__getattribute__(item)
 
     def __enter__(self):
