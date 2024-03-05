@@ -8,7 +8,12 @@ import pytest
 from niquests import Session
 from niquests.utils import is_ipv4_address, is_ipv6_address
 from niquests.exceptions import ConnectionError
-from urllib3 import HttpVersion, ResolverDescription
+from niquests._compat import HAS_LEGACY_URLLIB3
+
+if not HAS_LEGACY_URLLIB3:
+    from urllib3 import HttpVersion, ResolverDescription
+else:
+    from urllib3_future import HttpVersion, ResolverDescription
 
 try:
     import qh3
@@ -52,7 +57,11 @@ class TestLiveStandardCase:
             assert r.conn_info.http_version is not None
             assert r.conn_info.http_version == HttpVersion.h3
 
-    @patch("urllib3.contrib.resolver.doh.HTTPSResolver.getaddrinfo")
+    @patch(
+        "urllib3.contrib.resolver.doh.HTTPSResolver.getaddrinfo"
+        if not HAS_LEGACY_URLLIB3
+        else "urllib3_future.contrib.resolver.doh.HTTPSResolver.getaddrinfo"
+    )
     def test_manual_resolver(self, getaddrinfo_mock: MagicMock) -> None:
         with Session(resolver="doh+cloudflare://") as s:
             with pytest.raises(ConnectionError):

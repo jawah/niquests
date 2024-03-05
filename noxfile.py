@@ -9,6 +9,7 @@ import nox
 def tests_impl(
     session: nox.Session,
     extras: str = "socks",
+    cohabitation: bool = False,
 ) -> None:
     # Install deps and the package itself.
     session.install("-r", "requirements-dev.txt")
@@ -17,6 +18,10 @@ def tests_impl(
     # Show the pip version.
     session.run("pip", "--version")
     session.run("python", "--version")
+
+    if cohabitation:
+        session.run("pip", "install", "urllib3")
+        session.run("python", "-m", "niquests.help")
 
     session.run(
         "python",
@@ -41,6 +46,15 @@ def tests_impl(
 @nox.session(python=["3.7", "3.8", "3.9", "3.10", "3.11", "3.12", "pypy"])
 def test(session: nox.Session) -> None:
     tests_impl(session)
+
+
+@nox.session(
+    python=[
+        "3.11",
+    ]
+)
+def test_cohabitation(session: nox.Session) -> None:
+    tests_impl(session, cohabitation=True)
 
 
 @nox.session
