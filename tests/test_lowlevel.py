@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import platform
+import sys
 import threading
 from json import JSONDecodeError
 
@@ -122,6 +124,15 @@ def test_conflicting_content_lengths():
         close_server.set()
 
 
+@pytest.mark.xfail(
+    platform.python_implementation() == "PyPy"
+    and sys.version_info
+    < (
+        3,
+        8,
+    ),
+    reason="PyPy 3.7 bug with socket unexpected close server side",
+)
 def test_digestauth_401_count_reset_on_redirect():
     """Ensure we correctly reset num_401_calls after a successful digest auth,
     followed by a 302 redirect to another digest auth prompt.
@@ -188,6 +199,15 @@ def test_digestauth_401_count_reset_on_redirect():
         close_server.set()
 
 
+@pytest.mark.xfail(
+    platform.python_implementation() == "PyPy"
+    and sys.version_info
+    < (
+        3,
+        8,
+    ),
+    reason="PyPy 3.7 bug with socket unexpected close server side",
+)
 def test_digestauth_401_only_sent_once():
     """Ensure we correctly respond to a 401 challenge once, and then
     stop responding if challenged again.
@@ -310,6 +330,15 @@ def test_use_proxy_from_environment(httpbin, var, scheme):
         assert len(fake_proxy.handler_results[0]) > 0
 
 
+@pytest.mark.xfail(
+    platform.python_implementation() == "PyPy"
+    and sys.version_info
+    < (
+        3,
+        8,
+    ),
+    reason="PyPy 3.7 bug with socket unexpected close server side",
+)
 def test_redirect_rfc1808_to_non_ascii_location():
     path = "š"
     expected_path = b"%C5%A1"
@@ -367,6 +396,15 @@ def test_fragment_not_sent_with_request():
         close_server.set()
 
 
+@pytest.mark.xfail(
+    platform.python_implementation() == "PyPy"
+    and sys.version_info
+    < (
+        3,
+        8,
+    ),
+    reason="PyPy 3.7 bug with socket unexpected close server side",
+)
 def test_fragment_update_on_redirect():
     """Verify we only append previous fragment if one doesn't exist on new
     location. If a new fragment is encountered in a Location header, it should

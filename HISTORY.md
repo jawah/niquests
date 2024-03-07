@@ -1,6 +1,16 @@
 Release History
 ===============
 
+3.5.3 (2024-03-06)
+------------------
+
+**Fixed**
+- A rare error that occurs on PyPy, especially on Windows, complaining about a missing release call.
+
+**Misc**
+- Allow latest dependencies version for httpbin, Flask and werkzeug in tests.
+- Remove wheel from test dependencies.
+
 3.5.2 (2024-03-05)
 ------------------
 

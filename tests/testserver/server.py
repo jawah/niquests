@@ -112,7 +112,7 @@ class Server(threading.Thread):
                 return None
 
             return self.server_sock.accept()[0]
-        except OSError:
+        except (OSError, ValueError):
             return None
 
     def __enter__(self):

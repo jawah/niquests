@@ -840,8 +840,19 @@ class HTTPAdapter(BaseAdapter):
                 multiplexed=multiplexed,
             )
 
+            # branch for urllib3.future 2.5+ with advanced conn/multiplexing scheduler/mapper. aka. TrafficPolice.
+            # we are bypassing the PoolManager.request to directly invoke the concerned HttpPool, so we missed
+            # a required call to TrafficPolice::memorize(...).
             if hasattr(self.poolmanager.pools, "memorize"):
-                self.poolmanager.pools.memorize(resp_or_promise, conn)
+                proxy = select_proxy(request.url, proxies)
+
+                if proxy is not None:
+                    self.proxy_manager[proxy].pools.memorize(resp_or_promise, conn)
+                    self.proxy_manager[proxy].pools.release()
+                else:
+                    self.poolmanager.pools.memorize(resp_or_promise, conn)
+                    self.poolmanager.pools.release()
+
         except (ProtocolError, OSError) as err:
             if "illegal header" in str(err).lower():
                 raise InvalidHeader(err, request=request)
@@ -1267,7 +1278,7 @@ class AsyncHTTPAdapter(AsyncBaseAdapter):
         self._max_in_flight_multiplexed = (
             max_in_flight_multiplexed
             if max_in_flight_multiplexed is not None
-            else self._pool_connections * 124
+            else self._pool_connections * 250
         )
 
         disabled_svn = set()
@@ -1748,8 +1759,10 @@ class AsyncHTTPAdapter(AsyncBaseAdapter):
 
                 if proxy is not None:
                     self.proxy_manager[proxy].pools.memorize(resp_or_promise, conn)
+                    self.proxy_manager[proxy].pools.release()
                 else:
                     self.poolmanager.pools.memorize(resp_or_promise, conn)
+                    self.poolmanager.pools.release()
 
         except (ProtocolError, OSError) as err:
             if "illegal header" in str(err).lower():

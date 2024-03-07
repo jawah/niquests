@@ -39,18 +39,6 @@ Niquests, is the “**Safest**, **Fastest[^10]**, **Easiest**, and **Most advanc
 | `Package / SLSA Signed`             |    ✅     |     ❌     |       ❌       | ✅             |
 </details>
 
-[^1]: aiohttp has no support for synchronous request.
-[^2]: requests has no support for asynchronous request.
-[^3]: while the HTTP/2 connection object can handle concurrent requests, you cannot leverage its true potential.
-[^4]: loading client certificate without file can't be done.
-[^5]: httpx officially claim to be thread safe but recent tests demonstrate otherwise as of february 2024.
-[^6]: they do not expose anything to control network aspects such as IPv4/IPv6 toggles, and timings (e.g. DNS response time, established delay, TLS handshake delay, etc...) and such.
-[^7]: while advertised as possible, they refuse to make it the default due to performance issues. as of february 2024 an extra is required to enable it manually.
-[^8]: they don't support HTTP/3 at all.
-[^9]: you must use a custom DNS resolver so that it can preemptively connect using HTTP/3 over QUIC when remote is compatible.
-[^10]: performance measured when leveraging a multiplexed connection with or without uses of any form of concurrency as of november 2023. The research compared `httpx`, `requests`, `aiohttp` against `niquests`.
-[^11]: enabled when using a custom DNS resolver.
-
 ```python
 >>> import niquests
 >>> s = niquests.Session(resolver="doh+google://", multiplexed=True)
@@ -74,15 +62,19 @@ True
 >>> r.conn_info.established_latency
 datetime.timedelta(microseconds=38)
 ```
-or using async/await! <small>you'll need to enclose the code within proper async function, see the docs for more.</small>
+or using async/await!
 ```python
 import niquests
->>> s = niquests.AsyncSession(resolver="doh+google://")
->>> r = await s.get('https://pie.dev/basic-auth/user/pass', auth=('user', 'pass'), stream=True)
->>> r
-<Response HTTP/3 [200]>
->>> await r.json()
-{'authenticated': True, ...}
+import asyncio
+
+async def main() -> None:
+    async with niquests.AsyncSession(resolver="doh+google://") as s:
+        r = await s.get('https://pie.dev/basic-auth/user/pass', auth=('user', 'pass'), stream=True)
+        print(r)  # Output: <Response HTTP/3 [200]>
+        payload = await r.json()
+        print(payload)  # Output: {'authenticated': True, ...}
+
+asyncio.run(main())
 ```
 
 Niquests allows you to send HTTP requests extremely easily. There’s no need to manually add query strings to your URLs, or to form-encode your `PUT` & `POST` data — just use the `json` method!
@@ -147,15 +139,25 @@ How about a nice refresher with a mere `CTRL+H` _import requests_ **to** _import
 ## 💼 For Enterprise
 
 Professional support for Niquests is available as part of the [Tidelift
-Subscription][12]. Tidelift gives software development teams a single source for
+Subscription](https://tidelift.com/subscription/pkg/pypi-niquests?utm_source=pypi-niquests&utm_medium=readme). Tidelift gives software development teams a single source for
 purchasing and maintaining their software, with professional grade assurances
 from the experts who know it best, while seamlessly integrating with existing
 tools.
-
-[12]: https://tidelift.com/subscription/pkg/pypi-niquests?utm_source=pypi-niquests&utm_medium=readme
 
 You may also be interested in unlocking specific advantages by looking at our [GitHub sponsor tiers](https://github.com/sponsors/Ousret).
 
 ---
 
 Niquests is a highly improved HTTP client that is based (forked) on Requests. The previous project original author is Kenneth Reitz and actually left the maintenance of Requests years ago.
+
+[^1]: aiohttp has no support for synchronous request.
+[^2]: requests has no support for asynchronous request.
+[^3]: while the HTTP/2 connection object can handle concurrent requests, you cannot leverage its true potential.
+[^4]: loading client certificate without file can't be done.
+[^5]: httpx officially claim to be thread safe but recent tests demonstrate otherwise as of february 2024.
+[^6]: they do not expose anything to control network aspects such as IPv4/IPv6 toggles, and timings (e.g. DNS response time, established delay, TLS handshake delay, etc...) and such.
+[^7]: while advertised as possible, they refuse to make it the default due to performance issues. as of february 2024 an extra is required to enable it manually.
+[^8]: they don't support HTTP/3 at all.
+[^9]: you must use a custom DNS resolver so that it can preemptively connect using HTTP/3 over QUIC when remote is compatible.
+[^10]: performance measured when leveraging a multiplexed connection with or without uses of any form of concurrency as of november 2023. The research compared `httpx`, `requests`, `aiohttp` against `niquests`.
+[^11]: enabled when using a custom DNS resolver.
