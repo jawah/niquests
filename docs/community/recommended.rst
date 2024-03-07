@@ -25,6 +25,7 @@ requested by users within the community.
 
 .. _Requests-Toolbelt: https://toolbelt.readthedocs.io/en/latest/index.html
 
+.. warning:: Requests-Toolbelt actually require Requests as a dependency thus making you have duplicate dependencies.
 
 Requests-OAuthlib
 -----------------

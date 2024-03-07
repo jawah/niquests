@@ -110,5 +110,5 @@ filterwarnings = [
     '''ignore:unclosed .*:ResourceWarning''',
     '''ignore:Parsed a negative serial number:cryptography.utils.CryptographyDeprecationWarning''',
     '''ignore:A plugin raised an exception during an old-style hookwrapper teardown''',
-    '''ignore:Exception ignored in:pytest.PytestUnraisableExceptionWarning''',
+    '''ignore:.*:pytest.PytestUnraisableExceptionWarning''',
 ]

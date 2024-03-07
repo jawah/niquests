@@ -3,8 +3,7 @@ pytest>=2.8.0,<=7.4.4
 pytest-cov
 pytest-httpbin==2.0.0
 pytest-asyncio>=0.21.1,<1.0
-httpbin==0.10.1
+httpbin==0.10.2
 trustme
-wheel
 cryptography<40.0.0; python_version <= '3.7' and platform_python_implementation == 'PyPy'
-werkzeug<3
+werkzeug<4
