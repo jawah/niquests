@@ -39,6 +39,31 @@ Niquests, is the “**Safest**, **Fastest[^10]**, **Easiest**, and **Most advanc
 | `Package / SLSA Signed`             |    ✅     |     ❌     |       ❌       | ✅             |
 </details>
 
+<details>
+  <summary>📈 <b>Look at the performance comparison</b> against <i>requests, httpx and aiohttp</i>!</summary>
+
+_Scenario:_ Fetch a thousand requests using 10 tasks or threads, each with a hundred requests using a single pool of connection.
+
+**High-Level APIs**
+
+| Client   | Average Delay to Complete | Notes                        |
+|----------|---------------------------|------------------------------|
+| requests | 987 ms                    | ThreadPoolExecutor. HTTP/1.1 |
+| httpx    | 735 ms                    | Asyncio. HTTP/2              |
+| niquests | 600 ms                    | Asyncio. HTTP/2              |
+
+**Simplified APIs**
+
+| Client        | Average Delay to Complete | Notes                        |
+|---------------|---------------------------|------------------------------|
+| requests core | 643 ms                    | ThreadPoolExecutor. HTTP/1.1 |
+| httpx core    | 550 ms                    | Asyncio. HTTP/2              |
+| aiohttp       | 220 ms                    | Asyncio. HTTP/1.1            |
+| niquests core | 210 ms                    | Asyncio. HTTP/2              |
+
+Want to learn more about the tests? scripts? reasoning? Take a deeper look at https://github.com/Ousret/niquests-stats
+</details>
+
 ```python
 >>> import niquests
 >>> s = niquests.Session(resolver="doh+google://", multiplexed=True)
@@ -159,5 +184,5 @@ Niquests is a highly improved HTTP client that is based (forked) on Requests. Th
 [^7]: while advertised as possible, they refuse to make it the default due to performance issues. as of february 2024 an extra is required to enable it manually.
 [^8]: they don't support HTTP/3 at all.
 [^9]: you must use a custom DNS resolver so that it can preemptively connect using HTTP/3 over QUIC when remote is compatible.
-[^10]: performance measured when leveraging a multiplexed connection with or without uses of any form of concurrency as of november 2023. The research compared `httpx`, `requests`, `aiohttp` against `niquests`.
+[^10]: performance measured when leveraging a multiplexed connection with or without uses of any form of concurrency as of March 2024. The research compared `httpx`, `requests`, `aiohttp` against `niquests`. See https://github.com/Ousret/niquests-stats
 [^11]: enabled when using a custom DNS resolver.
