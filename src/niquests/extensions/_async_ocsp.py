@@ -79,7 +79,7 @@ async def _ask_nicely_for_issuer(
         0x4FE342E2FE1A7F9B8EE7EB4A7C0F9E162BCE33576B315ECECBB6406837BF51F5,
     )
 
-    randelem = [b"\xAC", b"\xDC", b"\xFA", b"\xAF"]
+    randelem = [b"\xac", b"\xdc", b"\xfa", b"\xaf"]
     client_random = b"".join([randelem[randint(0, 3)] for e in range(32)])
     our_ecdh_privkey = randint(42, 98)
     our_ecdh_pubkey_x, our_ecdh_pubkey_y = multiply_num_on_ec_point(

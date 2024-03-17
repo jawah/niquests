@@ -16,6 +16,7 @@ Available hooks:
 ``response``:
     The response generated from a Request.
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -73,9 +74,12 @@ async def async_dispatch_hook(
     if hooks is None:
         return hook_data
 
-    callables: list[
-        HookCallableType[_HV] | AsyncHookCallableType[_HV]
-    ] | HookCallableType[_HV] | AsyncHookCallableType[_HV] | None = hooks.get(key)
+    callables: (
+        list[HookCallableType[_HV] | AsyncHookCallableType[_HV]]
+        | HookCallableType[_HV]
+        | AsyncHookCallableType[_HV]
+        | None
+    ) = hooks.get(key)
 
     if callables:
         if callable(callables):

@@ -4,12 +4,12 @@ requests.models
 
 This module contains the primary objects that power Requests.
 """
+
 from __future__ import annotations
 
 import asyncio
 import codecs
 import datetime
-import idna
 
 # Import encoding now, to avoid implicit import later.
 # Implicit import within threads may cause LookupError when standard library is in a ZIP,
@@ -102,7 +102,6 @@ from .exceptions import (
     MultiplexingError,
 )
 from .exceptions import JSONDecodeError as RequestsJSONDecodeError
-from .exceptions import MissingSchema
 from .exceptions import SSLError as RequestsSSLError
 from .exceptions import StreamConsumedError
 from .hooks import default_hooks
@@ -118,6 +117,7 @@ from .utils import (
     super_len,
     to_key_val_list,
     astream_decode_response_unicode,
+    parse_scheme,
 )
 
 #: The set of HTTP status codes that indicate an automatically
@@ -394,7 +394,7 @@ class PreparedRequest:
         # Don't do any URL preparation for non-HTTP schemes like `mailto`,
         # `data` etc to work around exceptions from `url_parse`, which
         # handles RFC 3986 only.
-        if ":" in url and not url.lower().startswith("http"):
+        if not parse_scheme(url).startswith("http"):
             self.url = url
             return
 
@@ -404,26 +404,20 @@ class PreparedRequest:
         except LocationParseError as e:
             raise InvalidURL(*e.args)
 
-        if not scheme:
-            raise MissingSchema(
-                f"Invalid URL {url!r}: No scheme supplied. "
-                f"Perhaps you meant https://{url}?"
-            )
-
         if not host:
             raise InvalidURL(f"Invalid URL {url!r}: No host supplied")
 
-        # In general, we want to try IDNA encoding the hostname if the string contains
-        # non-ASCII characters. This allows users to automatically get the correct IDNA
-        # behaviour. For strings containing only ASCII characters, we need to also verify
-        # it doesn't start with a wildcard (*), before allowing the unencoded hostname.
-        if not host.isascii():
-            try:
-                host = idna.encode(host, uts46=True).decode("utf-8")
-            except idna.IDNAError:
-                raise InvalidURL("URL has an invalid label.")
-        elif host.startswith(("*", ".")):
+        if host.startswith(("*", ".")):
             raise InvalidURL("URL has an invalid label.")
+
+        if (
+            (not path or "%" not in path)
+            and not auth
+            and not params
+            and not host.startswith("xn--")
+        ):
+            self.url = url
+            return
 
         # Carefully reconstruct the network location
         netloc = auth or ""
@@ -450,8 +444,9 @@ class PreparedRequest:
                 else:
                     query = enc_params
 
-        url = requote_uri(urlunparse([scheme, netloc, path, None, query, fragment]))
-        self.url = url
+        self.url = requote_uri(
+            urlunparse([scheme, netloc, path, None, query, fragment])
+        )
 
     def prepare_headers(self, headers: HeadersType | None) -> None:
         """Prepares the given HTTP headers."""
@@ -995,23 +990,39 @@ class Response:
         Determine if response isn't received and is actually a placeholder.
         Only significant if request was sent through a multiplexed connection.
         """
-        return self.raw is None and hasattr(self, "_promise")
+        try:
+            super().__getattribute__("_promise")
+            return True
+        except AttributeError:
+            return False
 
     def _gather(self) -> None:
         """internals used for lazy responses. Do not try to access this unless you know what you are doing."""
-        if hasattr(self, "_promise") and hasattr(self, "connection"):
-            self.connection.gather(self)
+        try:
+            super().__getattribute__("_promise")
+            super().__getattribute__("connection").gather(self)
+        except AttributeError:
+            pass
 
     def __getattribute__(self, item):
-        if item in Response.__lazy_attrs__ and self.lazy:
-            if asyncio.iscoroutinefunction(self.connection.gather):
-                raise MultiplexingError(
-                    "Accessing a lazy response produced by an AsyncSession is forbidden. "
-                    "Either call await session.gather() or set stream=True to produce an AsyncResponse "
-                    "that you can access directly."
-                )
-            else:
-                self._gather()
+        try:
+            if (
+                super().__getattribute__("raw") is None
+                and item in Response.__lazy_attrs__
+                and super().__getattribute__("lazy")
+            ):
+                if asyncio.iscoroutinefunction(
+                    super().__getattribute__("connection").gather
+                ):
+                    raise MultiplexingError(
+                        "Accessing a lazy response produced by an AsyncSession is forbidden. "
+                        "Either call await session.gather() or set stream=True to produce an AsyncResponse "
+                        "that you can access directly."
+                    )
+                else:
+                    super().__getattribute__("_gather")()
+        except AttributeError:
+            pass
 
         return super().__getattribute__(item)
 
@@ -1025,8 +1036,14 @@ class Response:
         # Consume everything; accessing the content attribute makes
         # sure the content has been fully read.
         if self.lazy:
-            if asyncio.iscoroutinefunction(self._gather):
-                asyncio.get_running_loop().run_until_complete(self._gather())
+            if asyncio.iscoroutinefunction(
+                super().__getattribute__("connection").gather
+            ):
+                raise MultiplexingError(
+                    "Accessing a lazy response produced by an AsyncSession is forbidden. "
+                    "Either call await session.gather() or set stream=True to produce an AsyncResponse "
+                    "that you can access directly."
+                )
             else:
                 self._gather()
 
@@ -1036,12 +1053,12 @@ class Response:
         return {attr: getattr(self, attr, None) for attr in self.__attrs__}
 
     def __setstate__(self, state):
-        for name, value in state.items():
-            setattr(self, name, value)
-
         # pickled objects do not have .raw
         setattr(self, "_content_consumed", True)
         setattr(self, "raw", None)
+
+        for name, value in state.items():
+            setattr(self, name, value)
 
     def __repr__(self) -> str:
         if (
@@ -1125,14 +1142,12 @@ class Response:
     @typing.overload
     def iter_content(
         self, chunk_size: int = ..., decode_unicode: Literal[False] = ...
-    ) -> typing.Generator[bytes, None, None]:
-        ...
+    ) -> typing.Generator[bytes, None, None]: ...
 
     @typing.overload
     def iter_content(
         self, chunk_size: int = ..., *, decode_unicode: Literal[True]
-    ) -> typing.Generator[str, None, None]:
-        ...
+    ) -> typing.Generator[str, None, None]: ...
 
     def iter_content(
         self, chunk_size: int = ITER_CHUNK_SIZE, decode_unicode: bool = False
@@ -1201,8 +1216,7 @@ class Response:
         chunk_size: int = ...,
         decode_unicode: Literal[False] = ...,
         delimiter: str | bytes | None = ...,
-    ) -> typing.Generator[bytes, None, None]:
-        ...
+    ) -> typing.Generator[bytes, None, None]: ...
 
     @typing.overload
     def iter_lines(
@@ -1211,8 +1225,7 @@ class Response:
         *,
         decode_unicode: Literal[True],
         delimiter: str | bytes | None = ...,
-    ) -> typing.Generator[str, None, None]:
-        ...
+    ) -> typing.Generator[str, None, None]: ...
 
     def iter_lines(
         self,
@@ -1539,14 +1552,12 @@ class AsyncResponse(Response):
     @typing.overload  # type: ignore[override]
     async def iter_content(
         self, chunk_size: int = ..., decode_unicode: Literal[False] = ...
-    ) -> typing.AsyncGenerator[bytes, None]:
-        ...
+    ) -> typing.AsyncGenerator[bytes, None]: ...
 
     @typing.overload  # type: ignore[override]
     async def iter_content(
         self, chunk_size: int = ..., *, decode_unicode: Literal[True]
-    ) -> typing.AsyncGenerator[str, None]:
-        ...
+    ) -> typing.AsyncGenerator[str, None]: ...
 
     async def iter_content(  # type: ignore[override]
         self, chunk_size: int = ITER_CHUNK_SIZE, decode_unicode: bool = False
@@ -1601,8 +1612,7 @@ class AsyncResponse(Response):
         chunk_size: int = ...,
         decode_unicode: Literal[False] = ...,
         delimiter: str | bytes | None = ...,
-    ) -> typing.AsyncGenerator[bytes, None]:
-        ...
+    ) -> typing.AsyncGenerator[bytes, None]: ...
 
     @typing.overload  # type: ignore[override]
     async def iter_lines(
@@ -1611,8 +1621,7 @@ class AsyncResponse(Response):
         *,
         decode_unicode: Literal[True],
         delimiter: str | bytes | None = ...,
-    ) -> typing.AsyncGenerator[str, None]:
-        ...
+    ) -> typing.AsyncGenerator[str, None]: ...
 
     async def iter_lines(  # type: ignore[misc]
         self,

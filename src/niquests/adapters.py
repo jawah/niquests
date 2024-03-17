@@ -5,6 +5,7 @@ requests.adapters
 This module contains the transport adapters that Requests uses to define
 and maintain connections.
 """
+
 from __future__ import annotations
 
 import os.path
@@ -12,10 +13,10 @@ import socket  # noqa: F401
 import sys
 import time
 import typing
+import warnings
 from datetime import timedelta
 from http.cookiejar import CookieJar
 from threading import RLock
-from urllib.parse import urlparse
 
 import wassima
 
@@ -132,8 +133,9 @@ from .exceptions import (
     RetryError,
     SSLError,
     TooManyRedirects,
+    MissingSchema,
 )
-from .hooks import dispatch_hook
+from .hooks import dispatch_hook, async_dispatch_hook
 from .models import PreparedRequest, Response, AsyncResponse
 from .structures import CaseInsensitiveDict
 from .utils import (
@@ -145,6 +147,7 @@ from .utils import (
     resolve_socket_family,
     _swap_context,
     _deepcopy_ci,
+    parse_scheme,
 )
 
 try:
@@ -522,53 +525,99 @@ class HTTPAdapter(BaseAdapter):
             to a CA bundle to use. It is also possible to put the certificates (directly) in a string or bytes.
         :param cert: The SSL certificate to verify.
         """
-        if url.lower().startswith("https") and verify:
-            cert_loc: str | None = None
-            cert_data: str = wassima.generate_ca_bundle()
+        if not parse_scheme(url) == "https":
+            return
 
-            if isinstance(verify, str) and "-----BEGIN CERTIFICATE-----" in verify:
-                cert_data = verify
-                verify = True
+        need_reboot_conn: bool = False
+        verify_witness_bit: bool = (
+            hasattr(conn, "_niquests_verify") and conn._niquests_verify == verify
+        )
 
-            if isinstance(verify, bytes):
-                cert_data = verify.decode("utf-8")
-            else:
-                # Allow self-specified cert location.
+        if not verify_witness_bit:
+            setattr(conn, "_niquests_verify", verify)
+
+            if verify:
+                cert_loc: str | None = None
+                cert_data: str | None = wassima.generate_ca_bundle()
+                assert_fingerprint: str | None = None
+
                 if isinstance(verify, str):
-                    cert_loc = verify
+                    if "-----BEGIN CERTIFICATE-----" in verify:
+                        cert_data = verify
+                        verify = True
+                    elif verify.startswith("sha256_") or verify.startswith("sha1_"):
+                        if len(verify) in [71, 45]:
+                            assert_fingerprint = verify.split("_", 1)[-1]
+                            verify = False
+                            cert_data = None
 
-                if isinstance(cert_loc, str) and not os.path.exists(cert_loc):
-                    raise OSError(
-                        f"Could not find a suitable TLS CA certificate bundle, "
-                        f"invalid path: {cert_loc}"
-                    )
+                if isinstance(verify, bytes):
+                    cert_data = verify.decode("utf-8")
+                else:
+                    # Allow self-specified cert location.
+                    if isinstance(verify, str):
+                        cert_loc = verify
 
-            conn.cert_reqs = "CERT_REQUIRED"
+                    if isinstance(cert_loc, str) and not os.path.exists(cert_loc):
+                        raise OSError(
+                            f"Could not find a suitable TLS CA certificate bundle, "
+                            f"invalid path: {cert_loc}"
+                        )
 
-            if cert_data and cert_loc is None:
+                if not assert_fingerprint:
+                    if conn.cert_reqs != "CERT_REQUIRED":
+                        need_reboot_conn = True
+
+                    conn.cert_reqs = "CERT_REQUIRED"
+                else:
+                    if conn.cert_reqs != "CERT_NONE":
+                        need_reboot_conn = True
+
+                    conn.cert_reqs = "CERT_NONE"
+
+                if cert_data and cert_loc is None:
+                    conn.ca_certs = None
+                    conn.ca_cert_dir = None
+                    conn.ca_cert_data = cert_data
+                elif cert_loc:
+                    if not os.path.isdir(cert_loc):
+                        conn.ca_certs = cert_loc
+                    else:
+                        conn.ca_cert_dir = cert_loc
+                else:
+                    conn.assert_fingerprint = assert_fingerprint
+            else:
+                if conn.cert_reqs != "CERT_NONE":
+                    need_reboot_conn = True
+
+                conn.cert_reqs = "CERT_NONE"
                 conn.ca_certs = None
                 conn.ca_cert_dir = None
-                conn.ca_cert_data = cert_data
-            elif cert_loc:
-                if not os.path.isdir(cert_loc):
-                    conn.ca_certs = cert_loc
-                else:
-                    conn.ca_cert_dir = cert_loc
-        else:
-            conn.cert_reqs = "CERT_NONE"
-            conn.ca_certs = None
-            conn.ca_cert_dir = None
-            conn.ca_cert_data = None
+                conn.ca_cert_data = None
 
         if cert:
             if not isinstance(cert, str):
                 if "-----BEGIN CERTIFICATE-----" in cert[0]:
+                    if conn.cert_data != cert[0] or conn.key_data != cert[1]:
+                        need_reboot_conn = True
                     conn.cert_data = cert[0]
                     conn.key_data = cert[1]
                 else:
+                    if conn.cert_file != cert[0] or conn.key_file != cert[1]:
+                        need_reboot_conn = True
                     conn.cert_file = cert[0]
                     conn.key_file = cert[1]
-                conn.key_password = cert[2] if len(cert) == 3 else None  # type: ignore[misc]
+
+                if len(cert) == 3:
+                    cert_pwd = cert[2]  # type: ignore[misc]
+                    if conn.key_password != cert_pwd:
+                        need_reboot_conn = True
+
+                    conn.key_password = cert_pwd
+                else:
+                    if conn.key_password is not None:
+                        conn.key_password = None
+                        need_reboot_conn = True
             else:
                 if "-----BEGIN CERTIFICATE-----" in cert:
                     conn.cert_data = cert
@@ -584,6 +633,16 @@ class HTTPAdapter(BaseAdapter):
             if conn.key_file and not os.path.exists(conn.key_file):
                 raise OSError(
                     f"Could not find the TLS key file, invalid path: {conn.key_file}"
+                )
+
+        if need_reboot_conn:
+            if conn.is_idle:
+                if conn.pool is not None and conn.pool.qsize():
+                    conn.pool.clear()
+            else:
+                warnings.warn(
+                    f"The TLS verification changed for {conn.host} but the connection isn't idle.",
+                    UserWarning,
                 )
 
     def build_response(
@@ -654,9 +713,6 @@ class HTTPAdapter(BaseAdapter):
             proxy_manager = self.proxy_manager_for(proxy)
             conn = proxy_manager.connection_from_url(url)
         else:
-            # Only scheme should be lower case
-            parsed = urlparse(url)
-            url = parsed.geturl()
             conn = self.poolmanager.connection_from_url(url)
 
         return conn
@@ -687,12 +743,15 @@ class HTTPAdapter(BaseAdapter):
         assert request.url is not None
 
         proxy = select_proxy(request.url, proxies)
-        scheme = urlparse(request.url).scheme
+        scheme = parse_scheme(request.url)
 
         is_proxied_http_request = proxy and scheme != "https"
         using_socks_proxy = False
         if proxy:
-            proxy_scheme = urlparse(proxy).scheme.lower()
+            try:
+                proxy_scheme = parse_scheme(proxy)
+            except MissingSchema as e:
+                raise ProxyError from e
             using_socks_proxy = proxy_scheme.startswith("socks")
 
         url = request.path_url
@@ -893,9 +952,7 @@ class HTTPAdapter(BaseAdapter):
             else:
                 raise
 
-        r = self.build_response(request, resp_or_promise)
-
-        return r
+        return self.build_response(request, resp_or_promise)
 
     def _future_handler(
         self, response: Response, low_resp: BaseHTTPResponse
@@ -1421,7 +1478,7 @@ class AsyncHTTPAdapter(AsyncBaseAdapter):
         url: str,
         verify: TLSVerifyType | None,
         cert: TLSClientCertType | None,
-    ) -> None:
+    ) -> bool:
         """Verify a SSL certificate. This method should not be called from user
         code, and is only exposed for use when subclassing the
         :class:`HTTPAdapter <requests.adapters.HTTPAdapter>`.
@@ -1433,53 +1490,99 @@ class AsyncHTTPAdapter(AsyncBaseAdapter):
             to a CA bundle to use. It is also possible to put the certificates (directly) in a string or bytes.
         :param cert: The SSL certificate to verify.
         """
-        if url.lower().startswith("https") and verify:
-            cert_loc: str | None = None
-            cert_data: str = wassima.generate_ca_bundle()
+        if not parse_scheme(url) == "https":
+            return False
 
-            if isinstance(verify, str) and "-----BEGIN CERTIFICATE-----" in verify:
-                cert_data = verify
-                verify = True
+        need_reboot_conn: bool = False
+        verify_witness_bit: bool = (
+            hasattr(conn, "_niquests_verify") and conn._niquests_verify == verify
+        )
 
-            if isinstance(verify, bytes):
-                cert_data = verify.decode("utf-8")
-            else:
-                # Allow self-specified cert location.
+        if not verify_witness_bit:
+            setattr(conn, "_niquests_verify", verify)
+
+            if verify:
+                cert_loc: str | None = None
+                cert_data: str | None = wassima.generate_ca_bundle()
+                assert_fingerprint: str | None = None
+
                 if isinstance(verify, str):
-                    cert_loc = verify
+                    if "-----BEGIN CERTIFICATE-----" in verify:
+                        cert_data = verify
+                        verify = True
+                    elif verify.startswith("sha256_") or verify.startswith("sha1_"):
+                        if len(verify) in [71, 45]:
+                            assert_fingerprint = verify.split("_", 1)[-1]
+                            verify = False
+                            cert_data = None
 
-                if isinstance(cert_loc, str) and not os.path.exists(cert_loc):
-                    raise OSError(
-                        f"Could not find a suitable TLS CA certificate bundle, "
-                        f"invalid path: {cert_loc}"
-                    )
+                if isinstance(verify, bytes):
+                    cert_data = verify.decode("utf-8")
+                else:
+                    # Allow self-specified cert location.
+                    if isinstance(verify, str):
+                        cert_loc = verify
 
-            conn.cert_reqs = "CERT_REQUIRED"
+                    if isinstance(cert_loc, str) and not os.path.exists(cert_loc):
+                        raise OSError(
+                            f"Could not find a suitable TLS CA certificate bundle, "
+                            f"invalid path: {cert_loc}"
+                        )
 
-            if cert_data and cert_loc is None:
+                if not assert_fingerprint:
+                    if conn.cert_reqs != "CERT_REQUIRED":
+                        need_reboot_conn = True
+
+                    conn.cert_reqs = "CERT_REQUIRED"
+                else:
+                    if conn.cert_reqs != "CERT_NONE":
+                        need_reboot_conn = True
+
+                    conn.cert_reqs = "CERT_NONE"
+
+                if cert_data and cert_loc is None:
+                    conn.ca_certs = None
+                    conn.ca_cert_dir = None
+                    conn.ca_cert_data = cert_data
+                elif cert_loc:
+                    if not os.path.isdir(cert_loc):
+                        conn.ca_certs = cert_loc
+                    else:
+                        conn.ca_cert_dir = cert_loc
+                else:
+                    conn.assert_fingerprint = assert_fingerprint
+            else:
+                if conn.cert_reqs != "CERT_NONE":
+                    need_reboot_conn = True
+
+                conn.cert_reqs = "CERT_NONE"
                 conn.ca_certs = None
                 conn.ca_cert_dir = None
-                conn.ca_cert_data = cert_data
-            elif cert_loc:
-                if not os.path.isdir(cert_loc):
-                    conn.ca_certs = cert_loc
-                else:
-                    conn.ca_cert_dir = cert_loc
-        else:
-            conn.cert_reqs = "CERT_NONE"
-            conn.ca_certs = None
-            conn.ca_cert_dir = None
-            conn.ca_cert_data = None
+                conn.ca_cert_data = None
 
         if cert:
             if not isinstance(cert, str):
                 if "-----BEGIN CERTIFICATE-----" in cert[0]:
+                    if conn.cert_data != cert[0] or conn.key_data != cert[1]:
+                        need_reboot_conn = True
                     conn.cert_data = cert[0]
                     conn.key_data = cert[1]
                 else:
+                    if conn.cert_file != cert[0] or conn.key_file != cert[1]:
+                        need_reboot_conn = True
                     conn.cert_file = cert[0]
                     conn.key_file = cert[1]
-                conn.key_password = cert[2] if len(cert) == 3 else None  # type: ignore[misc]
+
+                if len(cert) == 3:
+                    cert_pwd = cert[2]  # type: ignore[misc]
+                    if conn.key_password != cert_pwd:
+                        need_reboot_conn = True
+
+                    conn.key_password = cert_pwd
+                else:
+                    if conn.key_password is not None:
+                        conn.key_password = None
+                        need_reboot_conn = True
             else:
                 if "-----BEGIN CERTIFICATE-----" in cert:
                     conn.cert_data = cert
@@ -1496,6 +1599,8 @@ class AsyncHTTPAdapter(AsyncBaseAdapter):
                 raise OSError(
                     f"Could not find the TLS key file, invalid path: {conn.key_file}"
                 )
+
+        return need_reboot_conn
 
     def build_response(
         self, req: PreparedRequest, resp: BaseAsyncHTTPResponse | ResponsePromise
@@ -1564,9 +1669,6 @@ class AsyncHTTPAdapter(AsyncBaseAdapter):
             proxy_manager = self.proxy_manager_for(proxy)
             conn = await proxy_manager.connection_from_url(url)
         else:
-            # Only scheme should be lower case
-            parsed = urlparse(url)
-            url = parsed.geturl()
             conn = await self.poolmanager.connection_from_url(url)
 
         return conn
@@ -1597,12 +1699,15 @@ class AsyncHTTPAdapter(AsyncBaseAdapter):
         assert request.url is not None
 
         proxy = select_proxy(request.url, proxies)
-        scheme = urlparse(request.url).scheme
+        scheme = parse_scheme(request.url)
 
         is_proxied_http_request = proxy and scheme != "https"
         using_socks_proxy = False
         if proxy:
-            proxy_scheme = urlparse(proxy).scheme.lower()
+            try:
+                proxy_scheme = parse_scheme(proxy)
+            except MissingSchema as e:
+                raise ProxyError from e
             using_socks_proxy = proxy_scheme.startswith("socks")
 
         url = request.path_url
@@ -1696,7 +1801,17 @@ class AsyncHTTPAdapter(AsyncBaseAdapter):
             raise InvalidURL(e, request=request)
 
         if isinstance(conn, AsyncHTTPSConnectionPool):
-            self.cert_verify(conn, request.url, verify, cert)
+            need_reboot = self.cert_verify(conn, request.url, verify, cert)
+
+            if need_reboot:
+                if conn.is_idle:
+                    if conn.pool is not None and conn.pool.qsize():
+                        await conn.pool.clear()
+                else:
+                    warnings.warn(
+                        f"The TLS verification changed for {conn.host} but the connection isn't idle.",
+                        UserWarning,
+                    )
 
         url = self.request_url(request, proxies)
         self.add_headers(
@@ -1804,9 +1919,7 @@ class AsyncHTTPAdapter(AsyncBaseAdapter):
             else:
                 raise
 
-        r = self.build_response(request, resp_or_promise)
-
-        return r
+        return self.build_response(request, resp_or_promise)
 
     async def _future_handler(
         self, response: AsyncResponse | Response, low_resp: BaseAsyncHTTPResponse
@@ -1991,7 +2104,7 @@ class AsyncHTTPAdapter(AsyncBaseAdapter):
             origin_response.history = [leaf_response] + origin_response.history
 
         # Response manipulation hooks
-        response = dispatch_hook("response", hooks, response, **kwargs)  # type: ignore[arg-type]
+        response = await async_dispatch_hook("response", hooks, response, **kwargs)  # type: ignore[arg-type]
 
         if response.history:
             # If the hooks create history then we want those cookies too

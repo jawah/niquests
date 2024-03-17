@@ -6,6 +6,7 @@ Compatibility code to be able to use `http.cookiejar.CookieJar` with requests.
 
 requests.utils imports from here, so be careful with imports.
 """
+
 from __future__ import annotations
 
 import calendar
@@ -20,6 +21,7 @@ from http.cookies import Morsel
 from urllib.parse import urlparse, urlunparse
 
 from ._compat import HAS_LEGACY_URLLIB3
+from .utils import parse_scheme
 
 if HAS_LEGACY_URLLIB3 is False:
     from urllib3 import BaseHTTPResponse
@@ -45,7 +47,11 @@ class MockRequest:
     def __init__(self, request):
         self._r = request
         self._new_headers = {}
-        self.type = urlparse(self._r.url).scheme
+
+        try:
+            self.type: str | None = parse_scheme(self._r.url)
+        except ValueError:
+            self.type = None
 
     def get_type(self):
         return self.type

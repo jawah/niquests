@@ -5,6 +5,7 @@ requests.sessions
 This module provides a Session object to manage and persist settings across
 requests (cookies, auth, proxies).
 """
+
 from __future__ import annotations
 
 import os
@@ -96,6 +97,7 @@ from .utils import (  # noqa: F401
     to_key_val_list,
     create_resolver,
     _deepcopy_ci,
+    parse_scheme,
 )
 
 # Preferred clock, based on which one is more accurate on a given system.
@@ -1032,6 +1034,11 @@ class Session:
 
     def send(self, request: PreparedRequest, **kwargs: typing.Any) -> Response:
         """Send a given PreparedRequest."""
+        # It's possible that users might accidentally send a Request object.
+        # Guard against that specific failure case.
+        if isinstance(request, Request):
+            raise ValueError("You can only send PreparedRequests.")
+
         # Set defaults that the hooks can utilize to ensure they always have
         # the correct parameters to reproduce the previous request.
         kwargs.setdefault("stream", self.stream)
@@ -1042,18 +1049,13 @@ class Session:
             kwargs["proxies"] = resolve_proxies(request, self.proxies, self.trust_env)
 
         if (
-            "timeout" in kwargs
+            HAS_LEGACY_URLLIB3
+            and "timeout" in kwargs
             and kwargs["timeout"]
-            and HAS_LEGACY_URLLIB3
             and hasattr(kwargs["timeout"], "total")
             and "urllib3_future" not in str(type(kwargs["timeout"]))
         ):
             kwargs["timeout"] = urllib3_ensure_type(kwargs["timeout"])
-
-        # It's possible that users might accidentally send a Request object.
-        # Guard against that specific failure case.
-        if isinstance(request, Request):
-            raise ValueError("You can only send PreparedRequests.")
 
         # Set up variables needed for resolve_redirects and dispatching of hooks
         allow_redirects = kwargs.pop("allow_redirects", True)
@@ -1069,7 +1071,7 @@ class Session:
 
             if (
                 ptr_request.url
-                and ptr_request.url.startswith("https://")
+                and parse_scheme(ptr_request.url) == "https"
                 and ocsp_verify is not None
                 and kwargs["verify"]
             ):
@@ -1120,7 +1122,7 @@ class Session:
                 warnings.warn(
                     "A externally instantiated resolver was closed. Attempt to recycling it internally, "
                     "the Session will detach itself from given resolver.",
-                    ResourceWarning,
+                    UserWarning,
                 )
             self.close()
             self.resolver = self.resolver.recycle()
@@ -1558,28 +1560,17 @@ class Session:
             else:
                 if yield_requests_trail:
                     yield req
-                if "AsyncSession" not in str(type(self)):
-                    resp = self.send(
-                        req,
-                        stream=stream,
-                        timeout=timeout,
-                        verify=verify,
-                        cert=cert,
-                        proxies=proxies,
-                        allow_redirects=False,
-                        **adapter_kwargs,
-                    )
-                else:
-                    resp = super(self.__class__, self).send(  # type: ignore[misc]
-                        req,
-                        stream=stream,
-                        timeout=timeout,
-                        verify=verify,
-                        cert=cert,
-                        proxies=proxies,
-                        allow_redirects=False,
-                        **adapter_kwargs,
-                    )
+
+                resp = self.send(
+                    req,
+                    stream=stream,
+                    timeout=timeout,
+                    verify=verify,
+                    cert=cert,
+                    proxies=proxies,
+                    allow_redirects=False,
+                    **adapter_kwargs,
+                )
 
                 # If the initial request was intended to be lazy but didn't meet required criteria
                 # e.g. Setting multiplexed=True, requesting HTTP/1.1 only capable and getting redirected
@@ -1635,10 +1626,8 @@ class Session:
         necessary.
         """
         headers = prepared_request.headers
-        scheme: str | bytes = urlparse(prepared_request.url).scheme
-
-        if isinstance(scheme, bytes):
-            scheme = scheme.decode("ascii")
+        assert prepared_request.url is not None
+        scheme: str = parse_scheme(prepared_request.url)
 
         assert (
             headers is not None
