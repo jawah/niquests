@@ -40,28 +40,33 @@ Niquests, is the “**Safest**, **Fastest[^10]**, **Easiest**, and **Most advanc
 </details>
 
 <details>
-  <summary>📈 <b>Look at the performance comparison</b> against <i>requests, httpx and aiohttp</i>!</summary>
+  <summary>📈 <b>Look at the performance comparison</b> against <i>them</i>!</summary>
 
 _Scenario:_ Fetch a thousand requests using 10 tasks or threads, each with a hundred requests using a single pool of connection.
 
 **High-Level APIs**
 
-| Client   | Average Delay to Complete | Notes                        |
-|----------|---------------------------|------------------------------|
-| requests | 987 ms                    | ThreadPoolExecutor. HTTP/1.1 |
-| httpx    | 735 ms                    | Asyncio. HTTP/2              |
-| niquests | 600 ms                    | Asyncio. HTTP/2              |
+| Client   | Average Delay to Complete                | Notes                        |
+|----------|------------------------------------------|------------------------------|
+| requests | <span style="color:red">987 ms</span>    | ThreadPoolExecutor. HTTP/1.1 |
+| httpx    | <span style="color:orange">735 ms</span> | Asyncio. HTTP/2              |
+| niquests | <span style="color:green">470 ms</span>  | Asyncio. HTTP/2              |
 
 **Simplified APIs**
 
-| Client        | Average Delay to Complete | Notes                        |
-|---------------|---------------------------|------------------------------|
-| requests core | 643 ms                    | ThreadPoolExecutor. HTTP/1.1 |
-| httpx core    | 550 ms                    | Asyncio. HTTP/2              |
-| aiohttp       | 220 ms                    | Asyncio. HTTP/1.1            |
-| niquests core | 210 ms                    | Asyncio. HTTP/2              |
+| Client        | Average Delay to Complete                | Notes                        |
+|---------------|------------------------------------------|------------------------------|
+| requests core | <span style="color:red">643 ms</span>    | ThreadPoolExecutor. HTTP/1.1 |
+| httpx core    | <span style="color:orange">550 ms</span> | Asyncio. HTTP/2              |
+| aiohttp       | <span style="color:green">220 ms</span>  | Asyncio. HTTP/1.1            |
+| niquests core | <span style="color:green">210 ms</span>  | Asyncio. HTTP/2              |
 
-Want to learn more about the tests? scripts? reasoning? Take a deeper look at https://github.com/Ousret/niquests-stats
+Did you give up on HTTP/2 due to performance concerns? Think again! Multiplexing and response lazyness open up a wide range
+of possibilities! Want to learn more about the tests? scripts? reasoning?
+
+Take a deeper look at https://github.com/Ousret/niquests-stats
+
+⚠️ Do the responsible thing with this library and do not attempt DoS remote servers using its abilities.
 </details>
 
 ```python
@@ -169,7 +174,7 @@ purchasing and maintaining their software, with professional grade assurances
 from the experts who know it best, while seamlessly integrating with existing
 tools.
 
-You may also be interested in unlocking specific advantages by looking at our [GitHub sponsor tiers](https://github.com/sponsors/Ousret).
+You may also be interested in unlocking specific advantages _(like access to a private issue tracker)_ by looking at our [GitHub sponsor tiers](https://github.com/sponsors/Ousret).
 
 ---
 
@@ -179,7 +184,7 @@ Niquests is a highly improved HTTP client that is based (forked) on Requests. Th
 [^2]: requests has no support for asynchronous request.
 [^3]: while the HTTP/2 connection object can handle concurrent requests, you cannot leverage its true potential.
 [^4]: loading client certificate without file can't be done.
-[^5]: httpx officially claim to be thread safe but recent tests demonstrate otherwise as of february 2024.
+[^5]: httpx officially claim to be thread safe but recent tests demonstrate otherwise as of february 2024. https://github.com/jawah/niquests/issues/83#issuecomment-1956065258 https://github.com/encode/httpx/issues/3072 https://github.com/encode/httpx/issues/3002
 [^6]: they do not expose anything to control network aspects such as IPv4/IPv6 toggles, and timings (e.g. DNS response time, established delay, TLS handshake delay, etc...) and such.
 [^7]: while advertised as possible, they refuse to make it the default due to performance issues. as of february 2024 an extra is required to enable it manually.
 [^8]: they don't support HTTP/3 at all.

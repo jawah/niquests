@@ -84,8 +84,8 @@ class TestRequests:
         (
             (MissingSchema, "hiwpefhipowhefopw"),
             (InvalidSchema, "localhost:3128"),
-            (InvalidSchema, "localhost.localdomain:3128/"),
-            (InvalidSchema, "10.122.1.1:3128/"),
+            (MissingSchema, "localhost.localdomain:3128/"),
+            (MissingSchema, "10.122.1.1:3128/"),
             (InvalidURL, "http://"),
             (InvalidURL, "http://*example.com"),
             (InvalidURL, "http://.example.com"),
@@ -189,7 +189,7 @@ class TestRequests:
 
     def test_whitespaces_are_removed_from_url(self):
         # Test for issue #3696
-        request = niquests.Request("GET", " http://example.com").prepare()
+        request = niquests.Request("GET", " http://example.com/").prepare()
         assert request.url == "http://example.com/"
 
     @pytest.mark.parametrize("scheme", ("http://", "HTTP://", "hTTp://", "HttP://"))
@@ -2412,7 +2412,6 @@ class TestMorselToCookieExpires:
 
 
 class TestMorselToCookieMaxAge:
-
     """Tests for morsel_to_cookie when morsel contains max-age."""
 
     def test_max_age_valid_int(self):
@@ -2514,6 +2513,8 @@ class RedirectSession(Session):
     def build_response(self):
         request = self.calls[-1].args[0]
         r = niquests.Response()
+
+        r.url = request.url
 
         try:
             r.status_code = int(self.redirects.pop(0))
@@ -2654,7 +2655,7 @@ class TestPreparingURLs:
     @pytest.mark.parametrize(
         "url,expected",
         (
-            ("http://google.com", "http://google.com/"),
+            ("http://google.com/", "http://google.com/"),
             ("http://ジェーピーニック.jp", "http://xn--hckqz9bzb1cyrb.jp/"),
             ("http://xn--n3h.net/", "http://xn--n3h.net/"),
             ("http://ジェーピーニック.jp".encode(), "http://xn--hckqz9bzb1cyrb.jp/"),

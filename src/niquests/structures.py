@@ -11,6 +11,22 @@ import threading
 import typing
 from collections.abc import Mapping, MutableMapping
 
+try:
+    from ._compat import HAS_LEGACY_URLLIB3
+
+    if not HAS_LEGACY_URLLIB3:
+        from urllib3._collections import _lower_wrapper  # type: ignore[attr-defined]
+    else:
+        from urllib3_future._collections import _lower_wrapper  # type: ignore[attr-defined]
+except ImportError:
+    from functools import lru_cache
+
+    @lru_cache(maxsize=64)
+    def _lower_wrapper(string: str) -> str:
+        """backport"""
+        return string.lower()
+
+
 from .exceptions import InvalidHeader
 
 
@@ -62,39 +78,46 @@ class CaseInsensitiveDict(MutableMapping):
     """
 
     def __init__(self, data=None, **kwargs) -> None:
-        self._store: MutableMapping[bytes | str, tuple[bytes | str, bytes | str]] = {}
+        self._store: MutableMapping[bytes | str, tuple[bytes | str, ...]] = {}
         if data is None:
             data = {}
-        upstream_dict: bool = hasattr(data, "getlist")
-        if upstream_dict:
-            self.update(data, **kwargs)
-            return
-        normalized_items = []
-        for k, v in data.items() if hasattr(data, "items") else data:
-            normalized_items.append(
-                _ensure_str_or_bytes(k, v)
-                if not upstream_dict
-                else (
-                    k,
-                    v,
-                )
-            )
-        self.update(normalized_items, **kwargs)
+
+        # given object is most likely to be urllib3.HTTPHeaderDict or follow a similar implementation that we can trust
+        if hasattr(data, "getlist"):
+            self._store = data._container.copy()
+        elif isinstance(data, CaseInsensitiveDict):
+            self._store = data._store.copy()  # type: ignore[attr-defined]
+        else:  # otherwise, we must ensure given iterable contains type we can rely on
+            if data or kwargs:
+                if hasattr(data, "items"):
+                    self.update(data, **kwargs)
+                else:
+                    self.update(
+                        {k: v for k, v in data},
+                        **kwargs,
+                    )
 
     def __setitem__(self, key: str | bytes, value: str | bytes) -> None:
         # Use the lowercased key for lookups, but store the actual
         # key alongside the value.
-        key, value = _ensure_str_or_bytes(key, value)
-        self._store[key.lower()] = (key, value)
+        self._store[_lower_wrapper(key)] = _ensure_str_or_bytes(key, value)
 
     def __getitem__(self, key) -> bytes | str:
-        return self._store[key.lower()][1]
+        e = self._store[_lower_wrapper(key)]
+        if len(e) == 2:
+            return e[1]
+        # this path should always be list[str] (if coming from urllib3.HTTPHeaderDict!)
+        try:
+            return ", ".join(e[1:]) if isinstance(e[1], str) else b", ".join(e[1:])  # type: ignore[arg-type]
+        except TypeError:  # worst case scenario...
+            return ", ".join(v.decode() if isinstance(v, bytes) else v for v in e[1:])
 
     def __delitem__(self, key) -> None:
-        del self._store[key.lower()]
+        del self._store[_lower_wrapper(key)]
 
     def __iter__(self) -> typing.Iterator[str | bytes]:
-        return (casedkey for casedkey, mappedvalue in self._store.values())
+        for key_ci in self._store:
+            yield self._store[key_ci][0]
 
     def __len__(self) -> int:
         return len(self._store)
@@ -117,6 +140,9 @@ class CaseInsensitiveDict(MutableMapping):
 
     def __repr__(self) -> str:
         return str(dict(self.items()))
+
+    def __contains__(self, item: str) -> bool:  # type: ignore[override]
+        return _lower_wrapper(item) in self._store
 
 
 class LookupDict(dict):

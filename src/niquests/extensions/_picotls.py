@@ -4,6 +4,7 @@ speak with a TLS 1.2+ server. The goal of this is to extract
 the certificate chain to be used for OCSP stapling / revocation.
 It's not meant to establish a secure connection. Never!
 """
+
 from __future__ import annotations
 
 import hmac

@@ -71,6 +71,7 @@ from .utils import (
     requote_uri,
     _swap_context,
     _deepcopy_ci,
+    parse_scheme,
 )
 from .cookies import (
     RequestsCookieJar,
@@ -158,9 +159,9 @@ class AsyncSession(Session):
         self.proxies: ProxyType = {}
 
         #: Event-handling hooks.
-        self.hooks: AsyncHookType[
-            PreparedRequest | Response | AsyncResponse
-        ] = default_hooks()  # type: ignore[assignment]
+        self.hooks: AsyncHookType[PreparedRequest | Response | AsyncResponse] = (
+            default_hooks()  # type: ignore[assignment]
+        )
 
         #: Dictionary of querystring data to attach to each
         #: :class:`Request <Request>`. The dictionary values may be lists for
@@ -280,6 +281,12 @@ class AsyncSession(Session):
         self, request: PreparedRequest, **kwargs: typing.Any
     ) -> Response | AsyncResponse:  # type: ignore[override]
         """Send a given PreparedRequest."""
+
+        # It's possible that users might accidentally send a Request object.
+        # Guard against that specific failure case.
+        if isinstance(request, Request):
+            raise ValueError("You can only send PreparedRequests.")
+
         # Set defaults that the hooks can utilize to ensure they always have
         # the correct parameters to reproduce the previous request.
         kwargs.setdefault("stream", self.stream)
@@ -297,11 +304,6 @@ class AsyncSession(Session):
             and "urllib3_future" not in str(type(kwargs["timeout"]))
         ):
             kwargs["timeout"] = urllib3_ensure_type(kwargs["timeout"])
-
-        # It's possible that users might accidentally send a Request object.
-        # Guard against that specific failure case.
-        if isinstance(request, Request):
-            raise ValueError("You can only send PreparedRequests.")
 
         # Set up variables needed for resolve_redirects and dispatching of hooks
         allow_redirects = kwargs.pop("allow_redirects", True)
@@ -559,8 +561,8 @@ class AsyncSession(Session):
 
             # Handle redirection without scheme (see: RFC 1808 Section 4)
             if url.startswith("//"):
-                parsed_rurl = urlparse(resp.url)
-                target_scheme = parsed_rurl.scheme
+                assert resp.url is not None
+                target_scheme = parse_scheme(resp.url)
                 if isinstance(target_scheme, bytes):
                     target_scheme = target_scheme.decode()
                 url = ":".join([target_scheme, url])
@@ -686,8 +688,7 @@ class AsyncSession(Session):
         verify: TLSVerifyType | None = ...,
         cert: TLSClientCertType | None = ...,
         json: typing.Any | None = ...,
-    ) -> Response:
-        ...
+    ) -> Response: ...
 
     @typing.overload  # type: ignore[override]
     async def request(
@@ -709,8 +710,7 @@ class AsyncSession(Session):
         verify: TLSVerifyType | None = ...,
         cert: TLSClientCertType | None = ...,
         json: typing.Any | None = ...,
-    ) -> AsyncResponse:
-        ...
+    ) -> AsyncResponse: ...
 
     async def request(  # type: ignore[override]
         self,
@@ -787,8 +787,7 @@ class AsyncSession(Session):
         verify: TLSVerifyType = ...,
         stream: Literal[False] = ...,
         cert: TLSClientCertType | None = ...,
-    ) -> Response:
-        ...
+    ) -> Response: ...
 
     @typing.overload  # type: ignore[override]
     async def get(
@@ -806,8 +805,7 @@ class AsyncSession(Session):
         verify: TLSVerifyType = ...,
         stream: Literal[True],
         cert: TLSClientCertType | None = ...,
-    ) -> AsyncResponse:
-        ...
+    ) -> AsyncResponse: ...
 
     async def get(  # type: ignore[override]
         self,
@@ -857,8 +855,7 @@ class AsyncSession(Session):
         verify: TLSVerifyType = ...,
         stream: Literal[False] = ...,
         cert: TLSClientCertType | None = ...,
-    ) -> Response:
-        ...
+    ) -> Response: ...
 
     @typing.overload  # type: ignore[override]
     async def options(
@@ -876,8 +873,7 @@ class AsyncSession(Session):
         verify: TLSVerifyType = ...,
         stream: Literal[True],
         cert: TLSClientCertType | None = ...,
-    ) -> AsyncResponse:
-        ...
+    ) -> AsyncResponse: ...
 
     async def options(  # type: ignore[override]
         self,
@@ -927,8 +923,7 @@ class AsyncSession(Session):
         verify: TLSVerifyType = ...,
         stream: Literal[False] = ...,
         cert: TLSClientCertType | None = ...,
-    ) -> Response:
-        ...
+    ) -> Response: ...
 
     @typing.overload  # type: ignore[override]
     async def head(
@@ -946,8 +941,7 @@ class AsyncSession(Session):
         verify: TLSVerifyType = ...,
         stream: Literal[True],
         cert: TLSClientCertType | None = ...,
-    ) -> AsyncResponse:
-        ...
+    ) -> AsyncResponse: ...
 
     async def head(  # type: ignore[override]
         self,
@@ -1000,8 +994,7 @@ class AsyncSession(Session):
         verify: TLSVerifyType = ...,
         stream: Literal[False] = ...,
         cert: TLSClientCertType | None = ...,
-    ) -> Response:
-        ...
+    ) -> Response: ...
 
     @typing.overload  # type: ignore[override]
     async def post(
@@ -1022,8 +1015,7 @@ class AsyncSession(Session):
         verify: TLSVerifyType = ...,
         stream: Literal[True],
         cert: TLSClientCertType | None = ...,
-    ) -> AsyncResponse:
-        ...
+    ) -> AsyncResponse: ...
 
     async def post(  # type: ignore[override]
         self,
@@ -1082,8 +1074,7 @@ class AsyncSession(Session):
         verify: TLSVerifyType = ...,
         stream: Literal[False] = ...,
         cert: TLSClientCertType | None = ...,
-    ) -> Response:
-        ...
+    ) -> Response: ...
 
     @typing.overload  # type: ignore[override]
     async def put(
@@ -1104,8 +1095,7 @@ class AsyncSession(Session):
         verify: TLSVerifyType = ...,
         stream: Literal[True],
         cert: TLSClientCertType | None = ...,
-    ) -> AsyncResponse:
-        ...
+    ) -> AsyncResponse: ...
 
     async def put(  # type: ignore[override]
         self,
@@ -1164,8 +1154,7 @@ class AsyncSession(Session):
         verify: TLSVerifyType = ...,
         stream: Literal[False] = ...,
         cert: TLSClientCertType | None = ...,
-    ) -> Response:
-        ...
+    ) -> Response: ...
 
     @typing.overload  # type: ignore[override]
     async def patch(
@@ -1186,8 +1175,7 @@ class AsyncSession(Session):
         verify: TLSVerifyType = ...,
         stream: Literal[True],
         cert: TLSClientCertType | None = ...,
-    ) -> AsyncResponse:
-        ...
+    ) -> AsyncResponse: ...
 
     async def patch(  # type: ignore[override]
         self,
@@ -1243,8 +1231,7 @@ class AsyncSession(Session):
         verify: TLSVerifyType = ...,
         stream: Literal[False] = ...,
         cert: TLSClientCertType | None = ...,
-    ) -> Response:
-        ...
+    ) -> Response: ...
 
     @typing.overload  # type: ignore[override]
     async def delete(
@@ -1262,8 +1249,7 @@ class AsyncSession(Session):
         verify: TLSVerifyType = ...,
         stream: Literal[True],
         cert: TLSClientCertType | None = ...,
-    ) -> AsyncResponse:
-        ...
+    ) -> AsyncResponse: ...
 
     async def delete(  # type: ignore[override]
         self,

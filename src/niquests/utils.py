@@ -5,6 +5,7 @@ requests.utils
 This module provides utility functions that are used within Requests
 that are also useful for external consumption.
 """
+
 from __future__ import annotations
 
 import codecs
@@ -65,8 +66,7 @@ else:
     from urllib3_future import ConnectionInfo  # type: ignore[assignment]
 
 from .__version__ import __version__
-from .cookies import cookiejar_from_dict
-from .exceptions import InvalidURL, UnrewindableBodyError
+from .exceptions import InvalidURL, UnrewindableBodyError, MissingSchema
 from .structures import CaseInsensitiveDict
 
 if typing.TYPE_CHECKING:
@@ -222,7 +222,7 @@ def get_netrc_auth(
         if netrc_path is None:
             return None
 
-        ri = urlparse(url)
+        ri = parse_url(url)
         host = ri.hostname
 
         if host is None:
@@ -438,6 +438,7 @@ def add_dict_to_cookiejar(
     :param cj: CookieJar to insert cookies into.
     :param cookie_dict: Dict of key/values to insert into CookieJar.
     """
+    from .cookies import cookiejar_from_dict
 
     return cookiejar_from_dict(cookie_dict, cj)
 
@@ -852,7 +853,7 @@ def resolve_proxies(
 
     assert url is not None, "PreparedRequest is not initialized correctly"
 
-    scheme = urlparse(url).scheme
+    scheme = parse_scheme(url)
     no_proxy = proxies.get("no_proxy")
     new_proxies = proxies.copy()
 
@@ -950,10 +951,15 @@ def get_auth_from_url(url: str) -> tuple[str, str]:
     """Given a url with authentication components, extract them into a tuple of
     username,password.
     """
-    parsed = urlparse(url)
+    parsed = parse_url(url)
+
+    if not parsed.auth or ":" not in parsed.auth:
+        return "", ""
+
+    username, password = tuple(parsed.auth.split(":", 1))
 
     try:
-        auth = (unquote(parsed.username), unquote(parsed.password))  # type: ignore[arg-type]
+        auth = (unquote(username), unquote(password))  # type: ignore[arg-type]
     except (AttributeError, TypeError):
         auth = ("", "")
 
@@ -1150,3 +1156,20 @@ def _deepcopy_ci(o: ConnectionInfo | None) -> ConnectionInfo | None:
         setattr(n, attr, val)
 
     return n
+
+
+def parse_scheme(url: str, default: str | None = None, max_length: int = 9) -> str:
+    """We tend to extract url scheme often enough, but we were crazy
+    enough to use urlparse for it...! We were wasting precious CPU cycles.
+    Return used scheme url, lowercased."""
+    try:
+        scheme = url[: url.index(":", 1, max_length + 1)]
+    except ValueError as e:
+        if default is not None:
+            return default
+        raise MissingSchema(
+            f"Invalid URL {url!r}: No scheme supplied. "
+            f"Perhaps you meant https://{url}?"
+        ) from e
+
+    return scheme.lower()

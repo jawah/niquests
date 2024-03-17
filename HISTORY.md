@@ -1,6 +1,23 @@
 Release History
 ===============
 
+3.5.4 (2024-03-17)
+------------------
+
+**Added**
+- Support to verify the peer certificate fingerprint using `verify=...` by passing a string using the following format:
+  `verify="sha256_748c76348778cb4a536e7ec12bc9aa559c12770bd1419c7ffe516006e1dea0ec"`. Doing so disable the certificate
+  usual verification and only checks for its fingerprint match.
+
+**Fixed**
+- Multiplexed request in async did not support awaitable in hooks.
+- Setting `verify=...` and `cert=...` then change it for the same host did not apply to the underlying (existing) connection pool.
+
+**Misc**
+- Overall performance improvements in both async and sync requests.
+- Update pre-commit dependencies (ruff, pyupgrade, and mypy).
+- Fixed SessionRedirect in tests that produced an incomplete Response instance that wasn't suitable for tests.
+
 3.5.3 (2024-03-06)
 ------------------
 

@@ -1371,3 +1371,49 @@ It will be passed down the the lower stack. No effort required.
 .. note:: You can set **0** instead of 4444 to select a random port.
 
 .. note:: You can set **0.0.0.0** to select the network adapter automatically instead, if you wish to set the port only.
+
+Inspect network timings
+-----------------------
+
+You are probably used to calling ``response.elapsed`` to get a rough estimate on how long did the
+request took to complete.
+
+It is likely that you may be interested in knowing:
+
+- How long did the TCP/UDP established connection took?
+- How long did the DNS resolution cost me?
+
+... and so on.
+
+Here is a simple example::
+
+    import niquests
+
+    session = niquests.Session()
+
+    response = session.get("https://pie.dev/get")
+
+    print(response.conn_info.resolution_latency)  # output the DNS resolution latency
+    print(response.conn_info.tls_handshake_latency)  # the TLS handshake completion
+
+Here, ``conn_info`` is a ``urllib3.ConnectionInfo`` instance. The complete list of
+attributes is listed on the Hook bottom section.
+
+.. note:: Each response and request are linked to a unique ConnectionInfo.
+
+Verify Certificate Fingerprint
+------------------------------
+
+.. note:: Available since Niquests 3.5.4
+
+An alternative to the certificate verification can be asserting its fingerprint. We (absolutely) do
+not recommend using it unless you are left with no other alternative.
+
+Here is a simple example::
+
+    import niquests
+
+    session = niquests.Session()
+    session.get("https://pie.dev/get", verify="sha256_8fff956b66667ffe5801c8432b12c367254727782d91bc695b7a53d0b512d721")
+
+.. warning:: Supported fingerprinting algorithms are sha256, and sha1. The prefix is mandatory.

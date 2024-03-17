@@ -13,6 +13,7 @@ import pytest
 
 from niquests.cookies import RequestsCookieJar
 from niquests.structures import CaseInsensitiveDict
+from niquests.exceptions import MissingSchema
 from niquests.utils import (
     _get_mask_bits,
     _parse_content_type_header,
@@ -41,6 +42,7 @@ from niquests.utils import (
     unquote_header_value,
     unquote_unreserved,
     urldefragauth,
+    parse_scheme,
 )
 
 
@@ -846,3 +848,31 @@ def test__get_mask_bits(mask, totalbits, maskbits):
 )
 def test_compare_ipv6(a, b, expected):
     assert compare_ipv6(a, b) == expected
+
+
+@pytest.mark.parametrize(
+    "url, expected",
+    [
+        ("https://www.google.com/", "https"),
+        ("htTPS://www.google.com/", "https"),
+        ("nonsense://www.google.com/", "nonsense"),
+        (" HTTP://www.google.com/", " http"),
+        (
+            "//invalid",
+            None,
+        ),
+        (
+            "invalid-no-scheme.com",
+            None,
+        ),
+        ("tooloooooooooooooooooooooooong://www.google.com/", None),
+        ("mailto:complaint@pytest.dev", "mailto"),
+    ],
+)
+def test_extract_scheme(url, expected):
+    if expected is None:
+        with pytest.raises(MissingSchema):
+            parse_scheme(url)
+    else:
+        scheme = parse_scheme(url)
+        assert scheme == expected
