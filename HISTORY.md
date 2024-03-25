@@ -1,6 +1,20 @@
 Release History
 ===============
 
+3.5.5 (2024-03-25)
+------------------
+
+**Added**
+- Support for Happy Eyeballs. This feature is disabled by default, you must pass `happy_eyeballs=True` within your session
+  constructor or http adapter in order to leverage this.
+
+**Fixed**
+- Missed close implementation in AsyncSession causing the underlying poolmanager to remain open.
+- Additional OCSP requests (following a redirect) did not use specified custom DNS resolver.
+
+**Changed**
+- urllib3.future lower bound constraint has been raised to version 2.7.900 for the newly added happy eyeballs feature.
+
 3.5.4 (2024-03-17)
 ------------------
 

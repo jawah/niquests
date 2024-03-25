@@ -296,6 +296,7 @@ async def verify(
     timeout: float | int = 0.2,
     proxies: ProxyType | None = None,
     resolver: AsyncBaseResolver | None = None,
+    happy_eyeballs: bool | int = False,
 ) -> None:
     conn_info: ConnectionInfo | None = r.conn_info
 
@@ -366,7 +367,9 @@ async def verify(
 
         from .._async import AsyncSession
 
-        async with AsyncSession(resolver=resolver) as session:
+        async with AsyncSession(
+            resolver=resolver, happy_eyeballs=happy_eyeballs
+        ) as session:
             session.trust_env = False
             session.proxies = proxies
 

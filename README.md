@@ -28,6 +28,7 @@ Niquests, is the “**Safest**, **Fastest[^10]**, **Easiest**, and **Most advanc
 | `DNS over HTTPS`                    |    ✅     |     ❌     |       ❌       | ❌             |
 | `DNS over QUIC`                     |    ✅     |     ❌     |       ❌       | ❌             |
 | `DNS over TLS`                      |    ✅     |     ❌     |       ❌       | ❌             |
+| `Multiple DNS Resolver`             |    ✅     |     ❌     |       ❌       | ❌             |
 | `Network Fine Tuning & Inspect`     |    ✅     |     ❌     | _Limited_[^6] | _Limited_[^6] |
 | `Certificate Revocation Protection` |    ✅     |     ❌     |       ❌       | ❌             |
 | `Session Persistence`               |    ✅     |     ✅     |       ✅       | ✅             |
@@ -36,6 +37,7 @@ Niquests, is the “**Safest**, **Fastest[^10]**, **Easiest**, and **Most advanc
 | `HTTP/HTTPS Proxies`                |    ✅     |     ✅     |       ✅       | ✅             |
 | `TLS-in-TLS Support`                |    ✅     |     ✅     |       ✅       | ✅             |
 | `Direct HTTP/3 Negotiation`         |  ✅[^9]   |  N/A[^8]  |    N/A[^8]    | N/A[^8]       |
+| `Happy Eyeballs`                    |    ✅     |     ❌     |       ❌       | ✅             |
 | `Package / SLSA Signed`             |    ✅     |     ❌     |       ❌       | ✅             |
 </details>
 
@@ -149,6 +151,7 @@ Niquests is ready for the demands of building scalable, robust and reliable HTTP
 - Streaming Downloads
 - HTTP/2 by default
 - HTTP/3 over QUIC
+- Happy Eyeballs
 - Multiplexed!
 - Thread-safe!
 - DNSSEC!

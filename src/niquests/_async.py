@@ -129,6 +129,7 @@ class AsyncSession(Session):
         disable_ipv4: bool = False,
         pool_connections: int = DEFAULT_POOLSIZE,
         pool_maxsize: int = DEFAULT_POOLSIZE,
+        happy_eyeballs: bool | int = False,
     ):
         if [disable_ipv4, disable_ipv6].count(True) == 2:
             raise RuntimeError("Cannot disable both IPv4 and IPv6")
@@ -191,6 +192,8 @@ class AsyncSession(Session):
         self._pool_connections = pool_connections
         self._pool_maxsize = pool_maxsize
 
+        self._happy_eyeballs = happy_eyeballs
+
         #: SSL Verification default.
         #: Defaults to `True`, requiring requests to verify the TLS certificate at the
         #: remote end.
@@ -245,6 +248,7 @@ class AsyncSession(Session):
                 disable_ipv6=disable_ipv6,
                 pool_connections=pool_connections,
                 pool_maxsize=pool_maxsize,
+                happy_eyeballs=happy_eyeballs,
             ),
         )
         self.mount(
@@ -257,6 +261,7 @@ class AsyncSession(Session):
                 disable_ipv6=disable_ipv6,
                 pool_connections=pool_connections,
                 pool_maxsize=pool_maxsize,
+                happy_eyeballs=happy_eyeballs,
             ),
         )
 
@@ -333,6 +338,7 @@ class AsyncSession(Session):
                     0.2 if not strict_ocsp_enabled else 1.0,
                     kwargs["proxies"],
                     resolver=self.resolver,
+                    happy_eyeballs=self._happy_eyeballs,
                 )
 
             # don't trigger pre_send for redirects
@@ -387,6 +393,7 @@ class AsyncSession(Session):
                     disable_ipv6=self._disable_ipv6,
                     pool_connections=self._pool_connections,
                     pool_maxsize=self._pool_maxsize,
+                    happy_eyeballs=self._happy_eyeballs,
                 ),
             )
             self.mount(
@@ -399,6 +406,7 @@ class AsyncSession(Session):
                     disable_ipv6=self._disable_ipv6,
                     pool_connections=self._pool_connections,
                     pool_maxsize=self._pool_maxsize,
+                    happy_eyeballs=self._happy_eyeballs,
                 ),
             )
 
@@ -1291,4 +1299,7 @@ class AsyncSession(Session):
             await adapter.gather(*responses, max_fetch=max_fetch)
 
     async def close(self) -> None:  # type: ignore[override]
-        ...
+        for v in self.adapters.values():
+            await v.close()
+        if self._own_resolver:
+            await self.resolver.close()
