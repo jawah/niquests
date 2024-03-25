@@ -321,6 +321,7 @@ def verify(
     timeout: float | int = 0.2,
     proxies: ProxyType | None = None,
     resolver: BaseResolver | None = None,
+    happy_eyeballs: bool | int = False,
 ) -> None:
     conn_info: ConnectionInfo | None = r.conn_info
 
@@ -389,7 +390,7 @@ def verify(
 
     from ..sessions import Session
 
-    with Session(resolver=resolver) as session:
+    with Session(resolver=resolver, happy_eyeballs=happy_eyeballs) as session:
         session.trust_env = False
         session.proxies = proxies
 

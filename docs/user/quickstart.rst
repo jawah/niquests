@@ -974,6 +974,44 @@ install Niquests with::
 
     $ python -m pip install niquests[speedups]
 
+
+Happy Eyeballs
+--------------
+
+.. note:: Available since version 3.5.5+
+
+Thanks to the underlying library (urllib3.future) we are able to serve the Happy Eyeballs feature, one toggle away.
+
+Happy Eyeballs (also called Fast Fallback) is an algorithm published by the IETF that makes dual-stack applications
+(those that understand both IPv4 and IPv6) more responsive to users by attempting to connect using both IPv4 and IPv6
+at the same time (preferring IPv6), thus minimizing common problems experienced by users with imperfect IPv6 connections or setups.
+
+The name “happy eyeballs” derives from the term “eyeball” to describe endpoints which represent human Internet end-users, as opposed to servers.
+
+To enable Happy Eyeballs in Niquests, do as follow::
+
+    import niquests
+
+    with niquests.Session(happy_eyeballs=True) as s:
+        ...
+
+Or.. in async::
+
+    import niquests
+
+    async with niquests.AsyncSession(happy_eyeballs=True) as s:
+        ...
+
+A mere ``happy_eyeballs=True`` is sufficient to leverage its potential.
+
+.. note:: In case a server yield multiple IPv4 addresses but no IPv6, this still applies. Meaning that Niquests will connect concurrently to presented addresses and determine what is the fastest endpoint.
+
+.. note:: Like urllib3.future, you can pass an integer to increase the default number of concurrent connection to be tested. See https://urllib3future.readthedocs.io/en/latest/advanced-usage.html#happy-eyeballs to learn more.
+
+OCSP requests (certificate revocation checks) will follow given ``happy_eyeballs=True`` parameter.
+
+.. warning:: This feature is disabled by default and we are actually planning to make it enabled as the default in a future major.
+
 -----------------------
 
 Ready for more? Check out the :ref:`advanced <advanced>` section.

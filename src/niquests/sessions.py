@@ -221,6 +221,7 @@ class Session:
         "_disable_http3",
         "_pool_connections",
         "_pool_maxsize",
+        "_happy_eyeballs",
     ]
 
     def __init__(
@@ -237,6 +238,7 @@ class Session:
         disable_ipv4: bool = False,
         pool_connections: int = DEFAULT_POOLSIZE,
         pool_maxsize: int = DEFAULT_POOLSIZE,
+        happy_eyeballs: bool | int = False,
     ):
         """
         :param resolver: Specify a DNS resolver that should be used within this Session.
@@ -310,6 +312,8 @@ class Session:
         self._pool_connections = pool_connections
         self._pool_maxsize = pool_maxsize
 
+        self._happy_eyeballs = happy_eyeballs
+
         #: SSL Verification default.
         #: Defaults to `True`, requiring requests to verify the TLS certificate at the
         #: remote end.
@@ -364,6 +368,7 @@ class Session:
                 disable_ipv6=disable_ipv6,
                 pool_connections=pool_connections,
                 pool_maxsize=pool_maxsize,
+                happy_eyeballs=happy_eyeballs,
             ),
         )
         self.mount(
@@ -376,6 +381,7 @@ class Session:
                 disable_ipv6=disable_ipv6,
                 pool_connections=pool_connections,
                 pool_maxsize=pool_maxsize,
+                happy_eyeballs=happy_eyeballs,
             ),
         )
 
@@ -1085,6 +1091,7 @@ class Session:
                     0.2 if not strict_ocsp_enabled else 1.0,
                     kwargs["proxies"],
                     resolver=self.resolver,
+                    happy_eyeballs=self._happy_eyeballs,
                 )
 
             # don't trigger pre_send for redirects
@@ -1139,6 +1146,7 @@ class Session:
                     disable_ipv6=self._disable_ipv6,
                     pool_connections=self._pool_connections,
                     pool_maxsize=self._pool_maxsize,
+                    happy_eyeballs=self._happy_eyeballs,
                 ),
             )
             self.mount(
@@ -1151,6 +1159,7 @@ class Session:
                     disable_ipv6=self._disable_ipv6,
                     pool_connections=self._pool_connections,
                     pool_maxsize=self._pool_maxsize,
+                    happy_eyeballs=self._happy_eyeballs,
                 ),
             )
 
@@ -1352,6 +1361,7 @@ class Session:
                 resolver=self.resolver,
                 pool_connections=self._pool_connections,
                 pool_maxsize=self._pool_maxsize,
+                happy_eyeballs=self._happy_eyeballs,
             ),
         )
         self.mount(
@@ -1364,6 +1374,7 @@ class Session:
                 resolver=self.resolver,
                 pool_connections=self._pool_connections,
                 pool_maxsize=self._pool_maxsize,
+                happy_eyeballs=self._happy_eyeballs,
             ),
         )
 

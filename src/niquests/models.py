@@ -636,14 +636,15 @@ class PreparedRequest:
                     "Unexpected non-callable authentication. Did you pass unsupported tuple to auth argument?"
                 )
 
-            # Allow auth to make its changes.
-            r = auth(self)
+            if not asyncio.iscoroutinefunction(auth.__call__):
+                # Allow auth to make its changes.
+                r = auth(self)
 
-            # Update self to reflect the auth changes.
-            self.__dict__.update(r.__dict__)
+                # Update self to reflect the auth changes.
+                self.__dict__.update(r.__dict__)
 
-            # Recompute Content-Length
-            self.prepare_content_length(self.body)
+                # Recompute Content-Length
+                self.prepare_content_length(self.body)
 
     def prepare_cookies(self, cookies: CookiesType | None) -> None:
         """Prepares the given HTTP cookie data.

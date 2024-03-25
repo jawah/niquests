@@ -67,6 +67,8 @@ if HAS_LEGACY_URLLIB3 is False:
         parse_url,
         Retry,
     )
+    from urllib3.contrib.resolver import BaseResolver
+    from urllib3.contrib.resolver._async import AsyncBaseResolver
 else:
     from urllib3_future import (  # type: ignore[assignment]
         ConnectionInfo,
@@ -106,6 +108,8 @@ else:
         parse_url,
         Retry,
     )
+    from urllib3_future.contrib.resolver import BaseResolver  # type: ignore[assignment]
+    from urllib3_future.contrib.resolver._async import AsyncBaseResolver  # type: ignore[assignment]
 
 from ._constant import DEFAULT_POOLBLOCK, DEFAULT_POOLSIZE, DEFAULT_RETRIES
 from ._typing import (
@@ -319,6 +323,7 @@ class HTTPAdapter(BaseAdapter):
         "_source_address",
         "_disable_ipv4",
         "_disable_ipv6",
+        "_happy_eyeballs",
     ]
 
     def __init__(
@@ -335,6 +340,7 @@ class HTTPAdapter(BaseAdapter):
         source_address: tuple[str, int] | None = None,
         disable_ipv4: bool = False,
         disable_ipv6: bool = False,
+        happy_eyeballs: bool | int = False,
     ):
         if isinstance(max_retries, bool):
             self.max_retries: RetryType = False
@@ -364,6 +370,7 @@ class HTTPAdapter(BaseAdapter):
         self._source_address = source_address
         self._disable_ipv4 = disable_ipv4
         self._disable_ipv6 = disable_ipv6
+        self._happy_eyeballs = happy_eyeballs
 
         #: we keep a list of pending (lazy) response
         self._promises: dict[str, Response] = {}
@@ -391,6 +398,7 @@ class HTTPAdapter(BaseAdapter):
             resolver=resolver,
             source_address=source_address,
             socket_family=resolve_socket_family(disable_ipv4, disable_ipv6),
+            happy_eyeballs=happy_eyeballs,
         )
 
     def __getstate__(self) -> dict[str, typing.Any | None]:
@@ -422,6 +430,7 @@ class HTTPAdapter(BaseAdapter):
             disabled_svn=disabled_svn,
             source_address=self._source_address,
             socket_family=resolve_socket_family(self._disable_ipv4, self._disable_ipv6),
+            happy_eyeballs=self._happy_eyeballs,
         )
 
     def init_poolmanager(
@@ -490,6 +499,7 @@ class HTTPAdapter(BaseAdapter):
                 block=self._pool_block,
                 disabled_svn=disabled_svn,
                 resolver=self._resolver,
+                happy_eyeballs=self._happy_eyeballs,
                 **proxy_kwargs,
             )
         else:
@@ -502,6 +512,7 @@ class HTTPAdapter(BaseAdapter):
                 block=self._pool_block,
                 disabled_svn=disabled_svn,
                 resolver=self._resolver,
+                happy_eyeballs=self._happy_eyeballs,
                 **proxy_kwargs,
             )
 
@@ -1050,6 +1061,10 @@ class HTTPAdapter(BaseAdapter):
                             strict_ocsp_enabled,
                             0.2 if not strict_ocsp_enabled else 1.0,
                             kwargs["proxies"],
+                            self._resolver
+                            if isinstance(self._resolver, BaseResolver)
+                            else None,
+                            self._happy_eyeballs,
                         )
 
                 kwargs["on_post_connection"] = on_post_connection
@@ -1282,6 +1297,7 @@ class AsyncHTTPAdapter(AsyncBaseAdapter):
         "_source_address",
         "_disable_ipv4",
         "_disable_ipv6",
+        "_happy_eyeballs",
     ]
 
     def __init__(
@@ -1298,6 +1314,7 @@ class AsyncHTTPAdapter(AsyncBaseAdapter):
         source_address: tuple[str, int] | None = None,
         disable_ipv4: bool = False,
         disable_ipv6: bool = False,
+        happy_eyeballs: bool | int = False,
     ):
         if isinstance(max_retries, bool):
             self.max_retries: RetryType = False
@@ -1328,6 +1345,7 @@ class AsyncHTTPAdapter(AsyncBaseAdapter):
         self._source_address = source_address
         self._disable_ipv4 = disable_ipv4
         self._disable_ipv6 = disable_ipv6
+        self._happy_eyeballs = happy_eyeballs
 
         #: we keep a list of pending (lazy) response
         self._promises: dict[str, Response | AsyncResponse] = {}
@@ -1354,6 +1372,7 @@ class AsyncHTTPAdapter(AsyncBaseAdapter):
             resolver=resolver,
             source_address=source_address,
             socket_family=resolve_socket_family(disable_ipv4, disable_ipv6),
+            happy_eyeballs=happy_eyeballs,
         )
 
     def __getstate__(self) -> dict[str, typing.Any | None]:
@@ -1385,6 +1404,7 @@ class AsyncHTTPAdapter(AsyncBaseAdapter):
             disabled_svn=disabled_svn,
             source_address=self._source_address,
             socket_family=resolve_socket_family(self._disable_ipv4, self._disable_ipv6),
+            happy_eyeballs=self._happy_eyeballs,
         )
 
     def init_poolmanager(
@@ -1455,6 +1475,7 @@ class AsyncHTTPAdapter(AsyncBaseAdapter):
                 block=self._pool_block,
                 disabled_svn=disabled_svn,
                 resolver=self._resolver,
+                happy_eyeballs=self._happy_eyeballs,
                 **proxy_kwargs,
             )
         else:
@@ -1467,6 +1488,7 @@ class AsyncHTTPAdapter(AsyncBaseAdapter):
                 block=self._pool_block,
                 disabled_svn=disabled_svn,
                 resolver=self._resolver,
+                happy_eyeballs=self._happy_eyeballs,
                 **proxy_kwargs,
             )
 
@@ -2022,6 +2044,10 @@ class AsyncHTTPAdapter(AsyncBaseAdapter):
                             strict_ocsp_enabled,
                             0.2 if not strict_ocsp_enabled else 1.0,
                             kwargs["proxies"],
+                            self._resolver
+                            if isinstance(self._resolver, AsyncBaseResolver)
+                            else None,
+                            self._happy_eyeballs,
                         )
 
                 kwargs["on_post_connection"] = on_post_connection

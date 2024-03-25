@@ -99,3 +99,14 @@ class TestLiveStandardCase:
         s.get("https://pie.dev/get")
 
         assert s.resolver.is_available()
+
+    @pytest.mark.skipif(os.environ.get("CI") is None, reason="Worth nothing locally")
+    def test_happy_eyeballs(self) -> None:
+        """A bit of context, this test, running it locally does not get us
+        any confidence about Happy Eyeballs. This test is valuable in Github CI where IPv6 addresses are unreachable.
+        We're using a custom DNS resolver that will yield the IPv6 addresses and IPv4 ones.
+        If this hang in CI, then you did something wrong...!"""
+        with Session(resolver="doh+cloudflare://", happy_eyeballs=True) as s:
+            r = s.get("https://pie.dev/get")
+
+            assert r.ok

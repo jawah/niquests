@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import os
 
 import pytest
 
@@ -216,3 +217,14 @@ class TestAsyncWithMultiplex:
         assert len(responses_bar) == 2
 
         assert all(r.status_code == 200 for r in responses_foo + responses_bar)
+
+    @pytest.mark.skipif(os.environ.get("CI") is None, reason="Worth nothing locally")
+    async def test_happy_eyeballs(self) -> None:
+        """A bit of context, this test, running it locally does not get us
+        any confidence about Happy Eyeballs. This test is valuable in Github CI where IPv6 addresses are unreachable.
+        We're using a custom DNS resolver that will yield the IPv6 addresses and IPv4 ones.
+        If this hang in CI, then you did something wrong...!"""
+        async with AsyncSession(resolver="doh+cloudflare://", happy_eyeballs=True) as s:
+            r = await s.get("https://pie.dev/get")
+
+            assert r.ok
