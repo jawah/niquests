@@ -6,14 +6,31 @@ Recommended Packages and Extensions
 Niquests is compatible with a great variety of powerful and useful third-party extensions.
 This page provides an overview of some of the best of them.
 
-CacheControl
-------------
+Requests Cache
+--------------
 
-`CacheControl`_ is an extension that adds a full HTTP cache to Niquests. This
-makes your web requests substantially more efficient, and should be used
-whenever you're making a lot of web niquests.
+`requests-cache`_ is a persistent HTTP cache that provides an easy way to get better performance with the python requests library.
 
-.. _CacheControl: https://cachecontrol.readthedocs.io/en/latest/
+.. _requests-cache: https://github.com/requests-cache/requests-cache
+
+.. warning:: There's a catch when trying to use Niquests with `requests-cache`_. You will need a quick patch prior to using it.
+
+Do as follow::
+
+    import requests_cache
+    import niquests
+
+
+    class CacheSession(requests_cache.session.CacheMixin, niquests.Session):
+        ...
+
+
+    if __name__ == "__main__":
+
+        s = CacheSession()
+
+        for i in range(60):
+            r = s.get('https://httpbin.org/delay/1')
 
 Requests-Toolbelt
 -----------------
