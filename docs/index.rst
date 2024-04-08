@@ -22,7 +22,7 @@ Release v\ |version|. (:ref:`Installation <install>`)
     :alt: Python Version Support Badge
 
 **Niquests** is an elegant and simple HTTP library for Python, built for human beings. It
-is designed to be a drop-in replacement for **Requests** that is no longer under feature freeze.
+is designed to be a drop-in replacement for **Requests** that is under feature freeze.
 
 -------------------
 
