@@ -39,11 +39,6 @@ except ImportError:
     certifi = None  # type: ignore
 
 try:
-    import cryptography  # type: ignore
-except ImportError:
-    cryptography = None  # type: ignore
-
-try:
     from .extensions._ocsp import verify as ocsp_verify
 except ImportError:
     ocsp_verify = None  # type: ignore
@@ -105,9 +100,6 @@ def info():
 
     charset_normalizer_info = {"version": charset_normalizer.__version__}
 
-    cryptography_info = {
-        "version": getattr(cryptography, "__version__", ""),
-    }
     idna_info = {
         "version": getattr(idna, "__version__", ""),
     }
@@ -123,7 +115,6 @@ def info():
         "system_ssl": system_ssl_info,
         "urllib3.future": urllib3_info,
         "charset_normalizer": charset_normalizer_info,
-        "cryptography": cryptography_info,
         "idna": idna_info,
         "niquests": {
             "version": niquests_version,

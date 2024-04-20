@@ -1,6 +1,21 @@
 Release History
 ===============
 
+3.6.0 (2024-04-20)
+------------------
+
+**Added**
+- Support for qh3 version 1.0.0
+  This qh3 release enable a greater flexibility by dropping cryptography. We had to adapt the OCSP code as we
+  relied on cryptography. HTTP/3 experience is greatly improved.
+
+**Changed**
+- urllib3.future lower bound constraint has been raised to version 2.7.904 to ensure support for the last qh3 release.
+
+**Fixed**
+- Improved compatibility with third party mocking tool that are bound to requests.
+- OCSP check did not warn if the HTTP server responded with a non 2xx response in strict mode.
+
 3.5.5 (2024-03-25)
 ------------------
 

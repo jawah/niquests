@@ -3,20 +3,20 @@ from __future__ import annotations
 import datetime
 import hmac
 import socket
+import ssl
 import threading
 import warnings
 from hashlib import sha256
 from random import randint
 from statistics import mean
 
-import wassima
-from cryptography.hazmat.primitives import serialization
-from cryptography.hazmat.primitives.hashes import SHA1
-from cryptography.x509 import (
+from qh3._hazmat import (
+    OCSPRequest,
+    OCSPResponse,
+    OCSPResponseStatus,
+    OCSPCertStatus,
     Certificate,
-    load_der_x509_certificate,
-    load_pem_x509_certificate,
-    ocsp,
+    ReasonFlags,
 )
 
 from .._compat import HAS_LEGACY_URLLIB3
@@ -53,38 +53,13 @@ from ._picotls import (
 
 
 def _str_fingerprint_of(certificate: Certificate) -> str:
-    return ":".join([format(i, "02x") for i in certificate.fingerprint(SHA1())])
+    return ":".join(
+        [format(i, "02x") for i in sha256(certificate.public_bytes()).digest()]
+    )
 
 
-def _infer_issuer_from(certificate: Certificate) -> Certificate | None:
-    issuer: Certificate | None = None
-
-    for der_cert in (
-        wassima.root_der_certificates() + _SharedRevocationStatusCache.issuers
-    ):
-        if isinstance(der_cert, Certificate):
-            possible_issuer = der_cert
-        else:
-            try:
-                possible_issuer = load_der_x509_certificate(der_cert)
-            except (
-                ValueError
-            ):  # Defensive: mitigation against future Cryptography evolutions
-                continue
-
-        # detect cryptography old build
-        if not hasattr(certificate, "verify_directly_issued_by"):
-            break
-
-        try:
-            certificate.verify_directly_issued_by(possible_issuer)
-        except ValueError:
-            continue
-        else:
-            issuer = possible_issuer
-            break
-
-    return issuer
+def readable_revocation_reason(flag: ReasonFlags | None) -> str | None:
+    return flag.name.lower() if flag is not None else None
 
 
 def _ask_nicely_for_issuer(
@@ -196,7 +171,7 @@ def _ask_nicely_for_issuer(
     certificates = []
 
     for der in der_certificates:
-        certificates.append(load_der_x509_certificate(der))
+        certificates.append(Certificate(der))
 
     send_tls(sock, ALERT, b"\x01\x00")
     sock.close()
@@ -211,16 +186,20 @@ def _ask_nicely_for_issuer(
 class InMemoryRevocationStatus:
     def __init__(self, max_size: int = 2048):
         self._max_size: int = max_size
-        self._store: dict[str, ocsp.OCSPResponse] = {}
-        self._issuers: list[Certificate] = []
+        self._store: dict[str, OCSPResponse] = {}
+        self._issuers_map: dict[str, Certificate] = {}
         self._timings: list[datetime.datetime] = []
         self._access_lock = threading.RLock()
         self.hold: bool = False
 
-    @property
-    def issuers(self) -> list[Certificate]:
+    def get_issuer_of(self, peer_certificate: Certificate) -> Certificate | None:
         with self._access_lock:
-            return self._issuers
+            fingerprint: str = _str_fingerprint_of(peer_certificate)
+
+            if fingerprint not in self._issuers_map:
+                return None
+
+            return self._issuers_map[fingerprint]
 
     def __len__(self) -> int:
         with self._access_lock:
@@ -240,7 +219,7 @@ class InMemoryRevocationStatus:
 
             return mean(delays) if delays else 0.0
 
-    def check(self, peer_certificate: Certificate) -> ocsp.OCSPResponse | None:
+    def check(self, peer_certificate: Certificate) -> OCSPResponse | None:
         with self._access_lock:
             fingerprint: str = _str_fingerprint_of(peer_certificate)
 
@@ -249,11 +228,11 @@ class InMemoryRevocationStatus:
 
             cached_response = self._store[fingerprint]
 
-            if cached_response.certificate_status == ocsp.OCSPCertStatus.GOOD:
+            if cached_response.certificate_status == OCSPCertStatus.GOOD:
                 if (
                     cached_response.next_update
                     and datetime.datetime.now().timestamp()
-                    >= cached_response.next_update.timestamp()
+                    >= cached_response.next_update
                 ):
                     del self._store[fingerprint]
                     return None
@@ -265,22 +244,19 @@ class InMemoryRevocationStatus:
         self,
         peer_certificate: Certificate,
         issuer_certificate: Certificate,
-        ocsp_response: ocsp.OCSPResponse,
+        ocsp_response: OCSPResponse,
     ) -> None:
         with self._access_lock:
             if len(self._store) >= self._max_size:
                 tbd_key: str | None = None
-                closest_next_update: datetime.datetime | None = None
+                closest_next_update: int | None = None
 
                 for k in self._store:
-                    if (
-                        self._store[k].response_status
-                        != ocsp.OCSPResponseStatus.SUCCESSFUL
-                    ):
+                    if self._store[k].response_status != OCSPResponseStatus.SUCCESSFUL:
                         tbd_key = k
                         break
 
-                    if self._store[k].certificate_status != ocsp.OCSPCertStatus.REVOKED:
+                    if self._store[k].certificate_status != OCSPCertStatus.REVOKED:
                         if closest_next_update is None:
                             closest_next_update = self._store[k].next_update
                             tbd_key = k
@@ -291,20 +267,16 @@ class InMemoryRevocationStatus:
 
                 if tbd_key:
                     del self._store[tbd_key]
+                    del self._issuers_map[tbd_key]
                 else:
-                    del self._store[list(self._store.keys())[0]]
+                    first_key = list(self._store.keys())[0]
+                    del self._store[first_key]
+                    del self._issuers_map[first_key]
 
-            self._store[_str_fingerprint_of(peer_certificate)] = ocsp_response
+            peer_fingerprint: str = _str_fingerprint_of(peer_certificate)
 
-            issuer_fingerprint = _str_fingerprint_of(issuer_certificate)
-
-            if not any(
-                _str_fingerprint_of(c) == issuer_fingerprint for c in self._issuers
-            ):
-                self._issuers.append(issuer_certificate)
-
-            if len(self._issuers) >= self._max_size:
-                self._issuers.pop(0)
+            self._store[peer_fingerprint] = ocsp_response
+            self._issuers_map[peer_fingerprint] = issuer_certificate
 
             self._timings.append(datetime.datetime.now())
 
@@ -355,27 +327,27 @@ def verify(
         if _SharedRevocationStatusCache.hold:
             return
 
-    peer_certificate = load_der_x509_certificate(conn_info.certificate_der)
+    peer_certificate = Certificate(conn_info.certificate_der)
     cached_response = _SharedRevocationStatusCache.check(peer_certificate)
 
     if cached_response is not None:
-        issuer_certificate = _infer_issuer_from(peer_certificate)
+        issuer_certificate = _SharedRevocationStatusCache.get_issuer_of(
+            peer_certificate
+        )
 
         if issuer_certificate:
-            conn_info.issuer_certificate_der = issuer_certificate.public_bytes(
-                serialization.Encoding.DER
-            )
+            conn_info.issuer_certificate_der = issuer_certificate.public_bytes()
 
-        if cached_response.response_status == ocsp.OCSPResponseStatus.SUCCESSFUL:
-            if cached_response.certificate_status == ocsp.OCSPCertStatus.REVOKED:
+        if cached_response.response_status == OCSPResponseStatus.SUCCESSFUL:
+            if cached_response.certificate_status == OCSPCertStatus.REVOKED:
                 r.ocsp_verified = False
                 raise SSLError(
                     f"""Unable to establish a secure connection to {r.url} because the certificate has been revoked
-                    by issuer ({cached_response.revocation_reason or "unspecified"}).
+                    by issuer ({readable_revocation_reason(cached_response.revocation_reason) or "unspecified"}).
                     You should avoid trying to request anything from it as the remote has been compromised.
                     See https://en.wikipedia.org/wiki/OCSP_stapling for more information."""
                 )
-            elif cached_response.certificate_status == ocsp.OCSPCertStatus.UNKNOWN:
+            elif cached_response.certificate_status == OCSPCertStatus.UNKNOWN:
                 r.ocsp_verified = False
                 if strict is True:
                     raise SSLError(
@@ -402,7 +374,9 @@ def verify(
         #   - Downloading it using specified caIssuers from the peer certificate.
         if conn_info.issuer_certificate_der is None:
             # It could be a root (self-signed) certificate. Or a previously seen issuer.
-            issuer_certificate = _infer_issuer_from(peer_certificate)
+            issuer_certificate = _SharedRevocationStatusCache.get_issuer_of(
+                peer_certificate
+            )
 
             # If not, try to ask nicely the remote to give us the certificate chain, and extract
             # from it the immediate issuer.
@@ -427,9 +401,6 @@ def verify(
                         )
                     else:
                         issuer_certificate = None
-
-                    if issuer_certificate is not None:
-                        peer_certificate.verify_directly_issued_by(issuer_certificate)
 
                 except (socket.gaierror, TimeoutError, ConnectionError, AttributeError):
                     pass
@@ -460,7 +431,7 @@ def verify(
                                 b"-----BEGIN CERTIFICATE-----"
                                 not in raw_intermediary_content
                             ):
-                                issuer_certificate = load_der_x509_certificate(
+                                issuer_certificate = Certificate(
                                     raw_intermediary_content
                                 )
                             # b64 PEM
@@ -468,8 +439,10 @@ def verify(
                                 b"-----BEGIN CERTIFICATE-----"
                                 in raw_intermediary_content
                             ):
-                                issuer_certificate = load_pem_x509_certificate(
-                                    raw_intermediary_content
+                                issuer_certificate = Certificate(
+                                    ssl.PEM_cert_to_DER_cert(
+                                        raw_intermediary_content.decode()
+                                    )
                                 )
 
             # Well! We're out of luck. No further should we go.
@@ -483,23 +456,28 @@ def verify(
                     )
                 return
 
-            conn_info.issuer_certificate_der = issuer_certificate.public_bytes(
-                serialization.Encoding.DER
-            )
+            conn_info.issuer_certificate_der = issuer_certificate.public_bytes()
         else:
-            issuer_certificate = load_der_x509_certificate(
-                conn_info.issuer_certificate_der
+            issuer_certificate = Certificate(conn_info.issuer_certificate_der)
+
+        try:
+            req = OCSPRequest(
+                peer_certificate.public_bytes(), issuer_certificate.public_bytes()
             )
-
-        builder = ocsp.OCSPRequestBuilder()
-        builder = builder.add_certificate(peer_certificate, issuer_certificate, SHA1())
-
-        req = builder.build()
+        except ValueError:
+            if strict:
+                warnings.warn(
+                    f"""Unable to insure that the remote peer ({r.url}) has a currently valid certificate via OCSP.
+                    You are seeing this warning due to enabling strict mode for OCSP / Revocation check.
+                    Reason: The X509 OCSP generator failed to assemble the request""",
+                    SecurityWarning,
+                )
+            return
 
         try:
             ocsp_http_response = session.post(
                 endpoints[randint(0, len(endpoints) - 1)],
-                data=req.public_bytes(serialization.Encoding.DER),
+                data=req.public_bytes(),
                 headers={"Content-Type": "application/ocsp-request"},
                 timeout=timeout,
             )
@@ -520,22 +498,32 @@ def verify(
             if ocsp_http_response.content is None:
                 return
 
-            ocsp_resp = ocsp.load_der_ocsp_response(ocsp_http_response.content)
+            try:
+                ocsp_resp = OCSPResponse(ocsp_http_response.content)
+            except ValueError:
+                if strict:
+                    warnings.warn(
+                        f"""Unable to insure that the remote peer ({r.url}) has a currently valid certificate via OCSP.
+                        You are seeing this warning due to enabling strict mode for OCSP / Revocation check.
+                        Reason: The X509 OCSP parser failed to read the response""",
+                        SecurityWarning,
+                    )
+                return
 
             _SharedRevocationStatusCache.save(
                 peer_certificate, issuer_certificate, ocsp_resp
             )
 
-            if ocsp_resp.response_status == ocsp.OCSPResponseStatus.SUCCESSFUL:
-                if ocsp_resp.certificate_status == ocsp.OCSPCertStatus.REVOKED:
+            if ocsp_resp.response_status == OCSPResponseStatus.SUCCESSFUL:
+                if ocsp_resp.certificate_status == OCSPCertStatus.REVOKED:
                     r.ocsp_verified = False
                     raise SSLError(
                         f"""Unable to establish a secure connection to {r.url} because the certificate has been revoked
-                        by issuer ({ocsp_resp.revocation_reason or "unspecified"}).
+                        by issuer ({readable_revocation_reason(ocsp_resp.revocation_reason) or "unspecified"}).
                         You should avoid trying to request anything from it as the remote has been compromised.
                         See https://en.wikipedia.org/wiki/OCSP_stapling for more information."""
                     )
-                if ocsp_resp.certificate_status == ocsp.OCSPCertStatus.UNKNOWN:
+                if ocsp_resp.certificate_status == OCSPCertStatus.UNKNOWN:
                     r.ocsp_verified = False
                     if strict is True:
                         raise SSLError(
@@ -553,6 +541,14 @@ def verify(
                         OCSP Server Status: {ocsp_resp.response_status}""",
                         SecurityWarning,
                     )
+        else:
+            if strict:
+                warnings.warn(
+                    f"""Unable to insure that the remote peer ({r.url}) has a currently valid certificate via OCSP.
+                    You are seeing this warning due to enabling strict mode for OCSP / Revocation check.
+                    OCSP Server Status: {str(ocsp_http_response)}""",
+                    SecurityWarning,
+                )
 
 
 __all__ = ("verify",)

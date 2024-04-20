@@ -1188,7 +1188,7 @@ class Session:
         request.conn_info = _deepcopy_ci(request.conn_info)
 
         # We are leveraging a multiplexed connection
-        if r.raw is None:
+        if r.lazy is True:
             r._resolve_redirect = lambda x, y: next(
                 self.resolve_redirects(x, y, yield_requests=True, **kwargs),  # type: ignore
                 None,

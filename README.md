@@ -114,6 +114,8 @@ Niquests allows you to send HTTP requests extremely easily. There’s no need to
 [![Downloads](https://static.pepy.tech/badge/niquests/month)](https://pepy.tech/project/niquests)
 [![Supported Versions](https://img.shields.io/pypi/pyversions/niquests.svg)](https://pypi.org/project/niquests)
 
+This project does not require any compilation toolchain. The HTTP/3 support is not enforced and installed if your platform can support it natively _(e.g. pre-built wheel available)_.
+
 ## ✨ Installing Niquests and Supported Versions
 
 Niquests is available on PyPI:
