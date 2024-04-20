@@ -424,7 +424,7 @@ class AsyncSession(Session):
         request.conn_info = _deepcopy_ci(request.conn_info)
 
         # We are leveraging a multiplexed connection
-        if r.raw is None:
+        if r.lazy is True:
 
             async def _redirect_method_ref(x, y):
                 try:

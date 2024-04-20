@@ -118,15 +118,15 @@ Yes... kind of!
 Niquests ships with a nice alternative to ``CaseInsensitiveDict`` that is ``kiss_headers.Headers``.
 You may access it through the ``oheaders`` property of your usual Response, Request and PreparedRequest.
 
-Am I obligated to install qh3 and dependents?
----------------------------------------------
+Am I obligated to install qh3?
+------------------------------
 
 No. But by default, it could be picked for installation. You may remove it safely at the cost
-of loosing HTTP/3 over QUIC.
+of loosing HTTP/3 over QUIC and OCSP certificate revocation status.
 
 A shortcut would be::
 
-    $ pip uninstall qh3 cryptography cffi pycparser
+    $ pip uninstall qh3
 
 .. warning:: Your site-packages is shared, thus it is possible that other libraries depends on some of the listed programs. Do it with care!
 

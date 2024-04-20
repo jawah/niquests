@@ -41,7 +41,7 @@ dynamic = ["version"]
 dependencies = [
     "charset_normalizer>=2,<4",
     "idna>=2.5,<4",
-    "urllib3.future>=2.7.900,<3",
+    "urllib3.future>=2.7.904,<3",
     "wassima>=1.0.1,<2",
     "kiss_headers>=2,<4",
 ]
@@ -51,14 +51,14 @@ socks = [
     "urllib3.future[socks]",
 ]
 http3 = [
-    "urllib3.future[qh3]"
+    "urllib3.future[qh3]",
 ]
 ocsp = [
-    "cryptography<43.0.0,>=41.0.0"
+    "urllib3.future[qh3]",
 ]
 speedups = [
     "orjson>=3,<4",
-    "urllib3.future[zstd,brotli]"
+    "urllib3.future[zstd,brotli]",
 ]
 
 [project.urls]

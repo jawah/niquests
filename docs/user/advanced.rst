@@ -1249,7 +1249,7 @@ a complementary security measure.
 Unless in strict-mode, the proxy configuration will be respected when given, as long as it specify
 a plain ``http`` proxy. This is meant for people who want privacy.
 
-This feature may not be available if the ``cryptography`` package is missing from your environment.
+This feature may not be available if the ``qh3`` package is missing from your environment.
 Verify the availability by running ``python -m niquests.help``.
 
 .. note:: Access property ``ocsp_verified`` in both ``PreparedRequest``, and ``Response`` to have information about this post handshake verification.
