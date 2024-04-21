@@ -1,6 +1,12 @@
 Release History
 ===============
 
+3.6.1 (2024-04-21)
+------------------
+
+**Fixed**
+- Handling broken environments with a graceful exception with a detailed error message.
+
 3.6.0 (2024-04-20)
 ------------------
 

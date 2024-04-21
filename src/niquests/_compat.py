@@ -22,7 +22,21 @@ try:
 except ImportError:
     urllib3 = None  # type: ignore[assignment]
 
-T = typing.TypeVar("T", urllib3.Timeout, urllib3.Retry)
+
+if (urllib3 is None and urllib3_future is None) or (
+    HAS_LEGACY_URLLIB3 and urllib3_future is None
+):
+    raise RuntimeError(
+        "This is awkward but your environment is missing urllib3-future. "
+        "Your environment seems broken. "
+        "You may fix this issue by running `python -m pip install niquests -U` "
+        "to force reinstall its dependencies."
+    )
+
+if urllib3 is not None:
+    T = typing.TypeVar("T", urllib3.Timeout, urllib3.Retry)
+else:
+    T = typing.TypeVar("T", urllib3_future.Timeout, urllib3_future.Retry)  # type: ignore
 
 
 def urllib3_ensure_type(o: T) -> T:
