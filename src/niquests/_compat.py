@@ -19,7 +19,12 @@ else:
 
 try:
     import urllib3
-except ImportError:
+
+    # force detect broken or dummy urllib3 package
+    urllib3.Timeout  # noqa
+    urllib3.Retry  # noqa
+    urllib3.__version__  # noqa
+except (ImportError, AttributeError):
     urllib3 = None  # type: ignore[assignment]
 
 

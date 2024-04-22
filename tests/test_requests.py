@@ -2632,7 +2632,12 @@ def test_prepared_copy(kwargs):
 
 
 def test_urllib3_retries(httpbin):
-    from urllib3.util import Retry
+    from niquests._compat import HAS_LEGACY_URLLIB3
+
+    if not HAS_LEGACY_URLLIB3:
+        from urllib3.util import Retry
+    else:
+        from urllib3_future.util import Retry
 
     s = niquests.Session()
     s.mount("http://", HTTPAdapter(max_retries=Retry(total=2, status_forcelist=[500])))
