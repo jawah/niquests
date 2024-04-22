@@ -9,7 +9,7 @@ import nox
 def tests_impl(
     session: nox.Session,
     extras: str = "socks",
-    cohabitation: bool = False,
+    cohabitation: bool | None = False,
 ) -> None:
     # Install deps and the package itself.
     session.install("-r", "requirements-dev.txt")
@@ -19,8 +19,12 @@ def tests_impl(
     session.run("pip", "--version")
     session.run("python", "--version")
 
-    if cohabitation:
+    if cohabitation is True:
         session.run("pip", "install", "urllib3")
+        session.run("python", "-m", "niquests.help")
+    elif cohabitation is None:
+        session.run("pip", "install", "urllib3")
+        session.run("pip", "uninstall", "-y", "urllib3")
         session.run("python", "-m", "niquests.help")
 
     session.run(
@@ -55,6 +59,7 @@ def test(session: nox.Session) -> None:
 )
 def test_cohabitation(session: nox.Session) -> None:
     tests_impl(session, cohabitation=True)
+    tests_impl(session, cohabitation=None)
 
 
 @nox.session

@@ -22,7 +22,11 @@ from ._compat import HAS_LEGACY_URLLIB3
 
 if HAS_LEGACY_URLLIB3 is True:
     import urllib3_future as urllib3
-    from urllib3 import __version__ as __legacy_urllib3_version__
+
+    try:
+        from urllib3 import __version__ as __legacy_urllib3_version__
+    except (ImportError, AttributeError):
+        __legacy_urllib3_version__ = None  # type: ignore[assignment]
 else:
     import urllib3  # type: ignore[no-redef]
 

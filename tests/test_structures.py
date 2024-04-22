@@ -3,7 +3,12 @@ from __future__ import annotations
 import pytest
 
 from niquests.structures import CaseInsensitiveDict, LookupDict
-from urllib3 import HTTPHeaderDict
+from niquests._compat import HAS_LEGACY_URLLIB3
+
+if not HAS_LEGACY_URLLIB3:
+    from urllib3 import HTTPHeaderDict
+else:
+    from urllib3_future import HTTPHeaderDict
 
 
 class TestCaseInsensitiveDict:
