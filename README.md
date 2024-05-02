@@ -51,20 +51,20 @@ _Scenario:_ Fetch a thousand requests using 10 tasks or threads, each with a hun
 | Client   | Average Delay to Complete | Notes                        |
 |----------|---------------------------|------------------------------|
 | requests | 987 ms                    | ThreadPoolExecutor. HTTP/1.1 |
-| httpx    | 735 ms                    | Asyncio. HTTP/2              |
-| niquests | 400 ms                    | Asyncio. HTTP/2              |
+| httpx    | 720 ms                    | Asyncio. HTTP/2              |
+| niquests | 390 ms                    | Asyncio. HTTP/2              |
 
 **Simplified APIs**
 
 | Client        | Average Delay to Complete | Notes                        |
 |---------------|---------------------------|------------------------------|
 | requests core | 643 ms                    | ThreadPoolExecutor. HTTP/1.1 |
-| httpx core    | 550 ms                    | Asyncio. HTTP/2              |
-| aiohttp       | 220 ms                    | Asyncio. HTTP/1.1            |
+| httpx core    | 530 ms                    | Asyncio. HTTP/2              |
+| aiohttp       | 210 ms                    | Asyncio. HTTP/1.1            |
 | niquests core | 190 ms                    | Asyncio. HTTP/2              |
 
-Did you give up on HTTP/2 due to performance concerns? Think again! Multiplexing and response lazyness open up a wide range
-of possibilities! Want to learn more about the tests? scripts? reasoning?
+Did you give up on HTTP/2 due to performance concerns? Think again! Do you realize that you can get 2.53 times faster with the same CPU if you ever switched to Niquests from Requests? 
+Multiplexing and response lazyness open up a wide range of possibilities! Want to learn more about the tests? scripts? reasoning?
 
 Take a deeper look at https://github.com/Ousret/niquests-stats
 
