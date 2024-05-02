@@ -48,20 +48,20 @@ _Scenario:_ Fetch a thousand requests using 10 tasks or threads, each with a hun
 
 **High-Level APIs**
 
-| Client   | Average Delay to Complete                | Notes                        |
-|----------|------------------------------------------|------------------------------|
-| requests | <span style="color:red">987 ms</span>    | ThreadPoolExecutor. HTTP/1.1 |
-| httpx    | <span style="color:orange">735 ms</span> | Asyncio. HTTP/2              |
-| niquests | <span style="color:green">470 ms</span>  | Asyncio. HTTP/2              |
+| Client   | Average Delay to Complete | Notes                        |
+|----------|---------------------------|------------------------------|
+| requests | 987 ms                    | ThreadPoolExecutor. HTTP/1.1 |
+| httpx    | 735 ms                    | Asyncio. HTTP/2              |
+| niquests | 400 ms                    | Asyncio. HTTP/2              |
 
 **Simplified APIs**
 
-| Client        | Average Delay to Complete                | Notes                        |
-|---------------|------------------------------------------|------------------------------|
-| requests core | <span style="color:red">643 ms</span>    | ThreadPoolExecutor. HTTP/1.1 |
-| httpx core    | <span style="color:orange">550 ms</span> | Asyncio. HTTP/2              |
-| aiohttp       | <span style="color:green">220 ms</span>  | Asyncio. HTTP/1.1            |
-| niquests core | <span style="color:green">210 ms</span>  | Asyncio. HTTP/2              |
+| Client        | Average Delay to Complete | Notes                        |
+|---------------|---------------------------|------------------------------|
+| requests core | 643 ms                    | ThreadPoolExecutor. HTTP/1.1 |
+| httpx core    | 550 ms                    | Asyncio. HTTP/2              |
+| aiohttp       | 220 ms                    | Asyncio. HTTP/1.1            |
+| niquests core | 190 ms                    | Asyncio. HTTP/2              |
 
 Did you give up on HTTP/2 due to performance concerns? Think again! Multiplexing and response lazyness open up a wide range
 of possibilities! Want to learn more about the tests? scripts? reasoning?

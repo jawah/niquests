@@ -10,7 +10,7 @@ import warnings
 from json import JSONDecodeError
 
 import charset_normalizer
-import h2  # type: ignore
+import jh2  # type: ignore
 import h11
 import idna
 import wassima
@@ -128,7 +128,7 @@ def info():
             "qh3": qh3.__version__ if qh3 is not None else None,
         },
         "http2": {
-            "h2": h2.__version__,
+            "jh2": jh2.__version__,
         },
         "http1": {
             "h11": h11.__version__,

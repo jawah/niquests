@@ -309,20 +309,20 @@ async def verify(
     ):
         return
 
+    endpoints: list[str] = [  # type: ignore
+        # exclude non-HTTP endpoint. like ldap.
+        ep  # type: ignore
+        for ep in list(conn_info.certificate_dict.get("OCSP", []))  # type: ignore
+        if ep.startswith("http://")  # type: ignore
+    ]
+
+    # well... not all issued certificate have a OCSP entry. e.g. mkcert.
+    if not endpoints:
+        return
+
     peer_certificate = Certificate(conn_info.certificate_der)
 
     async with _SharedRevocationStatusCache.lock(peer_certificate):
-        endpoints: list[str] = [  # type: ignore
-            # exclude non-HTTP endpoint. like ldap.
-            ep  # type: ignore
-            for ep in list(conn_info.certificate_dict.get("OCSP", []))  # type: ignore
-            if ep.startswith("http://")  # type: ignore
-        ]
-
-        # well... not all issued certificate have a OCSP entry. e.g. mkcert.
-        if not endpoints:
-            return
-
         # this feature, by default, is reserved for a reasonable usage.
         if not strict:
             mean_rate_sec = _SharedRevocationStatusCache.rate()
