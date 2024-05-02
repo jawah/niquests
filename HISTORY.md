@@ -1,6 +1,16 @@
 Release History
 ===============
 
+3.6.2 (2024-05-02)
+------------------
+
+**Fixed**
+- "Help" program `python -m niquests.help` that depended on h2 while not required anymore.
+- Minor performance regression in async while checking OCSP when certificate isn't eligible (e.g. no OCSP url provided).
+
+**Changed**
+- urllib3.future lower bound constraint has been raised to version 2.7.905 to ensure inclusion of jh2 instead of h2.
+
 3.6.1 (2024-04-22)
 ------------------
 
