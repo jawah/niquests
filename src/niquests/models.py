@@ -742,9 +742,12 @@ class PreparedRequest:
             result = []
             for k, vs in to_key_val_list(data):
                 iterable_vs: typing.Iterable[str | bytes]
-                if isinstance(vs, (str, bytes, int, float, bool)):
-                    # not officially supported, but some people maybe passing ints, float or bool.
-                    if isinstance(vs, (str, bytes)) is False:
+                if isinstance(vs, (str, bytes, int, float, bool)) or not hasattr(
+                    vs, "__iter__"
+                ):
+                    # not officially supported, but some people maybe passing ints, float, bool,
+                    # or other string serializable classes.
+                    if not isinstance(vs, (str, bytes)):
                         iterable_vs = [str(vs)]
                     else:
                         iterable_vs = [vs]

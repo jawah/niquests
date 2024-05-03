@@ -2540,6 +2540,28 @@ def test_json_encodes_as_bytes():
     assert isinstance(p.body, bytes)
 
 
+def test_data_ecodes_noniterables():
+    class Class:
+        pass
+
+    class ClassStringable:
+        def __str__(self):
+            return "🔥arbClassStringable🔥"
+
+    body = {
+        "string": "string",
+        "float": 0.01,
+        "int": 100,
+        "bool": True,
+        "None": None,
+        "plain_class": Class(),
+        "stringable_class": ClassStringable(),
+    }
+    p = PreparedRequest()
+    p.prepare(method="post", url="https://www.example.com/", data=body)
+    assert isinstance(p.body, str)
+
+
 def test_requests_are_updated_each_time(httpbin):
     session = RedirectSession([303, 307])
     prep = niquests.Request("POST", httpbin("post")).prepare()
