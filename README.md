@@ -63,7 +63,7 @@ _Scenario:_ Fetch a thousand requests using 10 tasks or threads, each with a hun
 | aiohttp       | 210 ms                    | Asyncio. HTTP/1.1            |
 | niquests core | 190 ms                    | Asyncio. HTTP/2              |
 
-Did you give up on HTTP/2 due to performance concerns? Think again! Do you realize that you can get 2.53 times faster with the same CPU if you ever switched to Niquests from Requests? 
+Did you give up on HTTP/2 due to performance concerns? Think again! Do you realize that you can get 2.53 times faster with the same CPU if you ever switched to Niquests from Requests?
 Multiplexing and response lazyness open up a wide range of possibilities! Want to learn more about the tests? scripts? reasoning?
 
 Take a deeper look at https://github.com/Ousret/niquests-stats
