@@ -2548,18 +2548,28 @@ def test_data_ecodes_noniterables():
         def __str__(self):
             return "🔥arbClassStringable🔥"
 
+    ClassObj = Class()
+
     body = {
         "string": "string",
         "float": 0.01,
         "int": 100,
         "bool": True,
         "None": None,
-        "plain_class": Class(),
+        "plain_class": ClassObj,
         "stringable_class": ClassStringable(),
     }
-    p = PreparedRequest()
-    p.prepare(method="post", url="https://www.example.com/", data=body)
-    assert isinstance(p.body, str)
+
+    expected_response = {
+        "bool": "True",
+        "float": "0.01",
+        "int": "100",
+        "plain_class": str(ClassObj),
+        "string": "string",
+        "stringable_class": "🔥arbClassStringable🔥",
+    }
+    resp = niquests.post(url="https://httpbin.org/post", data=body)
+    assert resp.json()["form"] == expected_response
 
 
 def test_requests_are_updated_each_time(httpbin):
