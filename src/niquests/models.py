@@ -747,7 +747,7 @@ class PreparedRequest:
                 ):
                     # not officially supported, but some people maybe passing ints, float, bool,
                     # or other string serializable classes.
-                    if not isinstance(vs, (str, bytes, type(None))):
+                    if vs is not None and not isinstance(vs, (str, bytes,)):
                         iterable_vs = [str(vs)]
                     else:
                         iterable_vs = [vs]

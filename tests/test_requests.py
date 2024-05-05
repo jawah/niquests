@@ -2540,7 +2540,7 @@ def test_json_encodes_as_bytes():
     assert isinstance(p.body, bytes)
 
 
-def test_data_ecodes_noniterables():
+def test_data_encodes_noniterables(httpbin):
     class Class:
         pass
 
@@ -2552,6 +2552,7 @@ def test_data_ecodes_noniterables():
 
     body = {
         "string": "string",
+        "bytes": b"string",
         "float": 0.01,
         "int": 100,
         "bool": True,
@@ -2566,9 +2567,10 @@ def test_data_ecodes_noniterables():
         "int": "100",
         "plain_class": str(ClassObj),
         "string": "string",
+        "bytes": "bytes",
         "stringable_class": "🔥arbClassStringable🔥",
     }
-    resp = niquests.post(url="https://httpbin.org/post", data=body)
+    resp = niquests.post(httpbin("post"), data=body)
     assert resp.json()["form"] == expected_response
 
 
