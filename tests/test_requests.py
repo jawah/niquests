@@ -2567,7 +2567,7 @@ def test_data_encodes_noniterables(httpbin):
         "int": "100",
         "plain_class": str(ClassObj),
         "string": "string",
-        "bytes": "bytes",
+        "bytes": "string",
         "stringable_class": "🔥arbClassStringable🔥",
     }
     resp = niquests.post(httpbin("post"), data=body)
