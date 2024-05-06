@@ -157,6 +157,8 @@ def extract_cookies_to_jar(
 
     if not (hasattr(response, "_original_response") and response._original_response):
         return
+    if "Set-Cookie" not in response._original_response.msg:
+        return
     # the _original_response field is the wrapped httplib.HTTPResponse object,
     req = MockRequest(request)
     # pull out the HTTPMessage with the headers and put it in the mock:

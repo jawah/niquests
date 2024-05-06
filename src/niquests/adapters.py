@@ -968,26 +968,18 @@ class HTTPAdapter(BaseAdapter):
     def _future_handler(
         self, response: Response, low_resp: BaseHTTPResponse
     ) -> Response | None:
-        stream = typing.cast(
-            bool, response._promise.get_parameter("niquests_is_stream")
+        stream: bool = response._promise.get_parameter("niquests_is_stream")  # type: ignore[assignment]
+        start: float = response._promise.get_parameter("niquests_start")  # type: ignore[assignment]
+
+        hooks: HookType = response._promise.get_parameter("niquests_hooks")  # type: ignore[assignment]
+        session_cookies: CookieJar = response._promise.get_parameter("niquests_cookies")  # type: ignore[assignment]
+        allow_redirects: bool = response._promise.get_parameter(  # type: ignore[assignment]
+            "niquests_allow_redirect"
         )
-        start = typing.cast(float, response._promise.get_parameter("niquests_start"))
-        hooks = typing.cast(HookType, response._promise.get_parameter("niquests_hooks"))
-        session_cookies = typing.cast(
-            CookieJar, response._promise.get_parameter("niquests_cookies")
-        )
-        allow_redirects = typing.cast(
-            bool, response._promise.get_parameter("niquests_allow_redirect")
-        )
-        max_redirect = typing.cast(
-            int, response._promise.get_parameter("niquests_max_redirects")
-        )
-        redirect_count = typing.cast(
-            int, response._promise.get_parameter("niquests_redirect_count")
-        )
-        kwargs = typing.cast(
-            typing.MutableMapping[str, typing.Any],
-            response._promise.get_parameter("niquests_kwargs"),
+        max_redirect: int = response._promise.get_parameter("niquests_max_redirects")  # type: ignore[assignment]
+        redirect_count: int = response._promise.get_parameter("niquests_redirect_count")  # type: ignore[assignment]
+        kwargs: typing.MutableMapping[str, typing.Any] = (
+            response._promise.get_parameter("niquests_kwargs")  # type: ignore[assignment]
         )
 
         # This mark the response as no longer "lazy"
@@ -1951,26 +1943,17 @@ class AsyncHTTPAdapter(AsyncBaseAdapter):
 
         assert isinstance(response, AsyncResponse)
 
-        stream = typing.cast(
-            bool, response._promise.get_parameter("niquests_is_stream")
+        stream: bool = response._promise.get_parameter("niquests_is_stream")  # type: ignore[assignment]
+        start: float = response._promise.get_parameter("niquests_start")  # type: ignore[assignment]
+        hooks: HookType = response._promise.get_parameter("niquests_hooks")  # type: ignore[assignment]
+        session_cookies: CookieJar = response._promise.get_parameter("niquests_cookies")  # type: ignore[assignment]
+        allow_redirects: bool = response._promise.get_parameter(  # type: ignore[assignment]
+            "niquests_allow_redirect"
         )
-        start = typing.cast(float, response._promise.get_parameter("niquests_start"))
-        hooks = typing.cast(HookType, response._promise.get_parameter("niquests_hooks"))
-        session_cookies = typing.cast(
-            CookieJar, response._promise.get_parameter("niquests_cookies")
-        )
-        allow_redirects = typing.cast(
-            bool, response._promise.get_parameter("niquests_allow_redirect")
-        )
-        max_redirect = typing.cast(
-            int, response._promise.get_parameter("niquests_max_redirects")
-        )
-        redirect_count = typing.cast(
-            int, response._promise.get_parameter("niquests_redirect_count")
-        )
-        kwargs = typing.cast(
-            typing.MutableMapping[str, typing.Any],
-            response._promise.get_parameter("niquests_kwargs"),
+        max_redirect: int = response._promise.get_parameter("niquests_max_redirects")  # type: ignore[assignment]
+        redirect_count: int = response._promise.get_parameter("niquests_redirect_count")  # type: ignore[assignment]
+        kwargs: typing.MutableMapping[str, typing.Any] = (
+            response._promise.get_parameter("niquests_kwargs")  # type: ignore[assignment]
         )
 
         # This mark the response as no longer "lazy"
