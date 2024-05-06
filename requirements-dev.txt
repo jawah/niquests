@@ -6,4 +6,4 @@ pytest-asyncio>=0.21.1,<1.0
 httpbin==0.10.2
 trustme
 cryptography<40.0.0; python_version <= '3.7' and platform_python_implementation == 'PyPy'
-werkzeug==3.0.2
+werkzeug>=2.2.3,<=3.0.2
