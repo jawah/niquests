@@ -1198,17 +1198,20 @@ class Session:
             kwargs["on_post_connection"] = None
 
             # we intentionally set 'niquests' as the prefix. urllib3.future have its own parameters.
-            r._promise.set_parameter("niquests_is_stream", stream)
-            r._promise.set_parameter("niquests_start", start)
-            r._promise.set_parameter("niquests_hooks", hooks)
-            r._promise.set_parameter("niquests_cookies", self.cookies)
-            r._promise.set_parameter("niquests_allow_redirect", allow_redirects)
-            r._promise.set_parameter("niquests_kwargs", kwargs)
-
-            # You may be wondering why we are setting redirect info in promise ctx.
-            # because in multiplexed mode, we are not fully aware of hop/redirect count
-            r._promise.set_parameter("niquests_redirect_count", 0)
-            r._promise.set_parameter("niquests_max_redirects", self.max_redirects)
+            r._promise.update_parameters(
+                {
+                    "niquests_is_stream": stream,
+                    "niquests_start": start,
+                    "niquests_hooks": hooks,
+                    "niquests_cookies": self.cookies,
+                    "niquests_allow_redirect": allow_redirects,
+                    "niquests_kwargs": kwargs,
+                    # You may be wondering why we are setting redirect info in promise ctx.
+                    # because in multiplexed mode, we are not fully aware of hop/redirect count
+                    "niquests_redirect_count": 0,
+                    "niquests_max_redirects": self.max_redirects,
+                }
+            )
 
             return r
 

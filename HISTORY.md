@@ -1,6 +1,15 @@
 Release History
 ===============
 
+3.6.3 (2024-05-06)
+------------------
+
+**Fixed**
+- Fixed encoding data with None values and other objects. This was a regression introduced in our v3. #119
+
+**Changed**
+- Various minor performance improvements.
+
 3.6.2 (2024-05-02)
 ------------------
 
