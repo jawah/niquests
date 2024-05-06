@@ -2540,6 +2540,40 @@ def test_json_encodes_as_bytes():
     assert isinstance(p.body, bytes)
 
 
+def test_data_encodes_noniterables(httpbin):
+    class Class:
+        pass
+
+    class ClassStringable:
+        def __str__(self):
+            return "🔥arbClassStringable🔥"
+
+    ClassObj = Class()
+
+    body = {
+        "string": "string",
+        "bytes": b"string",
+        "float": 0.01,
+        "int": 100,
+        "bool": True,
+        "None": None,
+        "plain_class": ClassObj,
+        "stringable_class": ClassStringable(),
+    }
+
+    expected_response = {
+        "bool": "True",
+        "float": "0.01",
+        "int": "100",
+        "plain_class": str(ClassObj),
+        "string": "string",
+        "bytes": "string",
+        "stringable_class": "🔥arbClassStringable🔥",
+    }
+    resp = niquests.post(httpbin("post"), data=body)
+    assert resp.json()["form"] == expected_response
+
+
 def test_requests_are_updated_each_time(httpbin):
     session = RedirectSession([303, 307])
     prep = niquests.Request("POST", httpbin("post")).prepare()
