@@ -52,7 +52,7 @@ _Scenario:_ Fetch a thousand requests using 10 tasks or threads, each with a hun
 |----------|---------------------------|------------------------------|
 | requests | 987 ms                    | ThreadPoolExecutor. HTTP/1.1 |
 | httpx    | 720 ms                    | Asyncio. HTTP/2              |
-| niquests | 390 ms                    | Asyncio. HTTP/2              |
+| niquests | 370 ms                    | Asyncio. HTTP/2              |
 
 **Simplified APIs**
 
@@ -61,7 +61,7 @@ _Scenario:_ Fetch a thousand requests using 10 tasks or threads, each with a hun
 | requests core | 643 ms                    | ThreadPoolExecutor. HTTP/1.1 |
 | httpx core    | 530 ms                    | Asyncio. HTTP/2              |
 | aiohttp       | 210 ms                    | Asyncio. HTTP/1.1            |
-| niquests core | 190 ms                    | Asyncio. HTTP/2              |
+| niquests core | 170 ms                    | Asyncio. HTTP/2              |
 
 Did you give up on HTTP/2 due to performance concerns? Think again! Do you realize that you can get 2.53 times faster with the same CPU if you ever switched to Niquests from Requests?
 Multiplexing and response lazyness open up a wide range of possibilities! Want to learn more about the tests? scripts? reasoning?
@@ -194,5 +194,5 @@ Niquests is a highly improved HTTP client that is based (forked) on Requests. Th
 [^7]: while advertised as possible, they refuse to make it the default due to performance issues. as of february 2024 an extra is required to enable it manually.
 [^8]: they don't support HTTP/3 at all.
 [^9]: you must use a custom DNS resolver so that it can preemptively connect using HTTP/3 over QUIC when remote is compatible.
-[^10]: performance measured when leveraging a multiplexed connection with or without uses of any form of concurrency as of March 2024. The research compared `httpx`, `requests`, `aiohttp` against `niquests`. See https://github.com/Ousret/niquests-stats
+[^10]: performance measured when leveraging a multiplexed connection with or without uses of any form of concurrency as of May 2024. The research compared `httpx`, `requests`, `aiohttp` against `niquests`. See https://github.com/Ousret/niquests-stats
 [^11]: enabled when using a custom DNS resolver.
