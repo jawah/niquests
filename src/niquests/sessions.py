@@ -128,17 +128,26 @@ def merge_setting(
         return session_setting
 
     # Bypass if not a dictionary (e.g. verify)
-    if not (
+    if isinstance(session_setting, bool) or not (
         isinstance(session_setting, Mapping) and isinstance(request_setting, Mapping)
     ):
         return request_setting
 
-    merged_setting = dict_class(to_key_val_list(session_setting))
+    if hasattr(session_setting, "copy"):
+        merged_setting = (
+            session_setting.copy()
+            if session_setting.__class__ is dict_class
+            else dict_class(session_setting.copy())
+        )
+    else:
+        merged_setting = dict_class(to_key_val_list(session_setting))
+
     merged_setting.update(to_key_val_list(request_setting))
 
     # Remove keys that are set to None. Extract keys first to avoid altering
     # the dictionary during iteration.
-    none_keys = [k for (k, v) in merged_setting.items() if v is None]
+    none_keys = [k for k in merged_setting if merged_setting[k] is None]
+
     for key in none_keys:
         del merged_setting[key]
 
