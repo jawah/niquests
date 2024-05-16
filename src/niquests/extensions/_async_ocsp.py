@@ -53,7 +53,11 @@ from ._picotls import (
     async_recv_tls_and_decrypt,
     async_send_tls,
 )
-from ._ocsp import _str_fingerprint_of, readable_revocation_reason
+from ._ocsp import (
+    _str_fingerprint_of,
+    readable_revocation_reason,
+    _parse_x509_der_cached,
+)
 
 
 async def _ask_nicely_for_issuer(
@@ -320,7 +324,7 @@ async def verify(
     if not endpoints:
         return
 
-    peer_certificate = Certificate(conn_info.certificate_der)
+    peer_certificate = _parse_x509_der_cached(conn_info.certificate_der)
 
     async with _SharedRevocationStatusCache.lock(peer_certificate):
         # this feature, by default, is reserved for a reasonable usage.

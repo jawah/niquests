@@ -1,6 +1,13 @@
 Release History
 ===============
 
+3.6.4 (2024-05-16)
+------------------
+
+**Changed**
+- Avoid parsing X509 peer certificate in the certificate revocation check process over and over again.
+- Avoid iterating over header items redundantly or needlessly.
+
 3.6.3 (2024-05-06)
 ------------------
 

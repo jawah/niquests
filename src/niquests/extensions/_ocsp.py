@@ -9,6 +9,7 @@ import warnings
 from hashlib import sha256
 from random import randint
 from statistics import mean
+from functools import lru_cache
 
 from qh3._hazmat import (
     OCSPRequest,
@@ -50,6 +51,11 @@ from ._picotls import (
     recv_tls_and_decrypt,
     send_tls,
 )
+
+
+@lru_cache(maxsize=64)
+def _parse_x509_der_cached(der: bytes) -> Certificate:
+    return Certificate(der)
 
 
 def _str_fingerprint_of(certificate: Certificate) -> str:
@@ -327,7 +333,7 @@ def verify(
         if _SharedRevocationStatusCache.hold:
             return
 
-    peer_certificate = Certificate(conn_info.certificate_der)
+    peer_certificate = _parse_x509_der_cached(conn_info.certificate_der)
     cached_response = _SharedRevocationStatusCache.check(peer_certificate)
 
     if cached_response is not None:
