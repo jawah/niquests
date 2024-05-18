@@ -113,8 +113,6 @@ class AsyncSession(Session):
       <Response HTTP/2 [200]>
     """
 
-    disable_thread: bool = False  # no-op since v3.5
-
     def __init__(
         self,
         *,
