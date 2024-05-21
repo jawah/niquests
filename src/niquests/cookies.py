@@ -32,6 +32,21 @@ if typing.TYPE_CHECKING:
     from .models import PreparedRequest, Request
 
 
+class CookiePolicyLocalhostBypass(cookielib.DefaultCookiePolicy):
+    """A subclass of DefaultCookiePolicy to allow cookie set for domain=localhost.
+    Credit goes to https://github.com/Pylons/webtest/blob/main/webtest/app.py#L60"""
+
+    def return_ok_domain(self, cookie, request):
+        if cookie.domain == ".localhost":
+            return True
+        return cookielib.DefaultCookiePolicy.return_ok_domain(self, cookie, request)
+
+    def set_ok_domain(self, cookie, request):
+        if cookie.domain == ".localhost":
+            return True
+        return cookielib.DefaultCookiePolicy.set_ok_domain(self, cookie, request)
+
+
 class MockRequest:
     """Wraps a `requests.Request` to mimic a `urllib2.Request`.
 
@@ -217,6 +232,9 @@ class RequestsCookieJar(cookielib.CookieJar, MutableMapping):
 
     .. warning:: dictionary operations that are normally O(1) may be O(n).
     """
+
+    def __init__(self, policy: cookielib.CookiePolicy | None = None):
+        super().__init__(policy=policy or CookiePolicyLocalhostBypass())
 
     def get(self, name, default=None, domain=None, path=None):
         """Dict-like get() that also supports optional domain and path args in

@@ -1,6 +1,17 @@
 Release History
 ===============
 
+3.6.5 (2024-05-??)
+------------------
+
+**Fixed**
+- Support `localhost` as a valid domain for cookies. The standard library does not allow this special
+  domain. Researches showed that a valid domain should have at least two dots (e.g. abc.com. and xyz.tld. but not com.).
+  Public suffixes cannot be used as a cookie domain for security reasons, but as `localhost` isn't one we are explicitly
+  allowing it. Reported in https://github.com/httpie/cli/issues/602
+  `RequestsCookieJar` set a default policy that circumvent that limitation, if you specified a custom cookie policy then this
+  fix won't be applied.
+
 3.6.4 (2024-05-16)
 ------------------
 
