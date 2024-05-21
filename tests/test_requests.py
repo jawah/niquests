@@ -1355,6 +1355,21 @@ class TestRequests:
         jar.set_policy(MyCookiePolicy())
         assert isinstance(jar.copy().get_policy(), MyCookiePolicy)
 
+    def test_cookie_allow_localhost_default(self, san_server):
+        server, port, ca_bundle = san_server
+
+        s = niquests.Session()
+
+        r = s.get(f"https://localhost:{port}/", verify=ca_bundle)
+
+        assert r.cookies
+        assert r.cookies["hello"] == "world"
+
+        r = s.get(f"https://localhost:{port}/", verify=ca_bundle)
+
+        assert "x-cookie-pass" in r.headers
+        assert r.headers["x-cookie-pass"] == "1"
+
     def test_time_elapsed_blank(self, httpbin):
         r = niquests.get(httpbin("get"))
         td = r.elapsed
