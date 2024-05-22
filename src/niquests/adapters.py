@@ -152,13 +152,8 @@ from .utils import (
     _swap_context,
     _deepcopy_ci,
     parse_scheme,
+    is_ocsp_capable,
 )
-
-try:
-    from .extensions._ocsp import verify as ocsp_verify
-    from .extensions._async_ocsp import verify as async_ocsp_verify
-except ImportError:
-    ocsp_verify = None  # type: ignore[assignment]
 
 try:
     if HAS_LEGACY_URLLIB3 is False:
@@ -1041,23 +1036,28 @@ class HTTPAdapter(BaseAdapter):
                     if (
                         next_request.url
                         and next_request.url.startswith("https://")
-                        and ocsp_verify is not None
                         and kwargs["verify"]
+                        and is_ocsp_capable(conn_info)
                     ):
                         strict_ocsp_enabled: bool = (
                             os.environ.get("NIQUESTS_STRICT_OCSP", "0") != "0"
                         )
 
-                        ocsp_verify(
-                            next_request,
-                            strict_ocsp_enabled,
-                            0.2 if not strict_ocsp_enabled else 1.0,
-                            kwargs["proxies"],
-                            self._resolver
-                            if isinstance(self._resolver, BaseResolver)
-                            else None,
-                            self._happy_eyeballs,
-                        )
+                        try:
+                            from .extensions._ocsp import verify as ocsp_verify
+                        except ImportError:
+                            pass
+                        else:
+                            ocsp_verify(
+                                next_request,
+                                strict_ocsp_enabled,
+                                0.2 if not strict_ocsp_enabled else 1.0,
+                                kwargs["proxies"],
+                                self._resolver
+                                if isinstance(self._resolver, BaseResolver)
+                                else None,
+                                self._happy_eyeballs,
+                            )
 
                 kwargs["on_post_connection"] = on_post_connection
 
@@ -2015,23 +2015,30 @@ class AsyncHTTPAdapter(AsyncBaseAdapter):
                     if (
                         next_request.url
                         and next_request.url.startswith("https://")
-                        and ocsp_verify is not None
                         and kwargs["verify"]
+                        and is_ocsp_capable(conn_info)
                     ):
-                        strict_ocsp_enabled: bool = (
-                            os.environ.get("NIQUESTS_STRICT_OCSP", "0") != "0"
-                        )
+                        try:
+                            from .extensions._async_ocsp import (
+                                verify as async_ocsp_verify,
+                            )
+                        except ImportError:
+                            pass
+                        else:
+                            strict_ocsp_enabled: bool = (
+                                os.environ.get("NIQUESTS_STRICT_OCSP", "0") != "0"
+                            )
 
-                        await async_ocsp_verify(
-                            next_request,
-                            strict_ocsp_enabled,
-                            0.2 if not strict_ocsp_enabled else 1.0,
-                            kwargs["proxies"],
-                            self._resolver
-                            if isinstance(self._resolver, AsyncBaseResolver)
-                            else None,
-                            self._happy_eyeballs,
-                        )
+                            await async_ocsp_verify(
+                                next_request,
+                                strict_ocsp_enabled,
+                                0.2 if not strict_ocsp_enabled else 1.0,
+                                kwargs["proxies"],
+                                self._resolver
+                                if isinstance(self._resolver, AsyncBaseResolver)
+                                else None,
+                                self._happy_eyeballs,
+                            )
 
                 kwargs["on_post_connection"] = on_post_connection
 

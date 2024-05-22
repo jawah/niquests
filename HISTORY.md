@@ -1,7 +1,7 @@
 Release History
 ===============
 
-3.6.5 (2024-05-??)
+3.6.5 (2024-05-22)
 ------------------
 
 **Fixed**
@@ -11,6 +11,12 @@ Release History
   allowing it. Reported in https://github.com/httpie/cli/issues/602
   `RequestsCookieJar` set a default policy that circumvent that limitation, if you specified a custom cookie policy then this
   fix won't be applied.
+
+**Changed**
+- Lazy load the OCSP extension in order to improve the import performance.
+
+**Removed**
+- Class variable `disable_thread` in `AsyncSession` that is no longer relevant since the native asyncio implementation. (PR #122)
 
 3.6.4 (2024-05-16)
 ------------------

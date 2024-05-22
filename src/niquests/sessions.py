@@ -68,11 +68,6 @@ from .exceptions import (
 )
 from .hooks import HOOKS, default_hooks, dispatch_hook
 
-try:
-    from .extensions._ocsp import verify as ocsp_verify
-except ImportError:
-    ocsp_verify = None  # type: ignore[assignment]
-
 # formerly defined here, reexposed here for backward compatibility
 from .models import (  # noqa: F401
     DEFAULT_REDIRECT_LIMIT,
@@ -98,6 +93,7 @@ from .utils import (  # noqa: F401
     create_resolver,
     _deepcopy_ci,
     parse_scheme,
+    is_ocsp_capable,
 )
 
 # Preferred clock, based on which one is more accurate on a given system.
@@ -1087,21 +1083,26 @@ class Session:
             if (
                 ptr_request.url
                 and parse_scheme(ptr_request.url) == "https"
-                and ocsp_verify is not None
                 and kwargs["verify"]
+                and is_ocsp_capable(conn_info)
             ):
                 strict_ocsp_enabled: bool = (
                     os.environ.get("NIQUESTS_STRICT_OCSP", "0") != "0"
                 )
 
-                ocsp_verify(
-                    ptr_request,
-                    strict_ocsp_enabled,
-                    0.2 if not strict_ocsp_enabled else 1.0,
-                    kwargs["proxies"],
-                    resolver=self.resolver,
-                    happy_eyeballs=self._happy_eyeballs,
-                )
+                try:
+                    from .extensions._ocsp import verify as ocsp_verify
+                except ImportError:
+                    pass
+                else:
+                    ocsp_verify(
+                        ptr_request,
+                        strict_ocsp_enabled,
+                        0.2 if not strict_ocsp_enabled else 1.0,
+                        kwargs["proxies"],
+                        resolver=self.resolver,
+                        happy_eyeballs=self._happy_eyeballs,
+                    )
 
             # don't trigger pre_send for redirects
             if ptr_request == request:

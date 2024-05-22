@@ -54,10 +54,6 @@ else:
 
 # urllib3's DependencyWarnings should be silenced.
 warnings.simplefilter("ignore", DependencyWarning)
-# Commonly happen on Windows due to some legacy root CA in
-# their trust store. They are aware of it, we silent the warning
-# yield by Cryptography to avoid producing undesired noise to end-users.
-warnings.filterwarnings("ignore", "Parsed a negative serial number")
 
 # ruff: noqa: E402
 from . import utils
