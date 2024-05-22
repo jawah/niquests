@@ -72,6 +72,7 @@ from .utils import (
     _swap_context,
     _deepcopy_ci,
     parse_scheme,
+    is_ocsp_capable,
 )
 from .cookies import (
     RequestsCookieJar,
@@ -81,11 +82,6 @@ from .cookies import (
 )
 from .structures import AsyncQuicSharedCache
 from .adapters import AsyncBaseAdapter, AsyncHTTPAdapter
-
-try:
-    from .extensions._async_ocsp import verify as ocsp_verify
-except ImportError:
-    ocsp_verify = None  # type: ignore[assignment]
 
 # Preferred clock, based on which one is more accurate on a given system.
 if sys.platform == "win32":
@@ -323,21 +319,26 @@ class AsyncSession(Session):
             if (
                 ptr_request.url
                 and ptr_request.url.startswith("https://")
-                and ocsp_verify is not None
                 and kwargs["verify"]
+                and is_ocsp_capable(conn_info)
             ):
                 strict_ocsp_enabled: bool = (
                     os.environ.get("NIQUESTS_STRICT_OCSP", "0") != "0"
                 )
 
-                await ocsp_verify(
-                    ptr_request,
-                    strict_ocsp_enabled,
-                    0.2 if not strict_ocsp_enabled else 1.0,
-                    kwargs["proxies"],
-                    resolver=self.resolver,
-                    happy_eyeballs=self._happy_eyeballs,
-                )
+                try:
+                    from .extensions._async_ocsp import verify as ocsp_verify
+                except ImportError:
+                    pass
+                else:
+                    await ocsp_verify(
+                        ptr_request,
+                        strict_ocsp_enabled,
+                        0.2 if not strict_ocsp_enabled else 1.0,
+                        kwargs["proxies"],
+                        resolver=self.resolver,
+                        happy_eyeballs=self._happy_eyeballs,
+                    )
 
             # don't trigger pre_send for redirects
             if ptr_request == request:

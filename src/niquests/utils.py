@@ -1173,3 +1173,26 @@ def parse_scheme(url: str, default: str | None = None, max_length: int = 9) -> s
         ) from e
 
     return scheme.lower()
+
+
+def is_ocsp_capable(conn_info: ConnectionInfo | None) -> bool:
+    # we can't do anything in that case.
+    if (
+        conn_info is None
+        or conn_info.certificate_der is None
+        or conn_info.certificate_dict is None
+    ):
+        return False
+
+    endpoints: list[str] = [  # type: ignore
+        # exclude non-HTTP endpoint. like ldap.
+        ep  # type: ignore
+        for ep in list(conn_info.certificate_dict.get("OCSP", []))  # type: ignore
+        if ep.startswith("http://")  # type: ignore
+    ]
+
+    # well... not all issued certificate have a OCSP entry. e.g. mkcert.
+    if not endpoints:
+        return False
+
+    return True
