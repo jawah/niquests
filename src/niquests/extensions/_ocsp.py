@@ -65,7 +65,7 @@ def _str_fingerprint_of(certificate: Certificate) -> str:
 
 
 def readable_revocation_reason(flag: ReasonFlags | None) -> str | None:
-    return flag.name.lower() if flag is not None else None
+    return str(flag).split(".")[-1].lower() if flag is not None else None
 
 
 def _ask_nicely_for_issuer(
