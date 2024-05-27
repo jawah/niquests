@@ -1,6 +1,12 @@
 Release History
 ===============
 
+3.6.6 (2024-05-27)
+------------------
+
+**Fixed**
+- ReasonFlag not properly translated to readable text when peer or intermediate certificate is revoked.
+
 3.6.5 (2024-05-22)
 ------------------
 
