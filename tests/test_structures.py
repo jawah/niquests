@@ -67,6 +67,7 @@ class TestCaseInsensitiveDict:
         u = CaseInsensitiveDict(o)
 
         assert u["Hello"] == "1, 2, 3"
+        assert "1, 2, 3" in repr(u)
 
 
 class TestLookupDict:

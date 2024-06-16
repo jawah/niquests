@@ -128,7 +128,19 @@ class CaseInsensitiveDict(MutableMapping):
 
     def items(self):
         for k in self._store:
-            yield self._store[k]
+            t = self._store[k]
+            if len(t) == 2:
+                yield t
+            else:  # this case happen due to copying "_container" from HTTPHeaderDict!
+                try:
+                    yield t[0], ", ".join(t[1:])  # type: ignore[arg-type]
+                except TypeError:
+                    yield (
+                        t[0],
+                        ", ".join(
+                            v.decode() if isinstance(v, bytes) else v for v in t[1:]
+                        ),
+                    )
 
     def __eq__(self, other) -> bool:
         if isinstance(other, Mapping):
@@ -161,7 +173,6 @@ class LookupDict(dict):
 
     def __getitem__(self, key):
         # We allow fall-through here, so values default to None
-
         return self.__dict__.get(key, None)
 
     def get(self, key, default=None):

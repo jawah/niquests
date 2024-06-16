@@ -8,7 +8,6 @@ import threading
 import warnings
 from hashlib import sha256
 from random import randint
-from statistics import mean
 from functools import lru_cache
 
 from qh3._hazmat import (
@@ -223,7 +222,7 @@ class InMemoryRevocationStatus:
                 delays.append((dt - previous_dt).total_seconds())
                 previous_dt = dt
 
-            return mean(delays) if delays else 0.0
+            return sum(delays) / len(delays) if delays else 0.0
 
     def check(self, peer_certificate: Certificate) -> OCSPResponse | None:
         with self._access_lock:
@@ -348,18 +347,21 @@ def verify(
             if cached_response.certificate_status == OCSPCertStatus.REVOKED:
                 r.ocsp_verified = False
                 raise SSLError(
-                    f"""Unable to establish a secure connection to {r.url} because the certificate has been revoked
-                    by issuer ({readable_revocation_reason(cached_response.revocation_reason) or "unspecified"}).
-                    You should avoid trying to request anything from it as the remote has been compromised.
-                    See https://en.wikipedia.org/wiki/OCSP_stapling for more information."""
+                    (
+                        f"Unable to establish a secure connection to {r.url} because the certificate has been revoked "
+                        f"by issuer ({readable_revocation_reason(cached_response.revocation_reason) or 'unspecified'}). "
+                        'You should avoid trying to request anything from it as the remote has been compromised. ',
+                        "See https://niquests.readthedocs.io/en/latest/user/advanced.html#ocsp-or-certificate-revocation "
+                        "for more information.",
+                    )
                 )
             elif cached_response.certificate_status == OCSPCertStatus.UNKNOWN:
                 r.ocsp_verified = False
                 if strict is True:
                     raise SSLError(
-                        f"""Unable to establish a secure connection to {r.url} because the issuer does not know whether
-                        certificate is valid or not. This error occurred because you enabled strict mode for
-                        the OCSP / Revocation check."""
+                        f"Unable to establish a secure connection to {r.url} because the issuer does not know "
+                        "whether certificate is valid or not. This error occurred because you enabled strict mode "
+                        "for the OCSP / Revocation check."
                     )
             else:
                 r.ocsp_verified = True
@@ -455,9 +457,11 @@ def verify(
             if issuer_certificate is None:
                 if strict:
                     warnings.warn(
-                        f"""Unable to insure that the remote peer ({r.url}) has a currently valid certificate via OCSP.
-                        You are seeing this warning due to enabling strict mode for OCSP / Revocation check.
-                        Reason: Remote did not provide any intermediaries certificate.""",
+                        (
+                            f"Unable to insure that the remote peer ({r.url}) has a currently valid certificate "
+                            "via OCSP. You are seeing this warning due to enabling strict mode for OCSP / "
+                            "Revocation check. Reason: Remote did not provide any intermediary certificate."
+                        ),
                         SecurityWarning,
                     )
                 return
@@ -473,9 +477,11 @@ def verify(
         except ValueError:
             if strict:
                 warnings.warn(
-                    f"""Unable to insure that the remote peer ({r.url}) has a currently valid certificate via OCSP.
-                    You are seeing this warning due to enabling strict mode for OCSP / Revocation check.
-                    Reason: The X509 OCSP generator failed to assemble the request""",
+                    (
+                        f"Unable to insure that the remote peer ({r.url}) has a currently valid certificate via OCSP. "
+                        "You are seeing this warning due to enabling strict mode for OCSP / Revocation check. "
+                        "Reason: The X509 OCSP generator failed to assemble the request."
+                    ),
                     SecurityWarning,
                 )
             return
@@ -490,9 +496,11 @@ def verify(
         except RequestException as e:
             if strict:
                 warnings.warn(
-                    f"""Unable to insure that the remote peer ({r.url}) has a currently valid certificate via OCSP.
-                    You are seeing this warning due to enabling strict mode for OCSP / Revocation check.
-                    Reason: {e}""",
+                    (
+                        f"Unable to insure that the remote peer ({r.url}) has a currently valid certificate via OCSP. "
+                        "You are seeing this warning due to enabling strict mode for OCSP / Revocation check. "
+                        f"Reason: {e}"
+                    ),
                     SecurityWarning,
                 )
             return
@@ -509,9 +517,11 @@ def verify(
             except ValueError:
                 if strict:
                     warnings.warn(
-                        f"""Unable to insure that the remote peer ({r.url}) has a currently valid certificate via OCSP.
-                        You are seeing this warning due to enabling strict mode for OCSP / Revocation check.
-                        Reason: The X509 OCSP parser failed to read the response""",
+                        (
+                            f"Unable to insure that the remote peer ({r.url}) has a currently valid certificate via OCSP. "
+                            "You are seeing this warning due to enabling strict mode for OCSP / Revocation check. "
+                            "Reason: The X509 OCSP parser failed to read the response"
+                        ),
                         SecurityWarning,
                     )
                 return
@@ -524,35 +534,40 @@ def verify(
                 if ocsp_resp.certificate_status == OCSPCertStatus.REVOKED:
                     r.ocsp_verified = False
                     raise SSLError(
-                        f"""Unable to establish a secure connection to {r.url} because the certificate has been revoked
-                        by issuer ({readable_revocation_reason(ocsp_resp.revocation_reason) or "unspecified"}).
-                        You should avoid trying to request anything from it as the remote has been compromised.
-                        See https://en.wikipedia.org/wiki/OCSP_stapling for more information."""
+                        f"Unable to establish a secure connection to {r.url} because the certificate has been revoked "
+                        f"by issuer ({readable_revocation_reason(ocsp_resp.revocation_reason) or 'unspecified'}). "
+                        "You should avoid trying to request anything from it as the remote has been compromised. "
+                        "See https://niquests.readthedocs.io/en/latest/user/advanced.html#ocsp-or-certificate-revocation "
+                        "for more information."
                     )
                 if ocsp_resp.certificate_status == OCSPCertStatus.UNKNOWN:
                     r.ocsp_verified = False
                     if strict is True:
                         raise SSLError(
-                            f"""Unable to establish a secure connection to {r.url} because the issuer does not know whether
-                            certificate is valid or not. This error occurred because you enabled strict mode for
-                            the OCSP / Revocation check."""
+                            f"Unable to establish a secure connection to {r.url} because the issuer does not know whether "
+                            "certificate is valid or not. This error occurred because you enabled strict mode for "
+                            "the OCSP / Revocation check."
                         )
                 else:
                     r.ocsp_verified = True
             else:
                 if strict:
                     warnings.warn(
-                        f"""Unable to insure that the remote peer ({r.url}) has a currently valid certificate via OCSP.
-                        You are seeing this warning due to enabling strict mode for OCSP / Revocation check.
-                        OCSP Server Status: {ocsp_resp.response_status}""",
+                        (
+                            f"Unable to insure that the remote peer ({r.url}) has a currently valid certificate via OCSP. "
+                            "You are seeing this warning due to enabling strict mode for OCSP / Revocation check. "
+                            f"OCSP Server Status: {ocsp_resp.response_status}"
+                        ),
                         SecurityWarning,
                     )
         else:
             if strict:
                 warnings.warn(
-                    f"""Unable to insure that the remote peer ({r.url}) has a currently valid certificate via OCSP.
-                    You are seeing this warning due to enabling strict mode for OCSP / Revocation check.
-                    OCSP Server Status: {str(ocsp_http_response)}""",
+                    (
+                        f"Unable to insure that the remote peer ({r.url}) has a currently valid certificate via OCSP. "
+                        "You are seeing this warning due to enabling strict mode for OCSP / Revocation check. "
+                        f"OCSP Server Status: {str(ocsp_http_response)}"
+                    ),
                     SecurityWarning,
                 )
 

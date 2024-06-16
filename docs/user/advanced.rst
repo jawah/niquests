@@ -625,7 +625,7 @@ set ``stream`` to ``True`` and iterate over the response with
 :meth:`~niquests.Response.iter_lines()`::
 
     import json
-    import requests
+    import niquests
 
     r = niquests.get('https://httpbin.org/stream/20', stream=True)
 
@@ -673,7 +673,7 @@ Proxies
 If you need to use a proxy, you can configure individual requests with the
 ``proxies`` argument to any request method::
 
-    import requests
+    import niquests
 
     proxies = {
       'http': 'http://10.10.1.10:3128',
@@ -685,7 +685,7 @@ If you need to use a proxy, you can configure individual requests with the
 Alternatively you can configure it once for an entire
 :class:`Session <niquests.Session>`::
 
-    import requests
+    import niquests
 
     proxies = {
       'http': 'http://10.10.1.10:3128',
@@ -724,7 +724,7 @@ to your needs)::
     $ export ALL_PROXY="socks5://10.10.1.10:3434"
 
     $ python
-    >>> import requests
+    >>> import niquests
     >>> niquests.get('http://example.org')
 
 To use HTTP Basic Auth with your proxy, use the `http://user:password@host/`
