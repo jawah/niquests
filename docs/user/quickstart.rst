@@ -149,7 +149,7 @@ JSON Response Content
 
 There's also a builtin JSON decoder, in case you're dealing with JSON data::
 
-    >>> import requests
+    >>> import niquests
 
     >>> r = niquests.get('https://api.github.com/events')
     >>> r.json()

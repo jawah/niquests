@@ -3,7 +3,7 @@
 Developer Interface
 ===================
 
-.. module:: requests
+.. module:: niquests
 
 This part of the documentation covers all the interfaces of Niquests. For
 parts where Niquests depends on external libraries, we document the most

@@ -110,14 +110,3 @@ class TestLiveStandardCase:
             r = s.get("https://pie.dev/get")
 
             assert r.ok
-
-    @pytest.mark.xfail(reason="Using flaky revoked.badssl.com")
-    def test_revoked_certificate(self) -> None:
-        """This test may fail at any moment. Using https://revoked.badssl.com/ as a target tester."""
-
-        with Session() as s:
-            with pytest.raises(
-                ConnectionError,
-                match="Unable to establish a secure connection to https://revoked.badssl.com/ because the certificate has been revoked",
-            ):
-                s.get("https://revoked.badssl.com/")

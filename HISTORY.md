@@ -1,6 +1,17 @@
 Release History
 ===============
 
+3.6.7 (2024-06-19)
+------------------
+
+**Fixed**
+- CaseInsensitiveDict repr (to string) causing an unexpected error when upstream have multiple values for a single header. (#129)
+
+**Misc**
+- Minor docs typos (#128)
+- Reformated error messages in our OCSP module for better readability.
+- Added real test cases for our OCSP module to ensure its reliability.
+
 3.6.6 (2024-05-27)
 ------------------
 

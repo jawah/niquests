@@ -7,7 +7,7 @@ import os
 import pytest
 
 from niquests import AsyncSession, AsyncResponse, Response
-from niquests.exceptions import MultiplexingError, ConnectionError
+from niquests.exceptions import MultiplexingError
 
 
 @pytest.mark.usefixtures("requires_wan")
@@ -228,14 +228,3 @@ class TestAsyncWithMultiplex:
             r = await s.get("https://pie.dev/get")
 
             assert r.ok
-
-    @pytest.mark.xfail(reason="Using flaky revoked.badssl.com")
-    async def test_revoked_certificate(self) -> None:
-        """This test may fail at any moment. Using https://revoked.badssl.com/ as a target tester."""
-
-        async with AsyncSession() as s:
-            with pytest.raises(
-                ConnectionError,
-                match="Unable to establish a secure connection to https://revoked.badssl.com/ because the certificate has been revoked",
-            ):
-                await s.get("https://revoked.badssl.com/")
