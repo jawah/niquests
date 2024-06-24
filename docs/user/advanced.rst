@@ -1299,13 +1299,11 @@ by passing a custom ``QuicSharedCache`` instance like so::
 
 When the cache is full, the oldest entry is removed.
 
-Disable HTTP/2, and/or HTTP/3
+Disable HTTP/1.1, HTTP/2, and/or HTTP/3
 -----------------------------
 
 You can at your own discretion disable a protocol by passing ``disable_http2=True`` or
 ``disable_http3=True`` within your ``Session`` constructor.
-
-.. warning:: It is actually forbidden to disable HTTP/1.1 as the underlying library (urllib3.future) does not permit it for now.
 
 Having a session without HTTP/2 enabled should be done that way::
 
@@ -1313,6 +1311,24 @@ Having a session without HTTP/2 enabled should be done that way::
 
     session = niquests.Session(disable_http2=True)
 
+
+HTTP/2 with prior knowledge
+---------------------------
+
+Interacting with a server over plain text using the HTTP/2 protocol must be done by
+disabling HTTP/1.1 entirely, so that Niquests knows that you know in advance what the remote is capable of.
+
+Following this example::
+
+    import niquests
+
+    session = niquests.Session(disable_http1=True)
+    r = session.get("http://my-special-svc.local")
+    r.version  # 20 (aka. HTTP/2)
+
+.. note:: You may do the same for servers that do not support the ALPN extension for https URLs.
+
+.. warning:: Disabling HTTP/1.1 and HTTP/2 will raise an error (RuntimeError) for non https URLs! As HTTP/3 is designed for the QUIC layer, which itself is based on TLS 1.3.
 
 Thread Safety
 -------------
@@ -1417,3 +1433,40 @@ Here is a simple example::
     session.get("https://pie.dev/get", verify="sha256_8fff956b66667ffe5801c8432b12c367254727782d91bc695b7a53d0b512d721")
 
 .. warning:: Supported fingerprinting algorithms are sha256, and sha1. The prefix is mandatory.
+
+TLS Fingerprint (like JA3)
+--------------------------
+
+Some of you seems to be interested in that topic, at least according to the statistics presented to me.
+Niquests is dedicated to providing a software that present a unique and close enough signature (against modern browser)
+that you should be protected against TLS censorship / blocking technics.
+
+We are actively working toward a way to permanently improving this.
+To help us fighting toward the greater good, feel free to sponsor us and/or speaking out loud about your
+experiences, whether about a specific country practices or global ISP/Cloud provider ones.
+
+.. note:: If you are getting blocked, come and get in touch with us through our Github issues.
+
+Tracking the real download speed
+--------------------------------
+
+In a rare case, you may be left with no clue on what is the real "download speed" due to the
+remote server applying a "transfer-encoding" or also know as compressing (zstd, br or gzip).
+
+Niquests automatically decompress response bodies, so doing a call to ``iter_content`` is not going to yield
+the size actually extracted from the socket but rather from the decompressor algorithm.
+
+To remediate this issue we've implemented a new property into your ``Response`` object. Named ``download_progress``
+that is a ``TransferProgress`` instance.
+
+.. warning:: This feature is enabled when ``stream=True``.
+
+Here is a basic example of how you would proceed::
+
+    import niquests
+
+    with niquests.Session() as s:
+        with s.get("https://ash-speed.hetzner.com/100MB.bin", stream=True) as r:
+            for chunk in r.iter_content():
+                # do anything you want with chunk
+                print(r.download_progress.total)  # this actually contain the amt of bytes (raw) downloaded from the socket.

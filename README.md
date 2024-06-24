@@ -39,6 +39,7 @@ Niquests, is the “**Safest**, **Fastest[^10]**, **Easiest**, and **Most advanc
 | `Direct HTTP/3 Negotiation`         |  ✅[^9]   |  N/A[^8]  |    N/A[^8]    | N/A[^8]       |
 | `Happy Eyeballs`                    |    ✅     |     ❌     |       ❌       | ✅             |
 | `Package / SLSA Signed`             |    ✅     |     ❌     |       ❌       | ✅             |
+| `HTTP/2 with prior knowledge (h2c)` |    ✅     |     ❌     |       ✅       | ❌             |
 </details>
 
 <details>
@@ -144,6 +145,7 @@ Niquests is ready for the demands of building scalable, robust and reliable HTTP
 - Basic & Digest Authentication
 - Familiar `dict`–like Cookies
 - Network settings fine-tuning
+- HTTP/2 with prior knowledge
 - Object-oriented headers
 - Multi-part File Uploads
 - Chunked HTTP Requests

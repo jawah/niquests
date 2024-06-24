@@ -222,6 +222,7 @@ class Session:
         "source_address",
         "_disable_ipv4",
         "_disable_ipv6",
+        "_disable_http1",
         "_disable_http2",
         "_disable_http3",
         "_pool_connections",
@@ -237,6 +238,7 @@ class Session:
         quic_cache_layer: CacheLayerAltSvcType | None = None,
         retries: RetryType = DEFAULT_RETRIES,
         multiplexed: bool = False,
+        disable_http1: bool = False,
         disable_http2: bool = False,
         disable_http3: bool = False,
         disable_ipv6: bool = False,
@@ -308,6 +310,7 @@ class Session:
         #: Bind to address/network adapter
         self.source_address = source_address
 
+        self._disable_http1 = disable_http1
         self._disable_http2 = disable_http2
         self._disable_http3 = disable_http3
 
@@ -365,6 +368,7 @@ class Session:
             HTTPAdapter(
                 quic_cache_layer=self.quic_cache_layer,
                 max_retries=retries,
+                disable_http1=disable_http1,
                 disable_http2=disable_http2,
                 disable_http3=disable_http3,
                 resolver=resolver,
@@ -382,6 +386,8 @@ class Session:
                 max_retries=retries,
                 resolver=resolver,
                 source_address=source_address,
+                disable_http1=disable_http1,
+                disable_http2=disable_http2,
                 disable_ipv4=disable_ipv4,
                 disable_ipv6=disable_ipv6,
                 pool_connections=pool_connections,
@@ -560,6 +566,7 @@ class Session:
         verify: TLSVerifyType = True,
         stream: bool = False,
         cert: TLSClientCertType | None = None,
+        **kwargs: typing.Any,
     ) -> Response:
         r"""Sends a GET request. Returns :class:`Response` object.
 
@@ -609,6 +616,7 @@ class Session:
             verify=verify,
             stream=stream,
             cert=cert,
+            **kwargs,
         )
 
     def options(
@@ -626,6 +634,7 @@ class Session:
         verify: TLSVerifyType = True,
         stream: bool = False,
         cert: TLSClientCertType | None = None,
+        **kwargs: typing.Any,
     ) -> Response:
         r"""Sends a OPTIONS request. Returns :class:`Response` object.
 
@@ -675,6 +684,7 @@ class Session:
             verify=verify,
             stream=stream,
             cert=cert,
+            **kwargs,
         )
 
     def head(
@@ -692,6 +702,7 @@ class Session:
         verify: TLSVerifyType = True,
         stream: bool = False,
         cert: TLSClientCertType | None = None,
+        **kwargs: typing.Any,
     ) -> Response:
         r"""Sends a HEAD request. Returns :class:`Response` object.
 
@@ -741,6 +752,7 @@ class Session:
             verify=verify,
             stream=stream,
             cert=cert,
+            **kwargs,
         )
 
     def post(
@@ -992,6 +1004,7 @@ class Session:
         verify: TLSVerifyType = True,
         stream: bool = False,
         cert: TLSClientCertType | None = None,
+        **kwargs: typing.Any,
     ) -> Response:
         r"""Sends a DELETE request. Returns :class:`Response` object.
 
@@ -1041,6 +1054,7 @@ class Session:
             verify=verify,
             stream=stream,
             cert=cert,
+            **kwargs,
         )
 
     def send(self, request: PreparedRequest, **kwargs: typing.Any) -> Response:
@@ -1148,6 +1162,7 @@ class Session:
                 HTTPAdapter(
                     quic_cache_layer=self.quic_cache_layer,
                     max_retries=self.retries,
+                    disable_http1=self._disable_http1,
                     disable_http2=self._disable_http2,
                     disable_http3=self._disable_http3,
                     resolver=self.resolver,
@@ -1163,6 +1178,8 @@ class Session:
                 "http://",
                 HTTPAdapter(
                     max_retries=self.retries,
+                    disable_http1=self._disable_http1,
+                    disable_http2=self._disable_http2,
                     resolver=self.resolver,
                     source_address=self.source_address,
                     disable_ipv4=self._disable_ipv4,
