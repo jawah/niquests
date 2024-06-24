@@ -117,6 +117,7 @@ class AsyncSession(Session):
         quic_cache_layer: CacheLayerAltSvcType | None = None,
         retries: RetryType = DEFAULT_RETRIES,
         multiplexed: bool = False,
+        disable_http1: bool = False,
         disable_http2: bool = False,
         disable_http3: bool = False,
         disable_ipv6: bool = False,
@@ -177,6 +178,7 @@ class AsyncSession(Session):
         #: Bind to address/network adapter
         self.source_address = source_address
 
+        self._disable_http1 = disable_http1
         self._disable_http2 = disable_http2
         self._disable_http3 = disable_http3
 
@@ -797,6 +799,7 @@ class AsyncSession(Session):
         verify: TLSVerifyType = ...,
         stream: Literal[False] = ...,
         cert: TLSClientCertType | None = ...,
+        **kwargs: typing.Any,
     ) -> Response: ...
 
     @typing.overload  # type: ignore[override]
@@ -815,6 +818,7 @@ class AsyncSession(Session):
         verify: TLSVerifyType = ...,
         stream: Literal[True],
         cert: TLSClientCertType | None = ...,
+        **kwargs: typing.Any,
     ) -> AsyncResponse: ...
 
     async def get(  # type: ignore[override]
@@ -832,6 +836,7 @@ class AsyncSession(Session):
         verify: TLSVerifyType = True,
         stream: bool = False,
         cert: TLSClientCertType | None = None,
+        **kwargs: typing.Any,
     ) -> Response | AsyncResponse:
         return await self.request(  # type: ignore[call-overload,misc]
             "GET",
@@ -847,6 +852,7 @@ class AsyncSession(Session):
             verify=verify,
             stream=stream,
             cert=cert,
+            **kwargs,
         )
 
     @typing.overload  # type: ignore[override]
@@ -865,6 +871,7 @@ class AsyncSession(Session):
         verify: TLSVerifyType = ...,
         stream: Literal[False] = ...,
         cert: TLSClientCertType | None = ...,
+        **kwargs: typing.Any,
     ) -> Response: ...
 
     @typing.overload  # type: ignore[override]
@@ -883,6 +890,7 @@ class AsyncSession(Session):
         verify: TLSVerifyType = ...,
         stream: Literal[True],
         cert: TLSClientCertType | None = ...,
+        **kwargs: typing.Any,
     ) -> AsyncResponse: ...
 
     async def options(  # type: ignore[override]
@@ -900,6 +908,7 @@ class AsyncSession(Session):
         verify: TLSVerifyType = True,
         stream: bool = False,
         cert: TLSClientCertType | None = None,
+        **kwargs: typing.Any,
     ) -> Response | AsyncResponse:
         return await self.request(  # type: ignore[call-overload,misc]
             "OPTIONS",
@@ -915,6 +924,7 @@ class AsyncSession(Session):
             verify=verify,
             stream=stream,
             cert=cert,
+            **kwargs,
         )
 
     @typing.overload  # type: ignore[override]
@@ -933,6 +943,7 @@ class AsyncSession(Session):
         verify: TLSVerifyType = ...,
         stream: Literal[False] = ...,
         cert: TLSClientCertType | None = ...,
+        **kwargs: typing.Any,
     ) -> Response: ...
 
     @typing.overload  # type: ignore[override]
@@ -951,6 +962,7 @@ class AsyncSession(Session):
         verify: TLSVerifyType = ...,
         stream: Literal[True],
         cert: TLSClientCertType | None = ...,
+        **kwargs: typing.Any,
     ) -> AsyncResponse: ...
 
     async def head(  # type: ignore[override]
@@ -968,6 +980,7 @@ class AsyncSession(Session):
         verify: TLSVerifyType = True,
         stream: bool = False,
         cert: TLSClientCertType | None = None,
+        **kwargs: typing.Any,
     ) -> Response | AsyncResponse:
         return await self.request(  # type: ignore[call-overload,misc]
             "HEAD",
@@ -983,6 +996,7 @@ class AsyncSession(Session):
             verify=verify,
             stream=stream,
             cert=cert,
+            **kwargs,
         )
 
     @typing.overload  # type: ignore[override]
@@ -1241,6 +1255,7 @@ class AsyncSession(Session):
         verify: TLSVerifyType = ...,
         stream: Literal[False] = ...,
         cert: TLSClientCertType | None = ...,
+        **kwargs: typing.Any,
     ) -> Response: ...
 
     @typing.overload  # type: ignore[override]
@@ -1259,6 +1274,7 @@ class AsyncSession(Session):
         verify: TLSVerifyType = ...,
         stream: Literal[True],
         cert: TLSClientCertType | None = ...,
+        **kwargs: typing.Any,
     ) -> AsyncResponse: ...
 
     async def delete(  # type: ignore[override]
@@ -1276,6 +1292,7 @@ class AsyncSession(Session):
         verify: TLSVerifyType = True,
         stream: bool = False,
         cert: TLSClientCertType | None = None,
+        **kwargs: typing.Any,
     ) -> Response | AsyncResponse:
         return await self.request(  # type: ignore[call-overload,misc]
             "DELETE",
@@ -1291,6 +1308,7 @@ class AsyncSession(Session):
             verify=verify,
             stream=stream,
             cert=cert,
+            **kwargs,
         )
 
     async def gather(self, *responses: Response, max_fetch: int | None = None) -> None:  # type: ignore[override]

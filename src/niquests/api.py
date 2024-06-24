@@ -139,6 +139,7 @@ def get(
     cert: TLSClientCertType | None = None,
     hooks: HookType[PreparedRequest | Response] | None = None,
     retries: RetryType = DEFAULT_RETRIES,
+    **kwargs: typing.Any,
 ) -> Response:
     r"""Sends a GET request.
 
@@ -182,6 +183,7 @@ def get(
         cert=cert,
         hooks=hooks,
         retries=retries,
+        **kwargs,
     )
 
 
@@ -200,6 +202,7 @@ def options(
     cert: TLSClientCertType | None = None,
     hooks: HookType[PreparedRequest | Response] | None = None,
     retries: RetryType = DEFAULT_RETRIES,
+    **kwargs: typing.Any,
 ) -> Response:
     r"""Sends an OPTIONS request.
 
@@ -242,6 +245,7 @@ def options(
         cert=cert,
         hooks=hooks,
         retries=retries,
+        **kwargs,
     )
 
 
@@ -260,6 +264,7 @@ def head(
     cert: TLSClientCertType | None = None,
     hooks: HookType[PreparedRequest | Response] | None = None,
     retries: RetryType = DEFAULT_RETRIES,
+    **kwargs: typing.Any,
 ) -> Response:
     r"""Sends a HEAD request.
 
@@ -302,6 +307,7 @@ def head(
         cert=cert,
         hooks=hooks,
         retries=retries,
+        **kwargs,
     )
 
 
@@ -542,6 +548,7 @@ def delete(
     cert: TLSClientCertType | None = None,
     hooks: HookType[PreparedRequest | Response] | None = None,
     retries: RetryType = DEFAULT_RETRIES,
+    **kwargs: typing.Any,
 ) -> Response:
     r"""Sends a DELETE request.
 
@@ -584,4 +591,5 @@ def delete(
         cert=cert,
         hooks=hooks,
         retries=retries,
+        **kwargs,
     )

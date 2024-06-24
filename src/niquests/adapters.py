@@ -313,6 +313,7 @@ class HTTPAdapter(BaseAdapter):
         "_pool_maxsize",
         "_pool_block",
         "_quic_cache_layer",
+        "_disable_http1",
         "_disable_http2",
         "_disable_http3",
         "_source_address",
@@ -327,7 +328,9 @@ class HTTPAdapter(BaseAdapter):
         pool_maxsize: int = DEFAULT_POOLSIZE,
         max_retries: RetryType = DEFAULT_RETRIES,
         pool_block: bool = DEFAULT_POOLBLOCK,
+        *,  # todo: revert if any complaint about it... :s
         quic_cache_layer: CacheLayerAltSvcType | None = None,
+        disable_http1: bool = False,
         disable_http2: bool = False,
         disable_http3: bool = False,
         max_in_flight_multiplexed: int | None = None,
@@ -359,6 +362,7 @@ class HTTPAdapter(BaseAdapter):
         self._pool_maxsize = pool_maxsize
         self._pool_block = pool_block
         self._quic_cache_layer = quic_cache_layer
+        self._disable_http1 = disable_http1
         self._disable_http2 = disable_http2
         self._disable_http3 = disable_http3
         self._resolver = resolver
@@ -379,6 +383,8 @@ class HTTPAdapter(BaseAdapter):
 
         disabled_svn = set()
 
+        if disable_http1:
+            disabled_svn.add(HttpVersion.h11)
         if disable_http2:
             disabled_svn.add(HttpVersion.h2)
         if disable_http3:
@@ -412,6 +418,8 @@ class HTTPAdapter(BaseAdapter):
 
         disabled_svn = set()
 
+        if self._disable_http1:
+            disabled_svn.add(HttpVersion.h11)
         if self._disable_http2:
             disabled_svn.add(HttpVersion.h2)
         if self._disable_http3:
@@ -1284,6 +1292,7 @@ class AsyncHTTPAdapter(AsyncBaseAdapter):
         "_pool_maxsize",
         "_pool_block",
         "_quic_cache_layer",
+        "_disable_http1",
         "_disable_http2",
         "_disable_http3",
         "_source_address",
@@ -1298,7 +1307,9 @@ class AsyncHTTPAdapter(AsyncBaseAdapter):
         pool_maxsize: int = DEFAULT_POOLSIZE,
         max_retries: RetryType = DEFAULT_RETRIES,
         pool_block: bool = DEFAULT_POOLBLOCK,
+        *,
         quic_cache_layer: CacheLayerAltSvcType | None = None,
+        disable_http1: bool = False,
         disable_http2: bool = False,
         disable_http3: bool = False,
         max_in_flight_multiplexed: int | None = None,
@@ -1331,6 +1342,7 @@ class AsyncHTTPAdapter(AsyncBaseAdapter):
         self._pool_maxsize = pool_maxsize
         self._pool_block = pool_block
         self._quic_cache_layer = quic_cache_layer
+        self._disable_http1 = disable_http1
         self._disable_http2 = disable_http2
         self._disable_http3 = disable_http3
         self._resolver = resolver
@@ -1350,6 +1362,8 @@ class AsyncHTTPAdapter(AsyncBaseAdapter):
 
         disabled_svn = set()
 
+        if disable_http1:
+            disabled_svn.add(HttpVersion.h11)
         if disable_http2:
             disabled_svn.add(HttpVersion.h2)
         if disable_http3:
@@ -1383,6 +1397,8 @@ class AsyncHTTPAdapter(AsyncBaseAdapter):
 
         disabled_svn = set()
 
+        if self._disable_http1:
+            disabled_svn.add(HttpVersion.h11)
         if self._disable_http2:
             disabled_svn.add(HttpVersion.h2)
         if self._disable_http3:

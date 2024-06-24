@@ -994,6 +994,10 @@ class Response:
         #: is a response.
         self.request: PreparedRequest | None = None
 
+        #: download progress if any. this property won't be set unless
+        #: using stream=True + iter_content + content-length set!
+        self.download_progress: TransferProgress | None = None
+
     @property
     def lazy(self) -> bool:
         """
@@ -1180,17 +1184,42 @@ class Response:
 
         def generate() -> typing.Generator[bytes, None, None]:
             assert self.raw is not None
+
+            can_track_progress = hasattr(self.raw, "_fp") and hasattr(
+                self.raw._fp, "data_in_count"
+            )
+
+            if can_track_progress and self.download_progress is None:
+                if "content-length" in self.headers:
+                    self.download_progress = TransferProgress()
+                    try:
+                        self.download_progress.content_length = int(
+                            self.headers["content-length"]
+                        )
+                    except ValueError:
+                        pass
             # Special case for urllib3.
             if hasattr(self.raw, "stream"):
                 try:
-                    yield from self.raw.stream(chunk_size, decode_content=True)
+                    for chunk in self.raw.stream(chunk_size, decode_content=True):
+                        if self.download_progress is not None:
+                            self.download_progress.total = self.raw._fp.data_in_count  # type: ignore[union-attr]
+                        yield chunk
                 except ProtocolError as e:
+                    if self.download_progress is not None:
+                        self.download_progress.any_error = True
                     raise ChunkedEncodingError(e)
                 except DecodeError as e:
+                    if self.download_progress is not None:
+                        self.download_progress.any_error = True
                     raise ContentDecodingError(e)
                 except ReadTimeoutError as e:
+                    if self.download_progress is not None:
+                        self.download_progress.any_error = True
                     raise ConnectionError(e)
                 except SSLError as e:
+                    if self.download_progress is not None:
+                        self.download_progress.any_error = True
                     raise RequestsSSLError(e)
             else:
                 # Standard file-like object.
@@ -1583,9 +1612,26 @@ class AsyncResponse(Response):
         ):
             assert self.raw is not None
 
+            can_track_progress = hasattr(self.raw, "_fp") and hasattr(
+                self.raw._fp, "data_in_count"
+            )
+
+            if can_track_progress and self.download_progress is None:
+                if "content-length" in self.headers:
+                    self.download_progress = TransferProgress()
+                    try:
+                        self.download_progress.content_length = int(
+                            self.headers["content-length"]
+                        )
+                    except ValueError:
+                        pass
+
             while True:
                 try:
                     chunk = await self.raw.read(chunk_size, decode_content=True)
+
+                    if self.download_progress is not None:
+                        self.download_progress.total = self.raw._fp.data_in_count  # type: ignore[union-attr]
                 except ProtocolError as e:
                     raise ChunkedEncodingError(e)
                 except DecodeError as e:

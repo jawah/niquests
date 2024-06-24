@@ -1,6 +1,26 @@
 Release History
 ===============
 
+3.7.0 (2024-06-24)
+------------------
+
+**Added**
+- TransferProgress tracking in Response when downloading using `stream=True` based on the Content-Length. (#127)
+  There's no easy way to track the "real" amount of bytes consumed using "iter_content" when the remote is
+  sending a compressed body. This change makes it possible to track the amount of bytes consumed.
+  The `Response` object now contain a property named `download_progress` that is either `None` or a `TransferProgress` object.
+- HTTP/2 with prior knowledge over TLS or via an unencrypted connection.
+  `disable_http1` toggle is now available through your `Session` constructor.
+  In consequence, you may leverage all HTTP/2 capabilities like multiplexing using a plain (e.g. non-TLS) socket.
+  You may enable/disable any protocols per Session object (but not all of them at once!).
+  In non-TLS connections, you have to keep one of HTTP/1.1 or HTTP/2 enabled.
+  Otherwise, one of HTTP/1.1, HTTP/2 or HTTP/3. A `RuntimeError` may be thrown if no protocol can be used in a
+  given context.
+
+**Changed**
+- Relax main API constraint in get, head, options and delete methods / functions by accepting kwargs.
+- urllib3-future lower bound version is raised to 2.8.900
+
 3.6.7 (2024-06-19)
 ------------------
 
