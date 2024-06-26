@@ -25,6 +25,8 @@ else:
 
 from .auth import AuthBase
 from .structures import CaseInsensitiveDict
+if typing.TYPE_CHECKING:
+    from .models import PreparedRequest
 
 #: (Restricted) list of http verb that we natively support and understand.
 HttpMethodType: typing.TypeAlias = (
@@ -85,11 +87,12 @@ TimeoutType: typing.TypeAlias = typing.Union[
 ]
 #: Specify (BasicAuth) authentication by passing a tuple of user, and password.
 #: Can be a custom authentication mechanism that derive from AuthBase.
-HttpAuthenticationType: typing.TypeAlias = typing.Union[
+HttpAuthenticationType: typing.TypeAlias = """typing.Union[
     typing.Tuple[typing.Union[str, bytes], typing.Union[str, bytes]],
     str,
     AuthBase,
-]
+    typing.Callable[[PreparedRequest], PreparedRequest],
+]"""
 #: Map for each protocol (http, https) associated proxy to be used.
 ProxyType: typing.TypeAlias = typing.Dict[str, str]
 
