@@ -1,6 +1,12 @@
 Release History
 ===============
 
+3.7.1 (2024-06-??)
+------------------
+
+**Fixed**
+- auth argument not accepting a function according to static type checkers. (#133)
+
 3.7.0 (2024-06-24)
 ------------------
 
