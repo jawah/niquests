@@ -323,6 +323,8 @@ class PreparedRequest:
         self.ocsp_verified: bool | None = None
         #: upload progress if any.
         self.upload_progress: TransferProgress | None = None
+        #: internal usage only. warn us that we should re-compute content-length and await auth() outside of PreparedRequest.
+        self._asynchronous_auth: bool = False
 
     @property
     def oheaders(self) -> Headers:
@@ -636,7 +638,11 @@ class PreparedRequest:
                     "Unexpected non-callable authentication. Did you pass unsupported tuple to auth argument?"
                 )
 
-            if not asyncio.iscoroutinefunction(auth.__call__):
+            self._asynchronous_auth = hasattr(
+                auth, "__call__"
+            ) and asyncio.iscoroutinefunction(auth.__call__)
+
+            if not self._asynchronous_auth:
                 # Allow auth to make its changes.
                 r = auth(self)
 

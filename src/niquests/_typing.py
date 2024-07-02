@@ -26,10 +26,11 @@ else:
 from .auth import AuthBase
 from .structures import CaseInsensitiveDict
 
+if typing.TYPE_CHECKING:
+    from .models import PreparedRequest
+
 #: (Restricted) list of http verb that we natively support and understand.
-HttpMethodType: typing.TypeAlias = (
-    str  # todo: have typing.Literal when ready to drop Python 3.7
-)
+HttpMethodType: typing.TypeAlias = str
 #: List of formats accepted for URL queries parameters. (e.g. /?param1=a&param2=b)
 QueryParameterType: typing.TypeAlias = typing.Union[
     typing.List[typing.Tuple[str, typing.Union[str, typing.List[str]]]],
@@ -89,6 +90,7 @@ HttpAuthenticationType: typing.TypeAlias = typing.Union[
     typing.Tuple[typing.Union[str, bytes], typing.Union[str, bytes]],
     str,
     AuthBase,
+    typing.Callable[["PreparedRequest"], "PreparedRequest"],
 ]
 #: Map for each protocol (http, https) associated proxy to be used.
 ProxyType: typing.TypeAlias = typing.Dict[str, str]
