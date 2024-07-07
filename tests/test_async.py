@@ -56,6 +56,33 @@ class TestAsyncWithoutMultiplex:
 
         assert all(r.status_code == 200 for r in responses_foo + responses_bar)
 
+    async def test_with_async_iterable(self):
+        async with AsyncSession() as s:
+
+            async def fake_aiter():
+                await asyncio.sleep(0.01)
+                yield b"foo"
+                await asyncio.sleep(0.01)
+                yield b"bar"
+
+            r = await s.post("https://pie.dev/post", data=fake_aiter())
+
+            assert r.status_code == 200
+            assert r.json()["data"] == "foobar"
+
+    async def test_with_async_auth(self):
+        async with AsyncSession() as s:
+
+            async def fake_aauth(p):
+                await asyncio.sleep(0.01)
+                p.headers["X-Async-Auth"] = "foobar"
+                return p
+
+            r = await s.get("https://pie.dev/get", auth=fake_aauth)
+
+            assert r.status_code == 200
+            assert "X-Async-Auth" in r.json()["headers"]
+
 
 @pytest.mark.usefixtures("requires_wan")
 @pytest.mark.asyncio

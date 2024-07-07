@@ -12,34 +12,34 @@ Niquests, is the “**Safest**, **Fastest[^10]**, **Easiest**, and **Most advanc
 <details>
   <summary>👆 <b>Look at the feature table comparison</b> against <i>requests, httpx and aiohttp</i>!</summary>
 
-| Feature                             | niquests | requests  |     httpx     | aiohttp       |
-|-------------------------------------|:--------:|:---------:|:-------------:|---------------|
-| `HTTP/1.1`                          |    ✅     |     ✅     |       ✅       | ✅             |
-| `HTTP/2`                            |    ✅     |     ❌     |     ✅[^7]     | ❌             |
-| `HTTP/3 over QUIC`                  |    ✅     |     ❌     |       ❌       | ❌             |
-| `Synchronous`                       |    ✅     |     ✅     |       ✅       | ❌             |
-| `Asynchronous`                      |    ✅     |     ❌     |       ✅       | ✅             |
-| `Thread Safe`                       |    ✅     |     ✅     |     ❌[^5]     | _N/A_[^1]     |
-| `Task Safe`                         |    ✅     | _N/A_[^2] |       ✅       | ✅             |
-| `OS Trust Store`                    |    ✅     |     ❌     |       ❌       | ❌             |
-| `Multiplexing`                      |    ✅     |     ❌     | _Limited_[^3] | ❌             |
-| `DNSSEC`                            |  ✅[^11]  |     ❌     |       ❌       | ❌             |
-| `Customizable DNS Resolution`       |    ✅     |     ❌     |       ❌       | ✅             |
-| `DNS over HTTPS`                    |    ✅     |     ❌     |       ❌       | ❌             |
-| `DNS over QUIC`                     |    ✅     |     ❌     |       ❌       | ❌             |
-| `DNS over TLS`                      |    ✅     |     ❌     |       ❌       | ❌             |
-| `Multiple DNS Resolver`             |    ✅     |     ❌     |       ❌       | ❌             |
-| `Network Fine Tuning & Inspect`     |    ✅     |     ❌     | _Limited_[^6] | _Limited_[^6] |
-| `Certificate Revocation Protection` |    ✅     |     ❌     |       ❌       | ❌             |
-| `Session Persistence`               |    ✅     |     ✅     |       ✅       | ✅             |
-| `In-memory Certificate CA & mTLS`   |    ✅     |     ❌     | _Limited_[^4] | _Limited_[^4] |
-| `SOCKS 4/5 Proxies`                 |    ✅     |     ✅     |       ✅       | ❌             |
-| `HTTP/HTTPS Proxies`                |    ✅     |     ✅     |       ✅       | ✅             |
-| `TLS-in-TLS Support`                |    ✅     |     ✅     |       ✅       | ✅             |
-| `Direct HTTP/3 Negotiation`         |  ✅[^9]   |  N/A[^8]  |    N/A[^8]    | N/A[^8]       |
-| `Happy Eyeballs`                    |    ✅     |     ❌     |       ❌       | ✅             |
-| `Package / SLSA Signed`             |    ✅     |     ❌     |       ❌       | ✅             |
-| `HTTP/2 with prior knowledge (h2c)` |    ✅     |     ❌     |       ✅       | ❌             |
+| Feature                                                                  |         niquests          |              requests              |             httpx             | aiohttp              |
+|--------------------------------------------------------------------------|:-------------------------:|:----------------------------------:|:-----------------------------:|----------------------|
+| `HTTP/1.1`                                                               |             ✅             |                 ✅                  |               ✅               | ✅                    |
+| `HTTP/2`                                                                 |             ✅             |                 ❌                  |             ✅[^7]             | ❌                    |
+| `HTTP/3 over QUIC`                                                       |             ✅             |                 ❌                  |               ❌               | ❌                    |
+| `Synchronous`                                                            |             ✅             |                 ✅                  |               ✅               | ❌                    |
+| `Asynchronous`                                                           |             ✅             |                 ❌                  |               ✅               | ✅                    |
+| `Thread Safe`                                                            |             ✅             |                 ✅                  |             ❌[^5]             | _N/A_[^1]            |
+| `Task Safe`                                                              |             ✅             |             _N/A_[^2]              |               ✅               | ✅                    |
+| `OS Trust Store`                                                         |             ✅             |                 ❌                  |               ❌               | ❌                    |
+| `Multiplexing`                                                           |             ✅             |                 ❌                  |         _Limited_[^3]         | ❌                    |
+| `DNSSEC`                                                                 |          ✅[^11]           |                 ❌                  |               ❌               | ❌                    |
+| `Customizable DNS Resolution`                                            |             ✅             |                 ❌                  |               ❌               | ✅                    |
+| `DNS over HTTPS`                                                         |             ✅             |                 ❌                  |               ❌               | ❌                    |
+| `DNS over QUIC`                                                          |             ✅             |                 ❌                  |               ❌               | ❌                    |
+| `DNS over TLS`                                                           |             ✅             |                 ❌                  |               ❌               | ❌                    |
+| `Multiple DNS Resolver`                                                  |             ✅             |                 ❌                  |               ❌               | ❌                    |
+| `Network Fine Tuning & Inspect`                                          |             ✅             |                 ❌                  |         _Limited_[^6]         | _Limited_[^6]        |
+| `Certificate Revocation Protection`                                      |             ✅             |                 ❌                  |               ❌               | ❌                    |
+| `Session Persistence`                                                    |             ✅             |                 ✅                  |               ✅               | ✅                    |
+| `In-memory Certificate CA & mTLS`                                        |             ✅             |                 ❌                  |         _Limited_[^4]         | _Limited_[^4]        |
+| `SOCKS 4/5 Proxies`                                                      |             ✅             |                 ✅                  |               ✅               | ❌                    |
+| `HTTP/HTTPS Proxies`                                                     |             ✅             |                 ✅                  |               ✅               | ✅                    |
+| `TLS-in-TLS Support`                                                     |             ✅             |                 ✅                  |               ✅               | ✅                    |
+| `Direct HTTP/3 Negotiation`                                              |           ✅[^9]           |              N/A[^8]               |            N/A[^8]            | N/A[^8]              |
+| `Happy Eyeballs`                                                         |             ✅             |                 ❌                  |               ❌               | ✅                    |
+| `Package / SLSA Signed`                                                  |             ✅             |                 ❌                  |               ❌               | ✅                    |
+| `HTTP/2 with prior knowledge (h2c)`                                      |             ✅             |                 ❌                  |               ✅               | ❌                    |
 </details>
 
 <details>

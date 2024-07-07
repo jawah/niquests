@@ -19,6 +19,9 @@ from urllib.parse import urlparse
 from .cookies import extract_cookies_to_jar
 from .utils import parse_dict_header
 
+if typing.TYPE_CHECKING:
+    from .models import PreparedRequest
+
 CONTENT_TYPE_FORM_URLENCODED: str = "application/x-www-form-urlencoded"
 CONTENT_TYPE_MULTI_PART: str = "multipart/form-data"
 
@@ -37,10 +40,17 @@ def _basic_auth_str(username: str | bytes, password: str | bytes) -> str:
     return authstr
 
 
-class AuthBase:
-    """Base class that all auth implementations derive from"""
+class AsyncAuthBase:
+    """Base class that all asynchronous auth implementations derive from"""
 
-    def __call__(self, r):
+    async def __call__(self, r: PreparedRequest) -> PreparedRequest:
+        raise NotImplementedError("Auth hooks must be callable.")
+
+
+class AuthBase:
+    """Base class that all synchronous auth implementations derive from"""
+
+    def __call__(self, r: PreparedRequest) -> PreparedRequest:
         raise NotImplementedError("Auth hooks must be callable.")
 
 

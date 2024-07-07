@@ -210,6 +210,10 @@ class SharableLimitedDict(typing.MutableMapping):
 
 
 class QuicSharedCache(SharableLimitedDict):
+    def __init__(self, max_size: int | None) -> None:
+        super().__init__(max_size)
+        self._exclusion_store: typing.MutableMapping[typing.Any, typing.Any] = {}
+
     def add_domain(
         self, host: str, port: int | None = None, alt_port: int | None = None
     ) -> None:
@@ -218,6 +222,25 @@ class QuicSharedCache(SharableLimitedDict):
         if alt_port is None:
             alt_port = port
         self[(host, port)] = (host, alt_port)
+
+    def exclude_domain(
+        self, host: str, port: int | None = None, alt_port: int | None = None
+    ):
+        if port is None:
+            port = 443
+        if alt_port is None:
+            alt_port = port
+        self._exclusion_store[(host, port)] = (host, alt_port)
+
+    def __setitem__(self, key, value):
+        with self._lock:
+            if key in self._exclusion_store:
+                return
+
+            if self._max_size and len(self._store) >= self._max_size:
+                self._store.popitem()
+
+            self._store[key] = value
 
 
 class AsyncQuicSharedCache(QuicSharedCache):

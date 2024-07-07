@@ -233,8 +233,14 @@ class RequestsCookieJar(cookielib.CookieJar, MutableMapping):
     .. warning:: dictionary operations that are normally O(1) may be O(n).
     """
 
-    def __init__(self, policy: cookielib.CookiePolicy | None = None):
+    def __init__(
+        self, policy: cookielib.CookiePolicy | None = None, thread_free: bool = False
+    ):
         super().__init__(policy=policy or CookiePolicyLocalhostBypass())
+        if thread_free:
+            from .structures import DummyLock
+
+            self._cookies_lock = DummyLock()
 
     def get(self, name, default=None, domain=None, path=None):
         """Dict-like get() that also supports optional domain and path args in
@@ -467,7 +473,7 @@ class RequestsCookieJar(cookielib.CookieJar, MutableMapping):
         """Unlike a normal CookieJar, this class is pickleable."""
         self.__dict__.update(state)
         if "_cookies_lock" not in self.__dict__:
-            self._cookies_lock = threading.RLock()
+            self._cookies_lock = threading.RLock()  # type: ignore[assignment]
 
     def copy(self):
         """Return a copy of this RequestsCookieJar."""
@@ -566,6 +572,7 @@ def cookiejar_from_dict(
     cookie_dict: typing.MutableMapping[str, str] | None,
     cookiejar: RequestsCookieJar | cookielib.CookieJar | None = None,
     overwrite: bool = True,
+    thread_free: bool = False,
 ) -> RequestsCookieJar | cookielib.CookieJar:
     """Returns a CookieJar from a key/value dictionary.
 
@@ -575,7 +582,7 @@ def cookiejar_from_dict(
         already in the jar with new ones.
     """
     if cookiejar is None:
-        cookiejar = RequestsCookieJar()
+        cookiejar = RequestsCookieJar(thread_free=thread_free)
 
     if cookie_dict is not None:
         names_from_jar = [cookie.name for cookie in cookiejar]

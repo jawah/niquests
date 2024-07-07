@@ -1,11 +1,29 @@
 Release History
 ===============
 
-3.7.1 (2024-06-??)
+3.7.1 (2024-07-07)
 ------------------
+
+**Added**
+- Official support for Python 3.13
+  This has been tested outside GitHub CI due to httpbin unready state for 3.13[...]
+- Support for asynchronous auth callables.
+- Support for asynchronous bodies through `AsyncIterable` that yield either bytes or str.
+- Support for purposely excluding a domain/port from connecting to QUIC/HTTP3 via the `quic_cache_layer` property of `Session`.
+  In order to exclude `cloudflare.com` from HTTP3 auto-upgrade:
+  ```python
+  from niquests import Session
+
+  s = Session()
+  s.quic_cache_layer.exclude_domain("cloudflare.com")
+  ```
 
 **Fixed**
 - auth argument not accepting a function according to static type checkers. (#133)
+- RequestsCookieJar having a lock in `AsyncSession`. Its effect has been nullified to improve performances.
+
+**Changed**
+- urllib3-future lower bound version is raised to 2.8.902
 
 3.7.0 (2024-06-24)
 ------------------

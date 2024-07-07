@@ -84,6 +84,8 @@ from ._typing import (
     MultiPartFilesAltType,
     MultiPartFilesType,
     QueryParameterType,
+    AsyncHttpAuthenticationType,
+    AsyncBodyType,
 )
 from .auth import BearerTokenAuth, HTTPBasicAuth
 from .cookies import (
@@ -196,9 +198,9 @@ class Request:
         url: str | None = None,
         headers: HeadersType | None = None,
         files: MultiPartFilesType | MultiPartFilesAltType | None = None,
-        data: BodyType | None = None,
+        data: BodyType | AsyncBodyType | None = None,
         params: QueryParameterType | None = None,
-        auth: HttpAuthenticationType | None = None,
+        auth: HttpAuthenticationType | AsyncHttpAuthenticationType | None = None,
         cookies: CookiesType | None = None,
         hooks: HookType | None = None,
         json: typing.Any | None = None,
@@ -301,6 +303,8 @@ class PreparedRequest:
       <Response HTTP/2 [200]>
     """
 
+    _pending_async_auth: AsyncHttpAuthenticationType
+
     def __init__(self) -> None:
         #: HTTP verb to send to the server.
         self.method: HttpMethodType | None = None
@@ -312,7 +316,7 @@ class PreparedRequest:
         # after prepare_cookies is called
         self._cookies: RequestsCookieJar | CookieJar | None = None
         #: request body to send to the server.
-        self.body: BodyType | None = None
+        self.body: BodyType | AsyncBodyType | None = None
         #: dictionary of callback hooks, for internal usage.
         self.hooks: HookType[Response | PreparedRequest] = default_hooks()
         #: integer denoting starting position of a readable file-like body.
@@ -336,9 +340,9 @@ class PreparedRequest:
         url: str | None = None,
         headers: HeadersType | None = None,
         files: MultiPartFilesType | MultiPartFilesAltType | None = None,
-        data: BodyType | None = None,
+        data: BodyType | AsyncBodyType | None = None,
         params: QueryParameterType | None = None,
-        auth: HttpAuthenticationType | None = None,
+        auth: HttpAuthenticationType | AsyncHttpAuthenticationType | None = None,
         cookies: CookiesType | None = None,
         hooks: HookType[Response | PreparedRequest] | None = None,
         json: typing.Any | None = None,
@@ -467,7 +471,7 @@ class PreparedRequest:
 
     def prepare_body(
         self,
-        data: BodyType | None,
+        data: BodyType | AsyncBodyType | None,
         files: MultiPartFilesType | MultiPartFilesAltType | None,
         json: typing.Any | None = None,
     ) -> None:
@@ -479,7 +483,7 @@ class PreparedRequest:
         assert self.headers is not None
 
         # Nottin' on you.
-        body: BodyType | None = None
+        body: BodyType | AsyncBodyType | None = None
         content_type: str | None = None
         enforce_form_data = False
 
@@ -500,7 +504,7 @@ class PreparedRequest:
             if isinstance(body, str):
                 body = body.encode("utf-8")
 
-        is_stream = all(
+        is_stream = hasattr(data, "__aiter__") or all(
             [
                 hasattr(data, "__iter__"),
                 not isinstance(data, (str, list, tuple, Mapping)),
@@ -596,7 +600,7 @@ class PreparedRequest:
 
         self.body = body
 
-    def prepare_content_length(self, body: BodyType | None) -> None:
+    def prepare_content_length(self, body: BodyType | AsyncBodyType | None) -> None:
         """Prepare Content-Length header based on request method and body"""
         assert self.headers is not None
 
@@ -614,7 +618,11 @@ class PreparedRequest:
             # but don't provide one. (i.e. not GET or HEAD)
             self.headers["Content-Length"] = "0"
 
-    def prepare_auth(self, auth: HttpAuthenticationType | None, url: str = "") -> None:
+    def prepare_auth(
+        self,
+        auth: HttpAuthenticationType | AsyncHttpAuthenticationType | None,
+        url: str = "",
+    ) -> None:
         """Prepares the given HTTP auth data."""
 
         assert (
@@ -638,9 +646,9 @@ class PreparedRequest:
                     "Unexpected non-callable authentication. Did you pass unsupported tuple to auth argument?"
                 )
 
-            self._asynchronous_auth = hasattr(
-                auth, "__call__"
-            ) and asyncio.iscoroutinefunction(auth.__call__)
+            self._asynchronous_auth = (
+                hasattr(auth, "__call__") and asyncio.iscoroutinefunction(auth.__call__)
+            ) or asyncio.iscoroutinefunction(auth)
 
             if not self._asynchronous_auth:
                 # Allow auth to make its changes.
@@ -651,6 +659,8 @@ class PreparedRequest:
 
                 # Recompute Content-Length
                 self.prepare_content_length(self.body)
+            else:
+                self._pending_async_auth = auth  # type: ignore[assignment]
 
     def prepare_cookies(self, cookies: CookiesType | None) -> None:
         """Prepares the given HTTP cookie data.

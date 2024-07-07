@@ -23,7 +23,7 @@ else:
     from urllib3_future.contrib.resolver._async import AsyncBaseResolver  # type: ignore[assignment]
     from urllib3_future.contrib.resolver import BaseResolver  # type: ignore[assignment]
 
-from .auth import AuthBase
+from .auth import AuthBase, AsyncAuthBase
 from .structures import CaseInsensitiveDict
 
 if typing.TYPE_CHECKING:
@@ -51,6 +51,10 @@ BodyType: typing.TypeAlias = typing.Union[
     BodyFormType,
     typing.Iterable[bytes],
     typing.Iterable[str],
+]
+AsyncBodyType: typing.TypeAlias = typing.Union[
+    typing.AsyncIterable[bytes],
+    typing.AsyncIterable[str],
 ]
 #: HTTP Headers can be represented through three ways. 1) typical dict, 2) internal insensitive dict, and 3) list of tuple.
 HeadersType: typing.TypeAlias = typing.Union[
@@ -91,6 +95,10 @@ HttpAuthenticationType: typing.TypeAlias = typing.Union[
     str,
     AuthBase,
     typing.Callable[["PreparedRequest"], "PreparedRequest"],
+]
+AsyncHttpAuthenticationType: typing.TypeAlias = typing.Union[
+    AsyncAuthBase,
+    typing.Callable[["PreparedRequest"], typing.Awaitable["PreparedRequest"]],
 ]
 #: Map for each protocol (http, https) associated proxy to be used.
 ProxyType: typing.TypeAlias = typing.Dict[str, str]

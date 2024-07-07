@@ -411,6 +411,7 @@ case you can iterate chunk-by-chunk by calling ``iter_content`` with a ``chunk_s
 parameter of ``None``. If you want to set a maximum size of the chunk,
 you can set a ``chunk_size`` parameter to any integer.
 
+.. note:: Since Niquests v3.7.1+ we support having async iterable passed down to ``data=...`` via your ``AsyncSession``.
 
 .. _multipart:
 
@@ -1279,6 +1280,20 @@ over QUIC.
 .. warning:: You cannot specify another hostname for security reasons.
 
 .. note:: Using a custom DNS resolver can solve the problem as we can probe the HTTPS record for the given hostname and connect directly using HTTP/3 over QUIC.
+
+Prevent a domain from auto-upgrading to HTTP/3
+----------------------------------------------
+
+In immediate opposition to the previous section::
+
+    from niquests import Session
+
+    s = Session()
+    s.quic_cache_layer.exclude_domain("cloudflare.com")
+
+This will prevent the auto-upgrade to HTTP/3 via the Alt-Svc headers.
+
+.. note:: This is most useful for people that encounter a server that yield its support for HTTP/3 while not able to. This permit to isolate the bad server instead of disabling HTTP/3 session-wide.
 
 Increase the default Alt-Svc cache size
 ---------------------------------------
