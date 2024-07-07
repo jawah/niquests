@@ -13,7 +13,7 @@ authors = [
   {name = "Kenneth Reitz", email = "me@kennethreitz.org"}
 ]
 maintainers = [
-  {name = "Ahmed R. TAHRI", email="ahmed.tahri@cloudnursery.dev"},
+  {name = "Ahmed R. TAHRI", email="tahri.ahmed@proton.me"},
 ]
 classifiers = [
     "Development Status :: 5 - Production/Stable",
@@ -30,6 +30,7 @@ classifiers = [
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Programming Language :: Python :: 3 :: Only",
     "Programming Language :: Python :: Implementation :: CPython",
     "Programming Language :: Python :: Implementation :: PyPy",
