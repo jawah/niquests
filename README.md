@@ -51,20 +51,20 @@ _Scenario:_ Fetch a thousand requests using 10 tasks or threads, each with a hun
 
 | Client   | Average Delay to Complete | Notes                        |
 |----------|---------------------------|------------------------------|
-| requests | 987 ms                    | ThreadPoolExecutor. HTTP/1.1 |
-| httpx    | 720 ms                    | Asyncio. HTTP/2              |
-| niquests | 370 ms                    | Asyncio. HTTP/2              |
+| requests | 987 ms or ~1013 req/s     | ThreadPoolExecutor. HTTP/1.1 |
+| httpx    | 720 ms or ~1389 req/s     | Asyncio. HTTP/2              |
+| niquests | 340 ms or ~2941 req/s     | Asyncio. HTTP/2              |
 
 **Simplified APIs**
 
 | Client        | Average Delay to Complete | Notes                        |
 |---------------|---------------------------|------------------------------|
-| requests core | 643 ms                    | ThreadPoolExecutor. HTTP/1.1 |
-| httpx core    | 530 ms                    | Asyncio. HTTP/2              |
-| aiohttp       | 210 ms                    | Asyncio. HTTP/1.1            |
-| niquests core | 170 ms                    | Asyncio. HTTP/2              |
+| requests core | 643 ms or ~1555 req/s     | ThreadPoolExecutor. HTTP/1.1 |
+| httpx core    | 530 ms or ~1886 req/s     | Asyncio. HTTP/2              |
+| aiohttp       | 210 ms or ~4762 req/s     | Asyncio. HTTP/1.1            |
+| niquests core | 170 ms or ~5882 req/s     | Asyncio. HTTP/2              |
 
-Did you give up on HTTP/2 due to performance concerns? Think again! Do you realize that you can get 2.53 times faster with the same CPU if you ever switched to Niquests from Requests?
+Did you give up on HTTP/2 due to performance concerns? Think again! Do you realize that you can get 3 times faster with the same CPU if you ever switched to Niquests from Requests?
 Multiplexing and response lazyness open up a wide range of possibilities! Want to learn more about the tests? scripts? reasoning?
 
 Take a deeper look at https://github.com/Ousret/niquests-stats
@@ -196,5 +196,5 @@ Niquests is a highly improved HTTP client that is based (forked) on Requests. Th
 [^7]: while advertised as possible, they refuse to make it the default due to performance issues. as of february 2024 an extra is required to enable it manually.
 [^8]: they don't support HTTP/3 at all.
 [^9]: you must use a custom DNS resolver so that it can preemptively connect using HTTP/3 over QUIC when remote is compatible.
-[^10]: performance measured when leveraging a multiplexed connection with or without uses of any form of concurrency as of May 2024. The research compared `httpx`, `requests`, `aiohttp` against `niquests`. See https://github.com/Ousret/niquests-stats
+[^10]: performance measured when leveraging a multiplexed connection with or without uses of any form of concurrency as of July 2024. The research compared `httpx`, `requests`, `aiohttp` against `niquests`. See https://github.com/Ousret/niquests-stats
 [^11]: enabled when using a custom DNS resolver.
