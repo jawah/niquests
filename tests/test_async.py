@@ -35,6 +35,12 @@ class TestAsyncWithoutMultiplex:
             assert resp.status_code == 200
             assert await resp.json()
 
+    async def test_async_session_cookie_dummylock(self):
+        async with AsyncSession() as s:
+            await s.get("https://pie.dev/cookies/set/hello/world")
+            assert len(s.cookies)
+            assert "hello" in s.cookies
+
     async def test_concurrent_task_get(self):
         async def emit():
             responses = []
