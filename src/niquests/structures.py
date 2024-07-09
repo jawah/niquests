@@ -254,4 +254,10 @@ class DummyLock:
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        return
+        pass
+
+    def acquire(self):
+        pass
+
+    def release(self):
+        pass

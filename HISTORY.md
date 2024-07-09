@@ -1,6 +1,12 @@
 Release History
 ===============
 
+3.7.2 (2024-07-09)
+------------------
+
+**Fixed**
+- DummyLock injected into RequestsCookieJar is not fully compatible, thus breaking AsyncSession on certain scenario. (#136)
+
 3.7.1 (2024-07-07)
 ------------------
 
