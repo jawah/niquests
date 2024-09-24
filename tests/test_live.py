@@ -110,3 +110,26 @@ class TestLiveStandardCase:
             r = s.get("https://pie.dev/get")
 
             assert r.ok
+
+    # def test_http_trailer_preload(self) -> None:
+    #     with Session() as s:
+    #         r = s.get("https://httpbingo.org/trailers?foo=baz")
+    #
+    #         assert r.ok
+    #         assert r.trailers
+    #         assert "foo" in r.trailers
+    #         assert r.trailers["foo"] == "baz"
+    #
+    # def test_http_trailer_no_preload(self) -> None:
+    #     with Session() as s:
+    #         r = s.get("https://httpbingo.org/trailers?foo=baz", stream=True)
+    #
+    #         assert r.ok
+    #         assert not r.trailers
+    #         assert "foo" not in r.trailers
+    #
+    #         r.content
+    #
+    #         assert r.trailers
+    #         assert "foo" in r.trailers
+    #         assert r.trailers["foo"] == "baz"

@@ -78,6 +78,7 @@ Niquests is ready for today's web.
 - Familiar `dict`–like Cookies
 - Object-oriented headers
 - Multi-part File Uploads
+- Post-Quantum Security
 - Chunked HTTP Requests
 - Fully type-annotated!
 - SOCKS Proxy Support
@@ -88,6 +89,7 @@ Niquests is ready for today's web.
 - Happy Eyeballs
 - Multiplexed!
 - Thread-safe!
+- Trailers!
 - DNSSEC!
 - Async!
 

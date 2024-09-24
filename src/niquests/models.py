@@ -976,6 +976,10 @@ class Response:
         #: value of a ``'Content-Encoding'`` response header.
         self.headers: CaseInsensitiveDict = CaseInsensitiveDict()
 
+        #: Case-insensitive Dictionary of Response Trailer Headers.
+        #: This can only be filled after response consumption.
+        self.trailers: CaseInsensitiveDict = CaseInsensitiveDict()
+
         #: File-like object representation of response (for advanced usage).
         #: Use of ``raw`` requires that ``stream=True`` be set on the request.
         #: This requirement does not apply for use internally to Requests.
@@ -1245,6 +1249,9 @@ class Response:
                         break
                     yield chunk
 
+            if self.raw is not None and hasattr(self.raw, "trailers"):
+                self.trailers = CaseInsensitiveDict(self.raw.trailers)
+
             self._content_consumed = True
 
         if self._content_consumed and isinstance(self._content, bool):
@@ -1348,6 +1355,15 @@ class Response:
         return parse_it(self.headers)
 
     @property
+    def otrailers(self) -> Headers:
+        """
+        Retrieve trailers as they were objects. There is no need to parse headers yourself.
+        """
+        if self.raw:
+            return parse_it(self.raw.trailers)
+        return parse_it(self.trailers)
+
+    @property
     def content(self) -> bytes | None:
         """Content of the response, in bytes."""
 
@@ -1374,6 +1390,8 @@ class Response:
                     raise RequestsSSLError(e)
 
         self._content_consumed = True
+        if self.raw is not None and hasattr(self.raw, "trailers"):
+            self.trailers = CaseInsensitiveDict(self.raw.trailers)
         # don't need to release the connection; that's been handled by urllib3
         # since we exhausted the data.
         return self._content
@@ -1662,6 +1680,9 @@ class AsyncResponse(Response):
 
                 yield chunk
 
+            if self.raw is not None and hasattr(self.raw, "trailers"):
+                self.trailers = CaseInsensitiveDict(self.raw.trailers)
+
             self._content_consumed = True
 
         if self._content_consumed and isinstance(self._content, bool):
@@ -1760,6 +1781,9 @@ class AsyncResponse(Response):
                     raise ConnectionError(e)
                 except SSLError as e:
                     raise RequestsSSLError(e)
+
+        if self.raw is not None and hasattr(self.raw, "trailers"):
+            self.trailers = CaseInsensitiveDict(self.raw.trailers)
 
         self._content_consumed = True
         # don't need to release the connection; that's been handled by urllib3
