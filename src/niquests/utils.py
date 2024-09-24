@@ -1013,6 +1013,13 @@ def create_resolver(definition: ResolverType | None) -> BaseResolver:
         resolver = [ResolverDescription.from_url(definition)]
     elif isinstance(definition, ResolverDescription):
         resolver = [definition]
+    elif isinstance(definition, list):
+        if not definition:
+            return ResolverDescription(ProtocolResolver.SYSTEM).new()
+        if isinstance(definition[0], str):
+            resolver = [ResolverDescription.from_url(e) for e in definition]  # type: ignore[arg-type]
+        else:
+            resolver = definition  # type: ignore[assignment]
     else:
         raise ValueError("invalid resolver definition given")
 
@@ -1076,6 +1083,13 @@ def create_async_resolver(definition: AsyncResolverType | None) -> AsyncBaseReso
         resolver = [AsyncResolverDescription.from_url(definition)]
     elif isinstance(definition, AsyncResolverDescription):
         resolver = [definition]
+    elif isinstance(definition, list):  # can either be list of str or list of Resolver
+        if not definition:
+            return AsyncResolverDescription(ProtocolResolver.SYSTEM).new()
+        if isinstance(definition[0], str):
+            resolver = [AsyncResolverDescription.from_url(e) for e in definition]  # type: ignore[arg-type]
+        else:
+            resolver = definition  # type: ignore[assignment]
     else:
         raise ValueError("invalid resolver definition given")
 

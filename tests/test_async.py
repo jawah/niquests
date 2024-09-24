@@ -89,6 +89,29 @@ class TestAsyncWithoutMultiplex:
             assert r.status_code == 200
             assert "X-Async-Auth" in r.json()["headers"]
 
+    # async def test_http_trailer_preload(self) -> None:
+    #     async with AsyncSession() as s:
+    #         r = await s.get("https://httpbingo.org/trailers?foo=baz")
+    #
+    #         assert r.ok
+    #         assert r.trailers
+    #         assert "foo" in r.trailers
+    #         assert r.trailers["foo"] == "baz"
+    #
+    # async def test_http_trailer_no_preload(self) -> None:
+    #     async with AsyncSession() as s:
+    #         r = await s.get("https://httpbingo.org/trailers?foo=baz", stream=True)
+    #
+    #         assert r.ok
+    #         assert not r.trailers
+    #         assert "foo" not in r.trailers
+    #
+    #         await r.content
+    #
+    #         assert r.trailers
+    #         assert "foo" in r.trailers
+    #         assert r.trailers["foo"] == "baz"
+
 
 @pytest.mark.usefixtures("requires_wan")
 @pytest.mark.asyncio

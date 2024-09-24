@@ -1200,15 +1200,24 @@ class Session:
             # Send the request
             r = adapter.send(request, **kwargs)
         except TypeError:
-            # this is required because some people may do an incomplete migration.
-            # this will hint them appropriately.
-            raise TypeError(
-                "You probably tried to add a Requests adapter into a Niquests session. "
-                "Make sure you replaced the 'import requests.adapters' into 'import niquests.adapters' "
-                "and made required adjustment. If you did this to increase pool_maxsize, know that the "
-                "Session constructor support kwargs for it. "
-                "See https://niquests.readthedocs.io/en/latest/user/quickstart.html#scale-your-session-pool to learn more."
-            )
+            if "requests." in str(type(adapter)):
+                # this is required because some people may do an incomplete migration.
+                # this will hint them appropriately.
+                raise TypeError(
+                    "You probably tried to add a Requests adapter into a Niquests session. "
+                    "Make sure you replaced the 'import requests.adapters' into 'import niquests.adapters' "
+                    "and made required adjustment. If you did this to increase pool_maxsize, know that the "
+                    "Session constructor support kwargs for it. "
+                    "See https://niquests.readthedocs.io/en/latest/user/quickstart.html#scale-your-session-pool to learn more."
+                )
+            else:
+                # probably using a plugin that don't support extra kwargs!
+                # try nonetheless!
+                del kwargs["multiplexed"]
+                del kwargs["on_upload_body"]
+                del kwargs["on_post_connection"]
+
+                r = adapter.send(request, **kwargs)
 
         # Make sure the timings data are kept as is, conn_info is a reference to
         # urllib3-future conn_info.

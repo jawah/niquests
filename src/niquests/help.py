@@ -15,9 +15,9 @@ import h11
 import idna
 import wassima
 
-from . import RequestException
+from . import RequestException, HTTPError
 from . import __version__ as niquests_version
-from . import get
+from . import Session
 from ._compat import HAS_LEGACY_URLLIB3
 
 if HAS_LEGACY_URLLIB3 is True:
@@ -142,25 +142,59 @@ def info():
     }
 
 
-def main() -> None:
-    """Pretty-print the bug information as JSON."""
+pypi_session = Session()
+
+
+def check_update(package_name: str, actual_version: str) -> None:
+    """
+    Small and concise utility to check for updates.
+    """
     try:
-        response = get("https://pypi.org/pypi/niquests/json")
-        package_info = response.json()
+        response = pypi_session.get(f"https://pypi.org/pypi/{package_name}/json")
+        package_info = response.raise_for_status().json()
 
         if (
             isinstance(package_info, dict)
             and "info" in package_info
             and "version" in package_info["info"]
         ):
-            if package_info["info"]["version"] != niquests_version:
+            if package_info["info"]["version"] != actual_version:
                 warnings.warn(
-                    f"You are using Niquests {niquests_version} and PyPI yield version ({package_info['info']['version']}) as the stable one. "
-                    "We invite you to install this version as soon as possible. Run `python -m pip install niquests -U`.",
+                    f"You are using {package_name} {actual_version} and PyPI yield version ({package_info['info']['version']}) as the stable one. "
+                    f"We invite you to install this version as soon as possible. Run `python -m pip install {package_name} -U`.",
                     UserWarning,
                 )
-    except (RequestException, JSONDecodeError):
+    except (RequestException, JSONDecodeError, HTTPError):
         pass
+
+
+PACKAGE_TO_CHECK_FOR_UPGRADE = {
+    "niquests": niquests_version,
+    "urllib3-future": urllib3.__version__,
+    "qh3": qh3.__version__ if qh3 is not None else None,
+    "jh2": jh2.__version__,
+    "h11": h11.__version__,
+    "charset-normalizer": charset_normalizer.__version__,
+    "wassima": wassima.__version__,
+    "idna": idna.__version__,
+}
+
+
+def main() -> None:
+    """Pretty-print the bug information as JSON."""
+    for package, actual_version in PACKAGE_TO_CHECK_FOR_UPGRADE.items():
+        if actual_version is None:
+            continue
+        check_update(package, actual_version)
+
+    if __legacy_urllib3_version__ is not None:
+        warnings.warn(
+            "urllib3-future is installed alongside (legacy) urllib3. This may cause compatibility issues."
+            "Some (Requests) 3rd parties may be bound to urllib3, therefor the plugins may wrongfully invoke"
+            "urllib3 (legacy) instead of urllib3-future. To remediate this, run "
+            "`python -m pip uninstall -y urllib3 urllib3-future`, then run `python -m pip install urllib3-future`.",
+            UserWarning,
+        )
 
     print(json.dumps(info(), sort_keys=True, indent=2))
 

@@ -1485,3 +1485,25 @@ Here is a basic example of how you would proceed::
             for chunk in r.iter_content():
                 # do anything you want with chunk
                 print(r.download_progress.total)  # this actually contain the amt of bytes (raw) downloaded from the socket.
+
+
+HTTP Trailers
+-------------
+
+.. note:: Available since Niquests 3.8+
+
+HTTP response may contain one or several trailer headers. Those special headers are received
+after the reception of the body. Before this, those headers were unreachable and dropped silently.
+
+Quoted from Mozilla MDN: "The Trailer response header allows the sender to include additional fields
+at the end of chunked messages in order to supply metadata that might be dynamically generated while the
+message body is sent, such as a message integrity check, digital signature, or post-processing status."
+
+For example, we retrieve our trailers this way::
+
+    >>> url = 'https://httpbingo.org/trailers?foo=baz'
+    >>> r = niquests.get(url)
+    >>> r.trailers  # output: {'foo': 'baz'}
+
+
+.. warning:: The ``trailers`` property is only filled when the response has been consumed entirely. The server only send them after finishing sending the body. By default, ``trailers`` is an empty CaseInsensibleDict.

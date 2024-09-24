@@ -1,6 +1,20 @@
 Release History
 ===============
 
+3.8.0 (2024-09-24)
+------------------
+
+**Added**
+- Support for HTTP Trailers.
+- Help script now yield warnings if update are available for each sub dependencies.
+
+**Fixed**
+- Setting a list of Resolver.
+
+**Changed**
+- urllib3-future lower bound version is raised to 2.9.900 (for http trailer support).
+- relax strict kwargs passing in Session adapters (required for some plugins).
+
 3.7.2 (2024-07-09)
 ------------------
 
