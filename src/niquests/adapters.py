@@ -69,6 +69,10 @@ if HAS_LEGACY_URLLIB3 is False:
     )
     from urllib3.contrib.resolver import BaseResolver
     from urllib3.contrib.resolver._async import AsyncBaseResolver
+    from urllib3.contrib.webextensions import load_extension
+    from urllib3.contrib.webextensions._async import (
+        load_extension as async_load_extension,
+    )
 else:
     from urllib3_future import (  # type: ignore[assignment]
         ConnectionInfo,
@@ -110,6 +114,10 @@ else:
     )
     from urllib3_future.contrib.resolver import BaseResolver  # type: ignore[assignment]
     from urllib3_future.contrib.resolver._async import AsyncBaseResolver  # type: ignore[assignment]
+    from urllib3_future.contrib.webextensions import load_extension  # type: ignore[assignment]
+    from urllib3_future.contrib.webextensions._async import (  # type: ignore[assignment]
+        load_extension as async_load_extension,
+    )
 
 from ._constant import DEFAULT_POOLBLOCK, DEFAULT_POOLSIZE, DEFAULT_RETRIES
 from ._typing import (
@@ -189,6 +197,7 @@ class BaseAdapter:
         on_post_connection: typing.Callable[[typing.Any], None] | None = None,
         on_upload_body: typing.Callable[[int, int | None, bool, bool], None]
         | None = None,
+        on_early_response: typing.Callable[[Response], None] | None = None,
         multiplexed: bool = False,
     ) -> Response:
         """Sends PreparedRequest object. Returns Response object.
@@ -243,6 +252,8 @@ class AsyncBaseAdapter:
         on_upload_body: typing.Callable[
             [int, int | None, bool, bool], typing.Awaitable[None]
         ]
+        | None = None,
+        on_early_response: typing.Callable[[Response], typing.Awaitable[None]]
         | None = None,
         multiplexed: bool = False,
     ) -> AsyncResponse:
@@ -819,6 +830,7 @@ class HTTPAdapter(BaseAdapter):
         on_post_connection: typing.Callable[[typing.Any], None] | None = None,
         on_upload_body: typing.Callable[[int, int | None, bool, bool], None]
         | None = None,
+        on_early_response: typing.Callable[[Response], None] | None = None,
         multiplexed: bool = False,
     ) -> Response:
         """Sends PreparedRequest object. Returns Response object.
@@ -895,8 +907,19 @@ class HTTPAdapter(BaseAdapter):
         if isinstance(request.body, (list, dict)):
             raise ValueError("Body contains unprepared native list or dict.")
 
+        scheme = parse_scheme(request.url)
+        extension = None
+
+        if scheme is not None and scheme not in ("http", "https"):
+            extension = load_extension(scheme)()
+
+        def early_response_hook(early_response: BaseHTTPResponse) -> None:
+            nonlocal on_early_response
+            assert on_early_response is not None
+            on_early_response(self.build_response(request, early_response))
+
         try:
-            resp_or_promise = conn.urlopen(  # type: ignore[call-overload]
+            resp_or_promise = conn.urlopen(  # type: ignore[call-overload,misc]
                 method=request.method,
                 url=url,
                 body=request.body,
@@ -910,6 +933,10 @@ class HTTPAdapter(BaseAdapter):
                 chunked=chunked,
                 on_post_connection=on_post_connection,
                 on_upload_body=on_upload_body,
+                on_early_response=early_response_hook
+                if on_early_response is not None
+                else None,
+                extension=extension,
                 multiplexed=multiplexed,
             )
 
@@ -1794,6 +1821,8 @@ class AsyncHTTPAdapter(AsyncBaseAdapter):
             [int, int | None, bool, bool], typing.Awaitable[None]
         ]
         | None = None,
+        on_early_response: typing.Callable[[Response], typing.Awaitable[None]]
+        | None = None,
         multiplexed: bool = False,
     ) -> AsyncResponse:
         """Sends PreparedRequest object. Returns Response object.
@@ -1878,8 +1907,24 @@ class AsyncHTTPAdapter(AsyncBaseAdapter):
         if isinstance(request.body, (list, dict)):
             raise ValueError("Body contains unprepared native list or dict.")
 
+        scheme = parse_scheme(request.url)
+        extension = None
+
+        if scheme is not None and scheme not in ("http", "https"):
+            if "+" in scheme:
+                scheme, implementation = tuple(scheme.split("+", maxsplit=1))
+            else:
+                implementation = None
+
+            extension = async_load_extension(scheme, implementation=implementation)()
+
+        async def early_response_hook(early_response: BaseAsyncHTTPResponse) -> None:
+            nonlocal on_early_response
+            assert on_early_response is not None
+            await on_early_response(self.build_response(request, early_response))
+
         try:
-            resp_or_promise = await conn.urlopen(  # type: ignore[call-overload]
+            resp_or_promise = await conn.urlopen(  # type: ignore[call-overload,misc]
                 method=request.method,
                 url=url,
                 body=request.body,
@@ -1893,6 +1938,10 @@ class AsyncHTTPAdapter(AsyncBaseAdapter):
                 chunked=chunked,
                 on_post_connection=on_post_connection,
                 on_upload_body=on_upload_body,
+                on_early_response=early_response_hook
+                if on_early_response is not None
+                else None,
+                extension=extension,
                 multiplexed=multiplexed,
             )
 

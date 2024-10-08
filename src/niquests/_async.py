@@ -19,9 +19,11 @@ from ._compat import HAS_LEGACY_URLLIB3, urllib3_ensure_type
 if HAS_LEGACY_URLLIB3 is False:
     from urllib3 import ConnectionInfo
     from urllib3.contrib.resolver._async import AsyncBaseResolver
+    from urllib3.contrib.webextensions._async import load_extension
 else:
     from urllib3_future import ConnectionInfo  # type: ignore[assignment]
     from urllib3_future.contrib.resolver._async import AsyncBaseResolver  # type: ignore[assignment]
+    from urllib3_future.contrib.webextensions._async import load_extension  # type: ignore[assignment]
 
 from ._constant import (
     READ_DEFAULT_TIMEOUT,
@@ -54,6 +56,7 @@ from .exceptions import (
     ChunkedEncodingError,
     ContentDecodingError,
     TooManyRedirects,
+    InvalidSchema,
 )
 from .hooks import async_dispatch_hook, default_hooks
 from .models import (
@@ -280,7 +283,32 @@ class AsyncSession(Session):
         super().mount(prefix, adapter)  # type: ignore[arg-type]
 
     def get_adapter(self, url: str) -> AsyncBaseAdapter:  # type: ignore[override]
-        return super().get_adapter(url)  # type: ignore[return-value]
+        for prefix, adapter in self.adapters.items():
+            if url.lower().startswith(prefix.lower()):
+                return adapter
+
+        # If no adapter matches our prefix, that usually means we want
+        # an HTTP extension like wss (e.g. WebSocket).
+        scheme = parse_scheme(url)
+
+        if "+" in scheme:
+            scheme, implementation = tuple(scheme.split("+", maxsplit=1))
+        else:
+            implementation = None
+
+        try:
+            extension = load_extension(scheme, implementation=implementation)
+            for prefix, adapter in self.adapters.items():
+                if (
+                    scheme in extension.supported_schemes()
+                    and extension.scheme_to_http_scheme(scheme) == parse_scheme(prefix)
+                ):
+                    return adapter
+        except ImportError:
+            pass
+
+        # Nothing matches :-/
+        raise InvalidSchema(f"No connection adapters were found for {url!r}")
 
     async def send(  # type: ignore[override]
         self, request: PreparedRequest, **kwargs: typing.Any
@@ -369,9 +397,13 @@ class AsyncSession(Session):
 
             await async_dispatch_hook("on_upload", hooks, request)  # type: ignore[arg-type]
 
+        async def on_early_response(early_response: Response) -> None:
+            await async_dispatch_hook("early_response", hooks, early_response)  # type: ignore[arg-type]
+
         kwargs.setdefault("on_post_connection", on_post_connection)
         kwargs.setdefault("on_upload_body", handle_upload_progress)
         kwargs.setdefault("multiplexed", self.multiplexed)
+        kwargs.setdefault("on_early_response", on_early_response)
 
         assert request.url is not None
 

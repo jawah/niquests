@@ -117,3 +117,22 @@ class TestMultiplexed:
         # since urllib3.future 2.5, the scheduler ensure we kept track of ongoing request even if pool is
         # shutdown.
         assert all([r.json() for r in responses])
+
+    def test_early_response(self) -> None:
+        received_early_response: bool = False
+
+        def callback_on_early(early_resp) -> None:
+            nonlocal received_early_response
+            if early_resp.status_code == 103:
+                received_early_response = True
+
+        with Session(multiplexed=True) as s:
+            resp = s.get(
+                "https://early-hints.fastlylabs.com/",
+                hooks={"early_response": [callback_on_early]},
+            )
+
+            assert received_early_response is False
+
+            assert resp.status_code == 200
+            assert received_early_response is True

@@ -50,6 +50,7 @@ if HAS_LEGACY_URLLIB3 is False:
         AsyncManyResolver,
     )
     from urllib3 import ConnectionInfo
+    from urllib3.contrib.webextensions import load_extension
 else:
     from urllib3_future.util import make_headers, parse_url  # type: ignore[assignment]
     from urllib3_future.contrib.resolver import (  # type: ignore[assignment]
@@ -64,6 +65,7 @@ else:
         AsyncManyResolver,
     )
     from urllib3_future import ConnectionInfo  # type: ignore[assignment]
+    from urllib3_future.contrib.webextensions import load_extension  # type: ignore[assignment]
 
 from .__version__ import __version__
 from .exceptions import InvalidURL, UnrewindableBodyError, MissingSchema
@@ -826,6 +828,31 @@ def select_proxy(
         "all://" + urlparts.hostname,
         "all",
     ]
+
+    if urlparts.scheme.lower() not in (
+        "http",
+        "https",
+    ):
+        maybe_extension_scheme = urlparts.scheme
+        implementation = None
+
+        if "+" in maybe_extension_scheme:
+            maybe_extension_scheme, implementation = tuple(
+                maybe_extension_scheme.split("+", maxsplit=1)
+            )
+
+        try:
+            extension_class = load_extension(maybe_extension_scheme, implementation)
+        except ImportError:
+            pass
+        else:
+            parent_scheme = extension_class.scheme_to_http_scheme(
+                maybe_extension_scheme
+            )
+
+            proxy_keys.append(parent_scheme)
+            proxy_keys.append(parent_scheme + "://" + urlparts.hostname)
+
     proxy = None
     for proxy_key in proxy_keys:
         if proxy_key in proxies:

@@ -24,8 +24,10 @@ from ._compat import HAS_LEGACY_URLLIB3, urllib3_ensure_type
 
 if HAS_LEGACY_URLLIB3 is False:
     from urllib3 import ConnectionInfo
+    from urllib3.contrib.webextensions import load_extension
 else:
     from urllib3_future import ConnectionInfo  # type: ignore[assignment]
+    from urllib3_future.contrib.webextensions import load_extension  # type: ignore[assignment]
 
 from ._constant import (
     DEFAULT_RETRIES,
@@ -1141,9 +1143,13 @@ class Session:
 
             dispatch_hook("on_upload", hooks, request)  # type: ignore[arg-type]
 
+        def on_early_response(early_response) -> None:
+            dispatch_hook("early_response", hooks, early_response)
+
         kwargs.setdefault("on_post_connection", on_post_connection)
         kwargs.setdefault("on_upload_body", handle_upload_progress)
         kwargs.setdefault("multiplexed", self.multiplexed)
+        kwargs.setdefault("on_early_response", on_early_response)
 
         assert request.url is not None
 
@@ -1364,6 +1370,26 @@ class Session:
         for prefix, adapter in self.adapters.items():
             if url.lower().startswith(prefix.lower()):
                 return adapter
+
+        # If no adapter matches our prefix, that usually means we want
+        # an HTTP extension like wss (e.g. WebSocket).
+        scheme = parse_scheme(url)
+
+        if "+" in scheme:
+            scheme, implementation = tuple(scheme.split("+", maxsplit=1))
+        else:
+            implementation = None
+
+        try:
+            extension = load_extension(scheme, implementation=implementation)
+            for prefix, adapter in self.adapters.items():
+                if (
+                    scheme in extension.supported_schemes()
+                    and extension.scheme_to_http_scheme(scheme) == parse_scheme(prefix)
+                ):
+                    return adapter
+        except ImportError:
+            pass
 
         # Nothing matches :-/
         raise InvalidSchema(f"No connection adapters were found for {url!r}")

@@ -86,9 +86,11 @@ Niquests is ready for today's web.
 - Streaming Downloads
 - HTTP/2 by default
 - HTTP/3 over QUIC
+- Early Responses
 - Happy Eyeballs
 - Multiplexed!
 - Thread-safe!
+- WebSocket!
 - Trailers!
 - DNSSEC!
 - Async!

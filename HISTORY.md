@@ -1,6 +1,20 @@
 Release History
 ===============
 
+3.9.0 (2024-10-08)
+------------------
+
+**Added**
+- Support for WebSocket over HTTP/1, HTTP/2 and HTTP/3. It brings a unified API that makes you leverage
+  our powerful features like Happy Eyeballs, SOCKS/HTTP/HTTPS proxies, thread/task safety etc...
+- Hook for catching early responses like "103 Early Hints".
+
+**Fixed**
+- Informational responses are fully supported over HTTP/1, HTTP/2 and HTTP/3.
+
+**Changed**
+- urllib3-future lower bound version is raised to 2.10.900.
+
 3.8.0 (2024-09-24)
 ------------------
 

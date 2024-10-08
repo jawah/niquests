@@ -34,6 +34,7 @@ HOOKS = [
     "pre_request",
     "pre_send",
     "on_upload",
+    "early_response",
     "response",
 ]
 

@@ -8,7 +8,7 @@ import nox
 
 def tests_impl(
     session: nox.Session,
-    extras: str = "socks",
+    extras: str = "socks,ws",
     cohabitation: bool | None = False,
 ) -> None:
     # Install deps and the package itself.
