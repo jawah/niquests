@@ -89,6 +89,23 @@ class TestAsyncWithoutMultiplex:
             assert r.status_code == 200
             assert "X-Async-Auth" in r.json()["headers"]
 
+    async def test_early_response(self) -> None:
+        received_early_response: bool = False
+
+        async def callback_on_early(early_resp) -> None:
+            nonlocal received_early_response
+            if early_resp.status_code == 103:
+                received_early_response = True
+
+        async with AsyncSession() as s:
+            resp = await s.get(
+                "https://early-hints.fastlylabs.com/",
+                hooks={"early_response": [callback_on_early]},
+            )
+
+            assert resp.status_code == 200
+            assert received_early_response is True
+
     # async def test_http_trailer_preload(self) -> None:
     #     async with AsyncSession() as s:
     #         r = await s.get("https://httpbingo.org/trailers?foo=baz")

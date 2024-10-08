@@ -41,5 +41,6 @@ def test_default_hooks():
         "pre_request": [],
         "pre_send": [],
         "on_upload": [],
+        "early_response": [],
         "response": [],
     }

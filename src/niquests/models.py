@@ -54,6 +54,8 @@ if HAS_LEGACY_URLLIB3 is False:
     from urllib3.fields import RequestField
     from urllib3.filepost import choose_boundary, encode_multipart_formdata
     from urllib3.util import parse_url
+    from urllib3.contrib.webextensions._async import AsyncExtensionFromHTTP
+    from urllib3.contrib.webextensions import ExtensionFromHTTP
 else:
     from urllib3_future import (  # type: ignore[assignment]
         BaseHTTPResponse,
@@ -71,6 +73,8 @@ else:
     from urllib3_future.fields import RequestField  # type: ignore[assignment]
     from urllib3_future.filepost import choose_boundary, encode_multipart_formdata  # type: ignore[assignment]
     from urllib3_future.util import parse_url  # type: ignore[assignment]
+    from urllib3_future.contrib.webextensions._async import AsyncExtensionFromHTTP  # type: ignore[assignment]
+    from urllib3_future.contrib.webextensions import ExtensionFromHTTP  # type: ignore[assignment]
 
 from ._typing import (
     BodyFormType,
@@ -1019,6 +1023,15 @@ class Response:
         self.download_progress: TransferProgress | None = None
 
     @property
+    def extension(self) -> ExtensionFromHTTP | None:
+        """Access the I/O after an Upgraded connection. E.g. for a WebSocket handler."""
+        return (
+            self.raw.extension
+            if self.raw is not None and hasattr(self.raw, "extension")
+            else None
+        )
+
+    @property
     def lazy(self) -> bool:
         """
         Determine if response isn't received and is actually a placeholder.
@@ -1597,6 +1610,15 @@ class AsyncResponse(Response):
         "cookies",
         "elapsed",
     }
+
+    @property
+    def extension(self) -> AsyncExtensionFromHTTP | None:  # type: ignore[override]
+        """Access the I/O after an Upgraded connection. E.g. for a WebSocket handler."""
+        return (
+            self.raw.extension
+            if self.raw is not None and hasattr(self.raw, "extension")
+            else None
+        )
 
     def __aenter__(self) -> AsyncResponse:
         return self

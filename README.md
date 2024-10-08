@@ -17,7 +17,7 @@ Niquests, is the “**Safest**, **Fastest[^10]**, **Easiest**, and **Most advanc
 | `HTTP/1.1`                          |       ✅        |     ✅     |       ✅       | ✅             |
 | `HTTP/2`                            |       ✅        |     ❌     |     ✅[^7]     | ❌             |
 | `HTTP/3 over QUIC`                  |       ✅        |     ❌     |       ❌       | ❌             |
-| `Synchronous`                       |       ✅        |     ✅     |       ✅       | ❌             |
+| `Synchronous`                       |       ✅        |     ✅     |       ✅       | _N/A_[^1]     |
 | `Asynchronous`                      |       ✅        |     ❌     |       ✅       | ✅             |
 | `Thread Safe`                       |       ✅        |     ✅     |     ❌[^5]     | _N/A_[^1]     |
 | `Task Safe`                         |       ✅        | _N/A_[^2] |       ✅       | ✅             |
@@ -42,6 +42,9 @@ Niquests, is the “**Safest**, **Fastest[^10]**, **Easiest**, and **Most advanc
 | `HTTP/2 with prior knowledge (h2c)` |       ✅        |     ❌     |       ✅       | ❌             |
 | `Post-Quantum Security`             | _Limited_[^12] |     ❌     |       ❌       | ❌             |
 | `HTTP Trailers`                     |       ✅        |     ❌     |       ❌       | ❌             |
+| `Early Responses`                   |       ✅        |     ❌     |       ❌       | ❌             |
+| `WebSocket over HTTP/1`             |       ✅        |  ❌[^14]   |    ❌[^14]     | ❌[^14]        |
+| `WebSocket over HTTP/2 and HTTP/3`  |     ✅[^13]     |     ❌     |       ❌       | ❌             |
 </details>
 
 <details>
@@ -158,9 +161,11 @@ Niquests is ready for the demands of building scalable, robust and reliable HTTP
 - Streaming Downloads
 - HTTP/2 by default
 - HTTP/3 over QUIC
+- Early Responses
 - Happy Eyeballs
 - Multiplexed!
 - Thread-safe!
+- WebSocket!
 - Trailers!
 - DNSSEC!
 - Async!
@@ -191,15 +196,17 @@ You may also be interested in unlocking specific advantages _(like access to a p
 
 Niquests is a highly improved HTTP client that is based (forked) on Requests. The previous project original author is Kenneth Reitz and actually left the maintenance of Requests years ago.
 
-[^1]: aiohttp has no support for synchronous request.
+[^1]: aiohttp was conceived solely for an asynchronous context.
 [^2]: requests has no support for asynchronous request.
 [^3]: while the HTTP/2 connection object can handle concurrent requests, you cannot leverage its true potential.
 [^4]: loading client certificate without file can't be done.
 [^5]: httpx officially claim to be thread safe but recent tests demonstrate otherwise as of february 2024. https://github.com/jawah/niquests/issues/83#issuecomment-1956065258 https://github.com/encode/httpx/issues/3072 https://github.com/encode/httpx/issues/3002
 [^6]: they do not expose anything to control network aspects such as IPv4/IPv6 toggles, and timings (e.g. DNS response time, established delay, TLS handshake delay, etc...) and such.
-[^7]: while advertised as possible, they refuse to make it the default due to performance issues. as of february 2024 an extra is required to enable it manually.
+[^7]: while advertised as possible, they refuse to make it the default due to performance issues. as of October 2024 an extra is required to enable it manually.
 [^8]: they don't support HTTP/3 at all.
 [^9]: you must use a custom DNS resolver so that it can preemptively connect using HTTP/3 over QUIC when remote is compatible.
-[^10]: performance measured when leveraging a multiplexed connection with or without uses of any form of concurrency as of July 2024. The research compared `httpx`, `requests`, `aiohttp` against `niquests`. See https://github.com/Ousret/niquests-stats
+[^10]: performance measured when leveraging a multiplexed connection with or without uses of any form of concurrency as of October 2024. The research compared `httpx`, `requests`, `aiohttp` against `niquests`. See https://github.com/Ousret/niquests-stats
 [^11]: enabled when using a custom DNS resolver.
 [^12]: available only when using HTTP/3 over QUIC and that the remote server support also the same post-quantum key-exchange algorithm. Also, the `qh3` installed version must be >= 1.1.
+[^13]: most servers out there are not ready for this feature, but Niquests is already compliant and future-proof! Modern server like Caddy are still working on it, see https://github.com/caddyserver/caddy/pull/6567 for more.
+[^14]: they don't offer any built-in to speak with a WebSocket server.

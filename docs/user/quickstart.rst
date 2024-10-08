@@ -1012,6 +1012,114 @@ OCSP requests (certificate revocation checks) will follow given ``happy_eyeballs
 
 .. warning:: This feature is disabled by default and we are actually planning to make it enabled as the default in a future major.
 
+WebSockets
+----------
+
+.. note:: Available since version 3.9+ and requires to install an extra. ``pip install niquests[ws]``.
+
+It is undeniable that WebSockets are a vital part of the web ecosystem along with HTTP. We noticed that
+most users met frictions when trying to deal with a WebSocket server for the first time, that is why
+we decided to expand Niquests capabilities to automatically handle WebSockets for you.
+
+Synchronous
+~~~~~~~~~~~
+
+In the following example, we will explore how to interact with a basic, but well known echo server::
+
+    from niquests import Session
+
+    with Session() as s:
+        resp = s.get(
+            "wss://echo.websocket.org",
+        )
+
+        print(resp.status_code)  # it says "101", for "Switching Protocol"
+
+        print(resp.extension.next_payload())  # unpack the next message from server
+
+        resp.extension.send_payload("Hello World")  # automatically sends a text message to the server
+
+        print(resp.extension.next_payload() == "Hello World")  # output True!
+
+        resp.extension.close()  # don't forget this call to release the connection!
+
+.. warning:: Without the extra installed, you will get an exception that indicate that the scheme is unsupported.
+
+.. note:: Historically, Requests only accepted http:// and https:// as schemes. But now, you may use wss:// for WebSocket Secure or ws:// for WebSocket over PlainText.
+
+.. warning:: Be careful when accessing ``resp.extension``, if anything goes wrong in the "establishment" phase, meaning the server denies us the WebSocket upgrade, it will be worth ``None``.
+
+WebSocket and HTTP/2+
+~~~~~~~~~~~~~~~~~~~~~
+
+By default, Niquests negotiate WebSocket over HTTP/1.1 but it is well capable of doing so over HTTP/2 and HTTP/3 following RFC8441.
+But rare are the servers capable of bootstrapping WebSocket over a multiplexed connection. There's a little tweak to the URL
+so that it can infer your desire to use a modern protocol, like so ``wss+rfc8441://echo.websocket.org``.
+
+Asynchronous
+~~~~~~~~~~~~
+
+Of course, as per our feature coverage, this is doable both in synchronous and asynchronous contexts.
+Like so::
+
+    from niquests import AsyncSession
+    import asyncio
+
+    async def main() -> None:
+        async with AsyncSession() as s:
+            resp = await s.get("wss://echo.websocket.org")
+
+            # ...
+
+            print(await resp.extension.next_payload())  # unpack the next message from server
+
+            await resp.extension.send_payload("Hello World")  # automatically sends a text message to the server
+
+            print((await resp.extension.next_payload()) == "Hello World")  # output True!
+
+            await resp.extension.close()
+
+
+Ping and Pong
+~~~~~~~~~~~~~
+
+Ping sent by a server are automatically handled/answered by Niquests each time to read from the socket with `next_payload()`.
+However, we do not send automatically Ping TO the server.
+
+In order to do so::
+
+    from niquests import Session
+
+    with Session() as s:
+        resp = s.get(
+            "wss://echo.websocket.org",
+        )
+
+        print(resp.extension.ping())  # send a ping to the websocket server, notify it that you're still there!
+
+You can use the elementary methods provided by Niquests to construct your own logic.
+
+Binary and Text Messages
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+You may use ``next_payload()`` and ``send_payload(...)`` with str or bytes.
+
+If ``next_payload()`` output bytes, then it is a BinaryMessage.
+If ``next_payload()`` output str, then it is a TextMessage.
+
+The same apply to ``send_payload(...)``, if passed item is str, then we send a TextMessage.
+Otherwise, it will be a BinaryMessage.
+
+.. warning:: Niquests does not buffer "incomplete" message (e.g. end marker for a message). It returns every chunk received as is.
+
+.. note:: If ``next_payload()`` returns ``None``, that means that the remote choose to close the connection.
+
+Others
+~~~~~~
+
+Every other features still applies with WebSocket, like proxies, happy eyeballs, thread/task safety, etc...
+See relevant docs for more.
+
 -----------------------
 
 Ready for more? Check out the :ref:`advanced <advanced>` section.

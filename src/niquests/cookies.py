@@ -405,7 +405,7 @@ class RequestsCookieJar(cookielib.CookieJar, MutableMapping):
             cookie.value = cookie.value.replace('\\"', "")
         return super().set_cookie(cookie, *args, **kwargs)
 
-    def update(self, other):
+    def update(self, other):  # type: ignore[override]
         """Updates this jar with cookies from another CookieJar or dict-like"""
         if isinstance(other, cookielib.CookieJar):
             for cookie in other:

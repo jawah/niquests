@@ -453,6 +453,8 @@ the request process, or signal event handling.
 
 Available hooks:
 
+``early_response``:
+    An early response caught before receiving the final Response for a given Request. Like but not limited to 103 Early Hints.
 ``response``:
     The response generated from a Request.
 ``pre_send``:
@@ -705,6 +707,10 @@ Alternatively you can configure it once for an entire
     initially explained above.
 
     See `#2018 <https://github.com/psf/requests/issues/2018>`_ for details.
+
+.. note:: WebSocket are too concerned by that section. By default ``wss://...`` will pick the ``https`` proxy
+    and the ``ws://...`` the ``http`` entry. You are free to add a ``wss`` key in your proxies
+    to route them on another proxy.
 
 When the proxies configuration is not overridden per request as shown above,
 Niquests relies on the proxy configuration defined by standard
@@ -1315,7 +1321,7 @@ by passing a custom ``QuicSharedCache`` instance like so::
 When the cache is full, the oldest entry is removed.
 
 Disable HTTP/1.1, HTTP/2, and/or HTTP/3
------------------------------
+---------------------------------------
 
 You can at your own discretion disable a protocol by passing ``disable_http2=True`` or
 ``disable_http3=True`` within your ``Session`` constructor.
@@ -1507,3 +1513,28 @@ For example, we retrieve our trailers this way::
 
 
 .. warning:: The ``trailers`` property is only filled when the response has been consumed entirely. The server only send them after finishing sending the body. By default, ``trailers`` is an empty CaseInsensibleDict.
+
+Early Response
+--------------
+
+A server may send one or several (informational) response before the final response. Before this, those responses were
+silently ignored or worst, misinterpreted.
+
+Most notably, the status https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/103 is one of the most useful use case out there.
+
+To catch response like those::
+
+    from niquests import Session
+
+    def early_response_hook(early_response):
+        print(early_response)  # <Response HTTP/2 [103]>
+        print(early_response.headers)  # {'origin-trial': ..., 'link': '</hinted.png>; rel=preload; as=image'}
+
+    with Session() as s:
+        resp = s.get("https://early-hints.fastlylabs.com/", hooks={"early_response": early_response_hook})
+
+        print(resp)  # <Response HTTP/2 [200]>
+
+Isn't it easy and pleasant to write ?
+
+.. warning:: Some servers choose to enable it in HTTP/2, and HTTP/3 but not in HTTP/1.1 for security concerns. But rest assured that Niquests support this no matter the protocol.

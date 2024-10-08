@@ -113,7 +113,7 @@ class TestLiveStandardCase:
 
     # def test_http_trailer_preload(self) -> None:
     #     with Session() as s:
-    #         r = s.get("https://httpbingo.org/trailers?foo=baz")
+    #         r = s.get("https://httpbingo.org/trailers?foo=baz", headers={"TE": "trailers"})
     #
     #         assert r.ok
     #         assert r.trailers
@@ -122,7 +122,7 @@ class TestLiveStandardCase:
     #
     # def test_http_trailer_no_preload(self) -> None:
     #     with Session() as s:
-    #         r = s.get("https://httpbingo.org/trailers?foo=baz", stream=True)
+    #         r = s.get("https://httpbingo.org/trailers?foo=baz", headers={"TE": "trailers"}, stream=True)
     #
     #         assert r.ok
     #         assert not r.trailers
@@ -133,3 +133,20 @@ class TestLiveStandardCase:
     #         assert r.trailers
     #         assert "foo" in r.trailers
     #         assert r.trailers["foo"] == "baz"
+
+    def test_early_response(self) -> None:
+        received_early_response: bool = False
+
+        def callback_on_early(early_resp) -> None:
+            nonlocal received_early_response
+            if early_resp.status_code == 103:
+                received_early_response = True
+
+        with Session() as s:
+            resp = s.get(
+                "https://early-hints.fastlylabs.com/",
+                hooks={"early_response": [callback_on_early]},
+            )
+
+            assert resp.status_code == 200
+            assert received_early_response is True

@@ -140,7 +140,7 @@ Ever encountered something along::
 Yes? Usually it means that you tried to load a certificate (CA or client cert) that is malformed.
 
 What does malformed means?
-~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Could be just a missing newline character *RC*, or wrong format like passing a DER file instead of a PEM
 encoded certificate.
