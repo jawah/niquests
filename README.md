@@ -43,7 +43,7 @@ Niquests, is the “**Safest**, **Fastest[^10]**, **Easiest**, and **Most advanc
 | `Post-Quantum Security`             | _Limited_[^12] |     ❌     |       ❌       | ❌             |
 | `HTTP Trailers`                     |       ✅        |     ❌     |       ❌       | ❌             |
 | `Early Responses`                   |       ✅        |     ❌     |       ❌       | ❌             |
-| `WebSocket over HTTP/1`             |       ✅        |  ❌[^14]   |    ❌[^14]     | ❌[^14]        |
+| `WebSocket over HTTP/1`             |       ✅        |  ❌[^14]   |    ❌[^14]     | ✅             |
 | `WebSocket over HTTP/2 and HTTP/3`  |     ✅[^13]     |     ❌     |       ❌       | ❌             |
 </details>
 
