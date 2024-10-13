@@ -54,8 +54,14 @@ if HAS_LEGACY_URLLIB3 is False:
     from urllib3.fields import RequestField
     from urllib3.filepost import choose_boundary, encode_multipart_formdata
     from urllib3.util import parse_url
-    from urllib3.contrib.webextensions._async import AsyncExtensionFromHTTP
-    from urllib3.contrib.webextensions import ExtensionFromHTTP
+    from urllib3.contrib.webextensions._async import (
+        AsyncWebSocketExtensionFromHTTP,
+        AsyncRawExtensionFromHTTP,
+    )
+    from urllib3.contrib.webextensions import (
+        WebSocketExtensionFromHTTP,
+        RawExtensionFromHTTP,
+    )
 else:
     from urllib3_future import (  # type: ignore[assignment]
         BaseHTTPResponse,
@@ -73,8 +79,14 @@ else:
     from urllib3_future.fields import RequestField  # type: ignore[assignment]
     from urllib3_future.filepost import choose_boundary, encode_multipart_formdata  # type: ignore[assignment]
     from urllib3_future.util import parse_url  # type: ignore[assignment]
-    from urllib3_future.contrib.webextensions._async import AsyncExtensionFromHTTP  # type: ignore[assignment]
-    from urllib3_future.contrib.webextensions import ExtensionFromHTTP  # type: ignore[assignment]
+    from urllib3_future.contrib.webextensions._async import (  # type: ignore[assignment]
+        AsyncWebSocketExtensionFromHTTP,
+        AsyncRawExtensionFromHTTP,
+    )
+    from urllib3_future.contrib.webextensions import (  # type: ignore[assignment]
+        WebSocketExtensionFromHTTP,
+        RawExtensionFromHTTP,
+    )
 
 from ._typing import (
     BodyFormType,
@@ -1023,10 +1035,21 @@ class Response:
         self.download_progress: TransferProgress | None = None
 
     @property
-    def extension(self) -> ExtensionFromHTTP | None:
-        """Access the I/O after an Upgraded connection. E.g. for a WebSocket handler."""
+    def extension(
+        self,
+    ) -> (
+        WebSocketExtensionFromHTTP
+        | RawExtensionFromHTTP
+        | AsyncWebSocketExtensionFromHTTP
+        | AsyncRawExtensionFromHTTP
+        | None
+    ):
+        """Access the I/O after an Upgraded connection. E.g. for a WebSocket handler.
+        If the server opened a WebSocket, then the extension will be of type WebSocketExtensionFromHTTP.
+        Otherwise, on unknown protocol, it will be RawExtensionFromHTTP.
+        Warning: If you stand in an async inclosure, the type will be AsyncWebSocketExtensionFromHTTP or AsyncRawExtensionFromHTTP."""
         return (
-            self.raw.extension
+            self.raw.extension  # type: ignore[return-value]
             if self.raw is not None and hasattr(self.raw, "extension")
             else None
         )
@@ -1612,10 +1635,14 @@ class AsyncResponse(Response):
     }
 
     @property
-    def extension(self) -> AsyncExtensionFromHTTP | None:  # type: ignore[override]
-        """Access the I/O after an Upgraded connection. E.g. for a WebSocket handler."""
+    def extension(  # type: ignore[override]
+        self,
+    ) -> AsyncWebSocketExtensionFromHTTP | AsyncRawExtensionFromHTTP | None:
+        """Access the I/O after an Upgraded connection. E.g. for a WebSocket handler.
+        If the server opened a WebSocket, then the extension will be of type AsyncWebSocketExtensionFromHTTP.
+        Otherwise, on unknown protocol, it will be AsyncRawExtensionFromHTTP."""
         return (
-            self.raw.extension
+            self.raw.extension  # type: ignore[return-value]
             if self.raw is not None and hasattr(self.raw, "extension")
             else None
         )

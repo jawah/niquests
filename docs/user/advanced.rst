@@ -313,6 +313,10 @@ In-memory Certificates
 The ``cert=...`` and ``verify=...`` can actually take the certificates themselves. Niquests support
 in-memory certificates instead of file paths.
 
+.. warning:: The mTLS (aka. ``cert=...``) using in-memory certificate only works with Linux, FreeBSD or OpenBSD. See https://urllib3future.readthedocs.io/en/latest/advanced-usage.html#in-memory-client-mtls-certificate for more. It works on all platforms if you are using HTTP/3 over QUIC.
+
+.. note:: When leveraging in-memory certificate for mTLS (aka. ``cert=...``), you have two possible configurations: (cert, key) or (cert, key, password) you cannot pass (cert) having concatenated cert,key in a single string.
+
 .. _ca-certificates:
 
 CA Certificates
@@ -320,7 +324,8 @@ CA Certificates
 
 Niquests uses certificates provided by the package `wassima`_. This allows for users
 to not care about root CAs. By default it is expected to use your operating system root CAs.
-You have nothing to do.
+You have nothing to do. If we were unable to access your OS truststore natively, (e.g. not Windows, not MacOS, not Linux), then
+we will fallback on the ``certifi`` bundle.
 
 .. _HTTP persistent connection: https://en.wikipedia.org/wiki/HTTP_persistent_connection
 .. _connection pooling: https://urllib3.readthedocs.io/en/latest/reference/index.html#module-urllib3.connectionpool

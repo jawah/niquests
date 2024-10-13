@@ -1,6 +1,22 @@
 Release History
 ===============
 
+3.9.1 (2024-10-13)
+------------------
+
+**Fixed**
+- Exception leak from urllib3-future when using WebSocket.
+- Enforcing HTTP/3 in an AsyncSession. (#152)
+- Adapter kwargs fallback to support old Requests extensions.
+- Type hint for ``Response.extension`` linked to the generic interface instead of the inherited ones.
+- Accessing WS over HTTP/2+ using the synchronous session object.
+
+**Misc**
+- Documentation improvement for in-memory certificates and WebSocket use cases.
+
+**Changed**
+- urllib3-future lower bound version is raised to 2.10.904 to ensure exception are properly translated into urllib3-future ones for WS.
+
 3.9.0 (2024-10-08)
 ------------------
 

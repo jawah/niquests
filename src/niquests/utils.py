@@ -50,7 +50,8 @@ if HAS_LEGACY_URLLIB3 is False:
         AsyncManyResolver,
     )
     from urllib3 import ConnectionInfo
-    from urllib3.contrib.webextensions import load_extension
+    from urllib3.contrib.webextensions import load_extension, ExtensionFromHTTP
+    from urllib3.contrib.webextensions._async import AsyncExtensionFromHTTP
 else:
     from urllib3_future.util import make_headers, parse_url  # type: ignore[assignment]
     from urllib3_future.contrib.resolver import (  # type: ignore[assignment]
@@ -65,7 +66,8 @@ else:
         AsyncManyResolver,
     )
     from urllib3_future import ConnectionInfo  # type: ignore[assignment]
-    from urllib3_future.contrib.webextensions import load_extension  # type: ignore[assignment]
+    from urllib3_future.contrib.webextensions import load_extension, ExtensionFromHTTP  # type: ignore[assignment]
+    from urllib3_future.contrib.webextensions._async import AsyncExtensionFromHTTP  # type: ignore[assignment]
 
 from .__version__ import __version__
 from .exceptions import InvalidURL, UnrewindableBodyError, MissingSchema
@@ -1237,3 +1239,193 @@ def is_ocsp_capable(conn_info: ConnectionInfo | None) -> bool:
         return False
 
     return True
+
+
+def wrap_extension_for_http(
+    extension: type[ExtensionFromHTTP],
+) -> type[ExtensionFromHTTP]:
+    """
+    We want to properly map exceptions from bellow (urllib3-future) into our own exceptions.
+    This function purposely wrap the extension class to achieve that.
+    Warning: synchronous context only!
+    """
+    if HAS_LEGACY_URLLIB3 is False:
+        from urllib3.exceptions import (
+            ClosedPoolError,
+            HTTPError as _HTTPError,
+            InvalidHeader as _InvalidHeader,
+            ProtocolError,
+            ProxyError as _ProxyError,
+            ReadTimeoutError,
+            SSLError as _SSLError,
+            DecodeError,
+        )
+    else:
+        from urllib3_future.exceptions import (  # type: ignore[assignment]
+            ClosedPoolError,
+            HTTPError as _HTTPError,
+            InvalidHeader as _InvalidHeader,
+            ProtocolError,
+            ProxyError as _ProxyError,
+            ReadTimeoutError,
+            SSLError as _SSLError,
+            DecodeError,
+        )
+
+    from .exceptions import (
+        ConnectionError,
+        InvalidHeader,
+        ProxyError,
+        ReadTimeout,
+        SSLError as RequestsSSLError,
+        ContentDecodingError,
+        ChunkedEncodingError,
+    )
+
+    class _WrappedExtensionFromHTTP(extension):  # type: ignore[valid-type,misc]
+        def next_payload(self) -> str | bytes | None:
+            try:
+                return super().next_payload()
+            except ProtocolError as e:
+                raise ChunkedEncodingError(e)
+            except DecodeError as e:
+                raise ContentDecodingError(e)
+            except ReadTimeoutError as e:
+                raise ReadTimeout(e)
+            except _SSLError as e:
+                raise RequestsSSLError(e)
+
+        def send_payload(self, buf: str | bytes) -> None:
+            try:
+                super().send_payload(buf)
+            except (ProtocolError, OSError) as err:
+                raise ConnectionError(err)
+            except ClosedPoolError as e:
+                raise ConnectionError(e)
+            except _ProxyError as e:
+                raise ProxyError(e)
+            except (_SSLError, _HTTPError) as e:
+                if isinstance(e, _SSLError):
+                    raise RequestsSSLError(e)
+                elif isinstance(e, ReadTimeoutError):
+                    raise ReadTimeout(e)
+                elif isinstance(e, _InvalidHeader):
+                    raise InvalidHeader(e)
+                else:
+                    raise
+
+        def close(self) -> None:
+            try:
+                super().close()
+            except (ProtocolError, OSError) as err:
+                raise ConnectionError(err)
+            except ClosedPoolError as e:
+                raise ConnectionError(e)
+            except _ProxyError as e:
+                raise ProxyError(e)
+            except (_SSLError, _HTTPError) as e:
+                if isinstance(e, _SSLError):
+                    raise RequestsSSLError(e)
+                elif isinstance(e, ReadTimeoutError):
+                    raise ReadTimeout(e)
+                elif isinstance(e, _InvalidHeader):
+                    raise InvalidHeader(e)
+                else:
+                    raise
+
+    return _WrappedExtensionFromHTTP
+
+
+def async_wrap_extension_for_http(
+    extension: type[AsyncExtensionFromHTTP],
+) -> type[AsyncExtensionFromHTTP]:
+    """
+    We want to properly map exceptions from bellow (urllib3-future) into our own exceptions.
+    This function purposely wrap the extension class to achieve that.
+    Warning: asynchronous context only!
+    """
+    if HAS_LEGACY_URLLIB3 is False:
+        from urllib3.exceptions import (
+            ClosedPoolError,
+            HTTPError as _HTTPError,
+            InvalidHeader as _InvalidHeader,
+            ProtocolError,
+            ProxyError as _ProxyError,
+            ReadTimeoutError,
+            SSLError as _SSLError,
+            DecodeError,
+        )
+    else:
+        from urllib3_future.exceptions import (  # type: ignore[assignment]
+            ClosedPoolError,
+            HTTPError as _HTTPError,
+            InvalidHeader as _InvalidHeader,
+            ProtocolError,
+            ProxyError as _ProxyError,
+            ReadTimeoutError,
+            SSLError as _SSLError,
+            DecodeError,
+        )
+
+    from .exceptions import (
+        ConnectionError,
+        InvalidHeader,
+        ProxyError,
+        ReadTimeout,
+        SSLError as RequestsSSLError,
+        ContentDecodingError,
+        ChunkedEncodingError,
+    )
+
+    class _AsyncWrappedExtensionFromHTTP(extension):  # type: ignore[valid-type,misc]
+        async def next_payload(self) -> str | bytes | None:
+            try:
+                return await super().next_payload()
+            except ProtocolError as e:
+                raise ChunkedEncodingError(e)
+            except DecodeError as e:
+                raise ContentDecodingError(e)
+            except ReadTimeoutError as e:
+                raise ReadTimeout(e)
+            except _SSLError as e:
+                raise RequestsSSLError(e)
+
+        async def send_payload(self, buf: str | bytes) -> None:
+            try:
+                await super().send_payload(buf)
+            except (ProtocolError, OSError) as err:
+                raise ConnectionError(err)
+            except ClosedPoolError as e:
+                raise ConnectionError(e)
+            except _ProxyError as e:
+                raise ProxyError(e)
+            except (_SSLError, _HTTPError) as e:
+                if isinstance(e, _SSLError):
+                    raise RequestsSSLError(e)
+                elif isinstance(e, ReadTimeoutError):
+                    raise ReadTimeout(e)
+                elif isinstance(e, _InvalidHeader):
+                    raise InvalidHeader(e)
+                else:
+                    raise
+
+        async def close(self) -> None:
+            try:
+                await super().close()
+            except (ProtocolError, OSError) as err:
+                raise ConnectionError(err)
+            except ClosedPoolError as e:
+                raise ConnectionError(e)
+            except _ProxyError as e:
+                raise ProxyError(e)
+            except (_SSLError, _HTTPError) as e:
+                if isinstance(e, _SSLError):
+                    raise RequestsSSLError(e)
+                elif isinstance(e, ReadTimeoutError):
+                    raise ReadTimeout(e)
+                elif isinstance(e, _InvalidHeader):
+                    raise InvalidHeader(e)
+                else:
+                    raise
+
+    return _AsyncWrappedExtensionFromHTTP
