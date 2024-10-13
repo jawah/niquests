@@ -67,7 +67,7 @@ else:
     )
     from urllib3_future import ConnectionInfo  # type: ignore[assignment]
     from urllib3_future.contrib.webextensions import load_extension, ExtensionFromHTTP  # type: ignore[assignment]
-    from urllib3.contrib.webextensions._async import AsyncExtensionFromHTTP  # type: ignore[assignment]
+    from urllib3_future.contrib.webextensions._async import AsyncExtensionFromHTTP  # type: ignore[assignment]
 
 from .__version__ import __version__
 from .exceptions import InvalidURL, UnrewindableBodyError, MissingSchema
