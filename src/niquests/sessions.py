@@ -1223,6 +1223,7 @@ class Session:
                 del kwargs["multiplexed"]
                 del kwargs["on_upload_body"]
                 del kwargs["on_post_connection"]
+                del kwargs["on_early_response"]
 
                 r = adapter.send(request, **kwargs)
 
