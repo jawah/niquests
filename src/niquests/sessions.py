@@ -1186,6 +1186,7 @@ class Session:
                     max_retries=self.retries,
                     disable_http1=self._disable_http1,
                     disable_http2=self._disable_http2,
+                    disable_http3=self._disable_http3,
                     resolver=self.resolver,
                     source_address=self.source_address,
                     disable_ipv4=self._disable_ipv4,

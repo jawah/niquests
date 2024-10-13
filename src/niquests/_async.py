@@ -243,6 +243,7 @@ class AsyncSession(Session):
             AsyncHTTPAdapter(
                 quic_cache_layer=self.quic_cache_layer,
                 max_retries=retries,
+                disable_http1=disable_http1,
                 disable_http2=disable_http2,
                 disable_http3=disable_http3,
                 resolver=resolver,
@@ -258,6 +259,9 @@ class AsyncSession(Session):
             "http://",
             AsyncHTTPAdapter(
                 max_retries=retries,
+                disable_http1=disable_http1,
+                disable_http2=disable_http2,
+                disable_http3=disable_http3,
                 resolver=resolver,
                 source_address=source_address,
                 disable_ipv4=disable_ipv4,
@@ -422,6 +426,7 @@ class AsyncSession(Session):
                 AsyncHTTPAdapter(
                     quic_cache_layer=self.quic_cache_layer,
                     max_retries=self.retries,
+                    disable_http1=self._disable_http1,
                     disable_http2=self._disable_http2,
                     disable_http3=self._disable_http3,
                     resolver=self.resolver,
@@ -437,6 +442,9 @@ class AsyncSession(Session):
                 "http://",
                 AsyncHTTPAdapter(
                     max_retries=self.retries,
+                    disable_http1=self._disable_http1,
+                    disable_http2=self._disable_http2,
+                    disable_http3=self._disable_http3,
                     resolver=self.resolver,
                     source_address=self.source_address,
                     disable_ipv4=self._disable_ipv4,
