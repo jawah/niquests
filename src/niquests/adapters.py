@@ -161,6 +161,8 @@ from .utils import (
     _deepcopy_ci,
     parse_scheme,
     is_ocsp_capable,
+    wrap_extension_for_http,
+    async_wrap_extension_for_http,
 )
 
 try:
@@ -1916,7 +1918,9 @@ class AsyncHTTPAdapter(AsyncBaseAdapter):
             else:
                 implementation = None
 
-            extension = async_load_extension(scheme, implementation=implementation)()
+            extension = async_wrap_extension_for_http(
+                async_load_extension(scheme, implementation=implementation)
+            )()
 
         async def early_response_hook(early_response: BaseAsyncHTTPResponse) -> None:
             nonlocal on_early_response
