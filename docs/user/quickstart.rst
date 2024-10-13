@@ -1120,6 +1120,135 @@ Others
 Every other features still applies with WebSocket, like proxies, happy eyeballs, thread/task safety, etc...
 See relevant docs for more.
 
+Example with Concurrency (Thread)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+In the following example, we will see how to communicate with a WebSocket server that echo what we send to him.
+We will use a Thread for the reads and the main thread for write operations.
+
+See::
+
+    from __future__ import annotations
+
+    from niquests import Session, Response, ReadTimeout
+    from threading import Thread
+    from time import sleep
+
+
+    def pull_message_from_server(my_response: Response) -> None:
+        """Read messages here."""
+        iteration_counter = 0
+
+        while my_response.extension.closed is False:
+            try:
+                # will block for 1s top
+                message = my_response.extension.next_payload()
+
+                if message is None:  # server just closed the connection. exit.
+                    print("received goaway from server")
+                    return
+
+                print(f"received message: '{message}'")
+            except ReadTimeout:  # if no message received within 1s
+                pass
+
+            sleep(1)  # let some time for the write part to acquire the lock
+            iteration_counter += 1
+
+            # send a ping every four iteration
+            if iteration_counter % 4 == 0:
+                my_response.extension.ping()
+                print("ping sent")
+
+    if __name__ == "__main__":
+
+        with Session() as s:
+            # connect to websocket server "echo.websocket.org" with timeout of 1s (both read and connect)
+            resp = s.get("wss://echo.websocket.org", timeout=1)
+
+            if resp.status_code != 101:
+                exit(1)
+
+            t = Thread(target=pull_message_from_server, args=(resp,))
+            t.start()
+
+            # send messages here
+            for i in range(30):
+                to_send = f"Hello World {i}"
+                resp.extension.send_payload(to_send)
+                print(f"sent message: '{to_send}'")
+                sleep(1)  # let some time for the read part to acquire the lock
+
+            # exit gently!
+            resp.extension.close()
+
+            # wait for thread proper exit.
+            t.join()
+
+            print("program ended!")
+
+
+.. warning:: The sleep serve the purpose to relax the lock on either the read or write side, so that one would not block the other forever.
+
+Example with Concurrency (Async)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The same example as before, but using async instead.
+
+See::
+
+    import asyncio
+    from niquests import AsyncSession, ReadTimeout, Response
+
+    async def read_from_ws(my_response: Response) -> None:
+        iteration_counter = 0
+
+        while my_response.extension.closed is False:
+            try:
+                # will block for 1s top
+                message = await my_response.extension.next_payload()
+
+                if message is None:  # server just closed the connection. exit.
+                    print("received goaway from server")
+                    return
+
+                print(f"received message: '{message}'")
+            except ReadTimeout:  # if no message received within 1s
+                pass
+
+            await asyncio.sleep(1)  # let some time for the write part to acquire the lock
+            iteration_counter += 1
+
+            # send a ping every four iteration
+            if iteration_counter % 4 == 0:
+                await my_response.extension.ping()
+                print("ping sent")
+
+    async def main() -> None:
+        async with AsyncSession() as s:
+            resp = await s.get("wss://echo.websocket.org", timeout=1)
+
+            print(resp)
+
+            task = asyncio.create_task(read_from_ws(resp))
+
+            for i in range(30):
+                to_send = f"Hello World {i}"
+                await resp.extension.send_payload(to_send)
+                print(f"sent message: '{to_send}'")
+                await asyncio.sleep(1)  # let some time for the read part to acquire the lock
+
+            # exit gently!
+            await resp.extension.close()
+            await task
+
+
+    if __name__ == "__main__":
+        asyncio.run(main())
+
+
+.. note:: The given example are really basic ones. You may adjust at will the settings and algorithm to match your requisites.
+
 -----------------------
 
 Ready for more? Check out the :ref:`advanced <advanced>` section.
