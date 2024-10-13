@@ -913,7 +913,14 @@ class HTTPAdapter(BaseAdapter):
         extension = None
 
         if scheme is not None and scheme not in ("http", "https"):
-            extension = load_extension(scheme)()
+            if "+" in scheme:
+                scheme, implementation = tuple(scheme.split("+", maxsplit=1))
+            else:
+                implementation = None
+
+            extension = wrap_extension_for_http(
+                load_extension(scheme, implementation=implementation)
+            )()
 
         def early_response_hook(early_response: BaseHTTPResponse) -> None:
             nonlocal on_early_response
