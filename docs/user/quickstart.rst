@@ -469,7 +469,7 @@ Like so::
     >>> repr(h.get_datetime())
     datetime.datetime(2023, 10, 2, 5, 39, 46, tzinfo=datetime.timezone.utc)
 
-To explore possibilities, visit the ``kiss-headers`` documentation at https://ousret.github.io/kiss-headers/
+To explore possibilities, visit the ``kiss-headers`` documentation at https://jawah.github.io/kiss-headers/
 
 Cookies
 -------

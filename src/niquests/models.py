@@ -1374,7 +1374,7 @@ class Response:
         """
         Retrieve headers as they were objects. There is no need to parse headers yourself.
         A simple Mapping isn't enough to quickly access and analyze them.
-        Read the full documentation of object-oriented headers at https://ousret.github.io/kiss-headers/
+        Read the full documentation of object-oriented headers at https://jawah.github.io/kiss-headers/
         >>> import niquests
         >>> r = niquests.get("https://google.com")
         >>> r.oheaders.content_type.charset
