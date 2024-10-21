@@ -45,6 +45,7 @@ Niquests, is the “**Safest**, **Fastest[^10]**, **Easiest**, and **Most advanc
 | `Early Responses`                   |       ✅        |     ❌     |       ❌       | ❌             |
 | `WebSocket over HTTP/1`             |       ✅        |  ❌[^14]   |    ❌[^14]     | ✅             |
 | `WebSocket over HTTP/2 and HTTP/3`  |     ✅[^13]     |     ❌     |       ❌       | ❌             |
+| `Automatic Ping for HTTP/2+`        |       ✅        |    N/A    |       ❌       | N/A           |
 </details>
 
 <details>
