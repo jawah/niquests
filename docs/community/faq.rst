@@ -65,7 +65,7 @@ Do as follow::
 What is "urllib3.future"?
 -------------------------
 
-It is a fork of the well know **urllib3** library, you can easily imagine that
+It is a fork of the well-known **urllib3** library, you can easily imagine that
 Niquests would have been completely unable to serve that much feature with the
 existing **urllib3** library.
 
