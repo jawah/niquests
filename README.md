@@ -46,6 +46,7 @@ Niquests, is the “**Safest**, **Fastest[^10]**, **Easiest**, and **Most advanc
 | `WebSocket over HTTP/1`             |       ✅        |  ❌[^14]   |    ❌[^14]     | ✅             |
 | `WebSocket over HTTP/2 and HTTP/3`  |     ✅[^13]     |     ❌     |       ❌       | ❌             |
 | `Automatic Ping for HTTP/2+`        |       ✅        |    N/A    |       ❌       | N/A           |
+| `Automatic Connection Upgrade / Downgrade`  |     ✅     |     N/A     |       ❌       | N/A             |
 </details>
 
 <details>
@@ -201,7 +202,7 @@ Niquests is a highly improved HTTP client that is based (forked) on Requests. Th
 [^2]: requests has no support for asynchronous request.
 [^3]: while the HTTP/2 connection object can handle concurrent requests, you cannot leverage its true potential.
 [^4]: loading client certificate without file can't be done.
-[^5]: httpx officially claim to be thread safe but recent tests demonstrate otherwise as of february 2024. https://github.com/jawah/niquests/issues/83#issuecomment-1956065258 https://github.com/encode/httpx/issues/3072 https://github.com/encode/httpx/issues/3002
+[^5]: httpx officially claim to be thread safe but recent tests demonstrate otherwise as of february 2024. https://github.com/jawah/niquests/issues/83#issuecomment-1956065258 https://github.com/encode/httpx/issues/3072 https://github.com/encode/httpx/issues/3002 and only recently acknowledged the issue in https://github.com/encode/httpx/issues/3324 (one year after getting valid reports).
 [^6]: they do not expose anything to control network aspects such as IPv4/IPv6 toggles, and timings (e.g. DNS response time, established delay, TLS handshake delay, etc...) and such.
 [^7]: while advertised as possible, they refuse to make it the default due to performance issues. as of October 2024 an extra is required to enable it manually.
 [^8]: they don't support HTTP/3 at all.
