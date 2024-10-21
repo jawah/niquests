@@ -284,6 +284,10 @@ AES_SBOX = [
 ]
 
 
+class PicoTLSException(Exception):
+    pass
+
+
 def bytes_to_num(b):
     return int.from_bytes(b, "big")
 
@@ -438,7 +442,9 @@ def handle_server_hello(server_hello):
     handshake_type = server_hello[0]
 
     SERVER_HELLO = 0x2
-    assert handshake_type == SERVER_HELLO
+
+    if handshake_type != SERVER_HELLO:
+        raise PicoTLSException
 
     # server_hello_len = server_hello[1:4]
     # server_version = server_hello[4:6]
@@ -449,7 +455,8 @@ def handle_server_hello(server_hello):
     session_id = server_hello[39 : 39 + session_id_len]
 
     cipher_suite = server_hello[39 + session_id_len : 39 + session_id_len + 2]
-    assert cipher_suite == TLS_AES_128_GCM_SHA256
+    if cipher_suite != TLS_AES_128_GCM_SHA256:
+        raise PicoTLSException
 
     # compression_method = server_hello[39 + session_id_len + 2 : 39 + session_id_len + 3]
 
@@ -471,7 +478,10 @@ def handle_server_hello(server_hello):
             continue
         group = extensions[ptr + 4 : ptr + 6]
         SECP256R1_GROUP = b"\x00\x17"
-        assert group == SECP256R1_GROUP
+
+        if group != SECP256R1_GROUP:
+            raise PicoTLSException
+
         key_exchange_len = bytes_to_num(extensions[ptr + 6 : ptr + 8])
 
         public_ec_key = extensions[ptr + 8 : ptr + 8 + key_exchange_len]
@@ -658,7 +668,8 @@ def handle_server_cert(server_cert_data):
     handshake_type = server_cert_data[0]
 
     CERTIFICATE = 0x0B
-    assert handshake_type == CERTIFICATE
+    if handshake_type != CERTIFICATE:
+        raise PicoTLSException
 
     # certificate_payload_len = bytes_to_num(server_cert_data[1:4])
     certificate_list_len = bytes_to_num(server_cert_data[5:8])
@@ -679,16 +690,19 @@ def handle_server_cert(server_cert_data):
 def handle_encrypted_extensions(msg):
     ENCRYPTED_EXTENSIONS = 0x8
 
-    assert msg[0] == ENCRYPTED_EXTENSIONS
+    if msg[0] != ENCRYPTED_EXTENSIONS:
+        raise PicoTLSException
     extensions_length = bytes_to_num(msg[1:4])
-    assert len(msg[4:]) >= extensions_length
+    if len(msg[4:]) < extensions_length:
+        raise PicoTLSException
     return msg[4 + extensions_length :]
     # ignore the rest
 
 
 def recv_tls_and_decrypt(s, key, nonce, seq_num):
     rec_type, encrypted_msg = recv_tls(s)
-    assert rec_type == APPLICATION_DATA
+    if rec_type != APPLICATION_DATA:
+        raise PicoTLSException
 
     msg_type, msg = do_authenticated_decryption(
         key, nonce, seq_num, APPLICATION_DATA, encrypted_msg
@@ -698,7 +712,8 @@ def recv_tls_and_decrypt(s, key, nonce, seq_num):
 
 async def async_recv_tls_and_decrypt(s, key, nonce, seq_num):
     rec_type, encrypted_msg = await async_recv_tls(s)
-    assert rec_type == APPLICATION_DATA
+    if rec_type != APPLICATION_DATA:
+        raise PicoTLSException
 
     msg_type, msg = do_authenticated_decryption(
         key, nonce, seq_num, APPLICATION_DATA, encrypted_msg
@@ -730,7 +745,8 @@ def recv_tls(s):
     rec_type = recv_num_bytes(s, 1)
     tls_version = recv_num_bytes(s, 2)
 
-    assert tls_version == LEGACY_TLS_VERSION
+    if tls_version != LEGACY_TLS_VERSION:
+        raise PicoTLSException
 
     rec_len = bytes_to_num(recv_num_bytes(s, 2))
     rec = recv_num_bytes(s, rec_len)
@@ -746,7 +762,8 @@ async def async_recv_tls(s):
     rec_type = await async_recv_num_bytes(s, 1)
     tls_version = await async_recv_num_bytes(s, 2)
 
-    assert tls_version == LEGACY_TLS_VERSION
+    if tls_version != LEGACY_TLS_VERSION:
+        raise PicoTLSException
 
     rec_len = bytes_to_num(await async_recv_num_bytes(s, 2))
     rec = await async_recv_num_bytes(s, rec_len)

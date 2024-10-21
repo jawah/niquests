@@ -1,6 +1,17 @@
 Release History
 ===============
 
+3.10.0 (2024-10-21)
+------------------
+
+**Added**
+- Automatic Advanced Keep-Alive for HTTP/2 and HTTP/3 over QUIC by sending PING frames.
+  New Session, and Adapter parameters are now available: `keepalive_delay`, and `keepalive_idle_window`.
+  This greatly improves your daily experience working with HTTP/2+ remote peers.
+
+**Fixed**
+- Unshielded picotls assertion error in Python < 3.10 when trying to fetch the peer intermediate certificate.
+
 3.9.1 (2024-10-13)
 ------------------
 

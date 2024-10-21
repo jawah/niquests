@@ -51,6 +51,7 @@ from ._picotls import (
     async_recv_tls,
     async_recv_tls_and_decrypt,
     async_send_tls,
+    PicoTLSException,
 )
 from ._ocsp import (
     _str_fingerprint_of,
@@ -73,7 +74,11 @@ async def _ask_nicely_for_issuer(
         sock = AsyncSocket(socket.AF_INET6, socket.SOCK_STREAM)
 
     sock.settimeout(timeout)
-    await sock.connect(dst_address)
+
+    try:
+        await sock.connect(dst_address)
+    except (OSError, socket.timeout, TimeoutError, ConnectionError) as e:
+        raise PicoTLSException from e
 
     SECP256R1_P = 0xFFFFFFFF00000001000000000000000000000000FFFFFFFFFFFFFFFFFFFFFFFF
     SECP256R1_A = 0xFFFFFFFF00000001000000000000000000000000FFFFFFFFFFFFFFFFFFFFFFFC
@@ -408,11 +413,14 @@ async def verify(
                             raise ValueError
 
                         if not proxies:
-                            issuer_certificate = await _ask_nicely_for_issuer(
-                                url_parsed.hostname,
-                                conn_info.destination_address,
-                                timeout,
-                            )
+                            try:
+                                issuer_certificate = await _ask_nicely_for_issuer(
+                                    url_parsed.hostname,
+                                    conn_info.destination_address,
+                                    timeout,
+                                )
+                            except PicoTLSException:
+                                issuer_certificate = None
                         else:
                             issuer_certificate = None
 

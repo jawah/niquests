@@ -333,6 +333,8 @@ class HTTPAdapter(BaseAdapter):
         "_disable_ipv4",
         "_disable_ipv6",
         "_happy_eyeballs",
+        "_keepalive_delay",
+        "_keepalive_idle_window",
     ]
 
     def __init__(
@@ -341,7 +343,7 @@ class HTTPAdapter(BaseAdapter):
         pool_maxsize: int = DEFAULT_POOLSIZE,
         max_retries: RetryType = DEFAULT_RETRIES,
         pool_block: bool = DEFAULT_POOLBLOCK,
-        *,  # todo: revert if any complaint about it... :s
+        *,
         quic_cache_layer: CacheLayerAltSvcType | None = None,
         disable_http1: bool = False,
         disable_http2: bool = False,
@@ -352,6 +354,8 @@ class HTTPAdapter(BaseAdapter):
         disable_ipv4: bool = False,
         disable_ipv6: bool = False,
         happy_eyeballs: bool | int = False,
+        keepalive_delay: float | int | None = 300.0,
+        keepalive_idle_window: float | int | None = 60.0,
     ):
         if isinstance(max_retries, bool):
             self.max_retries: RetryType = False
@@ -383,6 +387,8 @@ class HTTPAdapter(BaseAdapter):
         self._disable_ipv4 = disable_ipv4
         self._disable_ipv6 = disable_ipv6
         self._happy_eyeballs = happy_eyeballs
+        self._keepalive_delay = keepalive_delay
+        self._keepalive_idle_window = keepalive_idle_window
 
         #: we keep a list of pending (lazy) response
         self._promises: dict[str, Response] = {}
@@ -413,6 +419,8 @@ class HTTPAdapter(BaseAdapter):
             source_address=source_address,
             socket_family=resolve_socket_family(disable_ipv4, disable_ipv6),
             happy_eyeballs=happy_eyeballs,
+            keepalive_delay=keepalive_delay,
+            keepalive_idle_window=keepalive_idle_window,
         )
 
     def __getstate__(self) -> dict[str, typing.Any | None]:
@@ -447,6 +455,8 @@ class HTTPAdapter(BaseAdapter):
             source_address=self._source_address,
             socket_family=resolve_socket_family(self._disable_ipv4, self._disable_ipv6),
             happy_eyeballs=self._happy_eyeballs,
+            keepalive_delay=self._keepalive_delay,
+            keepalive_idle_window=self._keepalive_idle_window,
         )
 
     def init_poolmanager(
@@ -1335,6 +1345,8 @@ class AsyncHTTPAdapter(AsyncBaseAdapter):
         "_disable_ipv4",
         "_disable_ipv6",
         "_happy_eyeballs",
+        "_keepalive_delay",
+        "_keepalive_idle_window",
     ]
 
     def __init__(
@@ -1354,6 +1366,8 @@ class AsyncHTTPAdapter(AsyncBaseAdapter):
         disable_ipv4: bool = False,
         disable_ipv6: bool = False,
         happy_eyeballs: bool | int = False,
+        keepalive_delay: float | int | None = 300.0,
+        keepalive_idle_window: float | int | None = 60.0,
     ):
         if isinstance(max_retries, bool):
             self.max_retries: RetryType = False
@@ -1386,6 +1400,8 @@ class AsyncHTTPAdapter(AsyncBaseAdapter):
         self._disable_ipv4 = disable_ipv4
         self._disable_ipv6 = disable_ipv6
         self._happy_eyeballs = happy_eyeballs
+        self._keepalive_delay = keepalive_delay
+        self._keepalive_idle_window = keepalive_idle_window
 
         #: we keep a list of pending (lazy) response
         self._promises: dict[str, Response | AsyncResponse] = {}
@@ -1415,6 +1431,8 @@ class AsyncHTTPAdapter(AsyncBaseAdapter):
             source_address=source_address,
             socket_family=resolve_socket_family(disable_ipv4, disable_ipv6),
             happy_eyeballs=happy_eyeballs,
+            keepalive_delay=keepalive_delay,
+            keepalive_idle_window=keepalive_idle_window,
         )
 
     def __getstate__(self) -> dict[str, typing.Any | None]:
@@ -1449,6 +1467,8 @@ class AsyncHTTPAdapter(AsyncBaseAdapter):
             source_address=self._source_address,
             socket_family=resolve_socket_family(self._disable_ipv4, self._disable_ipv6),
             happy_eyeballs=self._happy_eyeballs,
+            keepalive_delay=self._keepalive_delay,
+            keepalive_idle_window=self._keepalive_idle_window,
         )
 
     def init_poolmanager(

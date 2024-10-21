@@ -130,6 +130,8 @@ class AsyncSession(Session):
         pool_connections: int = DEFAULT_POOLSIZE,
         pool_maxsize: int = DEFAULT_POOLSIZE,
         happy_eyeballs: bool | int = False,
+        keepalive_delay: float | int | None = 300.0,
+        keepalive_idle_window: float | int | None = 60.0,
     ):
         if [disable_ipv4, disable_ipv6].count(True) == 2:
             raise RuntimeError("Cannot disable both IPv4 and IPv6")
@@ -195,6 +197,9 @@ class AsyncSession(Session):
 
         self._happy_eyeballs = happy_eyeballs
 
+        self._keepalive_delay = keepalive_delay
+        self._keepalive_idle_window = keepalive_idle_window
+
         #: SSL Verification default.
         #: Defaults to `True`, requiring requests to verify the TLS certificate at the
         #: remote end.
@@ -253,6 +258,8 @@ class AsyncSession(Session):
                 pool_connections=pool_connections,
                 pool_maxsize=pool_maxsize,
                 happy_eyeballs=happy_eyeballs,
+                keepalive_delay=keepalive_delay,
+                keepalive_idle_window=keepalive_idle_window,
             ),
         )
         self.mount(
@@ -269,6 +276,8 @@ class AsyncSession(Session):
                 pool_connections=pool_connections,
                 pool_maxsize=pool_maxsize,
                 happy_eyeballs=happy_eyeballs,
+                keepalive_delay=keepalive_delay,
+                keepalive_idle_window=keepalive_idle_window,
             ),
         )
 
@@ -436,6 +445,8 @@ class AsyncSession(Session):
                     pool_connections=self._pool_connections,
                     pool_maxsize=self._pool_maxsize,
                     happy_eyeballs=self._happy_eyeballs,
+                    keepalive_delay=self._keepalive_delay,
+                    keepalive_idle_window=self._keepalive_idle_window,
                 ),
             )
             self.mount(
@@ -452,6 +463,8 @@ class AsyncSession(Session):
                     pool_connections=self._pool_connections,
                     pool_maxsize=self._pool_maxsize,
                     happy_eyeballs=self._happy_eyeballs,
+                    keepalive_delay=self._keepalive_delay,
+                    keepalive_idle_window=self._keepalive_idle_window,
                 ),
             )
 

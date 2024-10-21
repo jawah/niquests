@@ -230,6 +230,8 @@ class Session:
         "_pool_connections",
         "_pool_maxsize",
         "_happy_eyeballs",
+        "_keepalive_delay",
+        "_keepalive_idle_window",
     ]
 
     def __init__(
@@ -248,6 +250,8 @@ class Session:
         pool_connections: int = DEFAULT_POOLSIZE,
         pool_maxsize: int = DEFAULT_POOLSIZE,
         happy_eyeballs: bool | int = False,
+        keepalive_delay: float | int | None = 300.0,
+        keepalive_idle_window: float | int | None = 60.0,
     ):
         """
         :param resolver: Specify a DNS resolver that should be used within this Session.
@@ -324,6 +328,9 @@ class Session:
 
         self._happy_eyeballs = happy_eyeballs
 
+        self._keepalive_delay = keepalive_delay
+        self._keepalive_idle_window = keepalive_idle_window
+
         #: SSL Verification default.
         #: Defaults to `True`, requiring requests to verify the TLS certificate at the
         #: remote end.
@@ -380,6 +387,8 @@ class Session:
                 pool_connections=pool_connections,
                 pool_maxsize=pool_maxsize,
                 happy_eyeballs=happy_eyeballs,
+                keepalive_delay=keepalive_delay,
+                keepalive_idle_window=keepalive_idle_window,
             ),
         )
         self.mount(
@@ -395,6 +404,8 @@ class Session:
                 pool_connections=pool_connections,
                 pool_maxsize=pool_maxsize,
                 happy_eyeballs=happy_eyeballs,
+                keepalive_delay=keepalive_delay,
+                keepalive_idle_window=keepalive_idle_window,
             ),
         )
 
@@ -1178,6 +1189,8 @@ class Session:
                     pool_connections=self._pool_connections,
                     pool_maxsize=self._pool_maxsize,
                     happy_eyeballs=self._happy_eyeballs,
+                    keepalive_delay=self._keepalive_delay,
+                    keepalive_idle_window=self._keepalive_idle_window,
                 ),
             )
             self.mount(
@@ -1194,6 +1207,8 @@ class Session:
                     pool_connections=self._pool_connections,
                     pool_maxsize=self._pool_maxsize,
                     happy_eyeballs=self._happy_eyeballs,
+                    keepalive_delay=self._keepalive_delay,
+                    keepalive_idle_window=self._keepalive_idle_window,
                 ),
             )
 
@@ -1441,6 +1456,8 @@ class Session:
                 pool_connections=self._pool_connections,
                 pool_maxsize=self._pool_maxsize,
                 happy_eyeballs=self._happy_eyeballs,
+                keepalive_delay=self._keepalive_delay,
+                keepalive_idle_window=self._keepalive_idle_window,
             ),
         )
         self.mount(
@@ -1454,6 +1471,8 @@ class Session:
                 pool_connections=self._pool_connections,
                 pool_maxsize=self._pool_maxsize,
                 happy_eyeballs=self._happy_eyeballs,
+                keepalive_delay=self._keepalive_delay,
+                keepalive_idle_window=self._keepalive_idle_window,
             ),
         )
 
