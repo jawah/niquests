@@ -49,6 +49,7 @@ from ._picotls import (
     recv_tls,
     recv_tls_and_decrypt,
     send_tls,
+    PicoTLSException,
 )
 
 
@@ -80,8 +81,11 @@ def _ask_nicely_for_issuer(
     else:
         sock = socket.socket(socket.AF_INET6, socket.SOCK_STREAM)
 
-    sock.connect(dst_address)
     sock.settimeout(timeout)
+    try:
+        sock.connect(dst_address)
+    except (OSError, socket.timeout, TimeoutError, ConnectionError) as e:
+        raise PicoTLSException from e
 
     SECP256R1_P = 0xFFFFFFFF00000001000000000000000000000000FFFFFFFFFFFFFFFFFFFFFFFF
     SECP256R1_A = 0xFFFFFFFF00000001000000000000000000000000FFFFFFFFFFFFFFFFFFFFFFFC
@@ -402,11 +406,14 @@ def verify(
                         raise ValueError
 
                     if not proxies:
-                        issuer_certificate = _ask_nicely_for_issuer(
-                            url_parsed.hostname,
-                            conn_info.destination_address,
-                            timeout,
-                        )
+                        try:
+                            issuer_certificate = _ask_nicely_for_issuer(
+                                url_parsed.hostname,
+                                conn_info.destination_address,
+                                timeout,
+                            )
+                        except PicoTLSException:
+                            issuer_certificate = None
                     else:
                         issuer_certificate = None
 
