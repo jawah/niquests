@@ -12,41 +12,41 @@ Niquests, is the “**Safest**, **Fastest[^10]**, **Easiest**, and **Most advanc
 <details>
   <summary>👆 <b>Look at the feature table comparison</b> against <i>requests, httpx and aiohttp</i>!</summary>
 
-| Feature                             |    niquests    | requests  |     httpx     | aiohttp       |
-|-------------------------------------|:--------------:|:---------:|:-------------:|---------------|
-| `HTTP/1.1`                          |       ✅        |     ✅     |       ✅       | ✅             |
-| `HTTP/2`                            |       ✅        |     ❌     |     ✅[^7]     | ❌             |
-| `HTTP/3 over QUIC`                  |       ✅        |     ❌     |       ❌       | ❌             |
-| `Synchronous`                       |       ✅        |     ✅     |       ✅       | _N/A_[^1]     |
-| `Asynchronous`                      |       ✅        |     ❌     |       ✅       | ✅             |
-| `Thread Safe`                       |       ✅        |     ✅     |     ❌[^5]     | _N/A_[^1]     |
-| `Task Safe`                         |       ✅        | _N/A_[^2] |       ✅       | ✅             |
-| `OS Trust Store`                    |       ✅        |     ❌     |       ❌       | ❌             |
-| `Multiplexing`                      |       ✅        |     ❌     | _Limited_[^3] | ❌             |
-| `DNSSEC`                            |     ✅[^11]     |     ❌     |       ❌       | ❌             |
-| `Customizable DNS Resolution`       |       ✅        |     ❌     |       ❌       | ✅             |
-| `DNS over HTTPS`                    |       ✅        |     ❌     |       ❌       | ❌             |
-| `DNS over QUIC`                     |       ✅        |     ❌     |       ❌       | ❌             |
-| `DNS over TLS`                      |       ✅        |     ❌     |       ❌       | ❌             |
-| `Multiple DNS Resolver`             |       ✅        |     ❌     |       ❌       | ❌             |
-| `Network Fine Tuning & Inspect`     |       ✅        |     ❌     | _Limited_[^6] | _Limited_[^6] |
-| `Certificate Revocation Protection` |       ✅        |     ❌     |       ❌       | ❌             |
-| `Session Persistence`               |       ✅        |     ✅     |       ✅       | ✅             |
-| `In-memory Certificate CA & mTLS`   |       ✅        |     ❌     | _Limited_[^4] | _Limited_[^4] |
-| `SOCKS 4/5 Proxies`                 |       ✅        |     ✅     |       ✅       | ❌             |
-| `HTTP/HTTPS Proxies`                |       ✅        |     ✅     |       ✅       | ✅             |
-| `TLS-in-TLS Support`                |       ✅        |     ✅     |       ✅       | ✅             |
-| `Direct HTTP/3 Negotiation`         |     ✅[^9]      |  N/A[^8]  |    N/A[^8]    | N/A[^8]       |
-| `Happy Eyeballs`                    |       ✅        |     ❌     |       ❌       | ✅             |
-| `Package / SLSA Signed`             |       ✅        |     ❌     |       ❌       | ✅             |
-| `HTTP/2 with prior knowledge (h2c)` |       ✅        |     ❌     |       ✅       | ❌             |
-| `Post-Quantum Security`             | _Limited_[^12] |     ❌     |       ❌       | ❌             |
-| `HTTP Trailers`                     |       ✅        |     ❌     |       ❌       | ❌             |
-| `Early Responses`                   |       ✅        |     ❌     |       ❌       | ❌             |
-| `WebSocket over HTTP/1`             |       ✅        |  ❌[^14]   |    ❌[^14]     | ✅             |
-| `WebSocket over HTTP/2 and HTTP/3`  |     ✅[^13]     |     ❌     |       ❌       | ❌             |
-| `Automatic Ping for HTTP/2+`        |       ✅        |    N/A    |       ❌       | N/A           |
-| `Automatic Connection Upgrade / Downgrade`  |     ✅     |     N/A     |       ❌       | N/A             |
+| Feature                                    |    niquests    | requests  |     httpx     | aiohttp       |
+|--------------------------------------------|:--------------:|:---------:|:-------------:|---------------|
+| `HTTP/1.1`                                 |       ✅        |     ✅     |       ✅       | ✅             |
+| `HTTP/2`                                   |       ✅        |     ❌     |     ✅[^7]     | ❌             |
+| `HTTP/3 over QUIC`                         |       ✅        |     ❌     |       ❌       | ❌             |
+| `Synchronous`                              |       ✅        |     ✅     |       ✅       | _N/A_[^1]     |
+| `Asynchronous`                             |       ✅        |     ❌     |       ✅       | ✅             |
+| `Thread Safe`                              |       ✅        |     ✅     |     ❌[^5]     | _N/A_[^1]     |
+| `Task Safe`                                |       ✅        | _N/A_[^2] |       ✅       | ✅             |
+| `OS Trust Store`                           |       ✅        |     ❌     |       ❌       | ❌             |
+| `Multiplexing`                             |       ✅        |     ❌     | _Limited_[^3] | ❌             |
+| `DNSSEC`                                   |     ✅[^11]     |     ❌     |       ❌       | ❌             |
+| `Customizable DNS Resolution`              |       ✅        |     ❌     |       ❌       | ✅             |
+| `DNS over HTTPS`                           |       ✅        |     ❌     |       ❌       | ❌             |
+| `DNS over QUIC`                            |       ✅        |     ❌     |       ❌       | ❌             |
+| `DNS over TLS`                             |       ✅        |     ❌     |       ❌       | ❌             |
+| `Multiple DNS Resolver`                    |       ✅        |     ❌     |       ❌       | ❌             |
+| `Network Fine Tuning & Inspect`            |       ✅        |     ❌     | _Limited_[^6] | _Limited_[^6] |
+| `Certificate Revocation Protection`        |       ✅        |     ❌     |       ❌       | ❌             |
+| `Session Persistence`                      |       ✅        |     ✅     |       ✅       | ✅             |
+| `In-memory Certificate CA & mTLS`          |       ✅        |     ❌     | _Limited_[^4] | _Limited_[^4] |
+| `SOCKS 4/5 Proxies`                        |       ✅        |     ✅     |       ✅       | ❌             |
+| `HTTP/HTTPS Proxies`                       |       ✅        |     ✅     |       ✅       | ✅             |
+| `TLS-in-TLS Support`                       |       ✅        |     ✅     |       ✅       | ✅             |
+| `Direct HTTP/3 Negotiation`                |     ✅[^9]      |  N/A[^8]  |    N/A[^8]    | N/A[^8]       |
+| `Happy Eyeballs`                           |       ✅        |     ❌     |       ❌       | ✅             |
+| `Package / SLSA Signed`                    |       ✅        |     ❌     |       ❌       | ✅             |
+| `HTTP/2 with prior knowledge (h2c)`        |       ✅        |     ❌     |       ✅       | ❌             |
+| `Post-Quantum Security`                    | _Limited_[^12] |     ❌     |       ❌       | ❌             |
+| `HTTP Trailers`                            |       ✅        |     ❌     |       ❌       | ❌             |
+| `Early Responses`                          |       ✅        |     ❌     |       ❌       | ❌             |
+| `WebSocket over HTTP/1`                    |       ✅        |  ❌[^14]   |    ❌[^14]     | ✅             |
+| `WebSocket over HTTP/2 and HTTP/3`         |     ✅[^13]     |     ❌     |       ❌       | ❌             |
+| `Automatic Ping for HTTP/2+`               |       ✅        |    N/A    |       ❌       | N/A           |
+| `Automatic Connection Upgrade / Downgrade` |       ✅        |    N/A    |       ❌       | N/A           |
 </details>
 
 <details>
@@ -67,9 +67,9 @@ _Scenario:_ Fetch a thousand requests using 10 tasks or threads, each with a hun
 | Client        | Average Delay to Complete | Notes                        |
 |---------------|---------------------------|------------------------------|
 | requests core | 643 ms or ~1555 req/s     | ThreadPoolExecutor. HTTP/1.1 |
-| httpx core    | 530 ms or ~1886 req/s     | Asyncio. HTTP/2              |
+| httpx core    | 490 ms or ~2000 req/s     | Asyncio. HTTP/2              |
 | aiohttp       | 210 ms or ~4762 req/s     | Asyncio. HTTP/1.1            |
-| niquests core | 170 ms or ~5882 req/s     | Asyncio. HTTP/2              |
+| niquests core | 160 ms or ~6200 req/s     | Asyncio. HTTP/2              |
 
 Did you give up on HTTP/2 due to performance concerns? Think again! Do you realize that you can get 3 times faster with the same CPU if you ever switched to Niquests from Requests?
 Multiplexing and response lazyness open up a wide range of possibilities! Want to learn more about the tests? scripts? reasoning?
@@ -83,6 +83,8 @@ Take a deeper look at https://github.com/Ousret/niquests-stats
 >>> import niquests
 >>> s = niquests.Session(resolver="doh+google://", multiplexed=True)
 >>> r = s.get('https://pie.dev/basic-auth/user/pass', auth=('user', 'pass'))
+>>> r
+<ResponsePromise HTTP/3>
 >>> r.status_code
 200
 >>> r.headers['content-type']
