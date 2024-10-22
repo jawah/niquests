@@ -1,6 +1,12 @@
 Release History
 ===============
 
+3.10.1 (2024-10-22)
+------------------
+
+**Fixed**
+- Exception leak from urllib3-future when gathering / resolving lazy responses.
+
 3.10.0 (2024-10-21)
 ------------------
 

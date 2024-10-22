@@ -1232,7 +1232,42 @@ class HTTPAdapter(BaseAdapter):
                             self._orphaned.remove(low_resp)
 
                     if low_resp is None:
-                        low_resp = self.poolmanager.get_response()
+                        try:
+                            low_resp = self.poolmanager.get_response()
+                        except (ProtocolError, OSError) as err:
+                            raise ConnectionError(err)
+
+                        except MaxRetryError as e:
+                            if isinstance(e.reason, ConnectTimeoutError):
+                                # TODO: Remove this in 3.0.0: see #2811
+                                if not isinstance(e.reason, NewConnectionError):
+                                    raise ConnectTimeout(e)
+
+                            if isinstance(e.reason, ResponseError):
+                                raise RetryError(e)
+
+                            if isinstance(e.reason, _ProxyError):
+                                raise ProxyError(e)
+
+                            if isinstance(e.reason, _SSLError):
+                                # This branch is for urllib3 v1.22 and later.
+                                raise SSLError(e)
+
+                            raise ConnectionError(e)
+
+                        except _ProxyError as e:
+                            raise ProxyError(e)
+
+                        except (_SSLError, _HTTPError) as e:
+                            if isinstance(e, _SSLError):
+                                # This branch is for urllib3 versions earlier than v1.22
+                                raise SSLError(e)
+                            elif isinstance(e, ReadTimeoutError):
+                                raise ReadTimeout(e)
+                            elif isinstance(e, _InvalidHeader):
+                                raise InvalidHeader(e)
+                            else:
+                                raise
 
                     if low_resp is None:
                         break
@@ -1278,6 +1313,40 @@ class HTTPAdapter(BaseAdapter):
                         )
                     except ValueError:
                         low_resp = None
+                    except (ProtocolError, OSError) as err:
+                        raise ConnectionError(err)
+
+                    except MaxRetryError as e:
+                        if isinstance(e.reason, ConnectTimeoutError):
+                            # TODO: Remove this in 3.0.0: see #2811
+                            if not isinstance(e.reason, NewConnectionError):
+                                raise ConnectTimeout(e)
+
+                        if isinstance(e.reason, ResponseError):
+                            raise RetryError(e)
+
+                        if isinstance(e.reason, _ProxyError):
+                            raise ProxyError(e)
+
+                        if isinstance(e.reason, _SSLError):
+                            # This branch is for urllib3 v1.22 and later.
+                            raise SSLError(e)
+
+                        raise ConnectionError(e)
+
+                    except _ProxyError as e:
+                        raise ProxyError(e)
+
+                    except (_SSLError, _HTTPError) as e:
+                        if isinstance(e, _SSLError):
+                            # This branch is for urllib3 versions earlier than v1.22
+                            raise SSLError(e)
+                        elif isinstance(e, ReadTimeoutError):
+                            raise ReadTimeout(e)
+                        elif isinstance(e, _InvalidHeader):
+                            raise InvalidHeader(e)
+                        else:
+                            raise
 
                     if low_resp is None:
                         raise MultiplexingError(
@@ -2257,7 +2326,42 @@ class AsyncHTTPAdapter(AsyncBaseAdapter):
                         self._orphaned.remove(low_resp)
 
                 if low_resp is None:
-                    low_resp = await self.poolmanager.get_response()
+                    try:
+                        low_resp = await self.poolmanager.get_response()
+                    except (ProtocolError, OSError) as err:
+                        raise ConnectionError(err)
+
+                    except MaxRetryError as e:
+                        if isinstance(e.reason, ConnectTimeoutError):
+                            # TODO: Remove this in 3.0.0: see #2811
+                            if not isinstance(e.reason, NewConnectionError):
+                                raise ConnectTimeout(e)
+
+                        if isinstance(e.reason, ResponseError):
+                            raise RetryError(e)
+
+                        if isinstance(e.reason, _ProxyError):
+                            raise ProxyError(e)
+
+                        if isinstance(e.reason, _SSLError):
+                            # This branch is for urllib3 v1.22 and later.
+                            raise SSLError(e)
+
+                        raise ConnectionError(e)
+
+                    except _ProxyError as e:
+                        raise ProxyError(e)
+
+                    except (_SSLError, _HTTPError) as e:
+                        if isinstance(e, _SSLError):
+                            # This branch is for urllib3 versions earlier than v1.22
+                            raise SSLError(e)
+                        elif isinstance(e, ReadTimeoutError):
+                            raise ReadTimeout(e)
+                        elif isinstance(e, _InvalidHeader):
+                            raise InvalidHeader(e)
+                        else:
+                            raise
 
                 if low_resp is None:
                     break
@@ -2303,6 +2407,40 @@ class AsyncHTTPAdapter(AsyncBaseAdapter):
                     )
                 except ValueError:
                     low_resp = None
+                except (ProtocolError, OSError) as err:
+                    raise ConnectionError(err)
+
+                except MaxRetryError as e:
+                    if isinstance(e.reason, ConnectTimeoutError):
+                        # TODO: Remove this in 3.0.0: see #2811
+                        if not isinstance(e.reason, NewConnectionError):
+                            raise ConnectTimeout(e)
+
+                    if isinstance(e.reason, ResponseError):
+                        raise RetryError(e)
+
+                    if isinstance(e.reason, _ProxyError):
+                        raise ProxyError(e)
+
+                    if isinstance(e.reason, _SSLError):
+                        # This branch is for urllib3 v1.22 and later.
+                        raise SSLError(e)
+
+                    raise ConnectionError(e)
+
+                except _ProxyError as e:
+                    raise ProxyError(e)
+
+                except (_SSLError, _HTTPError) as e:
+                    if isinstance(e, _SSLError):
+                        # This branch is for urllib3 versions earlier than v1.22
+                        raise SSLError(e)
+                    elif isinstance(e, ReadTimeoutError):
+                        raise ReadTimeout(e)
+                    elif isinstance(e, _InvalidHeader):
+                        raise InvalidHeader(e)
+                    else:
+                        raise
 
                 if low_resp is None:
                     raise MultiplexingError(

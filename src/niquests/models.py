@@ -1136,7 +1136,7 @@ class Response:
             or self.request.conn_info is None
             or self.request.conn_info.http_version is None
         ):
-            return "<Response Dummy>"
+            return f"<Response Dummy [{self.status_code}]>"
 
         # HTTP/2.0 is not preferred, cast it to HTTP/2 instead.
         http_revision = self.request.conn_info.http_version.value.replace(".0", "")
