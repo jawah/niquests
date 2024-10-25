@@ -379,6 +379,29 @@ Note that connections are only released back to the pool for reuse once all body
 data has been read; be sure to either set ``stream`` to ``False`` or read the
 ``content`` property of the ``Response`` object.
 
+.. note:: Available since Niquests v3.10 and before this only HTTP/1.1 were kept alive properly.
+
+Niquests can automatically make sure that your HTTP connection is kept alive
+no matter the used protocol using a discrete scheduled task for each host.
+
+.. code-block:: python
+
+    import niquests
+
+    sess = niquests.Session(keepalive_delay=300, keepalive_idle_window=60)  # already the defaults!, you don't need to specify anything
+
+In that example, we indicate that we wish to keep a connection alive for 5 minutes and
+eventually send ping every 60s after the connection was idle. (Those values are the default ones!)
+
+The pings are only sent when using HTTP/2 or HTTP/3 over QUIC. Any connection activity is considered as used, therefor
+making the ping only 60s after zero activity. If the connection receive unsolicited data, it is also considered used.
+
+.. note:: Setting either keepalive_delay or keepalive_idle_window to None disable this feature.
+
+.. warning:: We do not recommend setting anything lower than 30s for keepalive_idle_window. Anything lower than 1s is considered to be 1s. High frequency ping will lower the performance of your connection pool. And probably end up by getting kicked out by the server.
+
+Once the ``keepalive_delay`` passed, we do not close the connection, we simply cease to ensure it is alive. This is purely for backward compatibility with our predecessor, as some host may retain the connection for hours.
+
 .. _streaming-uploads:
 
 Streaming Uploads
