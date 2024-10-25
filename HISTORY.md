@@ -1,6 +1,12 @@
 Release History
 ===============
 
+3.10.2 (2024-10-25)
+------------------
+
+**Fixed**
+- Ensure `stream`, and `verify` both defaults to your ``Session`` parameters.
+
 3.10.1 (2024-10-22)
 ------------------
 

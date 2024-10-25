@@ -54,6 +54,32 @@ class TestTestServer:
             assert r.text == "roflol"
             assert r.headers["Content-Length"] == "6"
 
+    def test_early_response_caught(self):
+        server = Server.text_response_server(
+            "HTTP/1.1 100 CONTINUE\r\n\r\nHTTP/1.1 200 OK\r\n"
+            "Content-Length: 6\r\n"
+            "\r\nroflol"
+        )
+
+        with server as (host, port):
+            early_r = None
+
+            def catch_early_response(*args):
+                nonlocal early_r
+                early_r = args[0]
+
+            r = niquests.get(
+                f"http://{host}:{port}",
+                hooks={"early_response": [catch_early_response]},
+            )
+
+            assert early_r is not None
+            assert early_r.status_code == 100
+
+            assert r.status_code == 200
+            assert r.text == "roflol"
+            assert r.headers["Content-Length"] == "6"
+
     def test_invalid_location_response(self):
         server = Server.text_response_server(
             "HTTP/1.1 302 PERMANENT-REDIRECTION\r\n"

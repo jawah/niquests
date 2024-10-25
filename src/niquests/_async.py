@@ -862,7 +862,7 @@ class AsyncSession(Session):
         proxies: ProxyType | None = ...,
         hooks: HookType[PreparedRequest | Response] | None = ...,
         verify: TLSVerifyType = ...,
-        stream: Literal[False] = ...,
+        stream: Literal[False] | Literal[None] = ...,
         cert: TLSClientCertType | None = ...,
         **kwargs: typing.Any,
     ) -> Response: ...
@@ -898,8 +898,8 @@ class AsyncSession(Session):
         allow_redirects: bool = True,
         proxies: ProxyType | None = None,
         hooks: HookType[PreparedRequest | Response] | None = None,
-        verify: TLSVerifyType = True,
-        stream: bool = False,
+        verify: TLSVerifyType | None = None,
+        stream: bool | None = None,
         cert: TLSClientCertType | None = None,
         **kwargs: typing.Any,
     ) -> Response | AsyncResponse:
@@ -933,8 +933,8 @@ class AsyncSession(Session):
         allow_redirects: bool = ...,
         proxies: ProxyType | None = ...,
         hooks: HookType[PreparedRequest | Response] | None = ...,
-        verify: TLSVerifyType = ...,
-        stream: Literal[False] = ...,
+        verify: TLSVerifyType | None = ...,
+        stream: Literal[False] | Literal[None] = ...,
         cert: TLSClientCertType | None = ...,
         **kwargs: typing.Any,
     ) -> Response: ...
@@ -952,7 +952,7 @@ class AsyncSession(Session):
         allow_redirects: bool = ...,
         proxies: ProxyType | None = ...,
         hooks: HookType[PreparedRequest | Response] | None = ...,
-        verify: TLSVerifyType = ...,
+        verify: TLSVerifyType | None = ...,
         stream: Literal[True],
         cert: TLSClientCertType | None = ...,
         **kwargs: typing.Any,
@@ -970,8 +970,8 @@ class AsyncSession(Session):
         allow_redirects: bool = True,
         proxies: ProxyType | None = None,
         hooks: HookType[PreparedRequest | Response] | None = None,
-        verify: TLSVerifyType = True,
-        stream: bool = False,
+        verify: TLSVerifyType | None = None,
+        stream: bool | None = None,
         cert: TLSClientCertType | None = None,
         **kwargs: typing.Any,
     ) -> Response | AsyncResponse:
@@ -1005,8 +1005,8 @@ class AsyncSession(Session):
         allow_redirects: bool = ...,
         proxies: ProxyType | None = ...,
         hooks: HookType[PreparedRequest | Response] | None = ...,
-        verify: TLSVerifyType = ...,
-        stream: Literal[False] = ...,
+        verify: TLSVerifyType | None = ...,
+        stream: Literal[False] | Literal[None] = ...,
         cert: TLSClientCertType | None = ...,
         **kwargs: typing.Any,
     ) -> Response: ...
@@ -1024,7 +1024,7 @@ class AsyncSession(Session):
         allow_redirects: bool = ...,
         proxies: ProxyType | None = ...,
         hooks: HookType[PreparedRequest | Response] | None = ...,
-        verify: TLSVerifyType = ...,
+        verify: TLSVerifyType | None = ...,
         stream: Literal[True],
         cert: TLSClientCertType | None = ...,
         **kwargs: typing.Any,
@@ -1042,8 +1042,8 @@ class AsyncSession(Session):
         allow_redirects: bool = True,
         proxies: ProxyType | None = None,
         hooks: HookType[PreparedRequest | Response] | None = None,
-        verify: TLSVerifyType = True,
-        stream: bool = False,
+        verify: TLSVerifyType | None = None,
+        stream: bool | None = None,
         cert: TLSClientCertType | None = None,
         **kwargs: typing.Any,
     ) -> Response | AsyncResponse:
@@ -1080,8 +1080,8 @@ class AsyncSession(Session):
         allow_redirects: bool = ...,
         proxies: ProxyType | None = ...,
         hooks: HookType[PreparedRequest | Response] | None = ...,
-        verify: TLSVerifyType = ...,
-        stream: Literal[False] = ...,
+        verify: TLSVerifyType | None = ...,
+        stream: Literal[False] | Literal[None] = ...,
         cert: TLSClientCertType | None = ...,
     ) -> Response: ...
 
@@ -1101,7 +1101,7 @@ class AsyncSession(Session):
         allow_redirects: bool = ...,
         proxies: ProxyType | None = ...,
         hooks: HookType[PreparedRequest | Response] | None = ...,
-        verify: TLSVerifyType = ...,
+        verify: TLSVerifyType | None = ...,
         stream: Literal[True],
         cert: TLSClientCertType | None = ...,
     ) -> AsyncResponse: ...
@@ -1121,8 +1121,8 @@ class AsyncSession(Session):
         allow_redirects: bool = True,
         proxies: ProxyType | None = None,
         hooks: HookType[PreparedRequest | Response] | None = None,
-        verify: TLSVerifyType = True,
-        stream: bool = False,
+        verify: TLSVerifyType | None = None,
+        stream: bool | None = None,
         cert: TLSClientCertType | None = None,
     ) -> Response | AsyncResponse:
         return await self.request(  # type: ignore[call-overload,misc]
@@ -1160,8 +1160,8 @@ class AsyncSession(Session):
         allow_redirects: bool = ...,
         proxies: ProxyType | None = ...,
         hooks: HookType[PreparedRequest | Response] | None = ...,
-        verify: TLSVerifyType = ...,
-        stream: Literal[False] = ...,
+        verify: TLSVerifyType | None = ...,
+        stream: Literal[False] | Literal[None] = ...,
         cert: TLSClientCertType | None = ...,
     ) -> Response: ...
 
@@ -1181,7 +1181,7 @@ class AsyncSession(Session):
         allow_redirects: bool = ...,
         proxies: ProxyType | None = ...,
         hooks: HookType[PreparedRequest | Response] | None = ...,
-        verify: TLSVerifyType = ...,
+        verify: TLSVerifyType | None = ...,
         stream: Literal[True],
         cert: TLSClientCertType | None = ...,
     ) -> AsyncResponse: ...
@@ -1201,8 +1201,8 @@ class AsyncSession(Session):
         allow_redirects: bool = True,
         proxies: ProxyType | None = None,
         hooks: HookType[PreparedRequest | Response] | None = None,
-        verify: TLSVerifyType = True,
-        stream: bool = False,
+        verify: TLSVerifyType | None = None,
+        stream: bool | None = None,
         cert: TLSClientCertType | None = None,
     ) -> Response | AsyncResponse:
         return await self.request(  # type: ignore[call-overload,misc]
@@ -1240,8 +1240,8 @@ class AsyncSession(Session):
         allow_redirects: bool = ...,
         proxies: ProxyType | None = ...,
         hooks: HookType[PreparedRequest | Response] | None = ...,
-        verify: TLSVerifyType = ...,
-        stream: Literal[False] = ...,
+        verify: TLSVerifyType | None = ...,
+        stream: Literal[False] | Literal[None] = ...,
         cert: TLSClientCertType | None = ...,
     ) -> Response: ...
 
@@ -1261,7 +1261,7 @@ class AsyncSession(Session):
         allow_redirects: bool = ...,
         proxies: ProxyType | None = ...,
         hooks: HookType[PreparedRequest | Response] | None = ...,
-        verify: TLSVerifyType = ...,
+        verify: TLSVerifyType | None = ...,
         stream: Literal[True],
         cert: TLSClientCertType | None = ...,
     ) -> AsyncResponse: ...
@@ -1281,8 +1281,8 @@ class AsyncSession(Session):
         allow_redirects: bool = True,
         proxies: ProxyType | None = None,
         hooks: HookType[PreparedRequest | Response] | None = None,
-        verify: TLSVerifyType = True,
-        stream: bool = False,
+        verify: TLSVerifyType | None = None,
+        stream: bool | None = None,
         cert: TLSClientCertType | None = None,
     ) -> Response | AsyncResponse:
         return await self.request(  # type: ignore[call-overload,misc]
@@ -1317,8 +1317,8 @@ class AsyncSession(Session):
         allow_redirects: bool = ...,
         proxies: ProxyType | None = ...,
         hooks: HookType[PreparedRequest | Response] | None = ...,
-        verify: TLSVerifyType = ...,
-        stream: Literal[False] = ...,
+        verify: TLSVerifyType | None = ...,
+        stream: Literal[False] | Literal[None] = ...,
         cert: TLSClientCertType | None = ...,
         **kwargs: typing.Any,
     ) -> Response: ...
@@ -1336,7 +1336,7 @@ class AsyncSession(Session):
         allow_redirects: bool = ...,
         proxies: ProxyType | None = ...,
         hooks: HookType[PreparedRequest | Response] | None = ...,
-        verify: TLSVerifyType = ...,
+        verify: TLSVerifyType | None = ...,
         stream: Literal[True],
         cert: TLSClientCertType | None = ...,
         **kwargs: typing.Any,
@@ -1354,8 +1354,8 @@ class AsyncSession(Session):
         allow_redirects: bool = True,
         proxies: ProxyType | None = None,
         hooks: HookType[PreparedRequest | Response] | None = None,
-        verify: TLSVerifyType = True,
-        stream: bool = False,
+        verify: TLSVerifyType | None = None,
+        stream: bool | None = None,
         cert: TLSClientCertType | None = None,
         **kwargs: typing.Any,
     ) -> Response | AsyncResponse:

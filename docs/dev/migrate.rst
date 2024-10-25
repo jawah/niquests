@@ -45,7 +45,7 @@ The library itself (sources) should be really easy to migrate (cf. developer mig
 but the tests may be harder to adapt.
 
 The main reason behind this difficulty is often related to a strong tie with third-party
-mocking library such as ``response``.
+mocking library such as ``responses``.
 
 To overcome this, we will introduce you to a clever bypass. If you are using pytest, do the
 following in your ``conftest.py``, see https://docs.pytest.org/en/6.2.x/fixture.html#conftest-py-sharing-fixtures-across-multiple-files
@@ -65,3 +65,9 @@ for more information. (The goal would simply to execute the following piece of c
     modules["requests.packages.urllib3"] = urllib3
 
 .. warning:: This code sample is only to be executed in a development environment, it permit to fool the third-party dependencies that have a strong tie on Requests.
+
+.. warning:: Some pytest plugins may load/import Requests at startup.
+    Disable the plugin auto-loading first by either passing ``PYTEST_DISABLE_PLUGIN_AUTOLOAD=1`` (in environment)
+    or ``pytest -p "no:pytest-betamax"`` in CLI parameters. Replace ``pytest-betamax`` by the name of the target plugin.
+    To find out the name of the plugin auto-loaded, execute ``pytest --trace-config`` as the name aren't usually what
+    you would expect them to be.
