@@ -259,12 +259,21 @@ class Session:
         :param quic_cache_layer: Provide an external cache mechanism to store HTTP/3 host capabilities.
         :param retries: Configure a number of times a request must be automatically retried before giving up.
         :param multiplexed: Enable or disable concurrent request when the remote host support HTTP/2 onward.
+        :param disable_http1: Toggle to disable negotiating HTTP/1 with remote peers. Set it to True so that
+            you may be able to force HTTP/2 over cleartext (h2c).
         :param disable_http2: Toggle to disable negotiating HTTP/2 with remote peers.
         :param disable_http3: Toggle to disable negotiating HTTP/3 with remote peers.
         :param disable_ipv6: Toggle to disable using IPv6 even if the remote host supports IPv6.
         :param disable_ipv4: Toggle to disable using IPv4 even if the remote host supports IPv4.
-        :param pool_connections: Number of concurrent hosts to be handled by this Session at a maximum.
+        :param pool_connections: Number of concurrent hosts to be kept alive by this Session at a maximum.
         :param pool_maxsize: Maximum number of concurrent connections per (single) host at a time.
+        :param happy_eyeballs: Use IETF Happy Eyeballs algorithm when trying to connect to a remote host by issuing
+            concurrent connection using available IPs. Tries IPv6/IPv4 at the same time or multiple IPv6 / IPv4.
+            The domain name must yield multiple A or AAAA records for this to be used.
+        :param keepalive_delay: Delay expressed in seconds, in which we should keep a connection alive by sending PING
+            frame. This only applies to HTTP/2 onward.
+        :param keepalive_idle_window: Delay expressed in seconds, in which we should send a PING frame after the connection
+            being completely idle. This only applies to HTTP/2 onward.
         """
         if [disable_ipv4, disable_ipv6].count(True) == 2:
             raise RuntimeError("Cannot disable both IPv4 and IPv6")
@@ -399,6 +408,7 @@ class Session:
                 source_address=source_address,
                 disable_http1=disable_http1,
                 disable_http2=disable_http2,
+                disable_http3=disable_http3,
                 disable_ipv4=disable_ipv4,
                 disable_ipv6=disable_ipv6,
                 pool_connections=pool_connections,
@@ -576,8 +586,8 @@ class Session:
         allow_redirects: bool = True,
         proxies: ProxyType | None = None,
         hooks: HookType[PreparedRequest | Response] | None = None,
-        verify: TLSVerifyType = True,
-        stream: bool = False,
+        verify: TLSVerifyType | None = None,
+        stream: bool | None = None,
         cert: TLSClientCertType | None = None,
         **kwargs: typing.Any,
     ) -> Response:
@@ -644,8 +654,8 @@ class Session:
         allow_redirects: bool = True,
         proxies: ProxyType | None = None,
         hooks: HookType[PreparedRequest | Response] | None = None,
-        verify: TLSVerifyType = True,
-        stream: bool = False,
+        verify: TLSVerifyType | None = None,
+        stream: bool | None = None,
         cert: TLSClientCertType | None = None,
         **kwargs: typing.Any,
     ) -> Response:
@@ -712,8 +722,8 @@ class Session:
         allow_redirects: bool = True,
         proxies: ProxyType | None = None,
         hooks: HookType[PreparedRequest | Response] | None = None,
-        verify: TLSVerifyType = True,
-        stream: bool = False,
+        verify: TLSVerifyType | None = None,
+        stream: bool | None = None,
         cert: TLSClientCertType | None = None,
         **kwargs: typing.Any,
     ) -> Response:
@@ -783,8 +793,8 @@ class Session:
         allow_redirects: bool = True,
         proxies: ProxyType | None = None,
         hooks: HookType[PreparedRequest | Response] | None = None,
-        verify: TLSVerifyType = True,
-        stream: bool = False,
+        verify: TLSVerifyType | None = None,
+        stream: bool | None = None,
         cert: TLSClientCertType | None = None,
     ) -> Response:
         r"""Sends a POST request. Returns :class:`Response` object.
@@ -861,8 +871,8 @@ class Session:
         allow_redirects: bool = True,
         proxies: ProxyType | None = None,
         hooks: HookType[PreparedRequest | Response] | None = None,
-        verify: TLSVerifyType = True,
-        stream: bool = False,
+        verify: TLSVerifyType | None = None,
+        stream: bool | None = None,
         cert: TLSClientCertType | None = None,
     ) -> Response:
         r"""Sends a PUT request. Returns :class:`Response` object.
@@ -939,8 +949,8 @@ class Session:
         allow_redirects: bool = True,
         proxies: ProxyType | None = None,
         hooks: HookType[PreparedRequest | Response] | None = None,
-        verify: TLSVerifyType = True,
-        stream: bool = False,
+        verify: TLSVerifyType | None = None,
+        stream: bool | None = None,
         cert: TLSClientCertType | None = None,
     ) -> Response:
         r"""Sends a PATCH request. Returns :class:`Response` object.
@@ -1014,8 +1024,8 @@ class Session:
         allow_redirects: bool = True,
         proxies: ProxyType | None = None,
         hooks: HookType[PreparedRequest | Response] | None = None,
-        verify: TLSVerifyType = True,
-        stream: bool = False,
+        verify: TLSVerifyType | None = None,
+        stream: bool | None = None,
         cert: TLSClientCertType | None = None,
         **kwargs: typing.Any,
     ) -> Response:
@@ -1447,6 +1457,7 @@ class Session:
             HTTPAdapter(
                 quic_cache_layer=self.quic_cache_layer,
                 max_retries=self.retries,
+                disable_http1=self._disable_http1,
                 disable_http2=self._disable_http2,
                 disable_http3=self._disable_http3,
                 source_address=self.source_address,
@@ -1464,6 +1475,9 @@ class Session:
             "http://",
             HTTPAdapter(
                 max_retries=self.retries,
+                disable_http1=self._disable_http1,
+                disable_http2=self._disable_http2,
+                disable_http3=self._disable_http3,
                 source_address=self.source_address,
                 disable_ipv4=self._disable_ipv4,
                 disable_ipv6=self._disable_ipv6,
