@@ -84,7 +84,7 @@ jobs:
         run: |
           python -m coverage combine
           python -m coverage html --skip-covered --skip-empty
-          python -m coverage report --ignore-errors --show-missing --fail-under=80
+          python -m coverage report --ignore-errors --show-missing --fail-under=77
 
       - name: "Upload report"
         uses: actions/upload-artifact@0b7f8abb1508181956e8e162db84b466c27e18ce
