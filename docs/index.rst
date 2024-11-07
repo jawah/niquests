@@ -124,7 +124,7 @@ Niquests ecosystem and community.
    :maxdepth: 2
 
    dev/migrate
-   community/recommended
+   community/extensions
    community/faq
    community/support
    community/vulnerabilities

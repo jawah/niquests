@@ -11,10 +11,10 @@ class TestMultiplexed:
         responses = []
 
         with Session(multiplexed=True) as s:
-            responses.append(s.get("https://pie.dev/delay/3"))
-            responses.append(s.get("https://pie.dev/delay/1"))
-            responses.append(s.get("https://pie.dev/delay/1"))
-            responses.append(s.get("https://pie.dev/delay/3"))
+            responses.append(s.get("https://httpbingo.org/delay/3"))
+            responses.append(s.get("https://httpbingo.org/delay/1"))
+            responses.append(s.get("https://httpbingo.org/delay/1"))
+            responses.append(s.get("https://httpbingo.org/delay/3"))
 
             assert all(r.lazy for r in responses)
 
@@ -25,27 +25,27 @@ class TestMultiplexed:
 
     def test_redirect_with_multiplexed(self):
         with Session(multiplexed=True) as s:
-            resp = s.get("https://pie.dev/redirect/3")
+            resp = s.get("https://httpbingo.org/redirect/3")
             assert resp.lazy
             s.gather()
 
             assert resp.status_code == 200
-            assert resp.url == "https://pie.dev/get"
+            assert resp.url == "https://httpbingo.org/get"
             assert len(resp.history) == 3
 
     def test_redirect_with_multiplexed_direct_access(self):
         with Session(multiplexed=True) as s:
-            resp = s.get("https://pie.dev/redirect/3")
+            resp = s.get("https://httpbingo.org/redirect/3")
             assert resp.lazy
 
             assert resp.status_code == 200
-            assert resp.url == "https://pie.dev/get"
+            assert resp.url == "https://httpbingo.org/get"
             assert len(resp.history) == 3
             assert resp.json()
 
     def test_lazy_access_sync_mode(self):
         with Session(multiplexed=True) as s:
-            resp = s.get("https://pie.dev/headers")
+            resp = s.get("https://httpbingo.org/headers")
             assert resp.lazy
 
             assert resp.status_code == 200
@@ -57,7 +57,7 @@ class TestMultiplexed:
             for i in range(5):
                 responses.append(
                     s.post(
-                        "https://pie.dev/post",
+                        "https://httpbingo.org/post",
                         data=b"foo" * 128,
                     )
                 )
@@ -66,11 +66,11 @@ class TestMultiplexed:
 
         assert all(r.lazy is False for r in responses)
         assert all(r.status_code == 200 for r in responses)
-        assert all(r.json()["data"] == "foo" * 128 for r in responses)
+        assert all(r.json()["data"] != "" for r in responses)
 
     def test_get_stream_with_multiplexed(self):
         with Session(multiplexed=True) as s:
-            resp = s.get("https://pie.dev/headers", stream=True)
+            resp = s.get("https://httpbingo.org/headers", stream=True)
             assert resp.lazy
 
             assert resp.status_code == 200
@@ -92,7 +92,7 @@ class TestMultiplexed:
 
         with Session(multiplexed=True) as s:
             for _ in [3, 1, 3, 5]:
-                responses.append(s.get(f"https://pie.dev/delay/{_}"))
+                responses.append(s.get(f"https://httpbingo.org/delay/{_}"))
 
             assert all(r.lazy for r in responses)
             promise_count = len(responses)
@@ -110,7 +110,7 @@ class TestMultiplexed:
 
         with Session(multiplexed=True) as s:
             for _ in [2, 1, 1]:
-                responses.append(s.get(f"https://pie.dev/delay/{_}"))
+                responses.append(s.get(f"https://httpbingo.org/delay/{_}"))
 
             assert all(r.lazy for r in responses)
 

@@ -15,21 +15,21 @@ from niquests.exceptions import MultiplexingError
 class TestAsyncWithoutMultiplex:
     async def test_awaitable_get(self):
         async with AsyncSession() as s:
-            resp = await s.get("https://pie.dev/get")
+            resp = await s.get("https://httpbingo.org/get")
 
             assert resp.lazy is False
             assert resp.status_code == 200
 
     async def test_awaitable_redirect_chain(self):
         async with AsyncSession() as s:
-            resp = await s.get("https://pie.dev/redirect/2")
+            resp = await s.get("https://httpbingo.org/redirect/2")
 
             assert resp.lazy is False
             assert resp.status_code == 200
 
     async def test_awaitable_redirect_chain_stream(self):
         async with AsyncSession() as s:
-            resp = await s.get("https://pie.dev/redirect/2", stream=True)
+            resp = await s.get("https://httpbingo.org/redirect/2", stream=True)
 
             assert resp.lazy is False
             assert resp.status_code == 200
@@ -37,7 +37,7 @@ class TestAsyncWithoutMultiplex:
 
     async def test_async_session_cookie_dummylock(self):
         async with AsyncSession() as s:
-            await s.get("https://pie.dev/cookies/set/hello/world")
+            await s.get("https://httpbingo.org/cookies/set?hello=world")
             assert len(s.cookies)
             assert "hello" in s.cookies
 
@@ -46,8 +46,8 @@ class TestAsyncWithoutMultiplex:
             responses = []
 
             async with AsyncSession() as s:
-                responses.append(await s.get("https://pie.dev/get"))
-                responses.append(await s.get("https://pie.dev/delay/5"))
+                responses.append(await s.get("https://httpbingo.org/get"))
+                responses.append(await s.get("https://httpbingo.org/delay/5"))
 
             return responses
 
@@ -71,10 +71,10 @@ class TestAsyncWithoutMultiplex:
                 await asyncio.sleep(0.01)
                 yield b"bar"
 
-            r = await s.post("https://pie.dev/post", data=fake_aiter())
+            r = await s.post("https://httpbingo.org/post", data=fake_aiter())
 
             assert r.status_code == 200
-            assert r.json()["data"] == "foobar"
+            assert r.json()["data"] == "data:application/octet-stream;base64,Zm9vYmFy"
 
     async def test_with_async_auth(self):
         async with AsyncSession() as s:
@@ -84,7 +84,7 @@ class TestAsyncWithoutMultiplex:
                 p.headers["X-Async-Auth"] = "foobar"
                 return p
 
-            r = await s.get("https://pie.dev/get", auth=fake_aauth)
+            r = await s.get("https://httpbingo.org/get", auth=fake_aauth)
 
             assert r.status_code == 200
             assert "X-Async-Auth" in r.json()["headers"]
@@ -135,7 +135,7 @@ class TestAsyncWithoutMultiplex:
 class TestAsyncWithMultiplex:
     async def test_awaitable_get(self):
         async with AsyncSession(multiplexed=True) as s:
-            resp = await s.get("https://pie.dev/get")
+            resp = await s.get("https://httpbingo.org/get")
 
             assert resp.lazy is True
             await s.gather()
@@ -143,7 +143,7 @@ class TestAsyncWithMultiplex:
 
     async def test_awaitable_redirect_with_lazy(self):
         async with AsyncSession(multiplexed=True) as s:
-            resp = await s.get("https://pie.dev/redirect/3")
+            resp = await s.get("https://httpbingo.org/redirect/3")
 
             assert resp.lazy is True
             await s.gather()
@@ -151,7 +151,7 @@ class TestAsyncWithMultiplex:
 
     async def test_awaitable_redirect_direct_access_with_lazy(self):
         async with AsyncSession(multiplexed=True) as s:
-            resp = await s.get("https://pie.dev/redirect/3")
+            resp = await s.get("https://httpbingo.org/redirect/3")
 
             assert resp.lazy is True
 
@@ -166,7 +166,7 @@ class TestAsyncWithMultiplex:
 
     async def test_awaitable_stream_redirect_direct_access_with_lazy(self):
         async with AsyncSession(multiplexed=True) as s:
-            resp = await s.get("https://pie.dev/redirect/3", stream=True)
+            resp = await s.get("https://httpbingo.org/redirect/3", stream=True)
 
             assert isinstance(resp, AsyncResponse)
             assert resp.lazy is True
@@ -181,7 +181,7 @@ class TestAsyncWithMultiplex:
 
     async def test_awaitable_get_direct_access_lazy(self):
         async with AsyncSession(multiplexed=True) as s:
-            resp = await s.get("https://pie.dev/get")
+            resp = await s.get("https://httpbingo.org/get")
 
             assert resp.lazy is True
             assert isinstance(resp, Response)
@@ -192,7 +192,7 @@ class TestAsyncWithMultiplex:
             await s.gather(resp)
             assert resp.status_code == 200
 
-            resp = await s.get("https://pie.dev/get", stream=True)
+            resp = await s.get("https://httpbingo.org/get", stream=True)
 
             assert isinstance(resp, AsyncResponse)
 
@@ -207,8 +207,8 @@ class TestAsyncWithMultiplex:
             responses = []
 
             async with AsyncSession(multiplexed=True) as s:
-                responses.append(await s.get("https://pie.dev/get"))
-                responses.append(await s.get("https://pie.dev/delay/5"))
+                responses.append(await s.get("https://httpbingo.org/get"))
+                responses.append(await s.get("https://httpbingo.org/delay/5"))
 
                 await s.gather()
 
@@ -227,7 +227,7 @@ class TestAsyncWithMultiplex:
 
     async def test_with_stream_json(self):
         async with AsyncSession() as s:
-            r = await s.get("https://pie.dev/get", stream=True)
+            r = await s.get("https://httpbingo.org/get", stream=True)
             assert isinstance(r, AsyncResponse)
             assert r.ok
             payload = await r.json()
@@ -235,7 +235,7 @@ class TestAsyncWithMultiplex:
 
     async def test_with_stream_text(self):
         async with AsyncSession() as s:
-            r = await s.get("https://pie.dev/get", stream=True)
+            r = await s.get("https://httpbingo.org/get", stream=True)
             assert isinstance(r, AsyncResponse)
             assert r.ok
             payload = await r.text
@@ -243,7 +243,7 @@ class TestAsyncWithMultiplex:
 
     async def test_with_stream_iter_decode(self):
         async with AsyncSession() as s:
-            r = await s.get("https://pie.dev/get", stream=True)
+            r = await s.get("https://httpbingo.org/get", stream=True)
             assert isinstance(r, AsyncResponse)
             assert r.ok
             payload = ""
@@ -255,7 +255,7 @@ class TestAsyncWithMultiplex:
 
     async def test_with_stream_iter_raw(self):
         async with AsyncSession() as s:
-            r = await s.get("https://pie.dev/get", stream=True)
+            r = await s.get("https://httpbingo.org/get", stream=True)
             assert isinstance(r, AsyncResponse)
             assert r.ok
             payload = b""
@@ -270,8 +270,10 @@ class TestAsyncWithMultiplex:
             responses = []
 
             async with AsyncSession(multiplexed=True) as s:
-                responses.append(await s.get("https://pie.dev/get", stream=True))
-                responses.append(await s.get("https://pie.dev/delay/5", stream=True))
+                responses.append(await s.get("https://httpbingo.org/get", stream=True))
+                responses.append(
+                    await s.get("https://httpbingo.org/delay/5", stream=True)
+                )
 
                 await s.gather()
 
@@ -298,6 +300,6 @@ class TestAsyncWithMultiplex:
         We're using a custom DNS resolver that will yield the IPv6 addresses and IPv4 ones.
         If this hang in CI, then you did something wrong...!"""
         async with AsyncSession(resolver="doh+cloudflare://", happy_eyeballs=True) as s:
-            r = await s.get("https://pie.dev/get")
+            r = await s.get("https://httpbingo.org/get")
 
             assert r.ok

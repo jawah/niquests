@@ -25,7 +25,7 @@ except ImportError:
 class TestLiveStandardCase:
     def test_ensure_ipv4(self) -> None:
         with Session(disable_ipv6=True, resolver="doh+google://") as s:
-            r = s.get("https://pie.dev/get")
+            r = s.get("https://httpbingo.org/get")
 
             assert r.conn_info.destination_address is not None
             assert is_ipv4_address(r.conn_info.destination_address[0])
@@ -35,25 +35,25 @@ class TestLiveStandardCase:
             # GitHub hosted runner can't reach external IPv6...
             with pytest.raises(ConnectionError, match="No route to host|unreachable"):
                 with Session(disable_ipv4=True, resolver="doh+google://") as s:
-                    s.get("https://pie.dev/get")
+                    s.get("https://httpbingo.org/get")
             return
 
         with Session(disable_ipv4=True, resolver="doh+google://") as s:
-            r = s.get("https://pie.dev/get")
+            r = s.get("https://httpbingo.org/get")
 
             assert r.conn_info.destination_address is not None
             assert is_ipv6_address(r.conn_info.destination_address[0])
 
     def test_ensure_http2(self) -> None:
         with Session(disable_http3=True) as s:
-            r = s.get("https://pie.dev/get")
+            r = s.get("https://httpbingo.org/get")
             assert r.conn_info.http_version is not None
             assert r.conn_info.http_version == HttpVersion.h2
 
     @pytest.mark.skipif(qh3 is None, reason="qh3 unavailable")
     def test_ensure_http3_default(self) -> None:
         with Session(resolver="doh+cloudflare://") as s:
-            r = s.get("https://pie.dev/get")
+            r = s.get("https://1.1.1.1")
             assert r.conn_info.http_version is not None
             assert r.conn_info.http_version == HttpVersion.h3
 
@@ -65,7 +65,7 @@ class TestLiveStandardCase:
     def test_manual_resolver(self, getaddrinfo_mock: MagicMock) -> None:
         with Session(resolver="doh+cloudflare://") as s:
             with pytest.raises(ConnectionError):
-                s.get("https://pie.dev/get")
+                s.get("https://httpbingo.org/get")
 
         assert getaddrinfo_mock.call_count
 
@@ -73,7 +73,7 @@ class TestLiveStandardCase:
         resolver = ResolverDescription.from_url("doh+cloudflare://").new()
 
         with Session(resolver=resolver) as s:
-            s.get("https://pie.dev/get")
+            s.get("https://httpbingo.org/get")
 
             assert resolver.is_available()
 
@@ -81,7 +81,7 @@ class TestLiveStandardCase:
 
     def test_owned_resolver_must_close(self) -> None:
         with Session(resolver="doh+cloudflare://") as s:
-            s.get("https://pie.dev/get")
+            s.get("https://httpbingo.org/get")
 
             assert s.resolver.is_available()
 
@@ -90,13 +90,13 @@ class TestLiveStandardCase:
     def test_owned_resolver_must_recycle(self) -> None:
         s = Session(resolver="doh+cloudflare://")
 
-        s.get("https://pie.dev/get")
+        s.get("https://httpbingo.org/get")
 
         s.resolver.close()
 
         assert not s.resolver.is_available()
 
-        s.get("https://pie.dev/get")
+        s.get("https://httpbingo.org/get")
 
         assert s.resolver.is_available()
 
@@ -107,7 +107,7 @@ class TestLiveStandardCase:
         We're using a custom DNS resolver that will yield the IPv6 addresses and IPv4 ones.
         If this hang in CI, then you did something wrong...!"""
         with Session(resolver="doh+cloudflare://", happy_eyeballs=True) as s:
-            r = s.get("https://pie.dev/get")
+            r = s.get("https://httpbingo.org/get")
 
             assert r.ok
 
