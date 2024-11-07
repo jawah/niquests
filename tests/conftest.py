@@ -78,20 +78,20 @@ def san_server(tmp_path_factory):
 _WAN_AVAILABLE = None
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture(scope="session")
 def requires_wan() -> None:
     global _WAN_AVAILABLE
 
     if _WAN_AVAILABLE is not None:
         if _WAN_AVAILABLE is False:
-            pytest.skip("Test requires a WAN access to pie.dev")
+            pytest.skip("Test requires a WAN access to httpbingo.org")
         return
 
     try:
-        sock = socket.create_connection(("pie.dev", 443), timeout=1)
+        sock = socket.create_connection(("httpbingo.org", 443), timeout=1)
     except (ConnectionRefusedError, socket.gaierror, TimeoutError):
         _WAN_AVAILABLE = False
-        pytest.skip("Test requires a WAN access to pie.dev")
+        pytest.skip("Test requires a WAN access to httpbingo.org")
     else:
         _WAN_AVAILABLE = True
         sock.close()

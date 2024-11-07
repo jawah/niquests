@@ -1,2 +1,10 @@
 [run]
-omit = requests/packages/*
+source =
+    niquests
+disable_warnings = no-sysmon
+
+[paths]
+source =
+    src/niquests
+    */niquests
+    *\niquests

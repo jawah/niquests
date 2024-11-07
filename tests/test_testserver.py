@@ -80,6 +80,25 @@ class TestTestServer:
             assert r.text == "roflol"
             assert r.headers["Content-Length"] == "6"
 
+    def test_trailer_header_caught(self):
+        server = Server.text_response_server(
+            "HTTP/1.1 200 OK\r\n"
+            "Transfer-Encoding: chunked\r\n"
+            "Trailer: Server-Timing\r\n\r\n"
+            "6\r\nroflol\r\n"
+            "0\r\n"
+            "Server-Timing: 1.225\r\n\r\n"
+        )
+
+        with server as (host, port):
+            r = niquests.get(
+                f"http://{host}:{port}",
+            )
+
+            assert r.status_code == 200
+            assert r.text == "roflol"
+            assert r.trailers["Server-Timing"] == "1.225"
+
     def test_invalid_location_response(self):
         server = Server.text_response_server(
             "HTTP/1.1 302 PERMANENT-REDIRECTION\r\n"
