@@ -83,4 +83,4 @@ jobs:
         gh release upload ${{ github.ref_name }} dist/* --repo ${{ github.repository }}
 
     - name: "Publish dists to PyPI"
-      uses: "pypa/gh-action-pypi-publish@0ab0b79471669eb3a4d647e625009c62f9f3b241" # v1.10.1
+      uses: "pypa/gh-action-pypi-publish@15c56dba361d8335944d31a2ecd17d700fc7bcbc" # v1.12.2
