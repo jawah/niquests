@@ -1,6 +1,12 @@
 Release History
 ===============
 
+3.10.3 (2024-11-13)
+------------------
+
+**Fixed**
+- Resolving lazy responses when emitted through a SOCKS, HTTP or HTTPS proxy. (#170)
+
 3.10.2 (2024-10-25)
 ------------------
 
