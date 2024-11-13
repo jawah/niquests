@@ -1212,6 +1212,11 @@ class HTTPAdapter(BaseAdapter):
             if not self._promises:
                 return
 
+            mgrs: list[PoolManager | ProxyManager] = [
+                self.poolmanager,
+                *[pm for pm in self.proxy_manager.values()],
+            ]
+
             # Either we did not have a list of promises to fulfill...
             if not responses:
                 while True:
@@ -1233,7 +1238,10 @@ class HTTPAdapter(BaseAdapter):
 
                     if low_resp is None:
                         try:
-                            low_resp = self.poolmanager.get_response()
+                            for src in mgrs:
+                                low_resp = src.get_response()
+                                if low_resp is not None:
+                                    break
                         except (ProtocolError, OSError) as err:
                             raise ConnectionError(err)
 
@@ -1308,11 +1316,14 @@ class HTTPAdapter(BaseAdapter):
                         continue
 
                     try:
-                        low_resp = self.poolmanager.get_response(
-                            promise=response._promise
-                        )
-                    except ValueError:
-                        low_resp = None
+                        for src in mgrs:
+                            try:
+                                low_resp = src.get_response(promise=response._promise)
+                            except ValueError:
+                                low_resp = None
+
+                            if low_resp is not None:
+                                break
                     except (ProtocolError, OSError) as err:
                         raise ConnectionError(err)
 
@@ -2306,6 +2317,11 @@ class AsyncHTTPAdapter(AsyncBaseAdapter):
         if not self._promises:
             return
 
+        mgrs: list[AsyncPoolManager | AsyncProxyManager] = [
+            self.poolmanager,
+            *[pm for pm in self.proxy_manager.values()],
+        ]
+
         # Either we did not have a list of promises to fulfill...
         if not responses:
             while True:
@@ -2327,7 +2343,10 @@ class AsyncHTTPAdapter(AsyncBaseAdapter):
 
                 if low_resp is None:
                     try:
-                        low_resp = await self.poolmanager.get_response()
+                        for src in mgrs:
+                            low_resp = await src.get_response()
+                            if low_resp is not None:
+                                break
                     except (ProtocolError, OSError) as err:
                         raise ConnectionError(err)
 
@@ -2402,11 +2421,14 @@ class AsyncHTTPAdapter(AsyncBaseAdapter):
                     continue
 
                 try:
-                    low_resp = await self.poolmanager.get_response(
-                        promise=response._promise
-                    )
-                except ValueError:
-                    low_resp = None
+                    for src in mgrs:
+                        try:
+                            low_resp = await src.get_response(promise=response._promise)
+                        except ValueError:
+                            low_resp = None
+
+                        if low_resp is not None:
+                            break
                 except (ProtocolError, OSError) as err:
                     raise ConnectionError(err)
 
