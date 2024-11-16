@@ -220,6 +220,7 @@ class Request:
         cookies: CookiesType | None = None,
         hooks: HookType | None = None,
         json: typing.Any | None = None,
+        base_url: str | None = None,
     ):
         # Default empty dicts for dict params.
         data = [] if data is None else data
@@ -241,6 +242,7 @@ class Request:
         self.params = params
         self.auth = auth
         self.cookies = cookies
+        self.base_url = base_url
 
     @property
     def oheaders(self) -> Headers:
@@ -293,6 +295,7 @@ class Request:
             auth=self.auth,
             cookies=self.cookies,
             hooks=self.hooks,
+            base_url=self.base_url,
         )
 
         return p
@@ -362,11 +365,12 @@ class PreparedRequest:
         cookies: CookiesType | None = None,
         hooks: HookType[Response | PreparedRequest] | None = None,
         json: typing.Any | None = None,
+        base_url: str | None = None,
     ) -> None:
         """Prepares the entire request with the given parameters."""
 
         self.prepare_method(method)
-        self.prepare_url(url, params)
+        self.prepare_url(url, params, base_url=base_url)
         self.prepare_headers(headers)
         self.prepare_cookies(cookies)
         self.prepare_body(data, files, json)
@@ -396,9 +400,24 @@ class PreparedRequest:
         """Prepares the given HTTP method."""
         self.method = method.upper() if method else method
 
-    def prepare_url(self, url: str | None, params: QueryParameterType | None) -> None:
+    def prepare_url(
+        self,
+        url: str | None,
+        params: QueryParameterType | None,
+        *,
+        base_url: str | None = None,
+    ) -> None:
         """Prepares the given HTTP URL."""
         assert url is not None, "Missing URL in PreparedRequest"
+
+        print(url, base_url)
+        if base_url is not None:
+            if parse_scheme(url, default="") == "":
+                if base_url.endswith("/"):
+                    base_url = base_url[:-1]
+                if not url.startswith("/"):
+                    url = f"/{url}"
+                url = base_url + url
 
         #: Accept objects that have string representations.
         #: We're unable to blindly call unicode/str functions

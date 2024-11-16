@@ -14,8 +14,8 @@ from niquests.exceptions import MultiplexingError
 @pytest.mark.asyncio
 class TestAsyncWithoutMultiplex:
     async def test_awaitable_get(self):
-        async with AsyncSession() as s:
-            resp = await s.get("https://httpbingo.org/get")
+        async with AsyncSession(base_url="https://httpbingo.org") as s:
+            resp = await s.get("/get")
 
             assert resp.lazy is False
             assert resp.status_code == 200

@@ -232,6 +232,7 @@ class Session:
         "_happy_eyeballs",
         "_keepalive_delay",
         "_keepalive_idle_window",
+        "base_url",
     ]
 
     def __init__(
@@ -252,6 +253,7 @@ class Session:
         happy_eyeballs: bool | int = False,
         keepalive_delay: float | int | None = 300.0,
         keepalive_idle_window: float | int | None = 60.0,
+        base_url: str | None = None,
     ):
         """
         :param resolver: Specify a DNS resolver that should be used within this Session.
@@ -274,6 +276,7 @@ class Session:
             frame. This only applies to HTTP/2 onward.
         :param keepalive_idle_window: Delay expressed in seconds, in which we should send a PING frame after the connection
             being completely idle. This only applies to HTTP/2 onward.
+        :param base_url: Automatically set a URL prefix (or base url) on every request emitted if applicable.
         """
         if [disable_ipv4, disable_ipv6].count(True) == 2:
             raise RuntimeError("Cannot disable both IPv4 and IPv6")
@@ -363,6 +366,9 @@ class Session:
         #: Trust environment settings for proxy configuration, default
         #: authentication and similar.
         self.trust_env: bool = True
+
+        #: Automatically set a URL prefix to every emitted request.
+        self.base_url: str | None = base_url
 
         #: A CookieJar containing all currently outstanding cookies set on this
         #: session. By default it is a
@@ -469,6 +475,7 @@ class Session:
             auth=merge_setting(auth, self.auth),
             cookies=merged_cookies,
             hooks=merge_hooks(request.hooks, self.hooks),
+            base_url=self.base_url,
         )
         return p
 
@@ -548,6 +555,7 @@ class Session:
             auth=auth,
             cookies=cookies,
             hooks=hooks,
+            base_url=self.base_url,
         )
 
         prep: PreparedRequest = dispatch_hook(
