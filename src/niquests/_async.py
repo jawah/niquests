@@ -132,6 +132,7 @@ class AsyncSession(Session):
         happy_eyeballs: bool | int = False,
         keepalive_delay: float | int | None = 300.0,
         keepalive_idle_window: float | int | None = 60.0,
+        base_url: str | None = None,
     ):
         if [disable_ipv4, disable_ipv6].count(True) == 2:
             raise RuntimeError("Cannot disable both IPv4 and IPv6")
@@ -223,6 +224,9 @@ class AsyncSession(Session):
         #: Trust environment settings for proxy configuration, default
         #: authentication and similar.
         self.trust_env: bool = True
+
+        #: Automatically set a URL prefix to every emitted request.
+        self.base_url: str | None = base_url
 
         #: A CookieJar containing all currently outstanding cookies set on this
         #: session. By default it is a
@@ -815,6 +819,7 @@ class AsyncSession(Session):
             auth=auth,
             cookies=cookies,
             hooks=hooks,
+            base_url=self.base_url,
         )
 
         prep: PreparedRequest = self.prepare_request(req)

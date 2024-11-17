@@ -92,6 +92,19 @@ The ``Session`` class takes two (optional) named arguments for your convenience.
 
 .. _request-and-response-objects:
 
+Setting a Base URL
+------------------
+
+.. note:: Available in version 3.11+
+
+You can avoid repetitive URL basic concatenation if your sole purpose of Session instance
+is to reach a particular server and/or base path.
+
+Setup it like follow::
+
+    with niquests.Session(base_url="https://httpbin.org") as s:
+        s.get('/headers')  # internally will become "https://httpbin.org/headers"
+
 Request and Response Objects
 ----------------------------
 

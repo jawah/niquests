@@ -2695,6 +2695,20 @@ def test_urllib3_retries(httpbin):
         s.get(httpbin("status/500"))
 
 
+def test_urllib3_retries_shortcut(httpbin):
+    from niquests._compat import HAS_LEGACY_URLLIB3
+
+    if not HAS_LEGACY_URLLIB3:
+        from urllib3.util import Retry
+    else:
+        from urllib3_future.util import Retry
+
+    s = niquests.Session(retries=Retry(total=2, status_forcelist=[500]))
+
+    with pytest.raises(RetryError):
+        s.get(httpbin("status/500"))
+
+
 def test_urllib3_pool_connection_closed(httpbin):
     s = niquests.Session()
     s.mount("http://", HTTPAdapter(pool_connections=0, pool_maxsize=0))
@@ -2763,6 +2777,32 @@ class TestPreparingURLs:
         r = niquests.Request("GET", url=url)
         with pytest.raises(niquests.exceptions.InvalidURL):
             r.prepare()
+
+    @pytest.mark.parametrize(
+        "base_url, url, join_expected",
+        [
+            ("http://example.com/api/v1", "/token", "http://example.com/api/v1/token"),
+            ("http://localhost/", "/hello", "http://localhost/hello"),
+            ("http://httpbingo.org", "get", "http://httpbingo.org/get"),
+            ("http://api.example.com", "/v1/users", "http://api.example.com/v1/users"),
+            ("http://api.example.com", "v1/users", "http://api.example.com/v1/users"),
+        ],
+    )
+    def test_base_url_prepare(self, base_url, url, join_expected):
+        r = niquests.Request("GET", url=url, base_url=base_url)
+
+        prepared = r.prepare()
+
+        assert prepared.url == join_expected
+
+    def test_base_url_skip(self):
+        r = niquests.Request(
+            "GET", url="https://google.com", base_url="http://example.com/api/v1"
+        )
+
+        prepared = r.prepare()
+
+        assert prepared.url == "https://google.com"
 
     @pytest.mark.parametrize("url, exception", (("http://localhost:-1", InvalidURL),))
     def test_redirecting_to_bad_url(self, httpbin, url, exception):

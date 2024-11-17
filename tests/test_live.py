@@ -45,10 +45,11 @@ class TestLiveStandardCase:
             assert is_ipv6_address(r.conn_info.destination_address[0])
 
     def test_ensure_http2(self) -> None:
-        with Session(disable_http3=True) as s:
-            r = s.get("https://httpbingo.org/get")
+        with Session(disable_http3=True, base_url="https://httpbingo.org") as s:
+            r = s.get("/get")
             assert r.conn_info.http_version is not None
             assert r.conn_info.http_version == HttpVersion.h2
+            assert r.url == "https://httpbingo.org/get"
 
     @pytest.mark.skipif(qh3 is None, reason="qh3 unavailable")
     def test_ensure_http3_default(self) -> None:
