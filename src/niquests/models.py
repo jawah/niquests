@@ -410,7 +410,6 @@ class PreparedRequest:
         """Prepares the given HTTP URL."""
         assert url is not None, "Missing URL in PreparedRequest"
 
-        print(url, base_url)
         if base_url is not None:
             if parse_scheme(url, default="") == "":
                 if base_url.endswith("/"):
