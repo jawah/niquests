@@ -1,6 +1,15 @@
 Release History
 ===============
 
+3.11.0 (2024-11-20)
+-------------------
+
+**Added**
+- base_url parameter to `niquests.Session` or `niquests.AsyncSession`. automatically prefix every request emitted with it. (#179)
+
+**Fixed**
+- warning about coroutine method 'aclose' of 'AsyncSession.resolve_redirects' was never awaited.
+
 3.10.3 (2024-11-13)
 ------------------
 

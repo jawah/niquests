@@ -489,12 +489,13 @@ class AsyncSession(Session):
         if r.lazy is True:
 
             async def _redirect_method_ref(x, y):
+                aiter_gen = self.resolve_redirects(x, y, yield_requests=True, **kwargs)
                 try:
-                    return await self.resolve_redirects(
-                        x, y, yield_requests=True, **kwargs
-                    ).__anext__()
+                    return await aiter_gen.__anext__()
                 except StopAsyncIteration:
                     return None
+                finally:
+                    await aiter_gen.aclose()
 
             r._resolve_redirect = _redirect_method_ref
 
@@ -567,13 +568,14 @@ class AsyncSession(Session):
         # If redirects aren't being followed, store the response on the Request for Response.next().
         if not allow_redirects:
             if r.is_redirect:
+                gen = self.resolve_redirects(r, request, yield_requests=True, **kwargs)
+
                 try:
-                    gen = self.resolve_redirects(
-                        r, request, yield_requests=True, **kwargs
-                    )
                     r._next = await gen.__anext__()  # type: ignore[assignment]
                 except StopAsyncIteration:
                     pass
+                finally:
+                    await gen.aclose()
 
         if not stream:
             if isinstance(r, AsyncResponse):
