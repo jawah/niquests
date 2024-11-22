@@ -1800,7 +1800,7 @@ class AsyncResponse(Response):
 
         pending = None
 
-        async for chunk in self.iter_content(  # type: ignore[call-overload]
+        async for chunk in await self.iter_content(  # type: ignore[call-overload]
             chunk_size=chunk_size, decode_unicode=decode_unicode
         ):
             if pending is not None:
@@ -1816,7 +1816,7 @@ class AsyncResponse(Response):
             else:
                 pending = None
 
-            async for line in lines:
+            for line in lines:
                 yield line
 
         if pending is not None:

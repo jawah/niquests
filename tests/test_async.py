@@ -106,28 +106,29 @@ class TestAsyncWithoutMultiplex:
             assert resp.status_code == 200
             assert received_early_response is True
 
-    # async def test_http_trailer_preload(self) -> None:
-    #     async with AsyncSession() as s:
-    #         r = await s.get("https://httpbingo.org/trailers?foo=baz")
-    #
-    #         assert r.ok
-    #         assert r.trailers
-    #         assert "foo" in r.trailers
-    #         assert r.trailers["foo"] == "baz"
-    #
-    # async def test_http_trailer_no_preload(self) -> None:
-    #     async with AsyncSession() as s:
-    #         r = await s.get("https://httpbingo.org/trailers?foo=baz", stream=True)
-    #
-    #         assert r.ok
-    #         assert not r.trailers
-    #         assert "foo" not in r.trailers
-    #
-    #         await r.content
-    #
-    #         assert r.trailers
-    #         assert "foo" in r.trailers
-    #         assert r.trailers["foo"] == "baz"
+    async def test_iter_line(self) -> None:
+        async with AsyncSession() as s:
+            r = await s.get("https://httpbingo.org/html", stream=True)
+            content = b""
+
+            async for line in r.iter_lines():
+                assert isinstance(line, bytes)
+                content += line
+
+            assert content
+            assert b"Herman Melville - Moby-Dick" in content
+
+    async def test_iter_line_decode(self) -> None:
+        async with AsyncSession() as s:
+            r = await s.get("https://httpbingo.org/html", stream=True)
+            content = ""
+
+            async for line in r.iter_lines(decode_unicode=True):
+                assert isinstance(line, str)
+                content += line
+
+            assert content
+            assert "Herman Melville - Moby-Dick" in content
 
 
 @pytest.mark.usefixtures("requires_wan")
