@@ -116,6 +116,7 @@ class TestAsyncWithoutMultiplex:
                 content += line
 
             assert content
+            assert b"Herman Melville - Moby-Dick" in content
 
     async def test_iter_line_decode(self) -> None:
         async with AsyncSession() as s:
@@ -127,6 +128,7 @@ class TestAsyncWithoutMultiplex:
                 content += line
 
             assert content
+            assert "Herman Melville - Moby-Dick" in content
 
 
 @pytest.mark.usefixtures("requires_wan")
