@@ -806,6 +806,22 @@ Delaying the content consumption in an async context can be easily achieved usin
 
         asyncio.run(main())
 
+Or using the ``iter_line`` method as such::
+
+    import niquests
+    import asyncio
+
+    async def main() -> None:
+
+        async with niquests.AsyncSession() as s:
+            r = await s.get("https://pie.dev/get", stream=True)
+
+            async for chunk in r.iter_line():
+                print(chunk)
+
+    if __name__ == "__main__":
+        asyncio.run(main())
+
 Or simply by doing::
 
     import niquests
