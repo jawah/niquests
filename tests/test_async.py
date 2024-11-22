@@ -112,6 +112,18 @@ class TestAsyncWithoutMultiplex:
             content = b""
 
             async for line in r.iter_lines():
+                assert isinstance(line, bytes)
+                content += line
+
+            assert content
+
+    async def test_iter_line_decode(self) -> None:
+        async with AsyncSession() as s:
+            r = await s.get("https://httpbingo.org/html", stream=True)
+            content = ""
+
+            async for line in r.iter_lines(decode_unicode=True):
+                assert isinstance(line, str)
                 content += line
 
             assert content
