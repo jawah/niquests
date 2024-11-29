@@ -1283,9 +1283,9 @@ def wrap_extension_for_http(
     )
 
     class _WrappedExtensionFromHTTP(extension):  # type: ignore[valid-type,misc]
-        def next_payload(self) -> str | bytes | None:
+        def next_payload(self, *args, **kwargs) -> str | bytes | None:
             try:
-                return super().next_payload()
+                return super().next_payload(*args, **kwargs)
             except ProtocolError as e:
                 raise ChunkedEncodingError(e)
             except DecodeError as e:
@@ -1378,9 +1378,9 @@ def async_wrap_extension_for_http(
     )
 
     class _AsyncWrappedExtensionFromHTTP(extension):  # type: ignore[valid-type,misc]
-        async def next_payload(self) -> str | bytes | None:
+        async def next_payload(self, *args, **kwargs) -> str | bytes | None:
             try:
-                return await super().next_payload()
+                return await super().next_payload(*args, **kwargs)
             except ProtocolError as e:
                 raise ChunkedEncodingError(e)
             except DecodeError as e:

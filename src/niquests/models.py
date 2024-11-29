@@ -57,10 +57,12 @@ if HAS_LEGACY_URLLIB3 is False:
     from urllib3.contrib.webextensions._async import (
         AsyncWebSocketExtensionFromHTTP,
         AsyncRawExtensionFromHTTP,
+        AsyncServerSideEventExtensionFromHTTP,
     )
     from urllib3.contrib.webextensions import (
         WebSocketExtensionFromHTTP,
         RawExtensionFromHTTP,
+        ServerSideEventExtensionFromHTTP,
     )
 else:
     from urllib3_future import (  # type: ignore[assignment]
@@ -82,10 +84,12 @@ else:
     from urllib3_future.contrib.webextensions._async import (  # type: ignore[assignment]
         AsyncWebSocketExtensionFromHTTP,
         AsyncRawExtensionFromHTTP,
+        AsyncServerSideEventExtensionFromHTTP,
     )
     from urllib3_future.contrib.webextensions import (  # type: ignore[assignment]
         WebSocketExtensionFromHTTP,
         RawExtensionFromHTTP,
+        ServerSideEventExtensionFromHTTP,
     )
 
 from ._typing import (
@@ -1058,8 +1062,10 @@ class Response:
     ) -> (
         WebSocketExtensionFromHTTP
         | RawExtensionFromHTTP
+        | ServerSideEventExtensionFromHTTP
         | AsyncWebSocketExtensionFromHTTP
         | AsyncRawExtensionFromHTTP
+        | AsyncServerSideEventExtensionFromHTTP
         | None
     ):
         """Access the I/O after an Upgraded connection. E.g. for a WebSocket handler.

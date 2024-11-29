@@ -1343,7 +1343,7 @@ class Session:
                 except StopIteration:
                     pass
 
-        if not stream:
+        if not stream and r.extension is None:
             r.content
 
         return r

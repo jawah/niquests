@@ -1265,6 +1265,87 @@ See::
 
 .. note:: The given example are really basic ones. You may adjust at will the settings and algorithm to match your requisites.
 
+Server Side Event (SSE)
+-----------------------
+
+.. note:: Available since version 3.11.2+
+
+Server side event or widely known with its acronym SSE is a extremely popular method to stream continuously event
+from the server to the client in real time.
+
+Before this built-in feature, most way to leverage this were to induce a bit of hacks into your http client.
+
+Starting example
+~~~~~~~~~~~~~~~~
+
+Thanks to urllib3-future native SSE extension, we can effortlessly manage a stream of event.
+Here is a really basic example of how to proceed::
+
+    import niquests
+
+    if __name__ == "__main__":
+
+        r = niquests.post("sse://httpbingo.org/sse")
+
+        print(r)  # output: <Response HTTP/2 [200]>
+
+        while r.extension.closed is False:
+            print(r.extension.next_payload())  # ServerSentEvent(event='ping', data='{"id":0,"timestamp":1732857000473}')
+
+We purposely set the scheme to ``sse://`` to indicate our intent to consume a SSE endpoint.
+
+.. note:: ``sse://`` is using ``https://`` under the hood. To avoid using an encrypted connection, use ``psse://`` instead.
+
+You will notice that the program is similar to our ``WebSocket`` implementation. Excepted that the ``next_payload()``
+method returns by default a ``ServerSentEvent`` object.
+
+Extracting raw event
+~~~~~~~~~~~~~~~~~~~~
+
+In the case where your server weren't compliant to the defined web standard for SSE (e.g. add custom field/line style)
+you can extract a ``str`` instead of a ``ServerSentEvent`` object by passing ``raw=True`` into our ``next_payload()``
+method.
+
+As such::
+
+    while r.extension.closed is False:
+        print(r.extension.next_payload(raw=True))  # "event: ping\ndata: {"id":9,"timestamp":1732857471733}\n\n"
+
+Interrupt the stream
+~~~~~~~~~~~~~~~~~~~~
+
+A server may send event forever. And to avoid the awkward situation where your client receive unsolicited data
+you should at all time close the SSE extension to notify the remote peer about your intent to stop.
+
+For example, the following test server send events until you say to stop: ``sse://sse.dev/test``
+
+See how to stop cleanly the flow of events::
+
+    import niquests
+
+    if __name__ == "__main__":
+
+        r = niquests.post("sse://sse.dev/test")
+
+        events = []
+
+        while r.extension.closed is False:
+            event = r.extension.next_payload()
+
+            if event is None:  # the remote peer closed it himself
+                break
+
+            events.append(event)  # add the event to list
+
+            if len(events) >= 10:  # close ourselves SSE stream & notify remote peer.
+                r.extension.close()
+
+Notes
+~~~~~
+
+SSE can be reached from HTTP/1, HTTP/2 or HTTP/3 at will. Niquests makes this very easy.
+Moreover every features like proxies, happy-eyeballs, hooks, etc.. can be used as you always did.
+
 -----------------------
 
 Ready for more? Check out the :ref:`advanced <advanced>` section.

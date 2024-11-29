@@ -579,10 +579,12 @@ class AsyncSession(Session):
 
         if not stream:
             if isinstance(r, AsyncResponse):
-                await r.content
+                if r.extension is None:
+                    await r.content
                 _swap_context(r)
             else:
-                r.content
+                if r.extension is None:
+                    r.content
 
         return r
 
