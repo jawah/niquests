@@ -1,6 +1,16 @@
 Release History
 ===============
 
+3.11.2 (2024-11-28)
+-------------------
+
+**Fixed**
+- SSE request block IO by default. Integrate better with urllib3-future new SSE web extension.
+- Passing a list instead of tuple for multipart file upload ends in failure.
+
+**Changed**
+- urllib3-future lower bound version is raised to 2.12.900 to ensure built-in support for SSE.
+
 3.11.1 (2024-11-22)
 -------------------
 
