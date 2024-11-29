@@ -7,7 +7,8 @@
 Niquests, is the “**Safest**, **Fastest[^10]**, **Easiest**, and **Most advanced**” Python HTTP Client. Production Ready!
 
 ✔️ **Try before you switch:** [See Multiplexed in Action](https://replit.com/@ahmedtahri4/Python#main.py)<br>
-📖 **See why you should switch:** [Read about 10 reasons why](https://medium.com/@ahmed.tahri/10-reasons-you-should-quit-your-http-client-98fd4c94bef3), and ["_Revived the promise made six years ago for Requests 3_"](https://medium.com/@ahmed.tahri/revived-the-promise-made-six-years-ago-for-requests-3-37b440e6a064)
+📖 **See why you should switch:** [Read about 10 reasons why](https://medium.com/@ahmed.tahri/10-reasons-you-should-quit-your-http-client-98fd4c94bef3), and ["_Revived the promise made six years ago for Requests 3_"](https://medium.com/@ahmed.tahri/revived-the-promise-made-six-years-ago-for-requests-3-37b440e6a064)<br>
+✨ **You were used to betamax, requests-mock, responses, ...?** [See how they still work! We got you covered.](https://niquests.readthedocs.io/en/latest/community/extensions.html)
 
 <details>
   <summary>👆 <b>Look at the feature table comparison</b> against <i>requests, httpx and aiohttp</i>!</summary>
@@ -47,6 +48,7 @@ Niquests, is the “**Safest**, **Fastest[^10]**, **Easiest**, and **Most advanc
 | `WebSocket over HTTP/2 and HTTP/3`         |     ✅[^13]     |     ❌     |       ❌       | ❌             |
 | `Automatic Ping for HTTP/2+`               |       ✅        |    N/A    |       ❌       | N/A           |
 | `Automatic Connection Upgrade / Downgrade` |       ✅        |    N/A    |       ❌       | N/A           |
+| `Server Side Event (SSE)`                  |       ✅        |     ❌     |       ❌       | ❌             |
 </details>
 
 <details>
@@ -75,14 +77,12 @@ Did you give up on HTTP/2 due to performance concerns? Think again! Do you reali
 Multiplexing and response lazyness open up a wide range of possibilities! Want to learn more about the tests? scripts? reasoning?
 
 Take a deeper look at https://github.com/Ousret/niquests-stats
-
-⚠️ Do the responsible thing with this library and do not attempt DoS remote servers using its abilities.
 </details>
 
 ```python
 >>> import niquests
 >>> s = niquests.Session(resolver="doh+google://", multiplexed=True)
->>> r = s.get('https://pie.dev/basic-auth/user/pass', auth=('user', 'pass'))
+>>> r = s.get('https://one.one.one.one')
 >>> r
 <ResponsePromise HTTP/3>
 >>> r.status_code
@@ -111,7 +111,7 @@ import asyncio
 
 async def main() -> None:
     async with niquests.AsyncSession(resolver="doh+google://") as s:
-        r = await s.get('https://pie.dev/basic-auth/user/pass', auth=('user', 'pass'), stream=True)
+        r = await s.get('https://one.one.one.one', stream=True)
         print(r)  # Output: <Response HTTP/3 [200]>
         payload = await r.json()
         print(payload)  # Output: {'authenticated': True, ...}
@@ -173,6 +173,7 @@ Niquests is ready for the demands of building scalable, robust and reliable HTTP
 - Trailers!
 - DNSSEC!
 - Async!
+- SSE!
 
 Need something more? Create an issue, we listen.
 
