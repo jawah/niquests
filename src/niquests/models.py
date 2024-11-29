@@ -57,10 +57,12 @@ if HAS_LEGACY_URLLIB3 is False:
     from urllib3.contrib.webextensions._async import (
         AsyncWebSocketExtensionFromHTTP,
         AsyncRawExtensionFromHTTP,
+        AsyncServerSideEventExtensionFromHTTP,
     )
     from urllib3.contrib.webextensions import (
         WebSocketExtensionFromHTTP,
         RawExtensionFromHTTP,
+        ServerSideEventExtensionFromHTTP,
     )
 else:
     from urllib3_future import (  # type: ignore[assignment]
@@ -82,10 +84,12 @@ else:
     from urllib3_future.contrib.webextensions._async import (  # type: ignore[assignment]
         AsyncWebSocketExtensionFromHTTP,
         AsyncRawExtensionFromHTTP,
+        AsyncServerSideEventExtensionFromHTTP,
     )
     from urllib3_future.contrib.webextensions import (  # type: ignore[assignment]
         WebSocketExtensionFromHTTP,
         RawExtensionFromHTTP,
+        ServerSideEventExtensionFromHTTP,
     )
 
 from ._typing import (
@@ -885,15 +889,15 @@ class PreparedRequest:
             ft: str | None = None
             fh: HeadersType | None = None
 
-            if isinstance(fdescriptor, tuple):
+            if isinstance(fdescriptor, (tuple, list)):
                 # mypy and tuple length cmp not supported
                 # https://github.com/python/mypy/issues/1178
                 if len(fdescriptor) == 2:
-                    fn, fp = fdescriptor  # type: ignore[misc]
+                    fn, fp = tuple(fdescriptor)  # type: ignore[misc,assignment]
                 elif len(fdescriptor) == 3:
-                    fn, fp, ft = fdescriptor  # type: ignore[misc]
+                    fn, fp, ft = tuple(fdescriptor)  # type: ignore[misc,assignment]
                 else:
-                    fn, fp, ft, fh = fdescriptor  # type: ignore[misc]
+                    fn, fp, ft, fh = tuple(fdescriptor)  # type: ignore[misc,assignment]
             else:
                 if isinstance(fdescriptor, (str, bytes, bytearray)):
                     fn = fkey
@@ -1058,8 +1062,10 @@ class Response:
     ) -> (
         WebSocketExtensionFromHTTP
         | RawExtensionFromHTTP
+        | ServerSideEventExtensionFromHTTP
         | AsyncWebSocketExtensionFromHTTP
         | AsyncRawExtensionFromHTTP
+        | AsyncServerSideEventExtensionFromHTTP
         | None
     ):
         """Access the I/O after an Upgraded connection. E.g. for a WebSocket handler.

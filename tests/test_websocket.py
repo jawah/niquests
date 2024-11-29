@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from niquests import Session, AsyncSession
+from niquests import Session, AsyncSession, ReadTimeout
 
 try:
     import wsproto
@@ -54,6 +54,45 @@ class TestLiveWebSocket:
 
             assert (await resp.extension.next_payload()) == "Hello World"
             assert (await resp.extension.next_payload()) == b"Foo Bar Baz!"
+
+            await resp.extension.close()
+            assert resp.extension.closed is True
+
+    def test_sync_websocket_read_timeout(self) -> None:
+        with Session() as s:
+            resp = s.get("wss://echo.websocket.org", timeout=3)
+
+            assert resp.status_code == 101
+            assert resp.extension is not None
+            assert resp.extension.closed is False
+
+            greeting_msg = resp.extension.next_payload()
+
+            assert greeting_msg is not None
+            assert isinstance(greeting_msg, str)
+
+            with pytest.raises(ReadTimeout):
+                resp.extension.next_payload()
+
+            resp.extension.close()
+            assert resp.extension.closed is True
+
+    @pytest.mark.asyncio
+    async def test_async_websocket_read_timeout(self) -> None:
+        async with AsyncSession() as s:
+            resp = await s.get("wss://echo.websocket.org", timeout=3)
+
+            assert resp.status_code == 101
+            assert resp.extension is not None
+            assert resp.extension.closed is False
+
+            greeting_msg = await resp.extension.next_payload()
+
+            assert greeting_msg is not None
+            assert isinstance(greeting_msg, str)
+
+            with pytest.raises(ReadTimeout):
+                await resp.extension.next_payload()
 
             await resp.extension.close()
             assert resp.extension.closed is True

@@ -4,7 +4,12 @@ from __future__ import annotations
 
 import json
 import platform
-import ssl
+
+try:
+    import ssl
+except ImportError:
+    ssl = None  # type: ignore
+
 import sys
 import warnings
 from json import JSONDecodeError
@@ -46,6 +51,11 @@ try:
     from .extensions._ocsp import verify as ocsp_verify
 except ImportError:
     ocsp_verify = None  # type: ignore
+
+try:
+    import wsproto  # type: ignore[import-not-found]
+except ImportError:
+    wsproto = None  # type: ignore
 
 
 def _implementation():
@@ -108,10 +118,15 @@ def info():
         "version": getattr(idna, "__version__", ""),
     }
 
-    system_ssl = ssl.OPENSSL_VERSION_NUMBER
-    system_ssl_info = {
-        "version": f"{system_ssl:x}" if system_ssl is not None else "N/A"
-    }
+    if ssl is not None:
+        system_ssl = ssl.OPENSSL_VERSION_NUMBER
+
+        system_ssl_info = {
+            "version": f"{system_ssl:x}" if system_ssl is not None else "N/A",
+            "name": ssl.OPENSSL_VERSION,
+        }
+    else:
+        system_ssl_info = {"version": "N/A", "name": "N/A"}
 
     return {
         "platform": platform_info,
@@ -139,6 +154,10 @@ def info():
             "version": wassima.__version__,
         },
         "ocsp": {"enabled": ocsp_verify is not None},
+        "websocket": {
+            "enabled": wsproto is not None,
+            "wsproto": wsproto.__version__ if wsproto is not None else None,
+        },
     }
 
 
@@ -177,6 +196,7 @@ PACKAGE_TO_CHECK_FOR_UPGRADE = {
     "charset-normalizer": charset_normalizer.__version__,
     "wassima": wassima.__version__,
     "idna": idna.__version__,
+    "wsproto": wsproto.__version__ if wsproto is not None else None,
 }
 
 

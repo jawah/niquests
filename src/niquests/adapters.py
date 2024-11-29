@@ -1201,7 +1201,8 @@ class HTTPAdapter(BaseAdapter):
                 extract_cookies_to_jar(session_cookies, sub_resp.request, sub_resp.raw)
 
         if not stream:
-            response.content
+            if response.extension is None:
+                response.content
 
         del self._promises[response_promise.uid]
 
@@ -2304,7 +2305,8 @@ class AsyncHTTPAdapter(AsyncBaseAdapter):
                 extract_cookies_to_jar(session_cookies, sub_resp.request, sub_resp.raw)
 
         if not stream:
-            await response.content
+            if response.extension is None:
+                await response.content
             _swap_context(response)
 
         del self._promises[response_promise.uid]
