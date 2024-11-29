@@ -885,15 +885,15 @@ class PreparedRequest:
             ft: str | None = None
             fh: HeadersType | None = None
 
-            if isinstance(fdescriptor, tuple):
+            if isinstance(fdescriptor, (tuple, list)):
                 # mypy and tuple length cmp not supported
                 # https://github.com/python/mypy/issues/1178
                 if len(fdescriptor) == 2:
-                    fn, fp = fdescriptor  # type: ignore[misc]
+                    fn, fp = tuple(fdescriptor)  # type: ignore[misc,assignment]
                 elif len(fdescriptor) == 3:
-                    fn, fp, ft = fdescriptor  # type: ignore[misc]
+                    fn, fp, ft = tuple(fdescriptor)  # type: ignore[misc,assignment]
                 else:
-                    fn, fp, ft, fh = fdescriptor  # type: ignore[misc]
+                    fn, fp, ft, fh = tuple(fdescriptor)  # type: ignore[misc,assignment]
             else:
                 if isinstance(fdescriptor, (str, bytes, bytearray)):
                     fn = fkey
