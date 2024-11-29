@@ -10,6 +10,8 @@ Release History
 
 **Changed**
 - urllib3-future lower bound version is raised to 2.12.900 to ensure built-in support for SSE.
+- help script now yield if websocket extra is present and actual version.
+- exception raised when no adapter were found now include a hint when the intent was websocket and extra isn't installed.
 
 3.11.1 (2024-11-22)
 -------------------
