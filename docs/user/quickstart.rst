@@ -1311,6 +1311,8 @@ As such::
     while r.extension.closed is False:
         print(r.extension.next_payload(raw=True))  # "event: ping\ndata: {"id":9,"timestamp":1732857471733}\n\n"
 
+.. warning:: As with WebSocket, ``next_payload`` method may return None if the server terminate the stream.
+
 Interrupt the stream
 ~~~~~~~~~~~~~~~~~~~~
 
@@ -1339,6 +1341,21 @@ See how to stop cleanly the flow of events::
 
             if len(events) >= 10:  # close ourselves SSE stream & notify remote peer.
                 r.extension.close()
+
+ServerSentEvent
+~~~~~~~~~~~~~~~
+
+.. note:: A ``ServerSentEvent`` object is returned by default with the ``next_payload()`` method. Or None if the server terminate the flow of events.
+
+It's a parsed SSE (single event). The object have nice shortcuts like:
+
+- ``payload.json()`` (any) to automatically unserialize passed json data.
+- ``payload.id`` (str)
+- ``payload.data`` (str) for the raw message payload
+- ``payload.event`` (str) for the event type (e.g. message, ping, etc...)
+- ``payload.retry`` (int)
+
+The full class source is located at https://github.com/jawah/urllib3.future/blob/3d7c5d9446880a8d473b9be4db0bcd419fb32dee/src/urllib3/contrib/webextensions/sse.py#L14
 
 Notes
 ~~~~~
