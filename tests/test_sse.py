@@ -5,7 +5,6 @@ import pytest
 from niquests import Session, AsyncSession
 
 
-
 @pytest.mark.usefixtures("requires_wan")
 class TestLiveSSE:
     def test_sync_sse_basic_example(self) -> None:
@@ -19,9 +18,7 @@ class TestLiveSSE:
             events = []
 
             while resp.extension.closed is False:
-                events.append(
-                    resp.extension.next_payload()
-                )
+                events.append(resp.extension.next_payload())
 
             assert resp.extension.closed is True
             assert len(events) > 0
@@ -39,9 +36,7 @@ class TestLiveSSE:
             events = []
 
             while resp.extension.closed is False:
-                events.append(
-                    await resp.extension.next_payload()
-                )
+                events.append(await resp.extension.next_payload())
 
             assert resp.extension.closed is True
             assert len(events) > 0
