@@ -22,9 +22,9 @@ class TestOnlineCertificateRevocationProtocol:
     @pytest.mark.parametrize(
         "revoked_peer_url",
         [
-            # "https://revoked.badssl.com/",
+            "https://revoked.badssl.com/",
             # "https://revoked-rsa-ev.ssl.com/",
-            "https://revoked-ecc-dv.ssl.com/",
+            # "https://revoked-ecc-dv.ssl.com/",
         ],
     )
     def test_sync_revoked_certificate(self, revoked_peer_url: str) -> None:
@@ -46,9 +46,9 @@ class TestOnlineCertificateRevocationProtocol:
     @pytest.mark.parametrize(
         "revoked_peer_url",
         [
-            # "https://revoked.badssl.com/",
+            "https://revoked.badssl.com/",
             # "https://revoked-rsa-ev.ssl.com/",
-            "https://revoked-ecc-dv.ssl.com/",
+            # "https://revoked-ecc-dv.ssl.com/",
         ],
     )
     async def test_async_revoked_certificate(self, revoked_peer_url: str) -> None:
