@@ -324,8 +324,17 @@ class AsyncSession(Session):
         except ImportError:
             pass
 
+        # add a hint if wss:// fails when Niquests document its support.
+        # they probably forgot about the extra.
+        if url.startswith("ws://") or url.startswith("wss://"):
+            additional_hint = " Did you forget to install the extra for WebSocket? Run `pip install niquests[ws]` to fix this."
+        else:
+            additional_hint = ""
+
         # Nothing matches :-/
-        raise InvalidSchema(f"No connection adapters were found for {url!r}")
+        raise InvalidSchema(
+            f"No connection adapters were found for {url!r}{additional_hint}"
+        )
 
     async def send(  # type: ignore[override]
         self, request: PreparedRequest, **kwargs: typing.Any
