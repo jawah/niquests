@@ -376,7 +376,8 @@ def verify(
 
     with Session(resolver=resolver, happy_eyeballs=happy_eyeballs) as session:
         session.trust_env = False
-        session.proxies = proxies
+        if proxies:
+            session.proxies = proxies
 
         # When using Python native capabilities, you won't have the issuerCA DER by default.
         # Unfortunately! But no worries, we can circumvent it!
