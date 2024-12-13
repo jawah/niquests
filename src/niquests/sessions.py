@@ -251,7 +251,7 @@ class Session:
         pool_connections: int = DEFAULT_POOLSIZE,
         pool_maxsize: int = DEFAULT_POOLSIZE,
         happy_eyeballs: bool | int = False,
-        keepalive_delay: float | int | None = 300.0,
+        keepalive_delay: float | int | None = 3600.0,
         keepalive_idle_window: float | int | None = 60.0,
         base_url: str | None = None,
     ):
@@ -425,10 +425,10 @@ class Session:
             ),
         )
 
-    def __enter__(self):
+    def __enter__(self) -> Session:
         return self
 
-    def __exit__(self, *args):
+    def __exit__(self, *args) -> None:
         self.close()
 
     def prepare_request(self, request: Request) -> PreparedRequest:

@@ -130,7 +130,7 @@ class AsyncSession(Session):
         pool_connections: int = DEFAULT_POOLSIZE,
         pool_maxsize: int = DEFAULT_POOLSIZE,
         happy_eyeballs: bool | int = False,
-        keepalive_delay: float | int | None = 300.0,
+        keepalive_delay: float | int | None = 3600.0,
         keepalive_idle_window: float | int | None = 60.0,
         base_url: str | None = None,
     ):
