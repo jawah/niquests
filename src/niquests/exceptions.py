@@ -14,7 +14,7 @@ from ._compat import HAS_LEGACY_URLLIB3
 
 if HAS_LEGACY_URLLIB3 is False:
     from urllib3.exceptions import HTTPError as BaseHTTPError
-else:
+else:  # Defensive: tested in separate/isolated CI
     from urllib3_future.exceptions import HTTPError as BaseHTTPError  # type: ignore
 
 if typing.TYPE_CHECKING:

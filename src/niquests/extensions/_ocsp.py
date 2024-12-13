@@ -26,7 +26,7 @@ if HAS_LEGACY_URLLIB3 is False:
     from urllib3.exceptions import SecurityWarning
     from urllib3.util.url import parse_url
     from urllib3.contrib.resolver import BaseResolver
-else:
+else:  # Defensive: tested in separate/isolated CI
     from urllib3_future import ConnectionInfo  # type: ignore[assignment]
     from urllib3_future.exceptions import SecurityWarning  # type: ignore[assignment]
     from urllib3_future.util.url import parse_url  # type: ignore[assignment]
@@ -376,7 +376,8 @@ def verify(
 
     with Session(resolver=resolver, happy_eyeballs=happy_eyeballs) as session:
         session.trust_env = False
-        session.proxies = proxies
+        if proxies:
+            session.proxies = proxies
 
         # When using Python native capabilities, you won't have the issuerCA DER by default.
         # Unfortunately! But no worries, we can circumvent it!

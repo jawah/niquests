@@ -1,6 +1,25 @@
 Release History
 ===============
 
+3.11.3 (2024-12-13)
+-------------------
+
+**Fixed**
+- Static type checker getting confused around ``AsyncSession`` and attached overloads (``AsyncResponse`` or ``Response``). (#185)
+
+**Changed**
+- Default keepalive (HTTP/2, and HTTP/3) changed to 1 hour. In conformance with urllib3-future.
+
+**Removed**
+- Automatic resolution of pending lazy responses if there are too many of them.
+  Previously, we hardcoded a limit of 128 * NUM_CONN_POOL maximum inflight (aka. unresolved/lazy) response.
+  This was unrealistic due to a number of factors like (but not limited to):
+  A) remote peers can choose at will the max streams.
+  B) we can have multiple pool with multiple (varying) max capacities.
+  C) retrieving max streams per pool per conn is a very costly procedure (in terms of performance).
+  We will revisit this later on. You still can set ``max_in_flight_multiplexed`` in your ``HTTPAdapter`` to
+  restore this broken behavior.
+
 3.11.2 (2024-11-29)
 -------------------
 
