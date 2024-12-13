@@ -8,3 +8,20 @@ source =
     src/niquests
     */niquests
     *\niquests
+
+[report]
+omit =
+    src/niquests/help.py
+
+exclude_lines =
+    except ModuleNotFoundError:
+    except ImportError:
+    pass
+    import
+    raise NotImplementedError
+    .* # Platform-specific.*
+    .*:.* # Python \d.*
+    .* # Abstract
+    .* # Defensive:
+    if (?:typing.)?TYPE_CHECKING:
+    ^\s*?\.\.\.\s*$
