@@ -354,7 +354,7 @@ class HTTPAdapter(BaseAdapter):
         disable_ipv4: bool = False,
         disable_ipv6: bool = False,
         happy_eyeballs: bool | int = False,
-        keepalive_delay: float | int | None = 300.0,
+        keepalive_delay: float | int | None = 3600.0,
         keepalive_idle_window: float | int | None = 60.0,
     ):
         if isinstance(max_retries, bool):
@@ -393,11 +393,7 @@ class HTTPAdapter(BaseAdapter):
         #: we keep a list of pending (lazy) response
         self._promises: dict[str, Response] = {}
         self._orphaned: list[BaseHTTPResponse] = []
-        self._max_in_flight_multiplexed = (
-            max_in_flight_multiplexed
-            if max_in_flight_multiplexed is not None
-            else self._pool_connections * 124
-        )
+        self._max_in_flight_multiplexed = max_in_flight_multiplexed
         self._promise_lock = RLock()
 
         disabled_svn = set()
@@ -871,7 +867,7 @@ class HTTPAdapter(BaseAdapter):
         ), "Tried to send a non-initialized PreparedRequest"
 
         # We enforce a limit to avoid burning out our connection pool.
-        if multiplexed:
+        if multiplexed and self._max_in_flight_multiplexed is not None:
             with self._promise_lock:
                 if len(self._promises) >= self._max_in_flight_multiplexed:
                     self.gather()
@@ -1447,7 +1443,7 @@ class AsyncHTTPAdapter(AsyncBaseAdapter):
         disable_ipv4: bool = False,
         disable_ipv6: bool = False,
         happy_eyeballs: bool | int = False,
-        keepalive_delay: float | int | None = 300.0,
+        keepalive_delay: float | int | None = 3600.0,
         keepalive_idle_window: float | int | None = 60.0,
     ):
         if isinstance(max_retries, bool):
@@ -1487,11 +1483,7 @@ class AsyncHTTPAdapter(AsyncBaseAdapter):
         #: we keep a list of pending (lazy) response
         self._promises: dict[str, Response | AsyncResponse] = {}
         self._orphaned: list[BaseAsyncHTTPResponse] = []
-        self._max_in_flight_multiplexed = (
-            max_in_flight_multiplexed
-            if max_in_flight_multiplexed is not None
-            else self._pool_connections * 250
-        )
+        self._max_in_flight_multiplexed = max_in_flight_multiplexed
 
         disabled_svn = set()
 
@@ -1960,7 +1952,7 @@ class AsyncHTTPAdapter(AsyncBaseAdapter):
         ), "Tried to send a non-initialized PreparedRequest"
 
         # We enforce a limit to avoid burning out our connection pool.
-        if multiplexed:
+        if multiplexed and self._max_in_flight_multiplexed is not None:
             if len(self._promises) >= self._max_in_flight_multiplexed:
                 await self.gather()
 
