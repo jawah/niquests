@@ -290,10 +290,10 @@ class AsyncSession(Session):
             'You probably meant "async with". Did you forget to prepend the "async" keyword?'
         )
 
-    async def __aenter__(self):
+    async def __aenter__(self) -> AsyncSession:
         return self
 
-    async def __aexit__(self, exc, value, tb):
+    async def __aexit__(self, exc, value, tb) -> None:
         await self.close()
 
     def mount(self, prefix: str, adapter: AsyncBaseAdapter) -> None:  # type: ignore[override]
@@ -770,7 +770,7 @@ class AsyncSession(Session):
         allow_redirects: bool = ...,
         proxies: ProxyType | None = ...,
         hooks: HookType[PreparedRequest | Response] | None = ...,
-        stream: Literal[False] = ...,
+        stream: Literal[False] | None = ...,
         verify: TLSVerifyType | None = ...,
         cert: TLSClientCertType | None = ...,
         json: typing.Any | None = ...,
@@ -791,8 +791,7 @@ class AsyncSession(Session):
         allow_redirects: bool = ...,
         proxies: ProxyType | None = ...,
         hooks: HookType[PreparedRequest | Response] | None = ...,
-        *,
-        stream: Literal[True],
+        stream: Literal[True] = ...,
         verify: TLSVerifyType | None = ...,
         cert: TLSClientCertType | None = ...,
         json: typing.Any | None = ...,
@@ -812,7 +811,7 @@ class AsyncSession(Session):
         allow_redirects: bool = True,
         proxies: ProxyType | None = None,
         hooks: HookType[PreparedRequest | Response] | None = None,
-        stream: bool = False,
+        stream: bool | None = None,
         verify: TLSVerifyType | None = None,
         cert: TLSClientCertType | None = None,
         json: typing.Any | None = None,
@@ -880,7 +879,7 @@ class AsyncSession(Session):
         proxies: ProxyType | None = ...,
         hooks: HookType[PreparedRequest | Response] | None = ...,
         verify: TLSVerifyType = ...,
-        stream: Literal[False] | Literal[None] = ...,
+        stream: Literal[False] | None = ...,
         cert: TLSClientCertType | None = ...,
         **kwargs: typing.Any,
     ) -> Response: ...
@@ -899,7 +898,7 @@ class AsyncSession(Session):
         proxies: ProxyType | None = ...,
         hooks: HookType[PreparedRequest | Response] | None = ...,
         verify: TLSVerifyType = ...,
-        stream: Literal[True],
+        stream: Literal[True] = ...,
         cert: TLSClientCertType | None = ...,
         **kwargs: typing.Any,
     ) -> AsyncResponse: ...
@@ -933,7 +932,7 @@ class AsyncSession(Session):
             proxies=proxies,
             hooks=hooks,
             verify=verify,
-            stream=stream,
+            stream=stream,  # type: ignore[arg-type]
             cert=cert,
             **kwargs,
         )
@@ -1005,7 +1004,7 @@ class AsyncSession(Session):
             proxies=proxies,
             hooks=hooks,
             verify=verify,
-            stream=stream,
+            stream=stream,  # type: ignore[arg-type]
             cert=cert,
             **kwargs,
         )
@@ -1077,7 +1076,7 @@ class AsyncSession(Session):
             proxies=proxies,
             hooks=hooks,
             verify=verify,
-            stream=stream,
+            stream=stream,  # type: ignore[arg-type]
             cert=cert,
             **kwargs,
         )
@@ -1158,7 +1157,7 @@ class AsyncSession(Session):
             proxies=proxies,
             hooks=hooks,
             verify=verify,
-            stream=stream,
+            stream=stream,  # type: ignore[arg-type]
             cert=cert,
         )
 
@@ -1238,7 +1237,7 @@ class AsyncSession(Session):
             proxies=proxies,
             hooks=hooks,
             verify=verify,
-            stream=stream,
+            stream=stream,  # type: ignore[arg-type]
             cert=cert,
         )
 
@@ -1318,7 +1317,7 @@ class AsyncSession(Session):
             proxies=proxies,
             hooks=hooks,
             verify=verify,
-            stream=stream,
+            stream=stream,  # type: ignore[arg-type]
             cert=cert,
         )
 
@@ -1389,7 +1388,7 @@ class AsyncSession(Session):
             proxies=proxies,
             hooks=hooks,
             verify=verify,
-            stream=stream,
+            stream=stream,  # type: ignore[arg-type]
             cert=cert,
             **kwargs,
         )
