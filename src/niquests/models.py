@@ -64,7 +64,7 @@ if HAS_LEGACY_URLLIB3 is False:
         RawExtensionFromHTTP,
         ServerSideEventExtensionFromHTTP,
     )
-else:
+else:  # Defensive: tested in separate/isolated CI
     from urllib3_future import (  # type: ignore[assignment]
         BaseHTTPResponse,
         AsyncHTTPResponse as BaseAsyncHTTPResponse,

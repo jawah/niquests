@@ -73,7 +73,7 @@ if HAS_LEGACY_URLLIB3 is False:
     from urllib3.contrib.webextensions._async import (
         load_extension as async_load_extension,
     )
-else:
+else:  # Defensive: tested in separate/isolated CI
     from urllib3_future import (  # type: ignore[assignment]
         ConnectionInfo,
         HTTPConnectionPool,

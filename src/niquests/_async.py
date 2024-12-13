@@ -20,7 +20,7 @@ if HAS_LEGACY_URLLIB3 is False:
     from urllib3 import ConnectionInfo
     from urllib3.contrib.resolver._async import AsyncBaseResolver
     from urllib3.contrib.webextensions._async import load_extension
-else:
+else:  # Defensive: tested in separate/isolated CI
     from urllib3_future import ConnectionInfo  # type: ignore[assignment]
     from urllib3_future.contrib.resolver._async import AsyncBaseResolver  # type: ignore[assignment]
     from urllib3_future.contrib.webextensions._async import load_extension  # type: ignore[assignment]

@@ -27,7 +27,7 @@ if HAS_LEGACY_URLLIB3 is False:
     from urllib3.util.url import parse_url
     from urllib3.contrib.resolver._async import AsyncBaseResolver
     from urllib3.contrib.ssa import AsyncSocket
-else:
+else:  # Defensive: tested in separate/isolated CI
     from urllib3_future import ConnectionInfo  # type: ignore[assignment]
     from urllib3_future.exceptions import SecurityWarning  # type: ignore[assignment]
     from urllib3_future.util.url import parse_url  # type: ignore[assignment]

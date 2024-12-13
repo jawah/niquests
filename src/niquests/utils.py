@@ -52,7 +52,7 @@ if HAS_LEGACY_URLLIB3 is False:
     from urllib3 import ConnectionInfo
     from urllib3.contrib.webextensions import load_extension, ExtensionFromHTTP
     from urllib3.contrib.webextensions._async import AsyncExtensionFromHTTP
-else:
+else:  # Defensive: tested in separate/isolated CI
     from urllib3_future.util import make_headers, parse_url  # type: ignore[assignment]
     from urllib3_future.contrib.resolver import (  # type: ignore[assignment]
         BaseResolver,

@@ -25,7 +25,7 @@ from .utils import parse_scheme
 
 if HAS_LEGACY_URLLIB3 is False:
     from urllib3 import BaseHTTPResponse
-else:
+else:  # Defensive: tested in separate/isolated CI
     from urllib3_future import BaseHTTPResponse  # type: ignore[assignment]
 
 if typing.TYPE_CHECKING:

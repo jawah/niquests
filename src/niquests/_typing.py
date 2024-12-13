@@ -12,7 +12,7 @@ if HAS_LEGACY_URLLIB3 is False:
     from urllib3.contrib.resolver import BaseResolver
     from urllib3.contrib.resolver._async import AsyncBaseResolver
     from urllib3.fields import RequestField
-else:
+else:  # Defensive: tested in separate/isolated CI
     from urllib3_future import (  # type: ignore[assignment]
         Retry,
         Timeout,

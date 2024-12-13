@@ -16,7 +16,7 @@ try:
 
     if not HAS_LEGACY_URLLIB3:
         from urllib3._collections import _lower_wrapper  # type: ignore[attr-defined]
-    else:
+    else:  # Defensive: tested in separate/isolated CI
         from urllib3_future._collections import _lower_wrapper  # type: ignore[attr-defined]
 except ImportError:
     from functools import lru_cache
