@@ -23,9 +23,9 @@ class TestOnlineCertificateRevocationProtocol:
         "revoked_peer_url",
         [
             # "https://revoked.badssl.com/",
-            # "https://revoked-rsa-ev.ssl.com/",
             # "https://revoked-ecc-dv.ssl.com/",
             "https://aaacertificateservices.comodoca.com:444/",
+            "https://revoked-rsa-ev.ssl.com/",
         ],
     )
     def test_sync_revoked_certificate(self, revoked_peer_url: str) -> None:
@@ -48,9 +48,9 @@ class TestOnlineCertificateRevocationProtocol:
         "revoked_peer_url",
         [
             # "https://revoked.badssl.com/",
-            # "https://revoked-rsa-ev.ssl.com/",
             # "https://revoked-ecc-dv.ssl.com/",
             "https://aaacertificateservices.comodoca.com:444/",
+            "https://revoked-rsa-ev.ssl.com/",
         ],
     )
     async def test_async_revoked_certificate(self, revoked_peer_url: str) -> None:

@@ -43,7 +43,10 @@ def tests_impl(
         "--strict-config",
         "--strict-markers",
         *(session.posargs or ("tests/",)),
-        env={"PYTHONWARNINGS": "always::DeprecationWarning"},
+        env={
+            "PYTHONWARNINGS": "always::DeprecationWarning",
+            "NIQUESTS_STRICT_OCSP": "1",
+        },
     )
 
 
