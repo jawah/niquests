@@ -245,6 +245,11 @@ class AsyncSession(Session):
             else AsyncQuicSharedCache(max_size=12_288)
         )
 
+        #: Don't try to manipulate this object.
+        #: It cannot be pickled and accessing this object may cause
+        #: unattended errors.
+        self._ocsp_cache: typing.Any | None = None
+
         # Default connection adapters.
         self.adapters: OrderedDict[str, AsyncBaseAdapter] = OrderedDict()  # type: ignore[assignment]
         self.mount(
@@ -387,10 +392,16 @@ class AsyncSession(Session):
                 )
 
                 try:
-                    from .extensions._async_ocsp import verify as ocsp_verify
+                    from .extensions._async_ocsp import (
+                        verify as ocsp_verify,
+                        InMemoryRevocationStatus,
+                    )
                 except ImportError:
                     pass
                 else:
+                    if self._ocsp_cache is None:
+                        self._ocsp_cache = InMemoryRevocationStatus()
+
                     await ocsp_verify(
                         ptr_request,
                         strict_ocsp_enabled,
@@ -398,6 +409,7 @@ class AsyncSession(Session):
                         kwargs["proxies"],
                         resolver=self.resolver,
                         happy_eyeballs=self._happy_eyeballs,
+                        cache=self._ocsp_cache,
                     )
 
             # don't trigger pre_send for redirects

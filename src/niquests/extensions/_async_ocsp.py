@@ -296,9 +296,6 @@ class InMemoryRevocationStatus:
             self._timings.pop(0)
 
 
-_SharedRevocationStatusCache = InMemoryRevocationStatus()
-
-
 async def verify(
     r: PreparedRequest,
     strict: bool = False,
@@ -306,6 +303,7 @@ async def verify(
     proxies: ProxyType | None = None,
     resolver: AsyncBaseResolver | None = None,
     happy_eyeballs: bool | int = False,
+    cache: InMemoryRevocationStatus | None = None,
 ) -> None:
     conn_info: ConnectionInfo | None = r.conn_info
 
@@ -328,26 +326,27 @@ async def verify(
     if not endpoints:
         return
 
+    if not cache:
+        cache = InMemoryRevocationStatus()
+
     peer_certificate = _parse_x509_der_cached(conn_info.certificate_der)
 
-    async with _SharedRevocationStatusCache.lock(peer_certificate):
+    async with cache.lock(peer_certificate):
         # this feature, by default, is reserved for a reasonable usage.
         if not strict:
-            mean_rate_sec = _SharedRevocationStatusCache.rate()
-            cache_count = len(_SharedRevocationStatusCache)
+            mean_rate_sec = cache.rate()
+            cache_count = len(cache)
 
             if cache_count >= 10 and mean_rate_sec <= 1.0:
-                _SharedRevocationStatusCache.hold = True
+                cache.hold = True
 
-            if _SharedRevocationStatusCache.hold:
+            if cache.hold:
                 return
 
-        cached_response = _SharedRevocationStatusCache.check(peer_certificate)
+        cached_response = cache.check(peer_certificate)
 
         if cached_response is not None:
-            issuer_certificate = _SharedRevocationStatusCache.get_issuer_of(
-                peer_certificate
-            )
+            issuer_certificate = cache.get_issuer_of(peer_certificate)
 
             if issuer_certificate:
                 conn_info.issuer_certificate_der = issuer_certificate.public_bytes()
@@ -394,9 +393,7 @@ async def verify(
             #   - Downloading it using specified caIssuers from the peer certificate.
             if conn_info.issuer_certificate_der is None:
                 # It could be a root (self-signed) certificate. Or a previously seen issuer.
-                issuer_certificate = _SharedRevocationStatusCache.get_issuer_of(
-                    peer_certificate
-                )
+                issuer_certificate = cache.get_issuer_of(peer_certificate)
 
                 # If not, try to ask nicely the remote to give us the certificate chain, and extract
                 # from it the immediate issuer.
@@ -548,9 +545,7 @@ async def verify(
                         )
                     return
 
-                _SharedRevocationStatusCache.save(
-                    peer_certificate, issuer_certificate, ocsp_resp
-                )
+                cache.save(peer_certificate, issuer_certificate, ocsp_resp)
 
                 if ocsp_resp.response_status == OCSPResponseStatus.SUCCESSFUL:
                     if ocsp_resp.certificate_status == OCSPCertStatus.REVOKED:
