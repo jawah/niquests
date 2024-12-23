@@ -112,29 +112,6 @@ class TestLiveStandardCase:
 
             assert r.ok
 
-    # def test_http_trailer_preload(self) -> None:
-    #     with Session() as s:
-    #         r = s.get("https://httpbingo.org/trailers?foo=baz", headers={"TE": "trailers"})
-    #
-    #         assert r.ok
-    #         assert r.trailers
-    #         assert "foo" in r.trailers
-    #         assert r.trailers["foo"] == "baz"
-    #
-    # def test_http_trailer_no_preload(self) -> None:
-    #     with Session() as s:
-    #         r = s.get("https://httpbingo.org/trailers?foo=baz", headers={"TE": "trailers"}, stream=True)
-    #
-    #         assert r.ok
-    #         assert not r.trailers
-    #         assert "foo" not in r.trailers
-    #
-    #         r.content
-    #
-    #         assert r.trailers
-    #         assert "foo" in r.trailers
-    #         assert r.trailers["foo"] == "baz"
-
     def test_early_response(self) -> None:
         received_early_response: bool = False
 
@@ -151,3 +128,27 @@ class TestLiveStandardCase:
 
             assert resp.status_code == 200
             assert received_early_response is True
+
+    def test_preemptive_add_http3_domain(self) -> None:
+        with Session() as s:
+            s.quic_cache_layer.add_domain("one.one.one.one")
+
+            resp = s.get("https://one.one.one.one")
+
+            assert resp.http_version == 30
+
+    def test_preemptive_add_http3_domain_wrong_port(self) -> None:
+        with Session() as s:
+            s.quic_cache_layer.add_domain("one.one.one.one", 6666)
+
+            resp = s.get("https://one.one.one.one")
+
+            assert resp.http_version == 20
+
+    def test_preemptive_exclude_http3_domain(self) -> None:
+        with Session() as s:
+            s.quic_cache_layer.exclude_domain("one.one.one.one")
+
+            for _ in range(2):
+                resp = s.get("https://one.one.one.one")
+                assert resp.http_version == 20

@@ -9,6 +9,10 @@ def hook(value):
     return value[1:]
 
 
+async def ahook(value):
+    return value[1:]
+
+
 @pytest.mark.parametrize(
     "hooks_list, result",
     (
@@ -34,6 +38,36 @@ def test_hooks_with_kwargs(hooks_list, result):
         )
         == result
     )
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "hooks_list, result",
+    (
+        (ahook, "ata"),
+        ([ahook, lambda x: None, hook], "ta"),
+    ),
+)
+async def test_ahooks(hooks_list, result):
+    assert (
+        await hooks.async_dispatch_hook("response", {"response": hooks_list}, "Data")
+    ) == result
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "hooks_list, result",
+    (
+        (hook, "ata"),
+        ([hook, lambda x: None, ahook], "ta"),
+    ),
+)
+async def test_ahooks_with_kwargs(hooks_list, result):
+    assert (
+        await hooks.async_dispatch_hook(
+            "response", {"response": hooks_list}, "Data", should_not_crash=True
+        )
+    ) == result
 
 
 def test_default_hooks():
