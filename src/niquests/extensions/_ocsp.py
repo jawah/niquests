@@ -58,10 +58,13 @@ def _parse_x509_der_cached(der: bytes) -> Certificate:
     return Certificate(der)
 
 
+@lru_cache(maxsize=64)
+def _fingerprint_raw_data(payload: bytes) -> str:
+    return "".join([format(i, "02x") for i in sha256(payload).digest()])
+
+
 def _str_fingerprint_of(certificate: Certificate) -> str:
-    return ":".join(
-        [format(i, "02x") for i in sha256(certificate.public_bytes()).digest()]
-    )
+    return _fingerprint_raw_data(certificate.public_bytes())
 
 
 def readable_revocation_reason(flag: ReasonFlags | None) -> str | None:
