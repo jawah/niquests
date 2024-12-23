@@ -418,7 +418,13 @@ def verify(
                     else:
                         issuer_certificate = None
 
-                except (socket.gaierror, TimeoutError, ConnectionError, AttributeError):
+                except (
+                    socket.gaierror,
+                    socket.timeout,
+                    TimeoutError,
+                    ConnectionError,
+                    AttributeError,
+                ):
                     pass
                 except ValueError:
                     issuer_certificate = None

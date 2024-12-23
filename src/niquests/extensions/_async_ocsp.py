@@ -424,6 +424,7 @@ async def verify(
 
                     except (
                         socket.gaierror,
+                        socket.timeout,
                         TimeoutError,
                         ConnectionError,
                         AttributeError,
