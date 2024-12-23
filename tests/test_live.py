@@ -129,6 +129,7 @@ class TestLiveStandardCase:
             assert resp.status_code == 200
             assert received_early_response is True
 
+    @pytest.mark.skipif(qh3 is None, reason="qh3 unavailable")
     def test_preemptive_add_http3_domain(self) -> None:
         with Session() as s:
             s.quic_cache_layer.add_domain("one.one.one.one")
@@ -137,6 +138,7 @@ class TestLiveStandardCase:
 
             assert resp.http_version == 30
 
+    @pytest.mark.skipif(qh3 is None, reason="qh3 unavailable")
     def test_preemptive_add_http3_domain_wrong_port(self) -> None:
         with Session() as s:
             s.quic_cache_layer.add_domain("one.one.one.one", 6666)
@@ -145,6 +147,7 @@ class TestLiveStandardCase:
 
             assert resp.http_version == 20
 
+    @pytest.mark.skipif(qh3 is None, reason="qh3 unavailable")
     def test_preemptive_exclude_http3_domain(self) -> None:
         with Session() as s:
             s.quic_cache_layer.exclude_domain("one.one.one.one")
