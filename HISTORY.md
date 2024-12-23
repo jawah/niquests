@@ -1,6 +1,17 @@
 Release History
 ===============
 
+3.11.4 (2024-12-23)
+-------------------
+
+**Fixed**
+- Invoking ``niquests`` in more than one event loop, even if no loop concurrence occurs. (#190)
+  The faulty part was the shared OCSP cache that was automatically bound the first event loop and
+  could not be shared across more than one loop. Keep in mind that Niquests async is task safe within
+  a single event loop. Sharing a single AsyncSession across more than one event loop is unpredictable.
+  We've waived that limitation by binding the ocsp cache to a single `Session`. (both sync & async)
+- Undesirable ``socket.timeout`` error coming from the ocsp checker when running Python < 3.9.
+
 3.11.3 (2024-12-13)
 -------------------
 
