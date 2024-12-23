@@ -326,7 +326,7 @@ async def verify(
     if not endpoints:
         return
 
-    if not cache:
+    if cache is None:
         cache = InMemoryRevocationStatus()
 
     peer_certificate = _parse_x509_der_cached(conn_info.certificate_der)
