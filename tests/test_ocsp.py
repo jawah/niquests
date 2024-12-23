@@ -32,6 +32,7 @@ class TestOnlineCertificateRevocationProtocol:
         """This test may fail at any moment. Using several known revoked certs as targets tester."""
 
         with Session() as s:
+            assert s._ocsp_cache is None
             with pytest.raises(
                 ConnectionError,
                 match=f"Unable to establish a secure connection to {revoked_peer_url} because the certificate has been revoked",
@@ -42,6 +43,23 @@ class TestOnlineCertificateRevocationProtocol:
                     pytest.mark.skip(
                         f"remote {revoked_peer_url} is unavailable at the moment..."
                     )
+            assert s._ocsp_cache is not None
+            assert hasattr(s._ocsp_cache, "_store")
+            assert isinstance(s._ocsp_cache._store, dict)
+            assert len(s._ocsp_cache._store) == 1
+
+    def test_sync_valid_ensure_cached(self) -> None:
+        with Session() as s:
+            assert s._ocsp_cache is None
+            s.get("https://httpbingo.org/get", timeout=OCSP_MAX_DELAY_WAIT)
+            assert s._ocsp_cache is not None
+            assert hasattr(s._ocsp_cache, "_store")
+            assert isinstance(s._ocsp_cache._store, dict)
+            assert len(s._ocsp_cache._store) == 1
+            s.get("https://httpbingo.org/get", timeout=OCSP_MAX_DELAY_WAIT)
+            assert len(s._ocsp_cache._store) == 1
+            s.get("https://one.one.one.one", timeout=OCSP_MAX_DELAY_WAIT)
+            assert len(s._ocsp_cache._store) == 2
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize(
@@ -55,6 +73,7 @@ class TestOnlineCertificateRevocationProtocol:
     )
     async def test_async_revoked_certificate(self, revoked_peer_url: str) -> None:
         async with AsyncSession() as s:
+            assert s._ocsp_cache is None
             with pytest.raises(
                 ConnectionError,
                 match=f"Unable to establish a secure connection to {revoked_peer_url} because the certificate has been revoked",
@@ -65,3 +84,21 @@ class TestOnlineCertificateRevocationProtocol:
                     pytest.mark.skip(
                         f"remote {revoked_peer_url} is unavailable at the moment..."
                     )
+            assert s._ocsp_cache is not None
+            assert hasattr(s._ocsp_cache, "_store")
+            assert isinstance(s._ocsp_cache._store, dict)
+            assert len(s._ocsp_cache._store) == 1
+
+    @pytest.mark.asyncio
+    async def test_async_valid_ensure_cached(self) -> None:
+        async with AsyncSession() as s:
+            assert s._ocsp_cache is None
+            await s.get("https://httpbingo.org/get", timeout=OCSP_MAX_DELAY_WAIT)
+            assert s._ocsp_cache is not None
+            assert hasattr(s._ocsp_cache, "_store")
+            assert isinstance(s._ocsp_cache._store, dict)
+            assert len(s._ocsp_cache._store) == 1
+            await s.get("https://httpbingo.org/get", timeout=OCSP_MAX_DELAY_WAIT)
+            assert len(s._ocsp_cache._store) == 1
+            await s.get("https://one.one.one.one", timeout=OCSP_MAX_DELAY_WAIT)
+            assert len(s._ocsp_cache._store) == 2
