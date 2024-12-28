@@ -9,6 +9,7 @@ and maintain connections.
 from __future__ import annotations
 
 import os.path
+from pathlib import Path
 import socket  # noqa: F401
 import sys
 import time
@@ -210,7 +211,7 @@ class BaseAdapter:
             data before giving up, as a float, or a :ref:`(connect timeout,
             read timeout) <timeouts>` tuple.
         :param verify: (optional) Either a boolean, in which case it controls whether we verify
-            the server's TLS certificate, or a string, in which case it must be a path
+            the server's TLS certificate, or a string/pathlib.Path, in which case it must be a path
             to a CA bundle to use. It is also possible to put the certificates (directly) in a string or bytes.
         :param cert: (optional) Any user-provided SSL certificate to be trusted.
         :param proxies: (optional) The proxies dictionary to apply to the request.
@@ -267,7 +268,7 @@ class AsyncBaseAdapter:
             data before giving up, as a float, or a :ref:`(connect timeout,
             read timeout) <timeouts>` tuple.
         :param verify: (optional) Either a boolean, in which case it controls whether we verify
-            the server's TLS certificate, or a string, in which case it must be a path
+            the server's TLS certificate, or a string/pathlib.Path, in which case it must be a path
             to a CA bundle to use. It is also possible to put the certificates (directly) in a string or bytes.
         :param cert: (optional) Any user-provided SSL certificate to be trusted.
         :param proxies: (optional) The proxies dictionary to apply to the request.
@@ -554,7 +555,7 @@ class HTTPAdapter(BaseAdapter):
         :param conn: The urllib3 connection object associated with the cert.
         :param url: The requested URL.
         :param verify: Either a boolean, in which case it controls whether we verify
-            the server's TLS certificate, or a string, in which case it must be a path
+            the server's TLS certificate, or a string/pathlib.Path, in which case it must be a path
             to a CA bundle to use. It is also possible to put the certificates (directly) in a string or bytes.
         :param cert: The SSL certificate to verify.
         """
@@ -590,6 +591,8 @@ class HTTPAdapter(BaseAdapter):
                     # Allow self-specified cert location.
                     if isinstance(verify, str):
                         cert_loc = verify
+                    elif isinstance(verify, Path):
+                        cert_loc = verify.absolute().as_posix()
 
                     if isinstance(cert_loc, str) and not os.path.exists(cert_loc):
                         raise OSError(
@@ -849,7 +852,7 @@ class HTTPAdapter(BaseAdapter):
             data before giving up, as a float, or a :ref:`(connect timeout,
             read timeout) <timeouts>` tuple.
         :param verify: (optional) Either a boolean, in which case it controls whether
-            we verify the server's TLS certificate, or a string, in which case it
+            we verify the server's TLS certificate, or a string/pathlib.Path, in which case it
             must be a path to a CA bundle to use. It is also possible to put the certificates
             (directly) in a string or bytes.
         :param cert: (optional) Any user-provided SSL certificate to be trusted.
@@ -1645,7 +1648,7 @@ class AsyncHTTPAdapter(AsyncBaseAdapter):
         :param conn: The urllib3 connection object associated with the cert.
         :param url: The requested URL.
         :param verify: Either a boolean, in which case it controls whether we verify
-            the server's TLS certificate, or a string, in which case it must be a path
+            the server's TLS certificate, or a string/pathlib.Path, in which case it must be a path
             to a CA bundle to use. It is also possible to put the certificates (directly) in a string or bytes.
         :param cert: The SSL certificate to verify.
         """
@@ -1681,6 +1684,9 @@ class AsyncHTTPAdapter(AsyncBaseAdapter):
                     # Allow self-specified cert location.
                     if isinstance(verify, str):
                         cert_loc = verify
+
+                    elif isinstance(verify, Path):
+                        cert_loc = verify.absolute().as_posix()
 
                     if isinstance(cert_loc, str) and not os.path.exists(cert_loc):
                         raise OSError(
@@ -1935,7 +1941,7 @@ class AsyncHTTPAdapter(AsyncBaseAdapter):
             data before giving up, as a float, or a :ref:`(connect timeout,
             read timeout) <timeouts>` tuple.
         :param verify: (optional) Either a boolean, in which case it controls whether
-            we verify the server's TLS certificate, or a string, in which case it
+            we verify the server's TLS certificate, or a string/pathlib.Path, in which case it
             must be a path to a CA bundle to use. It is also possible to put the certificates
             (directly) in a string or bytes.
         :param cert: (optional) Any user-provided SSL certificate to be trusted.

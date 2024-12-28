@@ -80,7 +80,7 @@ def request(
     :param allow_redirects: (optional) Boolean. Enable/disable GET/OPTIONS/POST/PUT/PATCH/DELETE/HEAD redirection. Defaults to ``True``.
     :param proxies: (optional) Dictionary mapping protocol to the URL of the proxy.
     :param verify: (optional) Either a boolean, in which case it controls whether we verify
-            the server's TLS certificate, or a string, in which case it must be a path
+            the server's TLS certificate, or a string/pathlib.Path, in which case it must be a path
             to a CA bundle to use. Defaults to ``True``.
             It is also possible to put the certificates (directly) in a string or bytes.
     :param stream: (optional) if ``False``, the response content will be immediately downloaded.
@@ -157,7 +157,7 @@ def get(
     :param allow_redirects: (optional) Boolean. Enable/disable GET/OPTIONS/POST/PUT/PATCH/DELETE/HEAD redirection. Defaults to ``True``.
     :param proxies: (optional) Dictionary mapping protocol to the URL of the proxy.
     :param verify: (optional) Either a boolean, in which case it controls whether we verify
-            the server's TLS certificate, or a string, in which case it must be a path
+            the server's TLS certificate, or a string/pathlib.Path, in which case it must be a path
             to a CA bundle to use. Defaults to ``True``.
             It is also possible to put the certificates (directly) in a string or bytes.
     :param stream: (optional) if ``False``, the response content will be immediately downloaded.
@@ -218,7 +218,7 @@ def options(
     :param allow_redirects: (optional) Boolean. Enable/disable GET/OPTIONS/POST/PUT/PATCH/DELETE/HEAD redirection. Defaults to ``True``.
     :param proxies: (optional) Dictionary mapping protocol to the URL of the proxy.
     :param verify: (optional) Either a boolean, in which case it controls whether we verify
-            the server's TLS certificate, or a string, in which case it must be a path
+            the server's TLS certificate, or a string/pathlib.Path, in which case it must be a path
             to a CA bundle to use. Defaults to ``True``.
             It is also possible to put the certificates (directly) in a string or bytes.
     :param stream: (optional) if ``False``, the response content will be immediately downloaded.
@@ -280,7 +280,7 @@ def head(
     :param allow_redirects: (optional) Boolean. Enable/disable GET/OPTIONS/POST/PUT/PATCH/DELETE/HEAD redirection. Defaults to ``True``.
     :param proxies: (optional) Dictionary mapping protocol to the URL of the proxy.
     :param verify: (optional) Either a boolean, in which case it controls whether we verify
-            the server's TLS certificate, or a string, in which case it must be a path
+            the server's TLS certificate, or a string/pathlib.Path, in which case it must be a path
             to a CA bundle to use. Defaults to ``True``.
             It is also possible to put the certificates (directly) in a string or bytes.
     :param stream: (optional) if ``False``, the response content will be immediately downloaded.
@@ -352,7 +352,7 @@ def post(
     :param allow_redirects: (optional) Boolean. Enable/disable GET/OPTIONS/POST/PUT/PATCH/DELETE/HEAD redirection. Defaults to ``True``.
     :param proxies: (optional) Dictionary mapping protocol to the URL of the proxy.
     :param verify: (optional) Either a boolean, in which case it controls whether we verify
-            the server's TLS certificate, or a string, in which case it must be a path
+            the server's TLS certificate, or a string/pathlib.Path, in which case it must be a path
             to a CA bundle to use. Defaults to ``True``.
             It is also possible to put the certificates (directly) in a string or bytes.
     :param stream: (optional) if ``False``, the response content will be immediately downloaded.
@@ -426,7 +426,7 @@ def put(
     :param allow_redirects: (optional) Boolean. Enable/disable GET/OPTIONS/POST/PUT/PATCH/DELETE/HEAD redirection. Defaults to ``True``.
     :param proxies: (optional) Dictionary mapping protocol to the URL of the proxy.
     :param verify: (optional) Either a boolean, in which case it controls whether we verify
-            the server's TLS certificate, or a string, in which case it must be a path
+            the server's TLS certificate, or a string/pathlib.Path, in which case it must be a path
             to a CA bundle to use. Defaults to ``True``.
             It is also possible to put the certificates (directly) in a string or bytes.
     :param stream: (optional) if ``False``, the response content will be immediately downloaded.
@@ -500,7 +500,7 @@ def patch(
     :param allow_redirects: (optional) Boolean. Enable/disable GET/OPTIONS/POST/PUT/PATCH/DELETE/HEAD redirection. Defaults to ``True``.
     :param proxies: (optional) Dictionary mapping protocol to the URL of the proxy.
     :param verify: (optional) Either a boolean, in which case it controls whether we verify
-            the server's TLS certificate, or a string, in which case it must be a path
+            the server's TLS certificate, or a string/pathlib.Path, in which case it must be a path
             to a CA bundle to use. Defaults to ``True``.
             It is also possible to put the certificates (directly) in a string or bytes.
     :param stream: (optional) if ``False``, the response content will be immediately downloaded.
@@ -564,7 +564,7 @@ def delete(
     :param allow_redirects: (optional) Boolean. Enable/disable GET/OPTIONS/POST/PUT/PATCH/DELETE/HEAD redirection. Defaults to ``True``.
     :param proxies: (optional) Dictionary mapping protocol to the URL of the proxy.
     :param verify: (optional) Either a boolean, in which case it controls whether we verify
-            the server's TLS certificate, or a string, in which case it must be a path
+            the server's TLS certificate, or a string/pathlib.Path, in which case it must be a path
             to a CA bundle to use. Defaults to ``True``.
             It is also possible to put the certificates (directly) in a string or bytes.
     :param stream: (optional) if ``False``, the response content will be immediately downloaded.
