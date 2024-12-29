@@ -34,8 +34,8 @@ if typing.TYPE_CHECKING:
 HttpMethodType: typing.TypeAlias = str
 #: List of formats accepted for URL queries parameters. (e.g. /?param1=a&param2=b)
 QueryParameterType: typing.TypeAlias = typing.Union[
-    typing.List[typing.Tuple[str, typing.Union[str, typing.List[str]]]],
-    typing.Mapping[str, typing.Union[str, typing.List[str]]],
+    typing.List[typing.Tuple[str, typing.Union[str, typing.List[str], None]]],
+    typing.Mapping[str, typing.Union[str, typing.List[str], None]],
     bytes,
     str,
 ]
