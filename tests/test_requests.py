@@ -17,6 +17,7 @@ from json import JSONDecodeError
 from unittest import mock
 from urllib.parse import urlparse
 from urllib.request import getproxies
+from pathlib import Path
 
 import pytest
 from niquests._compat import HAS_LEGACY_URLLIB3
@@ -959,6 +960,17 @@ class TestRequests:
         assert str(e.value) == (
             f"Could not find the TLS key file, invalid path: {INVALID_PATH}"
         )
+
+    def test_ssl_certificate_as_pathlike(self, san_server):
+        _, port, ca_bundle = san_server
+
+        s = niquests.Session()
+
+        print(ca_bundle)
+
+        r = s.get(f"https://localhost:{port}/", verify=Path(ca_bundle))
+
+        assert r.status_code == 204
 
     @pytest.mark.parametrize(
         "env, expected",

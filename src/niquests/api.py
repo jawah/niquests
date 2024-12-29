@@ -80,8 +80,9 @@ def request(
     :param allow_redirects: (optional) Boolean. Enable/disable GET/OPTIONS/POST/PUT/PATCH/DELETE/HEAD redirection. Defaults to ``True``.
     :param proxies: (optional) Dictionary mapping protocol to the URL of the proxy.
     :param verify: (optional) Either a boolean, in which case it controls whether we verify
-            the server's TLS certificate, or a string/pathlib.Path, in which case it must be a path
-            to a CA bundle to use. Defaults to ``True``.
+            the server's TLS certificate, or a path passed as a string or os.Pathlike object,
+            in which case it must be a path to a CA bundle to use.
+            Defaults to ``True``.
             It is also possible to put the certificates (directly) in a string or bytes.
     :param stream: (optional) if ``False``, the response content will be immediately downloaded.
     :param cert: (optional) if String, path to ssl client cert file (.pem). If Tuple, ('cert', 'key') pair, or ('cert', 'key', 'key_password').
@@ -157,8 +158,9 @@ def get(
     :param allow_redirects: (optional) Boolean. Enable/disable GET/OPTIONS/POST/PUT/PATCH/DELETE/HEAD redirection. Defaults to ``True``.
     :param proxies: (optional) Dictionary mapping protocol to the URL of the proxy.
     :param verify: (optional) Either a boolean, in which case it controls whether we verify
-            the server's TLS certificate, or a string/pathlib.Path, in which case it must be a path
-            to a CA bundle to use. Defaults to ``True``.
+            the server's TLS certificate, or a path passed as a string or os.Pathlike object,
+            in which case it must be a path to a CA bundle to use.
+            Defaults to ``True``.
             It is also possible to put the certificates (directly) in a string or bytes.
     :param stream: (optional) if ``False``, the response content will be immediately downloaded.
     :param cert: (optional) if String, path to ssl client cert file (.pem). If Tuple, ('cert', 'key') pair, or ('cert', 'key', 'key_password').
@@ -218,8 +220,9 @@ def options(
     :param allow_redirects: (optional) Boolean. Enable/disable GET/OPTIONS/POST/PUT/PATCH/DELETE/HEAD redirection. Defaults to ``True``.
     :param proxies: (optional) Dictionary mapping protocol to the URL of the proxy.
     :param verify: (optional) Either a boolean, in which case it controls whether we verify
-            the server's TLS certificate, or a string/pathlib.Path, in which case it must be a path
-            to a CA bundle to use. Defaults to ``True``.
+            the server's TLS certificate, or a path passed as a string or os.Pathlike object,
+            in which case it must be a path to a CA bundle to use.
+            Defaults to ``True``.
             It is also possible to put the certificates (directly) in a string or bytes.
     :param stream: (optional) if ``False``, the response content will be immediately downloaded.
     :param cert: (optional) if String, path to ssl client cert file (.pem). If Tuple, ('cert', 'key') pair, or ('cert', 'key', 'key_password').
@@ -280,8 +283,9 @@ def head(
     :param allow_redirects: (optional) Boolean. Enable/disable GET/OPTIONS/POST/PUT/PATCH/DELETE/HEAD redirection. Defaults to ``True``.
     :param proxies: (optional) Dictionary mapping protocol to the URL of the proxy.
     :param verify: (optional) Either a boolean, in which case it controls whether we verify
-            the server's TLS certificate, or a string/pathlib.Path, in which case it must be a path
-            to a CA bundle to use. Defaults to ``True``.
+            the server's TLS certificate, or a path passed as a string or os.Pathlike object,
+            in which case it must be a path to a CA bundle to use.
+            Defaults to ``True``.
             It is also possible to put the certificates (directly) in a string or bytes.
     :param stream: (optional) if ``False``, the response content will be immediately downloaded.
     :param cert: (optional) if String, path to ssl client cert file (.pem). If Tuple, ('cert', 'key') pair, or ('cert', 'key', 'key_password').
@@ -352,8 +356,9 @@ def post(
     :param allow_redirects: (optional) Boolean. Enable/disable GET/OPTIONS/POST/PUT/PATCH/DELETE/HEAD redirection. Defaults to ``True``.
     :param proxies: (optional) Dictionary mapping protocol to the URL of the proxy.
     :param verify: (optional) Either a boolean, in which case it controls whether we verify
-            the server's TLS certificate, or a string/pathlib.Path, in which case it must be a path
-            to a CA bundle to use. Defaults to ``True``.
+            the server's TLS certificate, or a path passed as a string or os.Pathlike object,
+            in which case it must be a path to a CA bundle to use.
+            Defaults to ``True``.
             It is also possible to put the certificates (directly) in a string or bytes.
     :param stream: (optional) if ``False``, the response content will be immediately downloaded.
     :param cert: (optional) if String, path to ssl client cert file (.pem). If Tuple, ('cert', 'key') pair, or ('cert', 'key', 'key_password').
@@ -426,8 +431,9 @@ def put(
     :param allow_redirects: (optional) Boolean. Enable/disable GET/OPTIONS/POST/PUT/PATCH/DELETE/HEAD redirection. Defaults to ``True``.
     :param proxies: (optional) Dictionary mapping protocol to the URL of the proxy.
     :param verify: (optional) Either a boolean, in which case it controls whether we verify
-            the server's TLS certificate, or a string/pathlib.Path, in which case it must be a path
-            to a CA bundle to use. Defaults to ``True``.
+            the server's TLS certificate, or a path passed as a string or os.Pathlike object,
+            in which case it must be a path to a CA bundle to use.
+            Defaults to ``True``.
             It is also possible to put the certificates (directly) in a string or bytes.
     :param stream: (optional) if ``False``, the response content will be immediately downloaded.
     :param cert: (optional) if String, path to ssl client cert file (.pem). If Tuple, ('cert', 'key') pair, or ('cert', 'key', 'key_password').
@@ -500,8 +506,9 @@ def patch(
     :param allow_redirects: (optional) Boolean. Enable/disable GET/OPTIONS/POST/PUT/PATCH/DELETE/HEAD redirection. Defaults to ``True``.
     :param proxies: (optional) Dictionary mapping protocol to the URL of the proxy.
     :param verify: (optional) Either a boolean, in which case it controls whether we verify
-            the server's TLS certificate, or a string/pathlib.Path, in which case it must be a path
-            to a CA bundle to use. Defaults to ``True``.
+            the server's TLS certificate, or a path passed as a string or os.Pathlike object,
+            in which case it must be a path to a CA bundle to use.
+            Defaults to ``True``.
             It is also possible to put the certificates (directly) in a string or bytes.
     :param stream: (optional) if ``False``, the response content will be immediately downloaded.
     :param cert: (optional) if String, path to ssl client cert file (.pem). If Tuple, ('cert', 'key') pair, or ('cert', 'key', 'key_password').
@@ -563,9 +570,10 @@ def delete(
         timeout) <timeouts>` tuple.
     :param allow_redirects: (optional) Boolean. Enable/disable GET/OPTIONS/POST/PUT/PATCH/DELETE/HEAD redirection. Defaults to ``True``.
     :param proxies: (optional) Dictionary mapping protocol to the URL of the proxy.
-    :param verify: (optional) Either a boolean, in which case it controls whether we verify
-            the server's TLS certificate, or a string/pathlib.Path, in which case it must be a path
-            to a CA bundle to use. Defaults to ``True``.
+    ::param verify: (optional) Either a boolean, in which case it controls whether we verify
+            the server's TLS certificate, or a path passed as a string or os.Pathlike object,
+            in which case it must be a path to a CA bundle to use.
+            Defaults to ``True``.
             It is also possible to put the certificates (directly) in a string or bytes.
     :param stream: (optional) if ``False``, the response content will be immediately downloaded.
     :param cert: (optional) if String, path to ssl client cert file (.pem). If Tuple, ('cert', 'key') pair, or ('cert', 'key', 'key_password').

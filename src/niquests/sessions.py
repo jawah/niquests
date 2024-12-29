@@ -533,8 +533,8 @@ class Session:
         :param stream: (optional) whether to immediately download the response
             content. Defaults to ``False``.
         :param verify: (optional) Either a boolean, in which case it controls whether we verify
-            the server's TLS certificate, or a string/pathlib.Path, in which case it must be a path
-            to a CA bundle to use. Defaults to ``True``. When set to
+            the server's TLS certificate, or a path passed as a string or os.Pathlike object,
+            in which case it must be a path to a CA bundle to use. Defaults to ``True``. When set to
             ``False``, requests will accept any TLS certificate presented by
             the server, and will ignore hostname mismatches and/or expired
             certificates, which will make your application vulnerable to
@@ -626,8 +626,9 @@ class Session:
         :param stream: (optional) whether to immediately download the response
             content. Defaults to ``False``.
         :param verify: (optional) Either a boolean, in which case it controls whether we verify
-            the server's TLS certificate, or a string/pathlib.Path, in which case it must be a path
-            to a CA bundle to use. Defaults to ``True``. When set to
+            the server's TLS certificate, or a path passed as a string or os.Pathlike object,
+            in which case it must be a path to a CA bundle to use.
+            Defaults to ``True``. When set to
             ``False``, requests will accept any TLS certificate presented by
             the server, and will ignore hostname mismatches and/or expired
             certificates, which will make your application vulnerable to
@@ -694,8 +695,9 @@ class Session:
         :param stream: (optional) whether to immediately download the response
             content. Defaults to ``False``.
         :param verify: (optional) Either a boolean, in which case it controls whether we verify
-            the server's TLS certificate, or a string/pathlib.Path, in which case it must be a path
-            to a CA bundle to use. Defaults to ``True``. When set to
+            the server's TLS certificate, or a path passed as a string or os.Pathlike object,
+            in which case it must be a path to a CA bundle to use.
+            Defaults to ``True``. When set to
             ``False``, requests will accept any TLS certificate presented by
             the server, and will ignore hostname mismatches and/or expired
             certificates, which will make your application vulnerable to
@@ -762,8 +764,9 @@ class Session:
         :param stream: (optional) whether to immediately download the response
             content. Defaults to ``False``.
         :param verify: (optional) Either a boolean, in which case it controls whether we verify
-            the server's TLS certificate, or a string/pathlib.Path, in which case it must be a path
-            to a CA bundle to use. Defaults to ``True``. When set to
+            the server's TLS certificate, or a path passed as a string or os.Pathlike object,
+            in which case it must be a path to a CA bundle to use.
+            Defaults to ``True``. When set to
             ``False``, requests will accept any TLS certificate presented by
             the server, and will ignore hostname mismatches and/or expired
             certificates, which will make your application vulnerable to
@@ -838,8 +841,9 @@ class Session:
         :param stream: (optional) whether to immediately download the response
             content. Defaults to ``False``.
         :param verify: (optional) Either a boolean, in which case it controls whether we verify
-            the server's TLS certificate, or a string/pathlib.Path, in which case it must be a path
-            to a CA bundle to use. Defaults to ``True``. When set to
+            the server's TLS certificate, or a path passed as a string or os.Pathlike object,
+            in which case it must be a path to a CA bundle to use.
+            Defaults to ``True``. When set to
             ``False``, requests will accept any TLS certificate presented by
             the server, and will ignore hostname mismatches and/or expired
             certificates, which will make your application vulnerable to
@@ -916,8 +920,9 @@ class Session:
         :param stream: (optional) whether to immediately download the response
             content. Defaults to ``False``.
         :param verify: (optional) Either a boolean, in which case it controls whether we verify
-            the server's TLS certificate, or a string/pathlib.Path, in which case it must be a path
-            to a CA bundle to use. Defaults to ``True``. When set to
+            the server's TLS certificate, or a path passed as a string or os.Pathlike object,
+            in which case it must be a path to a CA bundle to use.
+            Defaults to ``True``. When set to
             ``False``, requests will accept any TLS certificate presented by
             the server, and will ignore hostname mismatches and/or expired
             certificates, which will make your application vulnerable to
@@ -994,8 +999,9 @@ class Session:
         :param stream: (optional) whether to immediately download the response
             content. Defaults to ``False``.
         :param verify: (optional) Either a boolean, in which case it controls whether we verify
-            the server's TLS certificate, or a string/pathlib.Path, in which case it must be a path
-            to a CA bundle to use. Defaults to ``True``. When set to
+            the server's TLS certificate, or a path passed as a string or os.Pathlike object,
+            in which case it must be a path to a CA bundle to use.
+            Defaults to ``True``. When set to
             ``False``, requests will accept any TLS certificate presented by
             the server, and will ignore hostname mismatches and/or expired
             certificates, which will make your application vulnerable to
@@ -1064,8 +1070,9 @@ class Session:
         :param stream: (optional) whether to immediately download the response
             content. Defaults to ``False``.
         :param verify: (optional) Either a boolean, in which case it controls whether we verify
-            the server's TLS certificate, or a string/pathlib.Path, in which case it must be a path
-            to a CA bundle to use. Defaults to ``True``. When set to
+            the server's TLS certificate, or a path passed as a string or os.Pathlike object,
+            in which case it must be a path to a CA bundle to use.
+            Defaults to ``True``. When set to
             ``False``, requests will accept any TLS certificate presented by
             the server, and will ignore hostname mismatches and/or expired
             certificates, which will make your application vulnerable to
