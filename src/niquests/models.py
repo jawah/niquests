@@ -795,7 +795,7 @@ class PreparedRequest:
         elif hasattr(data, "__iter__"):
             result = []
             for k, vs in to_key_val_list(data):
-                iterable_vs: typing.Iterable[str | bytes]
+                iterable_vs: typing.Iterable[str | bytes | None]
                 if isinstance(vs, (str, bytes, int, float, bool)) or not hasattr(
                     vs, "__iter__"
                 ):
@@ -812,7 +812,7 @@ class PreparedRequest:
                     else:
                         iterable_vs = [vs]
                 else:
-                    iterable_vs = vs
+                    iterable_vs = vs if vs is not None else []
                 for v in iterable_vs:
                     if v is not None:
                         result.append(
