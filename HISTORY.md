@@ -1,6 +1,20 @@
 Release History
 ===============
 
+3.12.0 (2025-01-01)
+-------------------
+
+**Fixed**
+- Restoring the state of `AsyncSession` through pickle.
+- Typing definition for query parameter not accepting `None` as values. (#193)
+- Overload incorrect definition for `AsyncSession::get`. (#192)
+
+**Added**
+- Support for `PathLike` objects for `verify` parameter when passing a ca bundle path. (#194)
+- Caching and restoring OCSP state through pickling `Session` or `AsyncSession`.
+- Caching and restoring QUIC known compatible hosts through pickling `Session` or `AsyncSession`.
+- Shortcut convenient access to `Retry` and `Timeout` configuration objects in top-level import.
+
 3.11.4 (2024-12-23)
 -------------------
 
