@@ -210,8 +210,9 @@ class BaseAdapter:
             data before giving up, as a float, or a :ref:`(connect timeout,
             read timeout) <timeouts>` tuple.
         :param verify: (optional) Either a boolean, in which case it controls whether we verify
-            the server's TLS certificate, or a string, in which case it must be a path
-            to a CA bundle to use. It is also possible to put the certificates (directly) in a string or bytes.
+            the server's TLS certificate, or a path passed as a string or os.Pathlike object,
+            in which case it must be a path to a CA bundle to use.
+            It is also possible to put the certificates (directly) in a string or bytes.
         :param cert: (optional) Any user-provided SSL certificate to be trusted.
         :param proxies: (optional) The proxies dictionary to apply to the request.
         :param on_post_connection: (optional) A callable that should be invoked just after the pool mgr picked up a live
@@ -267,8 +268,9 @@ class AsyncBaseAdapter:
             data before giving up, as a float, or a :ref:`(connect timeout,
             read timeout) <timeouts>` tuple.
         :param verify: (optional) Either a boolean, in which case it controls whether we verify
-            the server's TLS certificate, or a string, in which case it must be a path
-            to a CA bundle to use. It is also possible to put the certificates (directly) in a string or bytes.
+            the server's TLS certificate, or a path passed as a string or os.Pathlike object,
+            in which case it must be a path to a CA bundle to use.
+            It is also possible to put the certificates (directly) in a string or bytes.
         :param cert: (optional) Any user-provided SSL certificate to be trusted.
         :param proxies: (optional) The proxies dictionary to apply to the request.
         :param on_post_connection: (optional) A callable that should be invoked just after the pool mgr picked up a live
@@ -554,8 +556,9 @@ class HTTPAdapter(BaseAdapter):
         :param conn: The urllib3 connection object associated with the cert.
         :param url: The requested URL.
         :param verify: Either a boolean, in which case it controls whether we verify
-            the server's TLS certificate, or a string, in which case it must be a path
-            to a CA bundle to use. It is also possible to put the certificates (directly) in a string or bytes.
+            the server's TLS certificate, or a path passed as a string or os.Pathlike object,
+            in which case it must be a path to a CA bundle to use.
+            It is also possible to put the certificates (directly) in a string or bytes.
         :param cert: The SSL certificate to verify.
         """
         if not parse_scheme(url) == "https":
@@ -588,8 +591,15 @@ class HTTPAdapter(BaseAdapter):
                     cert_data = verify.decode("utf-8")
                 else:
                     # Allow self-specified cert location.
+                    # Plain str path
                     if isinstance(verify, str):
                         cert_loc = verify
+                    # or path-like obj, that should have __fspath__
+                    elif hasattr(verify, "__fspath__"):
+                        cert_loc = verify.__fspath__()
+
+                        if isinstance(cert_loc, bytes):
+                            cert_loc = cert_loc.decode()
 
                     if isinstance(cert_loc, str) and not os.path.exists(cert_loc):
                         raise OSError(
@@ -849,9 +859,10 @@ class HTTPAdapter(BaseAdapter):
             data before giving up, as a float, or a :ref:`(connect timeout,
             read timeout) <timeouts>` tuple.
         :param verify: (optional) Either a boolean, in which case it controls whether
-            we verify the server's TLS certificate, or a string, in which case it
-            must be a path to a CA bundle to use. It is also possible to put the certificates
-            (directly) in a string or bytes.
+            we verify the server's TLS certificate, or a path passed as a string or os.Pathlike object,
+            in which case it must be a path to a CA bundle to use.
+            Defaults to ``True``.
+            It is also possible to put the certificates (directly) in a string or bytes.
         :param cert: (optional) Any user-provided SSL certificate to be trusted.
         :param proxies: (optional) The proxies dictionary to apply to the request.
         :param on_post_connection: (optional) A callable that contain a single positional argument for newly acquired
@@ -1645,8 +1656,9 @@ class AsyncHTTPAdapter(AsyncBaseAdapter):
         :param conn: The urllib3 connection object associated with the cert.
         :param url: The requested URL.
         :param verify: Either a boolean, in which case it controls whether we verify
-            the server's TLS certificate, or a string, in which case it must be a path
-            to a CA bundle to use. It is also possible to put the certificates (directly) in a string or bytes.
+            the server's TLS certificate, or a path passed as a string or os.Pathlike object,
+            in which case it must be a path to a CA bundle to use.
+            It is also possible to put the certificates (directly) in a string or bytes.
         :param cert: The SSL certificate to verify.
         """
         if not parse_scheme(url) == "https":
@@ -1681,6 +1693,12 @@ class AsyncHTTPAdapter(AsyncBaseAdapter):
                     # Allow self-specified cert location.
                     if isinstance(verify, str):
                         cert_loc = verify
+
+                    elif hasattr(verify, "__fspath__"):
+                        cert_loc = verify.__fspath__()
+
+                        if isinstance(cert_loc, bytes):
+                            cert_loc = cert_loc.decode()
 
                     if isinstance(cert_loc, str) and not os.path.exists(cert_loc):
                         raise OSError(
@@ -1935,9 +1953,9 @@ class AsyncHTTPAdapter(AsyncBaseAdapter):
             data before giving up, as a float, or a :ref:`(connect timeout,
             read timeout) <timeouts>` tuple.
         :param verify: (optional) Either a boolean, in which case it controls whether
-            we verify the server's TLS certificate, or a string, in which case it
-            must be a path to a CA bundle to use. It is also possible to put the certificates
-            (directly) in a string or bytes.
+            we verify the server's TLS certificate, or a path passed as a string or os.Pathlike object,
+            in which case it must be a path to a CA bundle to use.
+            It is also possible to put the certificates (directly) in a string or bytes.
         :param cert: (optional) Any user-provided SSL certificate to be trusted.
         :param proxies: (optional) The proxies dictionary to apply to the request.
         :param on_post_connection: (optional) A callable that contain a single positional argument for newly acquired

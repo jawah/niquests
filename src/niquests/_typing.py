@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from os import PathLike
 import typing
 from http.cookiejar import CookieJar
 
@@ -71,7 +72,7 @@ CookiesType: typing.TypeAlias = typing.Union[
     CookieJar,
 ]
 #: Either Yes/No, or CA bundle pem location. Or directly the raw bundle content itself.
-TLSVerifyType: typing.TypeAlias = typing.Union[bool, str, bytes]
+TLSVerifyType: typing.TypeAlias = typing.Union[bool, str, bytes, PathLike]
 #: Accept a pem certificate (concat cert, key) or an explicit tuple of cert, key pair with an optional password.
 TLSClientCertType: typing.TypeAlias = typing.Union[
     str, typing.Tuple[str, str], typing.Tuple[str, str, str]
