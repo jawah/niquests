@@ -1470,7 +1470,11 @@ class Session:
 
     def __getstate__(self):
         state = {attr: getattr(self, attr, None) for attr in self.__attrs__}
-        if self._ocsp_cache is not None and hasattr(self._ocsp_cache, "support_pickle") and self._ocsp_cache.support_pickle() is True:
+        if (
+            self._ocsp_cache is not None
+            and hasattr(self._ocsp_cache, "support_pickle")
+            and self._ocsp_cache.support_pickle() is True
+        ):
             state["_ocsp_cache"] = self._ocsp_cache
         return state
 

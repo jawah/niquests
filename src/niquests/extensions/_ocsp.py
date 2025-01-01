@@ -218,8 +218,12 @@ class InMemoryRevocationStatus:
         }
 
     def __setstate__(self, state: dict[str, typing.Any]) -> None:
-        if "_store" not in state or "_issuers_map" not in state or "_max_size" not in state:
-            raise IOError("unrecoverable state for InMemoryRevocationStatus")
+        if (
+            "_store" not in state
+            or "_issuers_map" not in state
+            or "_max_size" not in state
+        ):
+            raise OSError("unrecoverable state for InMemoryRevocationStatus")
 
         self._access_lock = threading.RLock()
         self.hold = False

@@ -186,10 +186,7 @@ class SharableLimitedDict(typing.MutableMapping):
         self._lock: threading.RLock | DummyLock = threading.RLock()
 
     def __getstate__(self) -> dict[str, typing.Any]:
-        return {
-            "_store": self._store,
-            "_max_size": self._max_size
-        }
+        return {"_store": self._store, "_max_size": self._max_size}
 
     def __setstate__(self, state: dict[str, typing.Any]) -> None:
         self._lock = threading.RLock()
