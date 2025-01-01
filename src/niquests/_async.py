@@ -301,6 +301,52 @@ class AsyncSession(Session):
     async def __aexit__(self, exc, value, tb) -> None:
         await self.close()
 
+    def __setstate__(self, state):
+        for attr, value in state.items():
+            setattr(self, attr, value)
+
+        self.resolver = create_async_resolver(None)
+        self._own_resolver = True
+
+        self.adapters = OrderedDict()
+        self.mount(
+            "https://",
+            AsyncHTTPAdapter(
+                quic_cache_layer=self.quic_cache_layer,
+                max_retries=self.retries,
+                disable_http1=self._disable_http1,
+                disable_http2=self._disable_http2,
+                disable_http3=self._disable_http3,
+                source_address=self.source_address,
+                disable_ipv4=self._disable_ipv4,
+                disable_ipv6=self._disable_ipv6,
+                resolver=self.resolver,
+                pool_connections=self._pool_connections,
+                pool_maxsize=self._pool_maxsize,
+                happy_eyeballs=self._happy_eyeballs,
+                keepalive_delay=self._keepalive_delay,
+                keepalive_idle_window=self._keepalive_idle_window,
+            ),
+        )
+        self.mount(
+            "http://",
+            AsyncHTTPAdapter(
+                max_retries=self.retries,
+                disable_http1=self._disable_http1,
+                disable_http2=self._disable_http2,
+                disable_http3=self._disable_http3,
+                source_address=self.source_address,
+                disable_ipv4=self._disable_ipv4,
+                disable_ipv6=self._disable_ipv6,
+                resolver=self.resolver,
+                pool_connections=self._pool_connections,
+                pool_maxsize=self._pool_maxsize,
+                happy_eyeballs=self._happy_eyeballs,
+                keepalive_delay=self._keepalive_delay,
+                keepalive_idle_window=self._keepalive_idle_window,
+            ),
+        )
+
     def mount(self, prefix: str, adapter: AsyncBaseAdapter) -> None:  # type: ignore[override]
         super().mount(prefix, adapter)  # type: ignore[arg-type]
 

@@ -5,6 +5,7 @@ import hmac
 import socket
 import ssl
 import threading
+import typing
 import warnings
 from hashlib import sha256
 from random import randint
@@ -203,6 +204,42 @@ class InMemoryRevocationStatus:
         self._timings: list[datetime.datetime] = []
         self._access_lock = threading.RLock()
         self.hold: bool = False
+
+    @staticmethod
+    def support_pickle() -> bool:
+        """This gives you a hint on whether you can cache it to restore later."""
+        return hasattr(OCSPResponse, "serialize")
+
+    def __getstate__(self) -> dict[str, typing.Any]:
+        return {
+            "_max_size": self._max_size,
+            "_store": {k: v.serialize() for k, v in self._store.items()},
+            "_issuers_map": {k: v.serialize() for k, v in self._issuers_map.items()},
+        }
+
+    def __setstate__(self, state: dict[str, typing.Any]) -> None:
+        if (
+            "_store" not in state
+            or "_issuers_map" not in state
+            or "_max_size" not in state
+        ):
+            raise OSError("unrecoverable state for InMemoryRevocationStatus")
+
+        self._access_lock = threading.RLock()
+        self.hold = False
+        self._timings = []
+
+        self._max_size = state["_max_size"]
+
+        self._store = {}
+
+        for k, v in state["_store"].items():
+            self._store[k] = OCSPResponse.deserialize(v)
+
+        self._issuers_map = {}
+
+        for k, v in state["_issuers_map"].items():
+            self._issuers_map[k] = Certificate.deserialize(v)
 
     def get_issuer_of(self, peer_certificate: Certificate) -> Certificate | None:
         with self._access_lock:

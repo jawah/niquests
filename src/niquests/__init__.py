@@ -49,8 +49,13 @@ from ._compat import HAS_LEGACY_URLLIB3
 
 if HAS_LEGACY_URLLIB3 is False:
     from urllib3.exceptions import DependencyWarning
+    from urllib3 import Timeout as TimeoutConfiguration, Retry as RetryConfiguration
 else:
     from urllib3_future.exceptions import DependencyWarning  # type: ignore[assignment]
+    from urllib3_future import (  # type: ignore[assignment]
+        Timeout as TimeoutConfiguration,
+        Retry as RetryConfiguration,
+    )
 
 # urllib3's DependencyWarnings should be silenced.
 warnings.simplefilter("ignore", DependencyWarning)
@@ -128,4 +133,6 @@ __all__ = (
     "codes",
     "AsyncSession",
     "AsyncResponse",
+    "TimeoutConfiguration",
+    "RetryConfiguration",
 )

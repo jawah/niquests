@@ -185,6 +185,14 @@ class SharableLimitedDict(typing.MutableMapping):
         self._max_size = max_size
         self._lock: threading.RLock | DummyLock = threading.RLock()
 
+    def __getstate__(self) -> dict[str, typing.Any]:
+        return {"_store": self._store, "_max_size": self._max_size}
+
+    def __setstate__(self, state: dict[str, typing.Any]) -> None:
+        self._lock = threading.RLock()
+        self._store = state["_store"]
+        self._max_size = state["_max_size"]
+
     def __delitem__(self, __key) -> None:
         with self._lock:
             del self._store[__key]
@@ -247,6 +255,11 @@ class AsyncQuicSharedCache(QuicSharedCache):
     def __init__(self, max_size: int | None) -> None:
         super().__init__(max_size)
         self._lock = DummyLock()
+
+    def __setstate__(self, state: dict[str, typing.Any]) -> None:
+        self._lock = DummyLock()
+        self._store = state["_store"]
+        self._max_size = state["_max_size"]
 
 
 class DummyLock:
