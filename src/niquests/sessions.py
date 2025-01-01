@@ -233,6 +233,7 @@ class Session:
         "_keepalive_delay",
         "_keepalive_idle_window",
         "base_url",
+        "quic_cache_layer",
     ]
 
     def __init__(
@@ -1469,13 +1470,14 @@ class Session:
 
     def __getstate__(self):
         state = {attr: getattr(self, attr, None) for attr in self.__attrs__}
+        if self._ocsp_cache is not None and hasattr(self._ocsp_cache, "support_pickle") and self._ocsp_cache.support_pickle() is True:
+            state["_ocsp_cache"] = self._ocsp_cache
         return state
 
     def __setstate__(self, state):
         for attr, value in state.items():
             setattr(self, attr, value)
 
-        self.quic_cache_layer = QuicSharedCache(max_size=12_288)
         self.resolver = create_resolver(None)
         self._own_resolver = True
 

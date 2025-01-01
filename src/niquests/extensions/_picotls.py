@@ -789,4 +789,5 @@ __all__ = (
     "HANDSHAKE",
     "ALERT",
     "CHANGE_CIPHER",
+    "PicoTLSException",
 )
