@@ -966,11 +966,23 @@ class TestRequests:
 
         s = niquests.Session()
 
-        print(ca_bundle)
-
         r = s.get(f"https://localhost:{port}/", verify=Path(ca_bundle))
 
         assert r.status_code == 204
+
+        s.close()
+
+    @pytest.mark.asyncio
+    async def test_async_ssl_certificate_as_pathlike(self, san_server):
+        _, port, ca_bundle = san_server
+
+        s = niquests.AsyncSession()
+
+        r = await s.get(f"https://localhost:{port}/", verify=Path(ca_bundle))
+
+        assert r.status_code == 204
+
+        await s.close()
 
     @pytest.mark.parametrize(
         "env, expected",
