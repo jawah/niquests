@@ -596,8 +596,7 @@ class HTTPAdapter(BaseAdapter):
                         cert_loc = verify
                     # or path-like obj, that should have __fspath__
                     elif hasattr(verify, "__fspath__"):
-                        verify_pathlike = typing.cast(os.PathLike, verify)
-                        cert_loc = verify_pathlike.__fspath__()
+                        cert_loc = verify.__fspath__()
 
                         if isinstance(cert_loc, bytes):
                             cert_loc = cert_loc.decode()
@@ -1696,8 +1695,7 @@ class AsyncHTTPAdapter(AsyncBaseAdapter):
                         cert_loc = verify
 
                     elif hasattr(verify, "__fspath__"):
-                        verify_pathlike = typing.cast(os.PathLike, verify)
-                        cert_loc = verify_pathlike.__fspath__()
+                        cert_loc = verify.__fspath__()
 
                         if isinstance(cert_loc, bytes):
                             cert_loc = cert_loc.decode()
