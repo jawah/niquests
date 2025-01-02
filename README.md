@@ -213,5 +213,5 @@ Niquests is a highly improved HTTP client that is based (forked) on Requests. Th
 [^10]: performance measured when leveraging a multiplexed connection with or without uses of any form of concurrency as of October 2024. The research compared `httpx`, `requests`, `aiohttp` against `niquests`. See https://github.com/Ousret/niquests-stats
 [^11]: enabled when using a custom DNS resolver.
 [^12]: available only when using HTTP/3 over QUIC and that the remote server support also the same post-quantum key-exchange algorithm. Also, the `qh3` installed version must be >= 1.1.
-[^13]: most servers out there are not ready for this feature, but Niquests is already compliant and future-proof! Modern server like Caddy are still working on it, see https://github.com/caddyserver/caddy/pull/6567 for more.
+[^13]: most servers out there are not ready for this feature, but Niquests is already compliant and future-proof! [Caddy](https://github.com/caddyserver/caddy/releases/tag/v2.9.0) server and [HAProxy](https://github.com/haproxy/haproxy) support this!
 [^14]: they don't offer any built-in to speak with a WebSocket server.
