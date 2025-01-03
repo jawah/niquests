@@ -58,6 +58,11 @@ except ImportError:
     wsproto = None  # type: ignore
 
 
+_IS_GIL_DISABLED: bool = (
+    hasattr(sys, "_is_gil_enabled") and sys._is_gil_enabled() is False
+)
+
+
 def _implementation():
     """Return a dict with the Python implementation and version.
 
@@ -132,6 +137,7 @@ def info():
         "platform": platform_info,
         "implementation": implementation_info,
         "system_ssl": system_ssl_info,
+        "gil": not _IS_GIL_DISABLED,
         "urllib3.future": urllib3_info,
         "charset_normalizer": charset_normalizer_info,
         "idna": idna_info,
@@ -209,8 +215,8 @@ def main() -> None:
 
     if __legacy_urllib3_version__ is not None:
         warnings.warn(
-            "urllib3-future is installed alongside (legacy) urllib3. This may cause compatibility issues."
-            "Some (Requests) 3rd parties may be bound to urllib3, therefor the plugins may wrongfully invoke"
+            "urllib3-future is installed alongside (legacy) urllib3. This may cause compatibility issues. "
+            "Some (Requests) 3rd parties may be bound to urllib3, therefor the plugins may wrongfully invoke "
             "urllib3 (legacy) instead of urllib3-future. To remediate this, run "
             "`python -m pip uninstall -y urllib3 urllib3-future`, then run `python -m pip install urllib3-future`.",
             UserWarning,

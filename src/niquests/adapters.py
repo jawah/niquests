@@ -565,13 +565,9 @@ class HTTPAdapter(BaseAdapter):
             return
 
         need_reboot_conn: bool = False
-        verify_witness_bit: bool = (
-            hasattr(conn, "_niquests_verify") and conn._niquests_verify == verify
-        )
+        verify_witness_bit: bool = getattr(conn, "_niquests_verify", object()) == verify
 
         if not verify_witness_bit:
-            setattr(conn, "_niquests_verify", verify)
-
             if verify:
                 cert_loc: str | None = None
                 cert_data: str | None = wassima.generate_ca_bundle()
@@ -638,6 +634,7 @@ class HTTPAdapter(BaseAdapter):
                 conn.ca_cert_dir = None
                 conn.ca_cert_data = None
 
+            setattr(conn, "_niquests_verify", verify)
         if cert:
             if not isinstance(cert, str):
                 if "-----BEGIN CERTIFICATE-----" in cert[0]:
@@ -1665,13 +1662,9 @@ class AsyncHTTPAdapter(AsyncBaseAdapter):
             return False
 
         need_reboot_conn: bool = False
-        verify_witness_bit: bool = (
-            hasattr(conn, "_niquests_verify") and conn._niquests_verify == verify
-        )
+        verify_witness_bit: bool = getattr(conn, "_niquests_verify", object()) == verify
 
         if not verify_witness_bit:
-            setattr(conn, "_niquests_verify", verify)
-
             if verify:
                 cert_loc: str | None = None
                 cert_data: str | None = wassima.generate_ca_bundle()
@@ -1736,6 +1729,8 @@ class AsyncHTTPAdapter(AsyncBaseAdapter):
                 conn.ca_certs = None
                 conn.ca_cert_dir = None
                 conn.ca_cert_data = None
+
+            setattr(conn, "_niquests_verify", verify)
 
         if cert:
             if not isinstance(cert, str):
