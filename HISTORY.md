@@ -1,6 +1,14 @@
 Release History
 ===============
 
+3.12.1 (2025-01-03)
+-------------------
+
+**Fixed**
+- Certificate validation may end up in error in highly concurrent environment using the experimental freethreaded build.
+  This was due to a racing condition in our "verify" caching logic (e.g. avoid creating duplicate ssl_context where one is sufficient).
+  The GIL prevented this issue.
+
 3.12.0 (2025-01-01)
 -------------------
 
