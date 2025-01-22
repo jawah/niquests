@@ -1201,7 +1201,7 @@ def _deepcopy_ci(o: ConnectionInfo | None) -> ConnectionInfo | None:
     return n
 
 
-def parse_scheme(url: str, default: str | None = None, max_length: int = 9) -> str:
+def parse_scheme(url: str, default: str | None = None, max_length: int = 11) -> str:
     """We tend to extract url scheme often enough, but we were crazy
     enough to use urlparse for it...! We were wasting precious CPU cycles.
     Return used scheme url, lowercased."""
