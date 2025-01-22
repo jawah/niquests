@@ -44,6 +44,8 @@ Quickstart to leverage its potential::
         for i in range(60):
             r = s.get('https://httpbin.org/delay/1')
 
+.. warning:: Be advised that this extension nullify the advantage of using ``multiplexed=True`` within your Session constructor as is eagerly access the content.
+
 responses
 ---------
 
