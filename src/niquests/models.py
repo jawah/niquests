@@ -528,7 +528,7 @@ class PreparedRequest:
         if not data and json is not None:
             # urllib3 requires a bytes-like body. Python 2's json.dumps
             # provides this natively, but Python 3 gives a Unicode string.
-            content_type = 'application/json; charset="utf-8"'
+            content_type = "application/json;charset=utf-8"
             json_kwargs = {}
 
             if not hasattr(_json, "orjson"):
