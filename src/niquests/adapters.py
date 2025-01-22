@@ -30,42 +30,25 @@ from ._compat import HAS_LEGACY_URLLIB3, urllib3_ensure_type
 
 if HAS_LEGACY_URLLIB3 is False:
     from urllib3 import (
+        AsyncHTTPConnectionPool,
+        AsyncHTTPSConnectionPool,
+        AsyncPoolManager,
+        AsyncProxyManager,
+        AsyncResolverDescription,
+        BaseHTTPResponse,
         ConnectionInfo,
         HTTPConnectionPool,
-        AsyncHTTPConnectionPool,
         HTTPSConnectionPool,
-        AsyncHTTPSConnectionPool,
-        ResolverDescription,
-        AsyncResolverDescription,
-        PoolManager,
-        AsyncPoolManager,
-        ProxyManager,
-        AsyncProxyManager,
-        proxy_from_url,
-        async_proxy_from_url,
         HttpVersion,
+        PoolManager,
+        ProxyManager,
+        ResolverDescription,
         ResponsePromise,
-        BaseHTTPResponse,
+        async_proxy_from_url,
+        proxy_from_url,
+    )
+    from urllib3 import (
         AsyncHTTPResponse as BaseAsyncHTTPResponse,
-    )
-    from urllib3.exceptions import (
-        ClosedPoolError,
-        ConnectTimeoutError,
-        HTTPError as _HTTPError,
-        InvalidHeader as _InvalidHeader,
-        LocationValueError,
-        MaxRetryError,
-        NewConnectionError,
-        ProtocolError,
-        ProxyError as _ProxyError,
-        ReadTimeoutError,
-        ResponseError,
-        SSLError as _SSLError,
-    )
-    from urllib3.util import (
-        Timeout as TimeoutSauce,
-        parse_url,
-        Retry,
     )
     from urllib3.contrib.resolver import BaseResolver
     from urllib3.contrib.resolver._async import AsyncBaseResolver
@@ -73,54 +56,100 @@ if HAS_LEGACY_URLLIB3 is False:
     from urllib3.contrib.webextensions._async import (
         load_extension as async_load_extension,
     )
-else:  # Defensive: tested in separate/isolated CI
-    from urllib3_future import (  # type: ignore[assignment]
-        ConnectionInfo,
-        HTTPConnectionPool,
-        AsyncHTTPConnectionPool,
-        HTTPSConnectionPool,
-        AsyncHTTPSConnectionPool,
-        ResolverDescription,
-        AsyncResolverDescription,
-        PoolManager,
-        AsyncPoolManager,
-        ProxyManager,
-        AsyncProxyManager,
-        proxy_from_url,
-        async_proxy_from_url,
-        HttpVersion,
-        ResponsePromise,
-        BaseHTTPResponse,
-        AsyncHTTPResponse as BaseAsyncHTTPResponse,
-    )
-    from urllib3_future.exceptions import (  # type: ignore[assignment]
+    from urllib3.exceptions import (
         ClosedPoolError,
         ConnectTimeoutError,
-        HTTPError as _HTTPError,
-        InvalidHeader as _InvalidHeader,
         LocationValueError,
         MaxRetryError,
         NewConnectionError,
         ProtocolError,
-        ProxyError as _ProxyError,
         ReadTimeoutError,
         ResponseError,
+    )
+    from urllib3.exceptions import (
+        HTTPError as _HTTPError,
+    )
+    from urllib3.exceptions import (
+        InvalidHeader as _InvalidHeader,
+    )
+    from urllib3.exceptions import (
+        ProxyError as _ProxyError,
+    )
+    from urllib3.exceptions import (
+        SSLError as _SSLError,
+    )
+    from urllib3.util import (
+        Retry,
+        parse_url,
+    )
+    from urllib3.util import (
+        Timeout as TimeoutSauce,
+    )
+else:  # Defensive: tested in separate/isolated CI
+    from urllib3_future import (  # type: ignore[assignment]
+        AsyncHTTPConnectionPool,
+        AsyncHTTPSConnectionPool,
+        AsyncPoolManager,
+        AsyncProxyManager,
+        AsyncResolverDescription,
+        BaseHTTPResponse,
+        ConnectionInfo,
+        HTTPConnectionPool,
+        HTTPSConnectionPool,
+        HttpVersion,
+        PoolManager,
+        ProxyManager,
+        ResolverDescription,
+        ResponsePromise,
+        async_proxy_from_url,
+        proxy_from_url,
+    )
+    from urllib3_future import (  # type: ignore[assignment]
+        AsyncHTTPResponse as BaseAsyncHTTPResponse,
+    )
+    from urllib3_future.contrib.resolver import BaseResolver  # type: ignore[assignment]
+    from urllib3_future.contrib.resolver._async import (  # type: ignore[assignment]
+        AsyncBaseResolver,
+    )
+    from urllib3_future.contrib.webextensions import (  # type: ignore[assignment]
+        load_extension,
+    )
+    from urllib3_future.contrib.webextensions._async import (  # type: ignore[assignment]
+        load_extension as async_load_extension,
+    )
+    from urllib3_future.exceptions import (  # type: ignore[assignment]
+        ClosedPoolError,
+        ConnectTimeoutError,
+        LocationValueError,
+        MaxRetryError,
+        NewConnectionError,
+        ProtocolError,
+        ReadTimeoutError,
+        ResponseError,
+    )
+    from urllib3_future.exceptions import (  # type: ignore[assignment]
+        HTTPError as _HTTPError,
+    )
+    from urllib3_future.exceptions import (  # type: ignore[assignment]
+        InvalidHeader as _InvalidHeader,
+    )
+    from urllib3_future.exceptions import (  # type: ignore[assignment]
+        ProxyError as _ProxyError,
+    )
+    from urllib3_future.exceptions import (  # type: ignore[assignment]
         SSLError as _SSLError,
     )
     from urllib3_future.util import (  # type: ignore[assignment]
-        Timeout as TimeoutSauce,
-        parse_url,
         Retry,
+        parse_url,
     )
-    from urllib3_future.contrib.resolver import BaseResolver  # type: ignore[assignment]
-    from urllib3_future.contrib.resolver._async import AsyncBaseResolver  # type: ignore[assignment]
-    from urllib3_future.contrib.webextensions import load_extension  # type: ignore[assignment]
-    from urllib3_future.contrib.webextensions._async import (  # type: ignore[assignment]
-        load_extension as async_load_extension,
+    from urllib3_future.util import (  # type: ignore[assignment]
+        Timeout as TimeoutSauce,
     )
 
 from ._constant import DEFAULT_POOLBLOCK, DEFAULT_POOLSIZE, DEFAULT_RETRIES
 from ._typing import (
+    AsyncResolverType,
     CacheLayerAltSvcType,
     HookType,
     ProxyType,
@@ -128,7 +157,6 @@ from ._typing import (
     RetryType,
     TLSClientCertType,
     TLSVerifyType,
-    AsyncResolverType,
 )
 from .auth import _basic_auth_str
 from .cookies import extract_cookies_to_jar
@@ -139,39 +167,39 @@ from .exceptions import (
     InvalidProxyURL,
     InvalidSchema,
     InvalidURL,
+    MissingSchema,
     MultiplexingError,
     ProxyError,
     ReadTimeout,
     RetryError,
     SSLError,
     TooManyRedirects,
-    MissingSchema,
 )
-from .hooks import dispatch_hook, async_dispatch_hook
-from .models import PreparedRequest, Response, AsyncResponse
+from .hooks import async_dispatch_hook, dispatch_hook
+from .models import AsyncResponse, PreparedRequest, Response
 from .structures import CaseInsensitiveDict
 from .utils import (
+    _deepcopy_ci,
+    _swap_context,
+    async_wrap_extension_for_http,
     get_auth_from_url,
     get_encoding_from_headers,
+    is_ocsp_capable,
+    parse_scheme,
     prepend_scheme_if_needed,
+    resolve_socket_family,
     select_proxy,
     urldefragauth,
-    resolve_socket_family,
-    _swap_context,
-    _deepcopy_ci,
-    parse_scheme,
-    is_ocsp_capable,
     wrap_extension_for_http,
-    async_wrap_extension_for_http,
 )
 
 try:
     if HAS_LEGACY_URLLIB3 is False:
-        from urllib3.contrib.socks import SOCKSProxyManager, AsyncSOCKSProxyManager
+        from urllib3.contrib.socks import AsyncSOCKSProxyManager, SOCKSProxyManager
     else:
         from urllib3_future.contrib.socks import (  # type: ignore[assignment]
-            SOCKSProxyManager,
             AsyncSOCKSProxyManager,
+            SOCKSProxyManager,
         )
 except ImportError:
 
@@ -197,8 +225,7 @@ class BaseAdapter:
         cert: TLSClientCertType | None = None,
         proxies: ProxyType | None = None,
         on_post_connection: typing.Callable[[typing.Any], None] | None = None,
-        on_upload_body: typing.Callable[[int, int | None, bool, bool], None]
-        | None = None,
+        on_upload_body: typing.Callable[[int, int | None, bool, bool], None] | None = None,
         on_early_response: typing.Callable[[Response], None] | None = None,
         multiplexed: bool = False,
     ) -> Response:
@@ -250,14 +277,9 @@ class AsyncBaseAdapter:
         verify: TLSVerifyType = True,
         cert: TLSClientCertType | None = None,
         proxies: ProxyType | None = None,
-        on_post_connection: typing.Callable[[typing.Any], typing.Awaitable[None]]
-        | None = None,
-        on_upload_body: typing.Callable[
-            [int, int | None, bool, bool], typing.Awaitable[None]
-        ]
-        | None = None,
-        on_early_response: typing.Callable[[Response], typing.Awaitable[None]]
-        | None = None,
+        on_post_connection: typing.Callable[[typing.Any], typing.Awaitable[None]] | None = None,
+        on_upload_body: typing.Callable[[int, int | None, bool, bool], typing.Awaitable[None]] | None = None,
+        on_early_response: typing.Callable[[Response], typing.Awaitable[None]] | None = None,
         multiplexed: bool = False,
     ) -> AsyncResponse:
         """Sends PreparedRequest object. Returns Response object.
@@ -365,9 +387,7 @@ class HTTPAdapter(BaseAdapter):
             self.max_retries = urllib3_ensure_type(max_retries)  # type: ignore[type-var]
         else:
             if max_retries < 0:
-                raise ValueError(
-                    "configured retries count is invalid. you must specify a positive or zero integer value."
-                )
+                raise ValueError("configured retries count is invalid. you must specify a positive or zero integer value.")
             self.max_retries = Retry.from_int(max_retries)
             # Kept for backward compatibility.
             if max_retries == 0:
@@ -598,10 +618,7 @@ class HTTPAdapter(BaseAdapter):
                             cert_loc = cert_loc.decode()
 
                     if isinstance(cert_loc, str) and not os.path.exists(cert_loc):
-                        raise OSError(
-                            f"Could not find a suitable TLS CA certificate bundle, "
-                            f"invalid path: {cert_loc}"
-                        )
+                        raise OSError(f"Could not find a suitable TLS CA certificate bundle, invalid path: {cert_loc}")
 
                 if not assert_fingerprint:
                     if conn.cert_reqs != "CERT_REQUIRED":
@@ -666,14 +683,9 @@ class HTTPAdapter(BaseAdapter):
                 conn.key_file = None
                 conn.key_password = None
             if conn.cert_file and not os.path.exists(conn.cert_file):
-                raise OSError(
-                    f"Could not find the TLS certificate file, "
-                    f"invalid path: {conn.cert_file}"
-                )
+                raise OSError(f"Could not find the TLS certificate file, invalid path: {conn.cert_file}")
             if conn.key_file and not os.path.exists(conn.key_file):
-                raise OSError(
-                    f"Could not find the TLS key file, invalid path: {conn.key_file}"
-                )
+                raise OSError(f"Could not find the TLS key file, invalid path: {conn.key_file}")
 
         if need_reboot_conn:
             if conn.is_idle:
@@ -685,9 +697,7 @@ class HTTPAdapter(BaseAdapter):
                     UserWarning,
                 )
 
-    def build_response(
-        self, req: PreparedRequest, resp: BaseHTTPResponse | ResponsePromise
-    ) -> Response:
+    def build_response(self, req: PreparedRequest, resp: BaseHTTPResponse | ResponsePromise) -> Response:
         """Builds a :class:`Response <requests.Response>` object from a urllib3
         response. This should not be called from user code, and is only exposed
         for use when subclassing the
@@ -730,9 +740,7 @@ class HTTPAdapter(BaseAdapter):
 
         return response
 
-    def get_connection(
-        self, url: str, proxies: ProxyType | None = None
-    ) -> HTTPConnectionPool | HTTPSConnectionPool:
+    def get_connection(self, url: str, proxies: ProxyType | None = None) -> HTTPConnectionPool | HTTPSConnectionPool:
         """Returns a urllib3 connection for the given URL. This should not be
         called from user code, and is only exposed for use when subclassing the
         :class:`HTTPAdapter <requests.adapters.HTTPAdapter>`.
@@ -746,10 +754,7 @@ class HTTPAdapter(BaseAdapter):
             proxy = prepend_scheme_if_needed(proxy, "http")
             proxy_url = parse_url(proxy)
             if not proxy_url.host:
-                raise InvalidProxyURL(
-                    "Please check proxy URL. It is malformed "
-                    "and could be missing the host."
-                )
+                raise InvalidProxyURL("Please check proxy URL. It is malformed and could be missing the host.")
             proxy_manager = self.proxy_manager_for(proxy)
             conn = proxy_manager.connection_from_url(url)
         else:
@@ -843,8 +848,7 @@ class HTTPAdapter(BaseAdapter):
         cert: TLSClientCertType | None = None,
         proxies: ProxyType | None = None,
         on_post_connection: typing.Callable[[typing.Any], None] | None = None,
-        on_upload_body: typing.Callable[[int, int | None, bool, bool], None]
-        | None = None,
+        on_upload_body: typing.Callable[[int, int | None, bool, bool], None] | None = None,
         on_early_response: typing.Callable[[Response], None] | None = None,
         multiplexed: bool = False,
     ) -> Response:
@@ -868,11 +872,9 @@ class HTTPAdapter(BaseAdapter):
             if available. Return a lazy instance of Response pending its retrieval.
         """
 
-        assert (
-            request.url is not None
-            and request.headers is not None
-            and request.method is not None
-        ), "Tried to send a non-initialized PreparedRequest"
+        assert request.url is not None and request.headers is not None and request.method is not None, (
+            "Tried to send a non-initialized PreparedRequest"
+        )
 
         # We enforce a limit to avoid burning out our connection pool.
         if multiplexed and self._max_in_flight_multiplexed is not None:
@@ -898,9 +900,7 @@ class HTTPAdapter(BaseAdapter):
             proxies=proxies,
         )
 
-        chunked = not (
-            bool(request.body) is False or "Content-Length" in request.headers
-        )
+        chunked = not (bool(request.body) is False or "Content-Length" in request.headers)
 
         if isinstance(timeout, tuple):
             try:
@@ -932,9 +932,7 @@ class HTTPAdapter(BaseAdapter):
             else:
                 implementation = None
 
-            extension = wrap_extension_for_http(
-                load_extension(scheme, implementation=implementation)
-            )()
+            extension = wrap_extension_for_http(load_extension(scheme, implementation=implementation))()
 
         def early_response_hook(early_response: BaseHTTPResponse) -> None:
             nonlocal on_early_response
@@ -956,9 +954,7 @@ class HTTPAdapter(BaseAdapter):
                 chunked=chunked,
                 on_post_connection=on_post_connection,
                 on_upload_body=on_upload_body,
-                on_early_response=early_response_hook
-                if on_early_response is not None
-                else None,
+                on_early_response=early_response_hook if on_early_response is not None else None,
                 extension=extension,
                 multiplexed=multiplexed,
             )
@@ -1017,9 +1013,7 @@ class HTTPAdapter(BaseAdapter):
 
         return self.build_response(request, resp_or_promise)
 
-    def _future_handler(
-        self, response: Response, low_resp: BaseHTTPResponse
-    ) -> Response | None:
+    def _future_handler(self, response: Response, low_resp: BaseHTTPResponse) -> Response | None:
         stream: bool = response._promise.get_parameter("niquests_is_stream")  # type: ignore[assignment]
         start: float = response._promise.get_parameter("niquests_start")  # type: ignore[assignment]
 
@@ -1030,9 +1024,7 @@ class HTTPAdapter(BaseAdapter):
         )
         max_redirect: int = response._promise.get_parameter("niquests_max_redirects")  # type: ignore[assignment]
         redirect_count: int = response._promise.get_parameter("niquests_redirect_count")  # type: ignore[assignment]
-        kwargs: typing.MutableMapping[str, typing.Any] = (
-            response._promise.get_parameter("niquests_kwargs")  # type: ignore[assignment]
-        )
+        kwargs: typing.MutableMapping[str, typing.Any] = response._promise.get_parameter("niquests_kwargs")  # type: ignore[assignment]
 
         # This mark the response as no longer "lazy"
         response.raw = low_resp
@@ -1065,20 +1057,14 @@ class HTTPAdapter(BaseAdapter):
         extract_cookies_to_jar(response.cookies, req, low_resp)
         extract_cookies_to_jar(session_cookies, req, low_resp)
 
-        promise_ctx_backup = {
-            k: v
-            for k, v in response_promise._parameters.items()
-            if k.startswith("niquests_")
-        }
+        promise_ctx_backup = {k: v for k, v in response_promise._parameters.items() if k.startswith("niquests_")}
 
         if allow_redirects:
             next_request = response._resolve_redirect(response, req)
             redirect_count += 1
 
             if redirect_count > max_redirect + 1:
-                raise TooManyRedirects(
-                    f"Exceeded {max_redirect} redirects", request=next_request
-                )
+                raise TooManyRedirects(f"Exceeded {max_redirect} redirects", request=next_request)
 
             if next_request:
                 del self._promises[response_promise.uid]
@@ -1096,9 +1082,7 @@ class HTTPAdapter(BaseAdapter):
                         and kwargs["verify"]
                         and is_ocsp_capable(conn_info)
                     ):
-                        strict_ocsp_enabled: bool = (
-                            os.environ.get("NIQUESTS_STRICT_OCSP", "0") != "0"
-                        )
+                        strict_ocsp_enabled: bool = os.environ.get("NIQUESTS_STRICT_OCSP", "0") != "0"
 
                         try:
                             from .extensions._ocsp import verify as ocsp_verify
@@ -1110,9 +1094,7 @@ class HTTPAdapter(BaseAdapter):
                                 strict_ocsp_enabled,
                                 0.2 if not strict_ocsp_enabled else 1.0,
                                 kwargs["proxies"],
-                                self._resolver
-                                if isinstance(self._resolver, BaseResolver)
-                                else None,
+                                self._resolver if isinstance(self._resolver, BaseResolver) else None,
                                 self._happy_eyeballs,
                             )
 
@@ -1134,9 +1116,7 @@ class HTTPAdapter(BaseAdapter):
                 if "niquests_origin_response" not in promise_ctx_backup:
                     promise_ctx_backup["niquests_origin_response"] = response
 
-                promise_ctx_backup["niquests_origin_response"].history.append(
-                    next_promise
-                )
+                promise_ctx_backup["niquests_origin_response"].history.append(next_promise)
 
                 promise_ctx_backup["niquests_start"] = preferred_clock()
                 promise_ctx_backup["niquests_redirect_count"] = redirect_count
@@ -1459,9 +1439,7 @@ class AsyncHTTPAdapter(AsyncBaseAdapter):
             self.max_retries = urllib3_ensure_type(max_retries)  # type: ignore[type-var]
         else:
             if max_retries < 0:
-                raise ValueError(
-                    "configured retries count is invalid. you must specify a positive or zero integer value."
-                )
+                raise ValueError("configured retries count is invalid. you must specify a positive or zero integer value.")
             self.max_retries = Retry.from_int(max_retries)
             # Kept for backward compatibility.
             if max_retries == 0:
@@ -1585,9 +1563,7 @@ class AsyncHTTPAdapter(AsyncBaseAdapter):
             **pool_kwargs,
         )
 
-    def proxy_manager_for(
-        self, proxy: str, **proxy_kwargs: typing.Any
-    ) -> AsyncProxyManager:
+    def proxy_manager_for(self, proxy: str, **proxy_kwargs: typing.Any) -> AsyncProxyManager:
         """Return urllib3 AsyncProxyManager for the given proxy.
 
         This method should not be called from user code, and is only
@@ -1693,10 +1669,7 @@ class AsyncHTTPAdapter(AsyncBaseAdapter):
                             cert_loc = cert_loc.decode()
 
                     if isinstance(cert_loc, str) and not os.path.exists(cert_loc):
-                        raise OSError(
-                            f"Could not find a suitable TLS CA certificate bundle, "
-                            f"invalid path: {cert_loc}"
-                        )
+                        raise OSError(f"Could not find a suitable TLS CA certificate bundle, invalid path: {cert_loc}")
 
                 if not assert_fingerprint:
                     if conn.cert_reqs != "CERT_REQUIRED":
@@ -1762,20 +1735,13 @@ class AsyncHTTPAdapter(AsyncBaseAdapter):
                 conn.key_file = None
                 conn.key_password = None
             if conn.cert_file and not os.path.exists(conn.cert_file):
-                raise OSError(
-                    f"Could not find the TLS certificate file, "
-                    f"invalid path: {conn.cert_file}"
-                )
+                raise OSError(f"Could not find the TLS certificate file, invalid path: {conn.cert_file}")
             if conn.key_file and not os.path.exists(conn.key_file):
-                raise OSError(
-                    f"Could not find the TLS key file, invalid path: {conn.key_file}"
-                )
+                raise OSError(f"Could not find the TLS key file, invalid path: {conn.key_file}")
 
         return need_reboot_conn
 
-    def build_response(
-        self, req: PreparedRequest, resp: BaseAsyncHTTPResponse | ResponsePromise
-    ) -> AsyncResponse:
+    def build_response(self, req: PreparedRequest, resp: BaseAsyncHTTPResponse | ResponsePromise) -> AsyncResponse:
         """Builds a :class:`Response <requests.Response>` object from a urllib3
         response. This should not be called from user code, and is only exposed
         for use when subclassing the
@@ -1833,10 +1799,7 @@ class AsyncHTTPAdapter(AsyncBaseAdapter):
             proxy = prepend_scheme_if_needed(proxy, "http")
             proxy_url = parse_url(proxy)
             if not proxy_url.host:
-                raise InvalidProxyURL(
-                    "Please check proxy URL. It is malformed "
-                    "and could be missing the host."
-                )
+                raise InvalidProxyURL("Please check proxy URL. It is malformed and could be missing the host.")
             proxy_manager = self.proxy_manager_for(proxy)
             conn = await proxy_manager.connection_from_url(url)
         else:
@@ -1929,14 +1892,9 @@ class AsyncHTTPAdapter(AsyncBaseAdapter):
         verify: TLSVerifyType = True,
         cert: TLSClientCertType | None = None,
         proxies: ProxyType | None = None,
-        on_post_connection: typing.Callable[[typing.Any], typing.Awaitable[None]]
-        | None = None,
-        on_upload_body: typing.Callable[
-            [int, int | None, bool, bool], typing.Awaitable[None]
-        ]
-        | None = None,
-        on_early_response: typing.Callable[[Response], typing.Awaitable[None]]
-        | None = None,
+        on_post_connection: typing.Callable[[typing.Any], typing.Awaitable[None]] | None = None,
+        on_upload_body: typing.Callable[[int, int | None, bool, bool], typing.Awaitable[None]] | None = None,
+        on_early_response: typing.Callable[[Response], typing.Awaitable[None]] | None = None,
         multiplexed: bool = False,
     ) -> AsyncResponse:
         """Sends PreparedRequest object. Returns Response object.
@@ -1957,11 +1915,9 @@ class AsyncHTTPAdapter(AsyncBaseAdapter):
         :param multiplexed: Determine if request shall be transmitted by leveraging the multiplexed aspect of the protocol
             if available. Return a lazy instance of Response pending its retrieval.
         """
-        assert (
-            request.url is not None
-            and request.headers is not None
-            and request.method is not None
-        ), "Tried to send a non-initialized PreparedRequest"
+        assert request.url is not None and request.headers is not None and request.method is not None, (
+            "Tried to send a non-initialized PreparedRequest"
+        )
 
         # We enforce a limit to avoid burning out our connection pool.
         if multiplexed and self._max_in_flight_multiplexed is not None:
@@ -1996,9 +1952,7 @@ class AsyncHTTPAdapter(AsyncBaseAdapter):
             proxies=proxies,
         )
 
-        chunked = not (
-            bool(request.body) is False or "Content-Length" in request.headers
-        )
+        chunked = not (bool(request.body) is False or "Content-Length" in request.headers)
 
         if isinstance(timeout, tuple):
             try:
@@ -2030,9 +1984,7 @@ class AsyncHTTPAdapter(AsyncBaseAdapter):
             else:
                 implementation = None
 
-            extension = async_wrap_extension_for_http(
-                async_load_extension(scheme, implementation=implementation)
-            )()
+            extension = async_wrap_extension_for_http(async_load_extension(scheme, implementation=implementation))()
 
         async def early_response_hook(early_response: BaseAsyncHTTPResponse) -> None:
             nonlocal on_early_response
@@ -2054,9 +2006,7 @@ class AsyncHTTPAdapter(AsyncBaseAdapter):
                 chunked=chunked,
                 on_post_connection=on_post_connection,
                 on_upload_body=on_upload_body,
-                on_early_response=early_response_hook
-                if on_early_response is not None
-                else None,
+                on_early_response=early_response_hook if on_early_response is not None else None,
                 extension=extension,
                 multiplexed=multiplexed,
             )
@@ -2131,9 +2081,7 @@ class AsyncHTTPAdapter(AsyncBaseAdapter):
         )
         max_redirect: int = response._promise.get_parameter("niquests_max_redirects")  # type: ignore[assignment]
         redirect_count: int = response._promise.get_parameter("niquests_redirect_count")  # type: ignore[assignment]
-        kwargs: typing.MutableMapping[str, typing.Any] = (
-            response._promise.get_parameter("niquests_kwargs")  # type: ignore[assignment]
-        )
+        kwargs: typing.MutableMapping[str, typing.Any] = response._promise.get_parameter("niquests_kwargs")  # type: ignore[assignment]
 
         # This mark the response as no longer "lazy"
         response.raw = low_resp
@@ -2166,20 +2114,14 @@ class AsyncHTTPAdapter(AsyncBaseAdapter):
         extract_cookies_to_jar(response.cookies, req, low_resp)
         extract_cookies_to_jar(session_cookies, req, low_resp)
 
-        promise_ctx_backup = {
-            k: v
-            for k, v in response_promise._parameters.items()
-            if k.startswith("niquests_")
-        }
+        promise_ctx_backup = {k: v for k, v in response_promise._parameters.items() if k.startswith("niquests_")}
 
         if allow_redirects:
             next_request = await response._resolve_redirect(response, req)
             redirect_count += 1
 
             if redirect_count > max_redirect + 1:
-                raise TooManyRedirects(
-                    f"Exceeded {max_redirect} redirects", request=next_request
-                )
+                raise TooManyRedirects(f"Exceeded {max_redirect} redirects", request=next_request)
 
             if next_request:
                 del self._promises[response_promise.uid]
@@ -2204,18 +2146,14 @@ class AsyncHTTPAdapter(AsyncBaseAdapter):
                         except ImportError:
                             pass
                         else:
-                            strict_ocsp_enabled: bool = (
-                                os.environ.get("NIQUESTS_STRICT_OCSP", "0") != "0"
-                            )
+                            strict_ocsp_enabled: bool = os.environ.get("NIQUESTS_STRICT_OCSP", "0") != "0"
 
                             await async_ocsp_verify(
                                 next_request,
                                 strict_ocsp_enabled,
                                 0.2 if not strict_ocsp_enabled else 1.0,
                                 kwargs["proxies"],
-                                self._resolver
-                                if isinstance(self._resolver, AsyncBaseResolver)
-                                else None,
+                                self._resolver if isinstance(self._resolver, AsyncBaseResolver) else None,
                                 self._happy_eyeballs,
                             )
 
@@ -2237,9 +2175,7 @@ class AsyncHTTPAdapter(AsyncBaseAdapter):
                 if "niquests_origin_response" not in promise_ctx_backup:
                     promise_ctx_backup["niquests_origin_response"] = response
 
-                promise_ctx_backup["niquests_origin_response"].history.append(
-                    next_promise
-                )
+                promise_ctx_backup["niquests_origin_response"].history.append(next_promise)
 
                 promise_ctx_backup["niquests_start"] = preferred_clock()
                 promise_ctx_backup["niquests_redirect_count"] = redirect_count
@@ -2315,9 +2251,7 @@ class AsyncHTTPAdapter(AsyncBaseAdapter):
 
         return None
 
-    async def gather(
-        self, *responses: Response | AsyncResponse, max_fetch: int | None = None
-    ) -> None:
+    async def gather(self, *responses: Response | AsyncResponse, max_fetch: int | None = None) -> None:
         if not self._promises:
             return
 
@@ -2393,15 +2327,11 @@ class AsyncHTTPAdapter(AsyncBaseAdapter):
                     max_fetch -= 1
 
                 assert (
-                    low_resp._fp is not None
-                    and hasattr(low_resp._fp, "from_promise")
-                    and low_resp._fp.from_promise is not None
+                    low_resp._fp is not None and hasattr(low_resp._fp, "from_promise") and low_resp._fp.from_promise is not None
                 )
 
                 response = (
-                    self._promises[low_resp._fp.from_promise.uid]
-                    if low_resp._fp.from_promise.uid in self._promises
-                    else None
+                    self._promises[low_resp._fp.from_promise.uid] if low_resp._fp.from_promise.uid in self._promises else None
                 )
 
                 if response is None:

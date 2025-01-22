@@ -32,12 +32,7 @@ def test_hooks(hooks_list, result):
     ),
 )
 def test_hooks_with_kwargs(hooks_list, result):
-    assert (
-        hooks.dispatch_hook(
-            "response", {"response": hooks_list}, "Data", should_not_crash=True
-        )
-        == result
-    )
+    assert hooks.dispatch_hook("response", {"response": hooks_list}, "Data", should_not_crash=True) == result
 
 
 @pytest.mark.asyncio
@@ -49,9 +44,7 @@ def test_hooks_with_kwargs(hooks_list, result):
     ),
 )
 async def test_ahooks(hooks_list, result):
-    assert (
-        await hooks.async_dispatch_hook("response", {"response": hooks_list}, "Data")
-    ) == result
+    assert (await hooks.async_dispatch_hook("response", {"response": hooks_list}, "Data")) == result
 
 
 @pytest.mark.asyncio
@@ -63,11 +56,7 @@ async def test_ahooks(hooks_list, result):
     ),
 )
 async def test_ahooks_with_kwargs(hooks_list, result):
-    assert (
-        await hooks.async_dispatch_hook(
-            "response", {"response": hooks_list}, "Data", should_not_crash=True
-        )
-    ) == result
+    assert (await hooks.async_dispatch_hook("response", {"response": hooks_list}, "Data", should_not_crash=True)) == result
 
 
 def test_default_hooks():

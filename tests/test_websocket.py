@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from niquests import Session, AsyncSession, ReadTimeout
+from niquests import AsyncSession, ReadTimeout, Session
 
 try:
     import wsproto

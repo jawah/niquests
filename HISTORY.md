@@ -1,6 +1,20 @@
 Release History
 ===============
 
+3.12.2 (2025-01-22)
+-------------------
+
+**Fixed**
+- Parsing of special scheme that exceed 9 characters on rare custom adapters.
+
+**Changed**
+- Default `Content-Type` for json payloads changed from `application/json; charset="utf-8"` to `application/json;charset=utf-8`.
+  While the previous default was valid, this is the preferred value according to RFC9110. (#204)
+
+**Misc**
+- Removed a useless hasattr control to support older version of urllib3-future (<2.5).
+- Updated our pre-commit configuration and reformatted files accordingly.
+
 3.12.1 (2025-01-03)
 -------------------
 

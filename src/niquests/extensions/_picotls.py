@@ -350,24 +350,14 @@ def gen_client_hello(hostname, client_random, ecdh_pubkey_x, ecdh_pubkey_y):
     hostname_item_length = num_to_bytes(len(hostname) + 3, 2)
     hostname_length = num_to_bytes(len(hostname), 2)
 
-    hostname_extension = (
-        hostname_prefix
-        + hostname_list_length
-        + hostname_item_length
-        + b"\x00"
-        + hostname_length
-        + hostname
-    )
+    hostname_extension = hostname_prefix + hostname_list_length + hostname_item_length + b"\x00" + hostname_length + hostname
 
     supported_versions = b"\x00\x2b"
     supported_versions_length = b"\x00\x03"
     another_supported_versions_length = b"\x02"
     tls1_3_version = b"\x03\x04"
     supported_version_extension = (
-        supported_versions
-        + supported_versions_length
-        + another_supported_versions_length
-        + tls1_3_version
+        supported_versions + supported_versions_length + another_supported_versions_length + tls1_3_version
     )
 
     signature_algos = b"\x00\x0d"
@@ -388,28 +378,16 @@ def gen_client_hello(hostname, client_random, ecdh_pubkey_x, ecdh_pubkey_y):
     supported_groups_length = b"\x00\x04"
     another_supported_groups_length = b"\x00\x02"
     secp256r1_group = b"\x00\x17"
-    supported_groups_extension = (
-        supported_groups
-        + supported_groups_length
-        + another_supported_groups_length
-        + secp256r1_group
-    )
+    supported_groups_extension = supported_groups + supported_groups_length + another_supported_groups_length + secp256r1_group
 
-    ecdh_pubkey = (
-        b"\x04" + num_to_bytes(ecdh_pubkey_x, 32) + num_to_bytes(ecdh_pubkey_y, 32)
-    )
+    ecdh_pubkey = b"\x04" + num_to_bytes(ecdh_pubkey_x, 32) + num_to_bytes(ecdh_pubkey_y, 32)
 
     key_share = b"\x00\x33"
     key_share_length = num_to_bytes(len(ecdh_pubkey) + 4 + 2, 2)
     another_key_share_length = num_to_bytes(len(ecdh_pubkey) + 4, 2)
     key_exchange_len = num_to_bytes(len(ecdh_pubkey), 2)
     key_share_extension = (
-        key_share
-        + key_share_length
-        + another_key_share_length
-        + secp256r1_group
-        + key_exchange_len
-        + ecdh_pubkey
+        key_share + key_share_length + another_key_share_length + secp256r1_group + key_exchange_len + ecdh_pubkey
     )
 
     extensions = (
@@ -460,12 +438,8 @@ def handle_server_hello(server_hello):
 
     # compression_method = server_hello[39 + session_id_len + 2 : 39 + session_id_len + 3]
 
-    extensions_length = bytes_to_num(
-        server_hello[39 + session_id_len + 3 : 39 + session_id_len + 3 + 2]
-    )
-    extensions = server_hello[
-        39 + session_id_len + 3 + 2 : 39 + session_id_len + 3 + 2 + extensions_length
-    ]
+    extensions_length = bytes_to_num(server_hello[39 + session_id_len + 3 : 39 + session_id_len + 3 + 2])
+    extensions = server_hello[39 + session_id_len + 3 + 2 : 39 + session_id_len + 3 + 2 + extensions_length]
 
     public_ec_key = b""
     ptr = 0
@@ -517,20 +491,12 @@ def ghash(h, data):
 
 def derive_secret(label, key, data, hash_len):
     full_label = b"tls13 " + label
-    packed_data = (
-        num_to_bytes(hash_len, 2)
-        + num_to_bytes(len(full_label), 1)
-        + full_label
-        + num_to_bytes(len(data), 1)
-        + data
-    )
+    packed_data = num_to_bytes(hash_len, 2) + num_to_bytes(len(full_label), 1) + full_label + num_to_bytes(len(data), 1) + data
 
     secret = bytearray()
     i = 1
     while len(secret) < hash_len:
-        secret += hmac.new(
-            key, secret[-32:] + packed_data + num_to_bytes(i, 1), sha256
-        ).digest()
+        secret += hmac.new(key, secret[-32:] + packed_data + num_to_bytes(i, 1), sha256).digest()
         i += 1
     return bytes(secret[:hash_len])
 
@@ -589,14 +555,10 @@ def aes128_encrypt(key, plaintext):
     result = [
         bytes(
             [
-                AES_SBOX[(t[(i + 0) % 4] >> 8 * 3) & 0xFF]
-                ^ (enc_keys[-1][i] >> 8 * 3) & 0xFF,
-                AES_SBOX[(t[(i + 1) % 4] >> 8 * 2) & 0xFF]
-                ^ (enc_keys[-1][i] >> 8 * 2) & 0xFF,
-                AES_SBOX[(t[(i + 2) % 4] >> 8 * 1) & 0xFF]
-                ^ (enc_keys[-1][i] >> 8 * 1) & 0xFF,
-                AES_SBOX[(t[(i + 3) % 4] >> 8 * 0) & 0xFF]
-                ^ (enc_keys[-1][i] >> 8 * 0) & 0xFF,
+                AES_SBOX[(t[(i + 0) % 4] >> 8 * 3) & 0xFF] ^ (enc_keys[-1][i] >> 8 * 3) & 0xFF,
+                AES_SBOX[(t[(i + 1) % 4] >> 8 * 2) & 0xFF] ^ (enc_keys[-1][i] >> 8 * 2) & 0xFF,
+                AES_SBOX[(t[(i + 2) % 4] >> 8 * 1) & 0xFF] ^ (enc_keys[-1][i] >> 8 * 1) & 0xFF,
+                AES_SBOX[(t[(i + 3) % 4] >> 8 * 0) & 0xFF] ^ (enc_keys[-1][i] >> 8 * 0) & 0xFF,
             ]
         )
         for i in range(4)
@@ -704,9 +666,7 @@ def recv_tls_and_decrypt(s, key, nonce, seq_num):
     if rec_type != APPLICATION_DATA:
         raise PicoTLSException
 
-    msg_type, msg = do_authenticated_decryption(
-        key, nonce, seq_num, APPLICATION_DATA, encrypted_msg
-    )
+    msg_type, msg = do_authenticated_decryption(key, nonce, seq_num, APPLICATION_DATA, encrypted_msg)
     return msg_type, msg
 
 
@@ -715,9 +675,7 @@ async def async_recv_tls_and_decrypt(s, key, nonce, seq_num):
     if rec_type != APPLICATION_DATA:
         raise PicoTLSException
 
-    msg_type, msg = do_authenticated_decryption(
-        key, nonce, seq_num, APPLICATION_DATA, encrypted_msg
-    )
+    msg_type, msg = do_authenticated_decryption(key, nonce, seq_num, APPLICATION_DATA, encrypted_msg)
     return msg_type, msg
 
 

@@ -7,16 +7,16 @@ import ssl
 import threading
 import typing
 import warnings
+from functools import lru_cache
 from hashlib import sha256
 from random import randint
-from functools import lru_cache
 
 from qh3._hazmat import (
+    Certificate,
+    OCSPCertStatus,
     OCSPRequest,
     OCSPResponse,
     OCSPResponseStatus,
-    OCSPCertStatus,
-    Certificate,
     ReasonFlags,
 )
 
@@ -24,14 +24,14 @@ from .._compat import HAS_LEGACY_URLLIB3
 
 if HAS_LEGACY_URLLIB3 is False:
     from urllib3 import ConnectionInfo
+    from urllib3.contrib.resolver import BaseResolver
     from urllib3.exceptions import SecurityWarning
     from urllib3.util.url import parse_url
-    from urllib3.contrib.resolver import BaseResolver
 else:  # Defensive: tested in separate/isolated CI
     from urllib3_future import ConnectionInfo  # type: ignore[assignment]
+    from urllib3_future.contrib.resolver import BaseResolver  # type: ignore[assignment]
     from urllib3_future.exceptions import SecurityWarning  # type: ignore[assignment]
     from urllib3_future.util.url import parse_url  # type: ignore[assignment]
-    from urllib3_future.contrib.resolver import BaseResolver  # type: ignore[assignment]
 
 from .._typing import ProxyType
 from ..exceptions import RequestException, SSLError
@@ -40,6 +40,7 @@ from ._picotls import (
     ALERT,
     CHANGE_CIPHER,
     HANDSHAKE,
+    PicoTLSException,
     derive_secret,
     gen_client_hello,
     handle_encrypted_extensions,
@@ -50,7 +51,6 @@ from ._picotls import (
     recv_tls,
     recv_tls_and_decrypt,
     send_tls,
-    PicoTLSException,
 )
 
 
@@ -72,9 +72,7 @@ def readable_revocation_reason(flag: ReasonFlags | None) -> str | None:
     return str(flag).split(".")[-1].lower() if flag is not None else None
 
 
-def _ask_nicely_for_issuer(
-    hostname: str, dst_address: tuple[str, int], timeout: int | float = 0.2
-) -> Certificate | None:
+def _ask_nicely_for_issuer(hostname: str, dst_address: tuple[str, int], timeout: int | float = 0.2) -> Certificate | None:
     """When encountering a problem in development, one should always say that there is many solutions.
     From dirtiest to the cleanest, not always known but with progressive effort, we'll eventually land at the cleanest.
 
@@ -105,9 +103,7 @@ def _ask_nicely_for_issuer(
         our_ecdh_privkey, SECP256R1_G[0], SECP256R1_G[1], SECP256R1_A, SECP256R1_P
     )
 
-    client_hello = gen_client_hello(
-        hostname, client_random, our_ecdh_pubkey_x, our_ecdh_pubkey_y
-    )
+    client_hello = gen_client_hello(hostname, client_random, our_ecdh_pubkey_x, our_ecdh_pubkey_y)
 
     send_tls(sock, HANDSHAKE, client_hello)
 
@@ -140,24 +136,16 @@ def _ask_nicely_for_issuer(
     our_secret = num_to_bytes(our_secret_point_x, 32)
 
     early_secret = hmac.new(b"", b"\x00" * 32, sha256).digest()
-    preextractsec = derive_secret(
-        b"derived", key=early_secret, data=sha256(b"").digest(), hash_len=32
-    )
+    preextractsec = derive_secret(b"derived", key=early_secret, data=sha256(b"").digest(), hash_len=32)
     handshake_secret = hmac.new(preextractsec, our_secret, sha256).digest()
     hello_hash = sha256(client_hello + server_hello).digest()
-    server_hs_secret = derive_secret(
-        b"s hs traffic", key=handshake_secret, data=hello_hash, hash_len=32
-    )
-    server_write_key = derive_secret(
-        b"key", key=server_hs_secret, data=b"", hash_len=16
-    )
+    server_hs_secret = derive_secret(b"s hs traffic", key=handshake_secret, data=hello_hash, hash_len=32)
+    server_write_key = derive_secret(b"key", key=server_hs_secret, data=b"", hash_len=16)
     server_write_iv = derive_secret(b"iv", key=server_hs_secret, data=b"", hash_len=12)
 
     server_seq_num = 0
 
-    rec_type, encrypted_extensions = recv_tls_and_decrypt(
-        sock, server_write_key, server_write_iv, server_seq_num
-    )
+    rec_type, encrypted_extensions = recv_tls_and_decrypt(sock, server_write_key, server_write_iv, server_seq_num)
 
     if not rec_type == HANDSHAKE:
         sock.close()
@@ -168,9 +156,7 @@ def _ask_nicely_for_issuer(
     remaining_bytes = handle_encrypted_extensions(encrypted_extensions)
 
     if not remaining_bytes:
-        rec_type, server_cert = recv_tls_and_decrypt(
-            sock, server_write_key, server_write_iv, server_seq_num
-        )
+        rec_type, server_cert = recv_tls_and_decrypt(sock, server_write_key, server_write_iv, server_seq_num)
     else:
         rec_type, server_cert = rec_type, remaining_bytes
 
@@ -218,11 +204,7 @@ class InMemoryRevocationStatus:
         }
 
     def __setstate__(self, state: dict[str, typing.Any]) -> None:
-        if (
-            "_store" not in state
-            or "_issuers_map" not in state
-            or "_max_size" not in state
-        ):
+        if "_store" not in state or "_issuers_map" not in state or "_max_size" not in state:
             raise OSError("unrecoverable state for InMemoryRevocationStatus")
 
         self._access_lock = threading.RLock()
@@ -278,11 +260,7 @@ class InMemoryRevocationStatus:
             cached_response = self._store[fingerprint]
 
             if cached_response.certificate_status == OCSPCertStatus.GOOD:
-                if (
-                    cached_response.next_update
-                    and datetime.datetime.now().timestamp()
-                    >= cached_response.next_update
-                ):
+                if cached_response.next_update and datetime.datetime.now().timestamp() >= cached_response.next_update:
                     del self._store[fingerprint]
                     return None
                 return cached_response
@@ -345,11 +323,7 @@ def verify(
     conn_info: ConnectionInfo | None = r.conn_info
 
     # we can't do anything in that case.
-    if (
-        conn_info is None
-        or conn_info.certificate_der is None
-        or conn_info.certificate_dict is None
-    ):
+    if conn_info is None or conn_info.certificate_der is None or conn_info.certificate_dict is None:
         return
 
     endpoints: list[str] = [  # type: ignore
@@ -393,7 +367,7 @@ def verify(
                     (
                         f"Unable to establish a secure connection to {r.url} because the certificate has been revoked "
                         f"by issuer ({readable_revocation_reason(cached_response.revocation_reason) or 'unspecified'}). "
-                        'You should avoid trying to request anything from it as the remote has been compromised. ',
+                        "You should avoid trying to request anything from it as the remote has been compromised. ",
                         "See https://niquests.readthedocs.io/en/latest/user/advanced.html#ocsp-or-certificate-revocation "
                         "for more information.",
                     )
@@ -437,10 +411,7 @@ def verify(
 
                     url_parsed = parse_url(r.url)
 
-                    if (
-                        url_parsed.hostname is None
-                        or conn_info.destination_address is None
-                    ):
+                    if url_parsed.hostname is None or conn_info.destination_address is None:
                         raise ValueError
 
                     if not proxies:
@@ -478,31 +449,16 @@ def verify(
                 except RequestException:
                     pass
                 else:
-                    if (
-                        raw_intermediary_response.status_code
-                        and 300 > raw_intermediary_response.status_code >= 200
-                    ):
+                    if raw_intermediary_response.status_code and 300 > raw_intermediary_response.status_code >= 200:
                         raw_intermediary_content = raw_intermediary_response.content
 
                         if raw_intermediary_content is not None:
                             # binary DER
-                            if (
-                                b"-----BEGIN CERTIFICATE-----"
-                                not in raw_intermediary_content
-                            ):
-                                issuer_certificate = Certificate(
-                                    raw_intermediary_content
-                                )
+                            if b"-----BEGIN CERTIFICATE-----" not in raw_intermediary_content:
+                                issuer_certificate = Certificate(raw_intermediary_content)
                             # b64 PEM
-                            elif (
-                                b"-----BEGIN CERTIFICATE-----"
-                                in raw_intermediary_content
-                            ):
-                                issuer_certificate = Certificate(
-                                    ssl.PEM_cert_to_DER_cert(
-                                        raw_intermediary_content.decode()
-                                    )
-                                )
+                            elif b"-----BEGIN CERTIFICATE-----" in raw_intermediary_content:
+                                issuer_certificate = Certificate(ssl.PEM_cert_to_DER_cert(raw_intermediary_content.decode()))
 
             # Well! We're out of luck. No further should we go.
             if issuer_certificate is None:
@@ -522,9 +478,7 @@ def verify(
             issuer_certificate = Certificate(conn_info.issuer_certificate_der)
 
         try:
-            req = OCSPRequest(
-                peer_certificate.public_bytes(), issuer_certificate.public_bytes()
-            )
+            req = OCSPRequest(peer_certificate.public_bytes(), issuer_certificate.public_bytes())
         except ValueError:
             if strict:
                 warnings.warn(
@@ -556,10 +510,7 @@ def verify(
                 )
             return
 
-        if (
-            ocsp_http_response.status_code
-            and 300 > ocsp_http_response.status_code >= 200
-        ):
+        if ocsp_http_response.status_code and 300 > ocsp_http_response.status_code >= 200:
             if ocsp_http_response.content is None:
                 return
 

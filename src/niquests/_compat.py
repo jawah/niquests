@@ -28,9 +28,7 @@ except (ImportError, AttributeError):  # Defensive: tested in separate CI
     urllib3 = None  # type: ignore[assignment]
 
 
-if (urllib3 is None and urllib3_future is None) or (
-    HAS_LEGACY_URLLIB3 and urllib3_future is None
-):
+if (urllib3 is None and urllib3_future is None) or (HAS_LEGACY_URLLIB3 and urllib3_future is None):
     raise RuntimeError(  # Defensive: tested in separate CI
         "This is awkward but your environment is missing urllib3-future. "
         "Your environment seems broken. "

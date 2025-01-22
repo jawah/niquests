@@ -15,14 +15,13 @@ import warnings
 from json import JSONDecodeError
 
 import charset_normalizer
-import jh2  # type: ignore
 import h11
 import idna
+import jh2  # type: ignore
 import wassima
 
-from . import RequestException, HTTPError
+from . import HTTPError, RequestException, Session
 from . import __version__ as niquests_version
-from . import Session
 from ._compat import HAS_LEGACY_URLLIB3
 
 if HAS_LEGACY_URLLIB3 is True:
@@ -58,9 +57,7 @@ except ImportError:
     wsproto = None  # type: ignore
 
 
-_IS_GIL_DISABLED: bool = (
-    hasattr(sys, "_is_gil_enabled") and sys._is_gil_enabled() is False
-)
+_IS_GIL_DISABLED: bool = hasattr(sys, "_is_gil_enabled") and sys._is_gil_enabled() is False
 
 
 def _implementation():
@@ -79,10 +76,10 @@ def _implementation():
     if implementation == "CPython":
         implementation_version = platform.python_version()
     elif implementation == "PyPy":
-        implementation_version = "{}.{}.{}".format(
-            sys.pypy_version_info.major,  # type: ignore[attr-defined]
-            sys.pypy_version_info.minor,  # type: ignore[attr-defined]
-            sys.pypy_version_info.micro,  # type: ignore[attr-defined]
+        implementation_version = (
+            f"{sys.pypy_version_info.major}"  # type: ignore[attr-defined]
+            f".{sys.pypy_version_info.minor}"  # type: ignore[attr-defined]
+            f".{sys.pypy_version_info.micro}"  # type: ignore[attr-defined]
         )
         if sys.pypy_version_info.releaselevel != "final":  # type: ignore[attr-defined]
             implementation_version = "".join(
@@ -178,15 +175,13 @@ def check_update(package_name: str, actual_version: str) -> None:
         response = pypi_session.get(f"https://pypi.org/pypi/{package_name}/json")
         package_info = response.raise_for_status().json()
 
-        if (
-            isinstance(package_info, dict)
-            and "info" in package_info
-            and "version" in package_info["info"]
-        ):
+        if isinstance(package_info, dict) and "info" in package_info and "version" in package_info["info"]:
             if package_info["info"]["version"] != actual_version:
                 warnings.warn(
-                    f"You are using {package_name} {actual_version} and PyPI yield version ({package_info['info']['version']}) as the stable one. "
-                    f"We invite you to install this version as soon as possible. Run `python -m pip install {package_name} -U`.",
+                    f"You are using {package_name} {actual_version} and "
+                    f"PyPI yield version ({package_info['info']['version']}) as the stable one. "
+                    "We invite you to install this version as soon as possible. "
+                    f"Run `python -m pip install {package_name} -U`.",
                     UserWarning,
                 )
     except (RequestException, JSONDecodeError, HTTPError):

@@ -61,9 +61,7 @@ class Server(threading.Thread):
 
     @classmethod
     def basic_response_server(cls, **kwargs):
-        return cls.text_response_server(
-            "HTTP/1.1 200 OK\r\n" + "Content-Length: 0\r\n\r\n", **kwargs
-        )
+        return cls.text_response_server("HTTP/1.1 200 OK\r\n" + "Content-Length: 0\r\n\r\n", **kwargs)
 
     def run(self):
         try:
@@ -105,9 +103,7 @@ class Server(threading.Thread):
 
     def _accept_connection(self):
         try:
-            ready, _, _ = select.select(
-                [self.server_sock], [], [], self.WAIT_EVENT_TIMEOUT
-            )
+            ready, _, _ = select.select([self.server_sock], [], [], self.WAIT_EVENT_TIMEOUT)
             if not ready:
                 return None
 

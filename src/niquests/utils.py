@@ -18,66 +18,70 @@ import struct
 import sys
 import tempfile
 import typing
-import wassima
 from collections import OrderedDict
 from functools import lru_cache
 from http.cookiejar import CookieJar
+from netrc import NetrcParseError, netrc
 from urllib.parse import quote, unquote, urlparse, urlunparse
-from urllib.request import (  # type: ignore[attr-defined]
+from urllib.request import (  # type: ignore[attr-defined]  # type: ignore[attr-defined]
     getproxies,
     getproxies_environment,
-)
-from urllib.request import parse_http_list as _parse_list_header
-from urllib.request import (  # type: ignore[attr-defined]
     proxy_bypass,
     proxy_bypass_environment,
 )
-from netrc import NetrcParseError, netrc
+from urllib.request import parse_http_list as _parse_list_header
+
+import wassima
 
 from ._compat import HAS_LEGACY_URLLIB3
 
 if HAS_LEGACY_URLLIB3 is False:
-    from urllib3.util import make_headers, parse_url
+    from urllib3 import ConnectionInfo
     from urllib3.contrib.resolver import (
         BaseResolver,
+        ManyResolver,
         ProtocolResolver,
         ResolverDescription,
-        ManyResolver,
     )
     from urllib3.contrib.resolver._async import (
         AsyncBaseResolver,
-        AsyncResolverDescription,
         AsyncManyResolver,
+        AsyncResolverDescription,
     )
-    from urllib3 import ConnectionInfo
-    from urllib3.contrib.webextensions import load_extension, ExtensionFromHTTP
+    from urllib3.contrib.webextensions import ExtensionFromHTTP, load_extension
     from urllib3.contrib.webextensions._async import AsyncExtensionFromHTTP
+    from urllib3.util import make_headers, parse_url
 else:  # Defensive: tested in separate/isolated CI
-    from urllib3_future.util import make_headers, parse_url  # type: ignore[assignment]
+    from urllib3_future import ConnectionInfo  # type: ignore[assignment]
     from urllib3_future.contrib.resolver import (  # type: ignore[assignment]
         BaseResolver,
+        ManyResolver,
         ProtocolResolver,
         ResolverDescription,
-        ManyResolver,
     )
     from urllib3_future.contrib.resolver._async import (  # type: ignore[assignment]
         AsyncBaseResolver,
-        AsyncResolverDescription,
         AsyncManyResolver,
+        AsyncResolverDescription,
     )
-    from urllib3_future import ConnectionInfo  # type: ignore[assignment]
-    from urllib3_future.contrib.webextensions import load_extension, ExtensionFromHTTP  # type: ignore[assignment]
-    from urllib3_future.contrib.webextensions._async import AsyncExtensionFromHTTP  # type: ignore[assignment]
+    from urllib3_future.contrib.webextensions import (  # type: ignore[assignment]
+        ExtensionFromHTTP,
+        load_extension,
+    )
+    from urllib3_future.contrib.webextensions._async import (  # type: ignore[assignment]
+        AsyncExtensionFromHTTP,
+    )
+    from urllib3_future.util import make_headers, parse_url  # type: ignore[assignment]
 
 from .__version__ import __version__
-from .exceptions import InvalidURL, UnrewindableBodyError, MissingSchema
+from .exceptions import InvalidURL, MissingSchema, UnrewindableBodyError
 from .structures import CaseInsensitiveDict
 
 if typing.TYPE_CHECKING:
+    from ._async import AsyncResponse
+    from ._typing import AsyncResolverType, ResolverType
     from .cookies import RequestsCookieJar
     from .models import PreparedRequest, Request, Response
-    from ._typing import ResolverType, AsyncResolverType
-    from ._async import AsyncResponse
 
 
 getproxies = lru_cache()(getproxies)
@@ -88,9 +92,7 @@ NETRC_FILES = (".netrc", "_netrc")
 DEFAULT_PORTS: dict[str, int] = {"http": 80, "https": 443}
 
 # Ensure that ', ' is used to preserve previous delimiter behavior.
-DEFAULT_ACCEPT_ENCODING: str = ", ".join(
-    re.split(r",\s*", make_headers(accept_encoding=True)["accept-encoding"])
-)
+DEFAULT_ACCEPT_ENCODING: str = ", ".join(re.split(r",\s*", make_headers(accept_encoding=True)["accept-encoding"]))
 
 
 if sys.platform == "win32":
@@ -199,28 +201,18 @@ def super_len(o: typing.Any) -> int:
 
 
 @lru_cache(maxsize=64)
-def get_netrc_auth(
-    url: str | None, raise_errors: bool = False
-) -> tuple[str, str] | None:
+def get_netrc_auth(url: str | None, raise_errors: bool = False) -> tuple[str, str] | None:
     """Returns the Requests tuple auth for a given url from netrc."""
 
     if url is None:
         return None
 
     netrc_file = os.environ.get("NETRC")
-    netrc_locations: tuple[str, ...] = (
-        (netrc_file,)
-        if netrc_file is not None
-        else tuple(f"~/{f}" for f in NETRC_FILES)
-    )
+    netrc_locations: tuple[str, ...] = (netrc_file,) if netrc_file is not None else tuple(f"~/{f}" for f in NETRC_FILES)
 
     try:
         netrc_path = next(
-            (
-                os.path.expanduser(f)
-                for f in netrc_locations
-                if os.path.exists(os.path.expanduser(f))
-            ),
+            (os.path.expanduser(f) for f in netrc_locations if os.path.exists(os.path.expanduser(f))),
             None,
         )
         if netrc_path is None:
@@ -247,9 +239,7 @@ def get_netrc_auth(
             raise OSError("Problem accessing or reading the netrc file") from e
     except AttributeError as e:
         if raise_errors:
-            raise RuntimeError(
-                "Unexpected error while retrieving netrc authenticators"
-            ) from e
+            raise RuntimeError("Unexpected error while retrieving netrc authenticators") from e
     return None
 
 
@@ -434,9 +424,7 @@ def dict_from_cookiejar(cj: CookieJar) -> dict[str, str | None]:
     return cookie_dict
 
 
-def add_dict_to_cookiejar(
-    cj: RequestsCookieJar, cookie_dict
-) -> RequestsCookieJar | CookieJar:
+def add_dict_to_cookiejar(cj: RequestsCookieJar, cookie_dict) -> RequestsCookieJar | CookieJar:
     """Returns a CookieJar from a key/value dictionary.
 
     :param cj: CookieJar to insert cookies into.
@@ -490,11 +478,7 @@ def get_encoding_from_headers(headers: typing.Mapping[str, str]) -> str | None:
     content_type, params = _parse_content_type_header(content_type)
 
     if "charset" in params:
-        return (
-            params["charset"].strip("'\"")
-            if isinstance(params["charset"], str)
-            else None
-        )
+        return params["charset"].strip("'\"") if isinstance(params["charset"], str) else None
 
     if "application/json" in content_type:
         # Assume UTF-8 based on RFC 4627: https://www.ietf.org/rfc/rfc4627.txt since the charset was unset
@@ -546,9 +530,7 @@ async def astream_decode_response_unicode(
 _SV = typing.TypeVar("_SV", str, bytes)
 
 
-def iter_slices(
-    string: _SV, slice_length: int | None
-) -> typing.Generator[_SV, None, None]:
+def iter_slices(string: _SV, slice_length: int | None) -> typing.Generator[_SV, None, None]:
     """Iterate over slices of a string."""
     pos = 0
     if slice_length is None or slice_length <= 0:
@@ -559,9 +541,7 @@ def iter_slices(
 
 
 # The unreserved URI characters (RFC 3986)
-UNRESERVED_SET = frozenset(
-    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz" + "0123456789-._~"
-)
+UNRESERVED_SET = frozenset("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz" + "0123456789-._~")
 
 
 def unquote_unreserved(uri: str) -> str:
@@ -631,14 +611,10 @@ def address_in_network(ip: str, net: str) -> bool:
         netmask = _get_mask_bits(int(bits))
         network = struct.unpack(">L", socket.inet_aton(netaddr))[0]
     elif is_ipv6_address(ip) and is_ipv6_address(netaddr):
-        ipaddr_msb, ipaddr_lsb = struct.unpack(
-            ">QQ", socket.inet_pton(socket.AF_INET6, ip)
-        )
+        ipaddr_msb, ipaddr_lsb = struct.unpack(">QQ", socket.inet_pton(socket.AF_INET6, ip))
         ipaddr = (ipaddr_msb << 64) ^ ipaddr_lsb
         netmask = _get_mask_bits(int(bits), 128)
-        network_msb, network_lsb = struct.unpack(
-            ">QQ", socket.inet_pton(socket.AF_INET6, netaddr)
-        )
+        network_msb, network_lsb = struct.unpack(">QQ", socket.inet_pton(socket.AF_INET6, netaddr))
         network = (network_msb << 64) ^ network_lsb
     else:
         return False
@@ -675,9 +651,7 @@ def compare_ipv6(a: str, b: str):
     Compare 2 IPs, uses socket.inet_pton to normalize IPv6 IPs
     """
     try:
-        return socket.inet_pton(socket.AF_INET6, a) == socket.inet_pton(
-            socket.AF_INET6, b
-        )
+        return socket.inet_pton(socket.AF_INET6, a) == socket.inet_pton(socket.AF_INET6, b)
     except OSError:
         return False
 
@@ -753,9 +727,7 @@ def should_bypass_proxies(url: str, no_proxy: str | None) -> bool:
     if no_proxy:
         # We need to check whether we match here. We need to see if we match
         # the end of the hostname, both with and without the port.
-        no_proxy_list = list(
-            host for host in no_proxy.replace(" ", "").split(",") if host
-        )
+        no_proxy_list = list(host for host in no_proxy.replace(" ", "").split(",") if host)
 
         if is_ipv4_address(parsed.hostname) or is_ipv6_address(parsed.hostname):
             for proxy_ip in no_proxy_list:
@@ -807,9 +779,7 @@ def get_environ_proxies(url: str, no_proxy: str | None = None) -> dict[str, str]
         return proxies
 
 
-def select_proxy(
-    url: str, proxies: typing.Mapping[str, str | None] | None
-) -> str | None:
+def select_proxy(url: str, proxies: typing.Mapping[str, str | None] | None) -> str | None:
     """Select a proxy for the url, if applicable.
 
     :param url: The url being for the request
@@ -839,18 +809,14 @@ def select_proxy(
         implementation = None
 
         if "+" in maybe_extension_scheme:
-            maybe_extension_scheme, implementation = tuple(
-                maybe_extension_scheme.split("+", maxsplit=1)
-            )
+            maybe_extension_scheme, implementation = tuple(maybe_extension_scheme.split("+", maxsplit=1))
 
         try:
             extension_class = load_extension(maybe_extension_scheme, implementation)
         except ImportError:
             pass
         else:
-            parent_scheme = extension_class.scheme_to_http_scheme(
-                maybe_extension_scheme
-            )
+            parent_scheme = extension_class.scheme_to_http_scheme(maybe_extension_scheme)
 
             proxy_keys.append(parent_scheme)
             proxy_keys.append(parent_scheme + "://" + urlparts.hostname)
@@ -1019,9 +985,7 @@ def rewind_body(prepared_request: PreparedRequest) -> None:
         try:
             body_seek(prepared_request._body_position)
         except OSError:
-            raise UnrewindableBodyError(
-                "An error occurred when rewinding request body for redirect."
-            )
+            raise UnrewindableBodyError("An error occurred when rewinding request body for redirect.")
     else:
         raise UnrewindableBodyError("Unable to rewind request body for redirect.")
 
@@ -1079,18 +1043,12 @@ def create_resolver(definition: ResolverType | None) -> BaseResolver:
             can_resolve_localhost = True
 
     if not can_resolve_localhost:
-        resolvers.append(
-            ResolverDescription.from_url("system://default?hosts=localhost")
-        )
+        resolvers.append(ResolverDescription.from_url("system://default?hosts=localhost"))
 
     #: We want to automatically forward ca_cert_data, ca_cert_dir, and ca_certs.
     for rd in resolvers:
         # If no CA bundle is provided, inject the system's default!
-        if (
-            "ca_cert_data" not in rd
-            and "ca_cert_dir" not in rd
-            and "ca_certs" not in rd
-        ):
+        if "ca_cert_data" not in rd and "ca_cert_dir" not in rd and "ca_certs" not in rd:
             rd["ca_cert_data"] = wassima.generate_ca_bundle()
 
     return ManyResolver(*[r.new() for r in resolvers])
@@ -1149,26 +1107,18 @@ def create_async_resolver(definition: AsyncResolverType | None) -> AsyncBaseReso
             can_resolve_localhost = True
 
     if not can_resolve_localhost:
-        resolvers.append(
-            AsyncResolverDescription.from_url("system://default?hosts=localhost")
-        )
+        resolvers.append(AsyncResolverDescription.from_url("system://default?hosts=localhost"))
 
     #: We want to automatically forward ca_cert_data, ca_cert_dir, and ca_certs.
     for rd in resolvers:
         # If no CA bundle is provided, inject the system's default!
-        if (
-            "ca_cert_data" not in rd
-            and "ca_cert_dir" not in rd
-            and "ca_certs" not in rd
-        ):
+        if "ca_cert_data" not in rd and "ca_cert_dir" not in rd and "ca_certs" not in rd:
             rd["ca_cert_data"] = wassima.generate_ca_bundle()
 
     return AsyncManyResolver(*[r.new() for r in resolvers])
 
 
-def resolve_socket_family(
-    disable_ipv4: bool, disable_ipv6: bool
-) -> socket.AddressFamily:
+def resolve_socket_family(disable_ipv4: bool, disable_ipv6: bool) -> socket.AddressFamily:
     if disable_ipv4:
         return socket.AF_INET6
     if disable_ipv6:
@@ -1179,9 +1129,7 @@ def resolve_socket_family(
 def _swap_context(response: AsyncResponse | Response) -> None:
     response_class = response.__class__
 
-    is_async = (
-        len(response_class.__bases__) == 1 and response_class.__bases__[0] is not object
-    )
+    is_async = len(response_class.__bases__) == 1 and response_class.__bases__[0] is not object
 
     if is_async:
         response.__class__ = response_class.__bases__[0]
@@ -1210,21 +1158,14 @@ def parse_scheme(url: str, default: str | None = None, max_length: int = 11) -> 
     except ValueError as e:
         if default is not None:
             return default
-        raise MissingSchema(
-            f"Invalid URL {url!r}: No scheme supplied. "
-            f"Perhaps you meant https://{url}?"
-        ) from e
+        raise MissingSchema(f"Invalid URL {url!r}: No scheme supplied. Perhaps you meant https://{url}?") from e
 
     return scheme.lower()
 
 
 def is_ocsp_capable(conn_info: ConnectionInfo | None) -> bool:
     # we can't do anything in that case.
-    if (
-        conn_info is None
-        or conn_info.certificate_der is None
-        or conn_info.certificate_dict is None
-    ):
+    if conn_info is None or conn_info.certificate_der is None or conn_info.certificate_dict is None:
         return False
 
     endpoints: list[str] = [  # type: ignore
@@ -1252,34 +1193,52 @@ def wrap_extension_for_http(
     if HAS_LEGACY_URLLIB3 is False:
         from urllib3.exceptions import (
             ClosedPoolError,
-            HTTPError as _HTTPError,
-            InvalidHeader as _InvalidHeader,
-            ProtocolError,
-            ProxyError as _ProxyError,
-            ReadTimeoutError,
-            SSLError as _SSLError,
             DecodeError,
+            ProtocolError,
+            ReadTimeoutError,
+        )
+        from urllib3.exceptions import (
+            HTTPError as _HTTPError,
+        )
+        from urllib3.exceptions import (
+            InvalidHeader as _InvalidHeader,
+        )
+        from urllib3.exceptions import (
+            ProxyError as _ProxyError,
+        )
+        from urllib3.exceptions import (
+            SSLError as _SSLError,
         )
     else:
         from urllib3_future.exceptions import (  # type: ignore[assignment]
             ClosedPoolError,
-            HTTPError as _HTTPError,
-            InvalidHeader as _InvalidHeader,
-            ProtocolError,
-            ProxyError as _ProxyError,
-            ReadTimeoutError,
-            SSLError as _SSLError,
             DecodeError,
+            ProtocolError,
+            ReadTimeoutError,
+        )
+        from urllib3_future.exceptions import (  # type: ignore[assignment]
+            HTTPError as _HTTPError,
+        )
+        from urllib3_future.exceptions import (  # type: ignore[assignment]
+            InvalidHeader as _InvalidHeader,
+        )
+        from urllib3_future.exceptions import (  # type: ignore[assignment]
+            ProxyError as _ProxyError,
+        )
+        from urllib3_future.exceptions import (  # type: ignore[assignment]
+            SSLError as _SSLError,
         )
 
     from .exceptions import (
+        ChunkedEncodingError,
         ConnectionError,
+        ContentDecodingError,
         InvalidHeader,
         ProxyError,
         ReadTimeout,
+    )
+    from .exceptions import (
         SSLError as RequestsSSLError,
-        ContentDecodingError,
-        ChunkedEncodingError,
     )
 
     class _WrappedExtensionFromHTTP(extension):  # type: ignore[valid-type,misc]
@@ -1347,34 +1306,52 @@ def async_wrap_extension_for_http(
     if HAS_LEGACY_URLLIB3 is False:
         from urllib3.exceptions import (
             ClosedPoolError,
-            HTTPError as _HTTPError,
-            InvalidHeader as _InvalidHeader,
-            ProtocolError,
-            ProxyError as _ProxyError,
-            ReadTimeoutError,
-            SSLError as _SSLError,
             DecodeError,
+            ProtocolError,
+            ReadTimeoutError,
+        )
+        from urllib3.exceptions import (
+            HTTPError as _HTTPError,
+        )
+        from urllib3.exceptions import (
+            InvalidHeader as _InvalidHeader,
+        )
+        from urllib3.exceptions import (
+            ProxyError as _ProxyError,
+        )
+        from urllib3.exceptions import (
+            SSLError as _SSLError,
         )
     else:
         from urllib3_future.exceptions import (  # type: ignore[assignment]
             ClosedPoolError,
-            HTTPError as _HTTPError,
-            InvalidHeader as _InvalidHeader,
-            ProtocolError,
-            ProxyError as _ProxyError,
-            ReadTimeoutError,
-            SSLError as _SSLError,
             DecodeError,
+            ProtocolError,
+            ReadTimeoutError,
+        )
+        from urllib3_future.exceptions import (  # type: ignore[assignment]
+            HTTPError as _HTTPError,
+        )
+        from urllib3_future.exceptions import (  # type: ignore[assignment]
+            InvalidHeader as _InvalidHeader,
+        )
+        from urllib3_future.exceptions import (  # type: ignore[assignment]
+            ProxyError as _ProxyError,
+        )
+        from urllib3_future.exceptions import (  # type: ignore[assignment]
+            SSLError as _SSLError,
         )
 
     from .exceptions import (
+        ChunkedEncodingError,
         ConnectionError,
+        ContentDecodingError,
         InvalidHeader,
         ProxyError,
         ReadTimeout,
+    )
+    from .exceptions import (
         SSLError as RequestsSSLError,
-        ContentDecodingError,
-        ChunkedEncodingError,
     )
 
     class _AsyncWrappedExtensionFromHTTP(extension):  # type: ignore[valid-type,misc]

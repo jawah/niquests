@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from niquests import Session, AsyncSession
+from niquests import AsyncSession, Session
 
 
 @pytest.mark.usefixtures("requires_wan")

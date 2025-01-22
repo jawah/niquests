@@ -1,14 +1,14 @@
 from __future__ import annotations
 
 import os
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 
 from niquests import Session
-from niquests.utils import is_ipv4_address, is_ipv6_address
-from niquests.exceptions import ConnectionError
 from niquests._compat import HAS_LEGACY_URLLIB3
+from niquests.exceptions import ConnectionError
+from niquests.utils import is_ipv4_address, is_ipv6_address
 
 if not HAS_LEGACY_URLLIB3:
     from urllib3 import HttpVersion, ResolverDescription

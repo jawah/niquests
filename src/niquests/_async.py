@@ -1,14 +1,15 @@
 from __future__ import annotations
 
 import os
-import typing
-import warnings
 import sys
 import time
-from http.cookiejar import CookieJar
+import typing
+import warnings
 from collections import OrderedDict
 from datetime import timedelta
+from http.cookiejar import CookieJar
 from urllib.parse import urljoin, urlparse
+
 from .status_codes import codes
 
 if typing.TYPE_CHECKING:
@@ -22,17 +23,26 @@ if HAS_LEGACY_URLLIB3 is False:
     from urllib3.contrib.webextensions._async import load_extension
 else:  # Defensive: tested in separate/isolated CI
     from urllib3_future import ConnectionInfo  # type: ignore[assignment]
-    from urllib3_future.contrib.resolver._async import AsyncBaseResolver  # type: ignore[assignment]
-    from urllib3_future.contrib.webextensions._async import load_extension  # type: ignore[assignment]
+    from urllib3_future.contrib.resolver._async import (  # type: ignore[assignment]
+        AsyncBaseResolver,
+    )
+    from urllib3_future.contrib.webextensions._async import (  # type: ignore[assignment]
+        load_extension,
+    )
 
 from ._constant import (
+    DEFAULT_POOLSIZE,
+    DEFAULT_RETRIES,
     READ_DEFAULT_TIMEOUT,
     WRITE_DEFAULT_TIMEOUT,
-    DEFAULT_RETRIES,
-    DEFAULT_POOLSIZE,
 )
 from ._typing import (
+    AsyncBodyType,
+    AsyncHookType,
+    AsyncHttpAuthenticationType,
+    AsyncResolverType,
     BodyType,
+    CacheLayerAltSvcType,
     CookiesType,
     HeadersType,
     HookType,
@@ -42,51 +52,46 @@ from ._typing import (
     MultiPartFilesType,
     ProxyType,
     QueryParameterType,
+    RetryType,
     TimeoutType,
     TLSClientCertType,
     TLSVerifyType,
-    AsyncResolverType,
-    CacheLayerAltSvcType,
-    RetryType,
-    AsyncHookType,
-    AsyncBodyType,
-    AsyncHttpAuthenticationType,
 )
-from .exceptions import (
-    ChunkedEncodingError,
-    ContentDecodingError,
-    TooManyRedirects,
-    InvalidSchema,
-)
-from .hooks import async_dispatch_hook, default_hooks
-from .models import (
-    PreparedRequest,
-    Request,
-    Response,
-    DEFAULT_REDIRECT_LIMIT,
-    TransferProgress,
-    AsyncResponse,
-)
-from .sessions import Session
-from .utils import (
-    create_async_resolver,
-    default_headers,
-    resolve_proxies,
-    rewind_body,
-    requote_uri,
-    _swap_context,
-    _deepcopy_ci,
-    parse_scheme,
-    is_ocsp_capable,
-)
+from .adapters import AsyncBaseAdapter, AsyncHTTPAdapter
 from .cookies import (
     RequestsCookieJar,
     cookiejar_from_dict,
     extract_cookies_to_jar,
     merge_cookies,
 )
+from .exceptions import (
+    ChunkedEncodingError,
+    ContentDecodingError,
+    InvalidSchema,
+    TooManyRedirects,
+)
+from .hooks import async_dispatch_hook, default_hooks
+from .models import (
+    DEFAULT_REDIRECT_LIMIT,
+    AsyncResponse,
+    PreparedRequest,
+    Request,
+    Response,
+    TransferProgress,
+)
+from .sessions import Session
 from .structures import AsyncQuicSharedCache
-from .adapters import AsyncBaseAdapter, AsyncHTTPAdapter
+from .utils import (
+    _deepcopy_ci,
+    _swap_context,
+    create_async_resolver,
+    default_headers,
+    is_ocsp_capable,
+    parse_scheme,
+    requote_uri,
+    resolve_proxies,
+    rewind_body,
+)
 
 # Preferred clock, based on which one is more accurate on a given system.
 if sys.platform == "win32":
@@ -163,9 +168,7 @@ class AsyncSession(Session):
         self.proxies: ProxyType = {}
 
         #: Event-handling hooks.
-        self.hooks: AsyncHookType[PreparedRequest | Response | AsyncResponse] = (
-            default_hooks()  # type: ignore[assignment]
-        )
+        self.hooks: AsyncHookType[PreparedRequest | Response | AsyncResponse] = default_hooks()  # type: ignore[assignment]
 
         #: Dictionary of querystring data to attach to each
         #: :class:`Request <Request>`. The dictionary values may be lists for
@@ -232,18 +235,12 @@ class AsyncSession(Session):
         #: session. By default it is a
         #: :class:`RequestsCookieJar <requests.cookies.RequestsCookieJar>`, but
         #: may be any other ``cookielib.CookieJar`` compatible object.
-        self.cookies: RequestsCookieJar | CookieJar = cookiejar_from_dict(
-            {}, thread_free=True
-        )
+        self.cookies: RequestsCookieJar | CookieJar = cookiejar_from_dict({}, thread_free=True)
 
         #: A simple dict that allows us to persist which server support QUIC
         #: It is simply forwarded to urllib3.future that handle the caching logic.
         #: Can be any mutable mapping.
-        self.quic_cache_layer = (
-            quic_cache_layer
-            if quic_cache_layer is not None
-            else AsyncQuicSharedCache(max_size=12_288)
-        )
+        self.quic_cache_layer = quic_cache_layer if quic_cache_layer is not None else AsyncQuicSharedCache(max_size=12_288)
 
         #: Don't try to manipulate this object.
         #: It cannot be pickled and accessing this object may cause
@@ -291,9 +288,7 @@ class AsyncSession(Session):
         )
 
     def __enter__(self) -> typing.NoReturn:
-        raise SyntaxError(
-            'You probably meant "async with". Did you forget to prepend the "async" keyword?'
-        )
+        raise SyntaxError('You probably meant "async with". Did you forget to prepend the "async" keyword?')
 
     async def __aenter__(self) -> AsyncSession:
         return self
@@ -367,10 +362,7 @@ class AsyncSession(Session):
         try:
             extension = load_extension(scheme, implementation=implementation)
             for prefix, adapter in self.adapters.items():
-                if (
-                    scheme in extension.supported_schemes()
-                    and extension.scheme_to_http_scheme(scheme) == parse_scheme(prefix)
-                ):
+                if scheme in extension.supported_schemes() and extension.scheme_to_http_scheme(scheme) == parse_scheme(prefix):
                     return adapter
         except ImportError:
             pass
@@ -383,9 +375,7 @@ class AsyncSession(Session):
             additional_hint = ""
 
         # Nothing matches :-/
-        raise InvalidSchema(
-            f"No connection adapters were found for {url!r}{additional_hint}"
-        )
+        raise InvalidSchema(f"No connection adapters were found for {url!r}{additional_hint}")
 
     async def send(  # type: ignore[override]
         self, request: PreparedRequest, **kwargs: typing.Any
@@ -427,20 +417,15 @@ class AsyncSession(Session):
             nonlocal ptr_request, request, kwargs
             ptr_request.conn_info = conn_info
 
-            if (
-                ptr_request.url
-                and ptr_request.url.startswith("https://")
-                and kwargs["verify"]
-                and is_ocsp_capable(conn_info)
-            ):
-                strict_ocsp_enabled: bool = (
-                    os.environ.get("NIQUESTS_STRICT_OCSP", "0") != "0"
-                )
+            if ptr_request.url and ptr_request.url.startswith("https://") and kwargs["verify"] and is_ocsp_capable(conn_info):
+                strict_ocsp_enabled: bool = os.environ.get("NIQUESTS_STRICT_OCSP", "0") != "0"
 
                 try:
                     from .extensions._async_ocsp import (
-                        verify as ocsp_verify,
                         InMemoryRevocationStatus,
+                    )
+                    from .extensions._async_ocsp import (
+                        verify as ocsp_verify,
                     )
                 except ImportError:
                     pass
@@ -608,9 +593,7 @@ class AsyncSession(Session):
         # Resolve redirects if allowed.
         if allow_redirects:
             # Redirect resolving generator.
-            gen = self.resolve_redirects(
-                r, request, yield_requests_trail=True, **kwargs
-            )
+            gen = self.resolve_redirects(r, request, yield_requests_trail=True, **kwargs)
             history = []
 
             async for resp_or_req in gen:
@@ -693,9 +676,7 @@ class AsyncSession(Session):
                 await resp.raw.read(decode_content=False)
 
             if len(resp.history) >= self.max_redirects:
-                raise TooManyRedirects(
-                    f"Exceeded {self.max_redirects} redirects.", response=resp
-                )
+                raise TooManyRedirects(f"Exceeded {self.max_redirects} redirects.", response=resp)
 
             # Release the connection back into the pool.
             if isinstance(resp, AsyncResponse):
@@ -715,9 +696,7 @@ class AsyncSession(Session):
             parsed = urlparse(url)
             if parsed.fragment == "" and previous_fragment:
                 parsed = parsed._replace(
-                    fragment=previous_fragment
-                    if isinstance(previous_fragment, str)
-                    else previous_fragment.decode("utf-8")
+                    fragment=previous_fragment if isinstance(previous_fragment, str) else previous_fragment.decode("utf-8")
                 )
             elif parsed.fragment:
                 previous_fragment = parsed.fragment
@@ -728,9 +707,7 @@ class AsyncSession(Session):
             # Compliant with RFC3986, we percent encode the url.
             if not parsed.netloc:
                 url = urljoin(resp.url, requote_uri(url))  # type: ignore[type-var]
-                assert isinstance(
-                    url, str
-                ), f"urljoin produced {type(url)} instead of str"
+                assert isinstance(url, str), f"urljoin produced {type(url)} instead of str"
             else:
                 url = requote_uri(url)
 
@@ -910,9 +887,7 @@ class AsyncSession(Session):
 
         proxies = proxies or {}
 
-        settings = self.merge_environment_settings(
-            prep.url, proxies, stream, verify, cert
-        )
+        settings = self.merge_environment_settings(prep.url, proxies, stream, verify, cert)
 
         # Send the request.
         send_kwargs = {

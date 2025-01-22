@@ -27,13 +27,15 @@ if HAS_LEGACY_URLLIB3 is False:
     from urllib3.contrib.webextensions import load_extension
 else:  # Defensive: tested in separate/isolated CI
     from urllib3_future import ConnectionInfo  # type: ignore[assignment]
-    from urllib3_future.contrib.webextensions import load_extension  # type: ignore[assignment]
+    from urllib3_future.contrib.webextensions import (  # type: ignore[assignment]
+        load_extension,
+    )
 
 from ._constant import (
+    DEFAULT_POOLSIZE,
     DEFAULT_RETRIES,
     READ_DEFAULT_TIMEOUT,
     WRITE_DEFAULT_TIMEOUT,
-    DEFAULT_POOLSIZE,
 )
 from ._typing import (
     BodyType,
@@ -83,19 +85,19 @@ from .status_codes import codes
 from .structures import CaseInsensitiveDict, QuicSharedCache
 from .utils import (  # noqa: F401
     DEFAULT_PORTS,
+    _deepcopy_ci,
+    create_resolver,
     default_headers,
     get_auth_from_url,
     get_environ_proxies,
     get_netrc_auth,
+    is_ocsp_capable,
+    parse_scheme,
     requote_uri,
     resolve_proxies,
     rewind_body,
     should_bypass_proxies,
     to_key_val_list,
-    create_resolver,
-    _deepcopy_ci,
-    parse_scheme,
-    is_ocsp_capable,
 )
 
 # Preferred clock, based on which one is more accurate on a given system.
@@ -126,16 +128,12 @@ def merge_setting(
         return session_setting
 
     # Bypass if not a dictionary (e.g. verify)
-    if isinstance(session_setting, bool) or not (
-        isinstance(session_setting, Mapping) and isinstance(request_setting, Mapping)
-    ):
+    if isinstance(session_setting, bool) or not (isinstance(session_setting, Mapping) and isinstance(request_setting, Mapping)):
         return request_setting
 
     if hasattr(session_setting, "copy"):
         merged_setting = (
-            session_setting.copy()
-            if session_setting.__class__ is dict_class
-            else dict_class(session_setting.copy())
+            session_setting.copy() if session_setting.__class__ is dict_class else dict_class(session_setting.copy())
         )
     else:
         merged_setting = dict_class(to_key_val_list(session_setting))
@@ -177,9 +175,7 @@ def merge_hooks(
         if len(session_hooks[hook_type]):
             tmp_session_hooks[hook_type] = session_hooks[hook_type]
 
-    merged_hooks: HookType = merge_setting(
-        tmp_request_hooks, tmp_session_hooks, dict_class
-    )
+    merged_hooks: HookType = merge_setting(tmp_request_hooks, tmp_session_hooks, dict_class)
 
     for hook_type in HOOKS:
         if hook_type not in merged_hooks:
@@ -380,11 +376,7 @@ class Session:
         #: A simple dict that allows us to persist which server support QUIC
         #: It is simply forwarded to urllib3.future that handle the caching logic.
         #: Can be any mutable mapping.
-        self.quic_cache_layer = (
-            quic_cache_layer
-            if quic_cache_layer is not None
-            else QuicSharedCache(max_size=12_288)
-        )
+        self.quic_cache_layer = quic_cache_layer if quic_cache_layer is not None else QuicSharedCache(max_size=12_288)
 
         #: Don't try to manipulate this object.
         #: It cannot be pickled and accessing this object may cause
@@ -453,16 +445,11 @@ class Session:
             cookies = cookiejar_from_dict(cookies)
 
         # Merge with session cookies
-        merged_cookies = merge_cookies(
-            merge_cookies(RequestsCookieJar(), self.cookies), cookies
-        )
+        merged_cookies = merge_cookies(merge_cookies(RequestsCookieJar(), self.cookies), cookies)
 
         # Set environment's basic authentication if not explicitly set.
         auth = request.auth
-        has_authorization_set = (
-            "authorization" in self.headers
-            or "authorization" in CaseInsensitiveDict(request.headers)
-        )
+        has_authorization_set = "authorization" in self.headers or "authorization" in CaseInsensitiveDict(request.headers)
 
         if self.trust_env and not auth and not self.auth and not has_authorization_set:
             auth = get_netrc_auth(request.url)
@@ -474,9 +461,7 @@ class Session:
             files=request.files,
             data=request.data,
             json=request.json,
-            headers=merge_setting(
-                request.headers, self.headers, dict_class=CaseInsensitiveDict
-            ),
+            headers=merge_setting(request.headers, self.headers, dict_class=CaseInsensitiveDict),
             params=merge_setting(request.params, self.params),
             auth=merge_setting(auth, self.auth),
             cookies=merged_cookies,
@@ -574,9 +559,7 @@ class Session:
 
         proxies = proxies or {}
 
-        settings = self.merge_environment_settings(
-            prep.url, proxies, stream, verify, cert
-        )
+        settings = self.merge_environment_settings(prep.url, proxies, stream, verify, cert)
 
         # Send the request.
         send_kwargs = {
@@ -1138,20 +1121,15 @@ class Session:
             nonlocal ptr_request, request, kwargs
             ptr_request.conn_info = conn_info
 
-            if (
-                ptr_request.url
-                and parse_scheme(ptr_request.url) == "https"
-                and kwargs["verify"]
-                and is_ocsp_capable(conn_info)
-            ):
-                strict_ocsp_enabled: bool = (
-                    os.environ.get("NIQUESTS_STRICT_OCSP", "0") != "0"
-                )
+            if ptr_request.url and parse_scheme(ptr_request.url) == "https" and kwargs["verify"] and is_ocsp_capable(conn_info):
+                strict_ocsp_enabled: bool = os.environ.get("NIQUESTS_STRICT_OCSP", "0") != "0"
 
                 try:
                     from .extensions._ocsp import (
-                        verify as ocsp_verify,
                         InMemoryRevocationStatus,
+                    )
+                    from .extensions._ocsp import (
+                        verify as ocsp_verify,
                     )
                 except ImportError:
                     pass
@@ -1329,9 +1307,7 @@ class Session:
         # Resolve redirects if allowed.
         if allow_redirects:
             # Redirect resolving generator.
-            gen = self.resolve_redirects(
-                r, request, yield_requests_trail=True, **kwargs
-            )
+            gen = self.resolve_redirects(r, request, yield_requests_trail=True, **kwargs)
             history = []
 
             for resp_or_req in gen:
@@ -1355,9 +1331,7 @@ class Session:
             if r.is_redirect:
                 try:
                     r._next = next(
-                        self.resolve_redirects(
-                            r, request, yield_requests=True, **kwargs
-                        )  # type: ignore[assignment]
+                        self.resolve_redirects(r, request, yield_requests=True, **kwargs)  # type: ignore[assignment]
                     )
                 except StopIteration:
                     pass
@@ -1403,11 +1377,7 @@ class Session:
             # Look for requests environment configuration
             # and be compatible with cURL.
             if verify is True or verify is None:
-                verify = (
-                    os.environ.get("REQUESTS_CA_BUNDLE")
-                    or os.environ.get("CURL_CA_BUNDLE")
-                    or verify
-                )
+                verify = os.environ.get("REQUESTS_CA_BUNDLE") or os.environ.get("CURL_CA_BUNDLE") or verify
 
         # Merge all the kwargs.
         proxies = merge_setting(proxies, self.proxies)
@@ -1437,10 +1407,7 @@ class Session:
         try:
             extension = load_extension(scheme, implementation=implementation)
             for prefix, adapter in self.adapters.items():
-                if (
-                    scheme in extension.supported_schemes()
-                    and extension.scheme_to_http_scheme(scheme) == parse_scheme(prefix)
-                ):
+                if scheme in extension.supported_schemes() and extension.scheme_to_http_scheme(scheme) == parse_scheme(prefix):
                     return adapter
         except ImportError:
             pass
@@ -1453,9 +1420,7 @@ class Session:
             additional_hint = ""
 
         # Nothing matches :-/
-        raise InvalidSchema(
-            f"No connection adapters were found for {url!r}{additional_hint}"
-        )
+        raise InvalidSchema(f"No connection adapters were found for {url!r}{additional_hint}")
 
     def close(self) -> None:
         """Closes all adapters and as such the session"""
@@ -1548,20 +1513,12 @@ class Session:
             # This causes incorrect handling of UTF8 encoded location headers.
             # To solve this, we re-encode the location in latin1.
             try:
-                return (
-                    location.encode("latin1") if isinstance(location, str) else location
-                ).decode("utf-8")
+                return (location.encode("latin1") if isinstance(location, str) else location).decode("utf-8")
             except UnicodeDecodeError:
                 try:
-                    return (
-                        location.encode("utf-8")
-                        if isinstance(location, str)
-                        else location
-                    ).decode("utf-8")
+                    return (location.encode("utf-8") if isinstance(location, str) else location).decode("utf-8")
                 except (UnicodeDecodeError, UnicodeEncodeError) as e:
-                    raise HTTPError(
-                        "Response specify a Location header but is unreadable. This is a violation."
-                    ) from e
+                    raise HTTPError("Response specify a Location header but is unreadable. This is a violation.") from e
         return None
 
     def should_strip_auth(self, old_url: str, new_url: str) -> bool:
@@ -1586,11 +1543,7 @@ class Session:
         changed_port = old_parsed.port != new_parsed.port
         changed_scheme = old_parsed.scheme != new_parsed.scheme
         default_port = (DEFAULT_PORTS.get(old_parsed.scheme, None), None)
-        if (
-            not changed_scheme
-            and old_parsed.port in default_port
-            and new_parsed.port in default_port
-        ):
+        if not changed_scheme and old_parsed.port in default_port and new_parsed.port in default_port:
             return False
 
         # Standard case: root URI must match
@@ -1631,9 +1584,7 @@ class Session:
                 resp.raw.read(decode_content=False)
 
             if len(resp.history) >= self.max_redirects:
-                raise TooManyRedirects(
-                    f"Exceeded {self.max_redirects} redirects.", response=resp
-                )
+                raise TooManyRedirects(f"Exceeded {self.max_redirects} redirects.", response=resp)
 
             # Release the connection back into the pool.
             resp.close()
@@ -1650,9 +1601,7 @@ class Session:
             parsed = urlparse(url)
             if parsed.fragment == "" and previous_fragment:
                 parsed = parsed._replace(
-                    fragment=previous_fragment
-                    if isinstance(previous_fragment, str)
-                    else previous_fragment.decode("utf-8")
+                    fragment=previous_fragment if isinstance(previous_fragment, str) else previous_fragment.decode("utf-8")
                 )
             elif parsed.fragment:
                 previous_fragment = parsed.fragment
@@ -1663,9 +1612,7 @@ class Session:
             # Compliant with RFC3986, we percent encode the url.
             if not parsed.netloc:
                 url = urljoin(resp.url, requote_uri(url))  # type: ignore[type-var]
-                assert isinstance(
-                    url, str
-                ), f"urljoin produced {type(url)} instead of str"
+                assert isinstance(url, str), f"urljoin produced {type(url)} instead of str"
             else:
                 url = requote_uri(url)
 
@@ -1748,9 +1695,7 @@ class Session:
                 url = self.get_redirect_target(resp)
                 yield resp
 
-    def rebuild_auth(
-        self, prepared_request: PreparedRequest, response: Response
-    ) -> None:
+    def rebuild_auth(self, prepared_request: PreparedRequest, response: Response) -> None:
         """When being redirected we may want to strip authentication from the
         request to avoid leaking credentials. This method intelligently removes
         and reapplies authentication where possible to avoid credential loss.
@@ -1758,16 +1703,10 @@ class Session:
         headers = prepared_request.headers
         url = prepared_request.url
 
-        assert (
-            url is not None and headers is not None
-        ), "Rebuild auth based on uninitialized PreparedRequest"
-        assert (
-            response.request and response.request.url
-        ), "Rebuild auth based on nonexistent Response->PreparedRequest"
+        assert url is not None and headers is not None, "Rebuild auth based on uninitialized PreparedRequest"
+        assert response.request and response.request.url, "Rebuild auth based on nonexistent Response->PreparedRequest"
 
-        if "Authorization" in headers and self.should_strip_auth(
-            response.request.url, url
-        ):
+        if "Authorization" in headers and self.should_strip_auth(response.request.url, url):
             # If we get redirected to a new host, we should strip out any
             # authentication headers.
             del headers["Authorization"]
@@ -1777,9 +1716,7 @@ class Session:
         if new_auth is not None:
             prepared_request.prepare_auth(new_auth)
 
-    def rebuild_proxies(
-        self, prepared_request: PreparedRequest, proxies: ProxyType | None
-    ) -> ProxyType:
+    def rebuild_proxies(self, prepared_request: PreparedRequest, proxies: ProxyType | None) -> ProxyType:
         """This method re-evaluates the proxy configuration by considering the
         environment variables. If we are redirected to a URL covered by
         NO_PROXY, we strip the proxy configuration. Otherwise, we set missing
@@ -1793,9 +1730,7 @@ class Session:
         assert prepared_request.url is not None
         scheme: str = parse_scheme(prepared_request.url)
 
-        assert (
-            headers is not None
-        ), "Rebuild proxies based on uninitialized PreparedRequest"
+        assert headers is not None, "Rebuild proxies based on uninitialized PreparedRequest"
 
         new_proxies = resolve_proxies(prepared_request, proxies, self.trust_env)
 

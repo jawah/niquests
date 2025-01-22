@@ -1,6 +1,8 @@
+from __future__ import annotations
+
 import pytest
 
-from niquests import Session, AsyncSession
+from niquests import AsyncSession, Session
 from niquests.exceptions import ConnectionError, Timeout
 
 try:
@@ -40,9 +42,7 @@ class TestOnlineCertificateRevocationProtocol:
                 try:
                     s.get(revoked_peer_url, timeout=OCSP_MAX_DELAY_WAIT)
                 except Timeout:
-                    pytest.mark.skip(
-                        f"remote {revoked_peer_url} is unavailable at the moment..."
-                    )
+                    pytest.mark.skip(f"remote {revoked_peer_url} is unavailable at the moment...")
             assert s._ocsp_cache is not None
             assert hasattr(s._ocsp_cache, "_store")
             assert isinstance(s._ocsp_cache._store, dict)
@@ -81,9 +81,7 @@ class TestOnlineCertificateRevocationProtocol:
                 try:
                     await s.get(revoked_peer_url, timeout=OCSP_MAX_DELAY_WAIT)
                 except Timeout:
-                    pytest.mark.skip(
-                        f"remote {revoked_peer_url} is unavailable at the moment..."
-                    )
+                    pytest.mark.skip(f"remote {revoked_peer_url} is unavailable at the moment...")
             assert s._ocsp_cache is not None
             assert hasattr(s._ocsp_cache, "_store")
             assert isinstance(s._ocsp_cache._store, dict)
