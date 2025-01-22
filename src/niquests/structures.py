@@ -17,7 +17,9 @@ try:
     if not HAS_LEGACY_URLLIB3:
         from urllib3._collections import _lower_wrapper  # type: ignore[attr-defined]
     else:  # Defensive: tested in separate/isolated CI
-        from urllib3_future._collections import _lower_wrapper  # type: ignore[attr-defined]
+        from urllib3_future._collections import (
+            _lower_wrapper,  # type: ignore[attr-defined]
+        )
 except ImportError:
     from functools import lru_cache
 
@@ -30,9 +32,7 @@ except ImportError:
 from .exceptions import InvalidHeader
 
 
-def _ensure_str_or_bytes(
-    key: typing.Any, value: typing.Any
-) -> tuple[bytes | str, bytes | str]:
+def _ensure_str_or_bytes(key: typing.Any, value: typing.Any) -> tuple[bytes | str, bytes | str]:
     if isinstance(key, (bytes, str)) and isinstance(value, (bytes, str)):
         return key, value
     if isinstance(
@@ -43,9 +43,7 @@ def _ensure_str_or_bytes(
         ),
     ):
         value = str(value)
-    if isinstance(key, (bytes, str)) is False or (
-        value is not None and isinstance(value, (bytes, str)) is False
-    ):
+    if isinstance(key, (bytes, str)) is False or (value is not None and isinstance(value, (bytes, str)) is False):
         raise InvalidHeader(f"Illegal header name or value {key}")
     return key, value
 
@@ -137,9 +135,7 @@ class CaseInsensitiveDict(MutableMapping):
                 except TypeError:
                     yield (
                         t[0],
-                        ", ".join(
-                            v.decode() if isinstance(v, bytes) else v for v in t[1:]
-                        ),
+                        ", ".join(v.decode() if isinstance(v, bytes) else v for v in t[1:]),
                     )
 
     def __eq__(self, other) -> bool:
@@ -222,18 +218,14 @@ class QuicSharedCache(SharableLimitedDict):
         super().__init__(max_size)
         self._exclusion_store: typing.MutableMapping[typing.Any, typing.Any] = {}
 
-    def add_domain(
-        self, host: str, port: int | None = None, alt_port: int | None = None
-    ) -> None:
+    def add_domain(self, host: str, port: int | None = None, alt_port: int | None = None) -> None:
         if port is None:
             port = 443
         if alt_port is None:
             alt_port = port
         self[(host, port)] = (host, alt_port)
 
-    def exclude_domain(
-        self, host: str, port: int | None = None, alt_port: int | None = None
-    ):
+    def exclude_domain(self, host: str, port: int | None = None, alt_port: int | None = None):
         if port is None:
             port = 443
         if alt_port is None:

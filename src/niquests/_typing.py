@@ -1,30 +1,32 @@
 from __future__ import annotations
 
-from os import PathLike
 import typing
 from http.cookiejar import CookieJar
+from os import PathLike
 
 from kiss_headers import Headers
 
 from ._compat import HAS_LEGACY_URLLIB3
 
 if HAS_LEGACY_URLLIB3 is False:
-    from urllib3 import ResolverDescription, Retry, Timeout, AsyncResolverDescription
+    from urllib3 import AsyncResolverDescription, ResolverDescription, Retry, Timeout
     from urllib3.contrib.resolver import BaseResolver
     from urllib3.contrib.resolver._async import AsyncBaseResolver
     from urllib3.fields import RequestField
 else:  # Defensive: tested in separate/isolated CI
     from urllib3_future import (  # type: ignore[assignment]
+        AsyncResolverDescription,
+        ResolverDescription,
         Retry,
         Timeout,
-        ResolverDescription,
-        AsyncResolverDescription,
+    )
+    from urllib3_future.contrib.resolver import BaseResolver  # type: ignore[assignment]
+    from urllib3_future.contrib.resolver._async import (  # type: ignore[assignment]
+        AsyncBaseResolver,
     )
     from urllib3_future.fields import RequestField  # type: ignore[assignment]
-    from urllib3_future.contrib.resolver._async import AsyncBaseResolver  # type: ignore[assignment]
-    from urllib3_future.contrib.resolver import BaseResolver  # type: ignore[assignment]
 
-from .auth import AuthBase, AsyncAuthBase
+from .auth import AsyncAuthBase, AuthBase
 from .structures import CaseInsensitiveDict
 
 if typing.TYPE_CHECKING:
@@ -74,16 +76,12 @@ CookiesType: typing.TypeAlias = typing.Union[
 #: Either Yes/No, or CA bundle pem location. Or directly the raw bundle content itself.
 TLSVerifyType: typing.TypeAlias = typing.Union[bool, str, bytes, PathLike]
 #: Accept a pem certificate (concat cert, key) or an explicit tuple of cert, key pair with an optional password.
-TLSClientCertType: typing.TypeAlias = typing.Union[
-    str, typing.Tuple[str, str], typing.Tuple[str, str, str]
-]
+TLSClientCertType: typing.TypeAlias = typing.Union[str, typing.Tuple[str, str], typing.Tuple[str, str, str]]
 #: All accepted ways to describe desired timeout.
 TimeoutType: typing.TypeAlias = typing.Union[
     int,  # TotalTimeout
     float,  # TotalTimeout
-    typing.Tuple[
-        typing.Union[int, float], typing.Union[int, float]
-    ],  # note: TotalTimeout, ConnectTimeout
+    typing.Tuple[typing.Union[int, float], typing.Union[int, float]],  # note: TotalTimeout, ConnectTimeout
     typing.Tuple[
         typing.Union[int, float], typing.Union[int, float], typing.Union[int, float]
     ],  # note: TotalTimeout, ConnectTimeout, ReadTimeout
@@ -144,9 +142,7 @@ FieldTupleType: typing.TypeAlias = typing.Union[
     typing.Tuple[str, FieldValueType, str],
 ]
 
-FieldSequenceType: typing.TypeAlias = typing.Sequence[
-    typing.Union[typing.Tuple[str, FieldTupleType], RequestField]
-]
+FieldSequenceType: typing.TypeAlias = typing.Sequence[typing.Union[typing.Tuple[str, FieldTupleType], RequestField]]
 FieldsType: typing.TypeAlias = typing.Union[
     FieldSequenceType,
     typing.Mapping[str, FieldTupleType],
@@ -166,13 +162,9 @@ AsyncHookCallableType: typing.TypeAlias = typing.Callable[
     typing.Awaitable[typing.Optional[_HV]],
 ]
 
-AsyncHookType: typing.TypeAlias = typing.Dict[
-    str, typing.List[typing.Union[HookCallableType[_HV], AsyncHookCallableType[_HV]]]
-]
+AsyncHookType: typing.TypeAlias = typing.Dict[str, typing.List[typing.Union[HookCallableType[_HV], AsyncHookCallableType[_HV]]]]
 
-CacheLayerAltSvcType: typing.TypeAlias = typing.MutableMapping[
-    typing.Tuple[str, int], typing.Optional[typing.Tuple[str, int]]
-]
+CacheLayerAltSvcType: typing.TypeAlias = typing.MutableMapping[typing.Tuple[str, int], typing.Optional[typing.Tuple[str, int]]]
 
 RetryType: typing.TypeAlias = typing.Union[bool, int, Retry]
 

@@ -59,7 +59,8 @@ def request(
 ) -> Response:
     """Constructs and sends a :class:`Request <Request>`.
 
-    :param method: method for the new :class:`Request` object: ``GET``, ``OPTIONS``, ``HEAD``, ``POST``, ``PUT``, ``PATCH``, or ``DELETE``.
+    :param method: method for the new :class:`Request` object: ``GET``, ``OPTIONS``, ``HEAD``, ``POST``, ``PUT``, ``PATCH``,
+        or ``DELETE``.
     :param url: URL for the new :class:`Request` object.
     :param params: (optional) Dictionary, list of tuples or bytes to send
         in the query string for the :class:`Request`.
@@ -68,7 +69,8 @@ def request(
     :param json: (optional) A JSON serializable Python object to send in the body of the :class:`Request`.
     :param headers: (optional) Dictionary of HTTP Headers to send with the :class:`Request`.
     :param cookies: (optional) Dict or CookieJar object to send with the :class:`Request`.
-    :param files: (optional) Dictionary of ``'name': file-like-objects`` (or ``{'name': file-tuple}``) for multipart encoding upload.
+    :param files: (optional) Dictionary of ``'name': file-like-objects`` (or ``{'name': file-tuple}``)
+        for multipart encoding upload.
         ``file-tuple`` can be a 2-tuple ``('filename', fileobj)``, 3-tuple ``('filename', fileobj, 'content_type')``
         or a 4-tuple ``('filename', fileobj, 'content_type', custom_headers)``, where ``'content_type'`` is a string
         defining the content type of the given file and ``custom_headers`` a dict-like object containing additional headers
@@ -77,7 +79,8 @@ def request(
     :param timeout: (optional) How many seconds to wait for the server to send data
         before giving up, as a float, or a :ref:`(connect timeout, read
         timeout) <timeouts>` tuple.
-    :param allow_redirects: (optional) Boolean. Enable/disable GET/OPTIONS/POST/PUT/PATCH/DELETE/HEAD redirection. Defaults to ``True``.
+    :param allow_redirects: (optional) Boolean. Enable/disable GET/OPTIONS/POST/PUT/PATCH/DELETE/HEAD redirection.
+            Defaults to ``True``.
     :param proxies: (optional) Dictionary mapping protocol to the URL of the proxy.
     :param verify: (optional) Either a boolean, in which case it controls whether we verify
             the server's TLS certificate, or a path passed as a string or os.Pathlike object,
@@ -85,7 +88,8 @@ def request(
             Defaults to ``True``.
             It is also possible to put the certificates (directly) in a string or bytes.
     :param stream: (optional) if ``False``, the response content will be immediately downloaded.
-    :param cert: (optional) if String, path to ssl client cert file (.pem). If Tuple, ('cert', 'key') pair, or ('cert', 'key', 'key_password').
+    :param cert: (optional) if String, path to ssl client cert file (.pem).
+            If Tuple, ('cert', 'key') pair, or ('cert', 'key', 'key_password').
     :param hooks: (optional) Register functions that should be called at very specific moment in the request lifecycle.
     :param retries: (optional) If integer, determine the number of retry in case of a timeout or connection error.
             Otherwise, for fine gained retry, use directly a ``Retry`` instance from urllib3.
@@ -102,9 +106,7 @@ def request(
     # By using the 'with' statement we are sure the session is closed, thus we
     # avoid leaving sockets open which can trigger a ResourceWarning in some
     # cases, and look like a memory leak in others.
-    with sessions.Session(
-        quic_cache_layer=_SHARED_QUIC_CACHE, retries=retries
-    ) as session:
+    with sessions.Session(quic_cache_layer=_SHARED_QUIC_CACHE, retries=retries) as session:
         return session.request(
             method=method,
             url=url,
@@ -155,7 +157,8 @@ def get(
     :param timeout: (optional) How many seconds to wait for the server to send data
         before giving up, as a float, or a :ref:`(connect timeout, read
         timeout) <timeouts>` tuple.
-    :param allow_redirects: (optional) Boolean. Enable/disable GET/OPTIONS/POST/PUT/PATCH/DELETE/HEAD redirection. Defaults to ``True``.
+    :param allow_redirects: (optional) Boolean. Enable/disable GET/OPTIONS/POST/PUT/PATCH/DELETE/HEAD redirection.
+            Defaults to ``True``.
     :param proxies: (optional) Dictionary mapping protocol to the URL of the proxy.
     :param verify: (optional) Either a boolean, in which case it controls whether we verify
             the server's TLS certificate, or a path passed as a string or os.Pathlike object,
@@ -163,7 +166,8 @@ def get(
             Defaults to ``True``.
             It is also possible to put the certificates (directly) in a string or bytes.
     :param stream: (optional) if ``False``, the response content will be immediately downloaded.
-    :param cert: (optional) if String, path to ssl client cert file (.pem). If Tuple, ('cert', 'key') pair, or ('cert', 'key', 'key_password').
+    :param cert: (optional) if String, path to ssl client cert file (.pem).
+            If Tuple, ('cert', 'key') pair, or ('cert', 'key', 'key_password').
     :param hooks: (optional) Register functions that should be called at very specific moment in the request lifecycle.
     :param retries: (optional) If integer, determine the number of retry in case of a timeout or connection error.
             Otherwise, for fine gained retry, use directly a ``Retry`` instance from urllib3.
@@ -217,7 +221,8 @@ def options(
     :param timeout: (optional) How many seconds to wait for the server to send data
         before giving up, as a float, or a :ref:`(connect timeout, read
         timeout) <timeouts>` tuple.
-    :param allow_redirects: (optional) Boolean. Enable/disable GET/OPTIONS/POST/PUT/PATCH/DELETE/HEAD redirection. Defaults to ``True``.
+    :param allow_redirects: (optional) Boolean. Enable/disable GET/OPTIONS/POST/PUT/PATCH/DELETE/HEAD redirection.
+            Defaults to ``True``.
     :param proxies: (optional) Dictionary mapping protocol to the URL of the proxy.
     :param verify: (optional) Either a boolean, in which case it controls whether we verify
             the server's TLS certificate, or a path passed as a string or os.Pathlike object,
@@ -225,7 +230,8 @@ def options(
             Defaults to ``True``.
             It is also possible to put the certificates (directly) in a string or bytes.
     :param stream: (optional) if ``False``, the response content will be immediately downloaded.
-    :param cert: (optional) if String, path to ssl client cert file (.pem). If Tuple, ('cert', 'key') pair, or ('cert', 'key', 'key_password').
+    :param cert: (optional) if String, path to ssl client cert file (.pem).
+            If Tuple, ('cert', 'key') pair, or ('cert', 'key', 'key_password').
     :param hooks: (optional) Register functions that should be called at very specific moment in the request lifecycle.
     :param retries: (optional) If integer, determine the number of retry in case of a timeout or connection error.
             Otherwise, for fine gained retry, use directly a ``Retry`` instance from urllib3.
@@ -280,7 +286,8 @@ def head(
     :param timeout: (optional) How many seconds to wait for the server to send data
         before giving up, as a float, or a :ref:`(connect timeout, read
         timeout) <timeouts>` tuple.
-    :param allow_redirects: (optional) Boolean. Enable/disable GET/OPTIONS/POST/PUT/PATCH/DELETE/HEAD redirection. Defaults to ``True``.
+    :param allow_redirects: (optional) Boolean. Enable/disable GET/OPTIONS/POST/PUT/PATCH/DELETE/HEAD redirection.
+            Defaults to ``True``.
     :param proxies: (optional) Dictionary mapping protocol to the URL of the proxy.
     :param verify: (optional) Either a boolean, in which case it controls whether we verify
             the server's TLS certificate, or a path passed as a string or os.Pathlike object,
@@ -288,7 +295,8 @@ def head(
             Defaults to ``True``.
             It is also possible to put the certificates (directly) in a string or bytes.
     :param stream: (optional) if ``False``, the response content will be immediately downloaded.
-    :param cert: (optional) if String, path to ssl client cert file (.pem). If Tuple, ('cert', 'key') pair, or ('cert', 'key', 'key_password').
+    :param cert: (optional) if String, path to ssl client cert file (.pem).
+            If Tuple, ('cert', 'key') pair, or ('cert', 'key', 'key_password').
     :param hooks: (optional) Register functions that should be called at very specific moment in the request lifecycle.
     :param retries: (optional) If integer, determine the number of retry in case of a timeout or connection error.
             Otherwise, for fine gained retry, use directly a ``Retry`` instance from urllib3.
@@ -344,7 +352,8 @@ def post(
     :param json: (optional) A JSON serializable Python object to send in the body of the :class:`Request`.
     :param headers: (optional) Dictionary of HTTP Headers to send with the :class:`Request`.
     :param cookies: (optional) Dict or CookieJar object to send with the :class:`Request`.
-    :param files: (optional) Dictionary of ``'name': file-like-objects`` (or ``{'name': file-tuple}``) for multipart encoding upload.
+    :param files: (optional) Dictionary of ``'name': file-like-objects`` (or ``{'name': file-tuple}``)
+        for multipart encoding upload.
         ``file-tuple`` can be a 2-tuple ``('filename', fileobj)``, 3-tuple ``('filename', fileobj, 'content_type')``
         or a 4-tuple ``('filename', fileobj, 'content_type', custom_headers)``, where ``'content_type'`` is a string
         defining the content type of the given file and ``custom_headers`` a dict-like object containing additional headers
@@ -353,7 +362,8 @@ def post(
     :param timeout: (optional) How many seconds to wait for the server to send data
         before giving up, as a float, or a :ref:`(connect timeout, read
         timeout) <timeouts>` tuple.
-    :param allow_redirects: (optional) Boolean. Enable/disable GET/OPTIONS/POST/PUT/PATCH/DELETE/HEAD redirection. Defaults to ``True``.
+    :param allow_redirects: (optional) Boolean. Enable/disable GET/OPTIONS/POST/PUT/PATCH/DELETE/HEAD redirection.
+            Defaults to ``True``.
     :param proxies: (optional) Dictionary mapping protocol to the URL of the proxy.
     :param verify: (optional) Either a boolean, in which case it controls whether we verify
             the server's TLS certificate, or a path passed as a string or os.Pathlike object,
@@ -361,7 +371,8 @@ def post(
             Defaults to ``True``.
             It is also possible to put the certificates (directly) in a string or bytes.
     :param stream: (optional) if ``False``, the response content will be immediately downloaded.
-    :param cert: (optional) if String, path to ssl client cert file (.pem). If Tuple, ('cert', 'key') pair, or ('cert', 'key', 'key_password').
+    :param cert: (optional) if String, path to ssl client cert file (.pem).
+            If Tuple, ('cert', 'key') pair, or ('cert', 'key', 'key_password').
     :param hooks: (optional) Register functions that should be called at very specific moment in the request lifecycle.
     :param retries: (optional) If integer, determine the number of retry in case of a timeout or connection error.
             Otherwise, for fine gained retry, use directly a ``Retry`` instance from urllib3.
@@ -419,7 +430,8 @@ def put(
     :param json: (optional) A JSON serializable Python object to send in the body of the :class:`Request`.
     :param headers: (optional) Dictionary of HTTP Headers to send with the :class:`Request`.
     :param cookies: (optional) Dict or CookieJar object to send with the :class:`Request`.
-    :param files: (optional) Dictionary of ``'name': file-like-objects`` (or ``{'name': file-tuple}``) for multipart encoding upload.
+    :param files: (optional) Dictionary of ``'name': file-like-objects`` (or ``{'name': file-tuple}``)
+        for multipart encoding upload.
         ``file-tuple`` can be a 2-tuple ``('filename', fileobj)``, 3-tuple ``('filename', fileobj, 'content_type')``
         or a 4-tuple ``('filename', fileobj, 'content_type', custom_headers)``, where ``'content_type'`` is a string
         defining the content type of the given file and ``custom_headers`` a dict-like object containing additional headers
@@ -428,7 +440,8 @@ def put(
     :param timeout: (optional) How many seconds to wait for the server to send data
         before giving up, as a float, or a :ref:`(connect timeout, read
         timeout) <timeouts>` tuple.
-    :param allow_redirects: (optional) Boolean. Enable/disable GET/OPTIONS/POST/PUT/PATCH/DELETE/HEAD redirection. Defaults to ``True``.
+    :param allow_redirects: (optional) Boolean. Enable/disable GET/OPTIONS/POST/PUT/PATCH/DELETE/HEAD redirection.
+            Defaults to ``True``.
     :param proxies: (optional) Dictionary mapping protocol to the URL of the proxy.
     :param verify: (optional) Either a boolean, in which case it controls whether we verify
             the server's TLS certificate, or a path passed as a string or os.Pathlike object,
@@ -436,7 +449,8 @@ def put(
             Defaults to ``True``.
             It is also possible to put the certificates (directly) in a string or bytes.
     :param stream: (optional) if ``False``, the response content will be immediately downloaded.
-    :param cert: (optional) if String, path to ssl client cert file (.pem). If Tuple, ('cert', 'key') pair, or ('cert', 'key', 'key_password').
+    :param cert: (optional) if String, path to ssl client cert file (.pem).
+            If Tuple, ('cert', 'key') pair, or ('cert', 'key', 'key_password').
     :param hooks: (optional) Register functions that should be called at very specific moment in the request lifecycle.
     :param retries: (optional) If integer, determine the number of retry in case of a timeout or connection error.
             Otherwise, for fine gained retry, use directly a ``Retry`` instance from urllib3.
@@ -494,7 +508,8 @@ def patch(
     :param json: (optional) A JSON serializable Python object to send in the body of the :class:`Request`.
     :param headers: (optional) Dictionary of HTTP Headers to send with the :class:`Request`.
     :param cookies: (optional) Dict or CookieJar object to send with the :class:`Request`.
-    :param files: (optional) Dictionary of ``'name': file-like-objects`` (or ``{'name': file-tuple}``) for multipart encoding upload.
+    :param files: (optional) Dictionary of ``'name': file-like-objects`` (or ``{'name': file-tuple}``)
+        for multipart encoding upload.
         ``file-tuple`` can be a 2-tuple ``('filename', fileobj)``, 3-tuple ``('filename', fileobj, 'content_type')``
         or a 4-tuple ``('filename', fileobj, 'content_type', custom_headers)``, where ``'content_type'`` is a string
         defining the content type of the given file and ``custom_headers`` a dict-like object containing additional headers
@@ -503,7 +518,8 @@ def patch(
     :param timeout: (optional) How many seconds to wait for the server to send data
         before giving up, as a float, or a :ref:`(connect timeout, read
         timeout) <timeouts>` tuple.
-    :param allow_redirects: (optional) Boolean. Enable/disable GET/OPTIONS/POST/PUT/PATCH/DELETE/HEAD redirection. Defaults to ``True``.
+    :param allow_redirects: (optional) Boolean. Enable/disable GET/OPTIONS/POST/PUT/PATCH/DELETE/HEAD redirection.
+            Defaults to ``True``.
     :param proxies: (optional) Dictionary mapping protocol to the URL of the proxy.
     :param verify: (optional) Either a boolean, in which case it controls whether we verify
             the server's TLS certificate, or a path passed as a string or os.Pathlike object,
@@ -511,7 +527,8 @@ def patch(
             Defaults to ``True``.
             It is also possible to put the certificates (directly) in a string or bytes.
     :param stream: (optional) if ``False``, the response content will be immediately downloaded.
-    :param cert: (optional) if String, path to ssl client cert file (.pem). If Tuple, ('cert', 'key') pair, or ('cert', 'key', 'key_password').
+    :param cert: (optional) if String, path to ssl client cert file (.pem).
+            If Tuple, ('cert', 'key') pair, or ('cert', 'key', 'key_password').
     :param hooks: (optional) Register functions that should be called at very specific moment in the request lifecycle.
     :param retries: (optional) If integer, determine the number of retry in case of a timeout or connection error.
             Otherwise, for fine gained retry, use directly a ``Retry`` instance from urllib3.
@@ -568,7 +585,8 @@ def delete(
     :param timeout: (optional) How many seconds to wait for the server to send data
         before giving up, as a float, or a :ref:`(connect timeout, read
         timeout) <timeouts>` tuple.
-    :param allow_redirects: (optional) Boolean. Enable/disable GET/OPTIONS/POST/PUT/PATCH/DELETE/HEAD redirection. Defaults to ``True``.
+    :param allow_redirects: (optional) Boolean. Enable/disable GET/OPTIONS/POST/PUT/PATCH/DELETE/HEAD redirection.
+            Defaults to ``True``.
     :param proxies: (optional) Dictionary mapping protocol to the URL of the proxy.
     ::param verify: (optional) Either a boolean, in which case it controls whether we verify
             the server's TLS certificate, or a path passed as a string or os.Pathlike object,
@@ -576,7 +594,8 @@ def delete(
             Defaults to ``True``.
             It is also possible to put the certificates (directly) in a string or bytes.
     :param stream: (optional) if ``False``, the response content will be immediately downloaded.
-    :param cert: (optional) if String, path to ssl client cert file (.pem). If Tuple, ('cert', 'key') pair, or ('cert', 'key', 'key_password').
+    :param cert: (optional) if String, path to ssl client cert file (.pem).
+            If Tuple, ('cert', 'key') pair, or ('cert', 'key', 'key_password').
     :param hooks: (optional) Register functions that should be called at very specific moment in the request lifecycle.
     :param retries: (optional) If integer, determine the number of retry in case of a timeout or connection error.
             Otherwise, for fine gained retry, use directly a ``Retry`` instance from urllib3.

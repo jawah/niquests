@@ -220,10 +220,7 @@ class HTTPDigestAuth(AuthBase):
         self._thread_local.last_nonce = nonce
 
         # XXX should the partial digests be encoded too?
-        base = (
-            f'username="{self.username}", realm="{realm}", nonce="{nonce}", '
-            f'uri="{path}", response="{respdig}"'
-        )
+        base = f'username="{self.username}", realm="{realm}", nonce="{nonce}", uri="{path}", response="{respdig}"'
         if opaque:
             base += f', opaque="{opaque}"'
         if algorithm:
@@ -272,9 +269,7 @@ class HTTPDigestAuth(AuthBase):
             extract_cookies_to_jar(prep._cookies, r.request, r.raw)
             prep.prepare_cookies(prep._cookies)
 
-            prep.headers["Authorization"] = self.build_digest_header(
-                prep.method, prep.url
-            )
+            prep.headers["Authorization"] = self.build_digest_header(prep.method, prep.url)
             _r = r.connection.send(prep, **kwargs)
             _r.history.append(r)
             _r.request = prep

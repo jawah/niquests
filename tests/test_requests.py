@@ -14,12 +14,13 @@ from http import cookiejar as cookielib
 from http.cookies import Morsel
 from io import StringIO
 from json import JSONDecodeError
+from pathlib import Path
 from unittest import mock
 from urllib.parse import urlparse
 from urllib.request import getproxies
-from pathlib import Path
 
 import pytest
+
 from niquests._compat import HAS_LEGACY_URLLIB3
 
 if not HAS_LEGACY_URLLIB3:
@@ -47,9 +48,11 @@ from niquests.exceptions import (
     ReadTimeout,
     RequestException,
     RetryError,
+    Timeout,
+    TooManyRedirects,
+    UnrewindableBodyError,
 )
 from niquests.exceptions import SSLError as RequestsSSLError
-from niquests.exceptions import Timeout, TooManyRedirects, UnrewindableBodyError
 from niquests.hooks import default_hooks
 from niquests.models import PreparedRequest, urlencode
 from niquests.sessions import Session
@@ -133,9 +136,7 @@ class TestRequests:
             nonlocal pulse
             pulse.append(req.upload_progress)
 
-        r = niquests.post(
-            httpbin("post"), data=b"foo" * 1024 * 10, hooks={"on_upload": [track]}
-        )
+        r = niquests.post(httpbin("post"), data=b"foo" * 1024 * 10, hooks={"on_upload": [track]})
         assert r.status_code == 200
 
         assert all(item is not None for item in pulse)
@@ -166,26 +167,18 @@ class TestRequests:
         assert request.url == expected
 
     def test_params_original_order_is_preserved_by_default(self):
-        param_ordered_dict = collections.OrderedDict(
-            (("z", 1), ("a", 1), ("k", 1), ("d", 1))
-        )
+        param_ordered_dict = collections.OrderedDict((("z", 1), ("a", 1), ("k", 1), ("d", 1)))
         session = niquests.Session()
-        request = niquests.Request(
-            "GET", "http://example.com/", params=param_ordered_dict
-        )
+        request = niquests.Request("GET", "http://example.com/", params=param_ordered_dict)
         prep = session.prepare_request(request)
         assert prep.url == "http://example.com/?z=1&a=1&k=1&d=1"
 
     def test_params_bytes_are_encoded(self):
-        request = niquests.Request(
-            "GET", "http://example.com", params=b"test=foo"
-        ).prepare()
+        request = niquests.Request("GET", "http://example.com", params=b"test=foo").prepare()
         assert request.url == "http://example.com/?test=foo"
 
     def test_binary_put(self):
-        request = niquests.Request(
-            "PUT", "http://example.com", data="ööö".encode()
-        ).prepare()
+        request = niquests.Request("PUT", "http://example.com", data="ööö".encode()).prepare()
         assert isinstance(request.body, bytes)
 
     def test_whitespaces_are_removed_from_url(self):
@@ -263,9 +256,7 @@ class TestRequests:
             assert e.response.url == url
             assert len(e.response.history) == 5
         else:
-            pytest.fail(
-                "Expected custom max number of redirects to be respected but was not"
-            )
+            pytest.fail("Expected custom max number of redirects to be respected but was not")
 
     def test_http_301_changes_post_to_get(self, httpbin):
         r = niquests.post(httpbin("status", "301"))
@@ -369,9 +360,7 @@ class TestRequests:
     def test_HTTP_200_OK_GET_WITH_MIXED_PARAMS(self, httpbin):
         heads = {"User-agent": "Mozilla/5.0"}
 
-        r = niquests.get(
-            httpbin("get") + "?test=true", params={"q": "test"}, headers=heads
-        )
+        r = niquests.get(httpbin("get") + "?test=true", params={"q": "test"}, headers=heads)
         assert r.status_code == 200
 
     def test_set_cookie_on_301(self, httpbin):
@@ -588,9 +577,7 @@ class TestRequests:
     def test_proxy_error(self):
         # any proxy related error (address resolution, no route to host, etc) should result in a ProxyError
         with pytest.raises(ProxyError):
-            niquests.get(
-                "http://localhost:1", proxies={"http": "non-resolvable-address"}
-            )
+            niquests.get("http://localhost:1", proxies={"http": "non-resolvable-address"})
 
     def test_proxy_error_on_bad_url(self, httpbin, httpbin_secure):
         with pytest.raises(InvalidProxyURL):
@@ -657,9 +644,7 @@ class TestRequests:
             ("https://example.com", False),
         ),
     )
-    def test_proxy_authorization_not_appended_to_https_request(
-        self, url, has_proxy_auth
-    ):
+    def test_proxy_authorization_not_appended_to_https_request(self, url, has_proxy_auth):
         session = niquests.Session()
         proxies = {
             "http": "http://test:pass@localhost:8080",
@@ -938,28 +923,17 @@ class TestRequests:
         INVALID_PATH = "/garbage"
         with pytest.raises(IOError) as e:
             niquests.get(httpbin_secure(), verify=INVALID_PATH)
-        assert (
-            str(e.value)
-            == "Could not find a suitable TLS CA certificate bundle, invalid path: {}".format(
-                INVALID_PATH
-            )
-        )
+        assert str(e.value) == f"Could not find a suitable TLS CA certificate bundle, invalid path: {INVALID_PATH}"
 
     def test_invalid_ssl_certificate_files(self, httpbin_secure):
         INVALID_PATH = "/garbage"
         with pytest.raises(IOError) as e:
             niquests.get(httpbin_secure(), cert=INVALID_PATH)
-        assert str(
-            e.value
-        ) == "Could not find the TLS certificate file, invalid path: {}".format(
-            INVALID_PATH
-        )
+        assert str(e.value) == f"Could not find the TLS certificate file, invalid path: {INVALID_PATH}"
 
         with pytest.raises(IOError) as e:
             niquests.get(httpbin_secure(), cert=(".", INVALID_PATH))
-        assert str(e.value) == (
-            f"Could not find the TLS key file, invalid path: {INVALID_PATH}"
-        )
+        assert str(e.value) == (f"Could not find the TLS key file, invalid path: {INVALID_PATH}")
 
     def test_ssl_certificate_as_pathlike(self, san_server):
         _, port, ca_bundle = san_server
@@ -1012,9 +986,7 @@ class TestRequests:
     def test_env_cert_bundles(self, httpbin, env, expected):
         s = niquests.Session()
         with mock.patch("os.environ", env):
-            settings = s.merge_environment_settings(
-                url=httpbin("get"), proxies={}, stream=False, verify=True, cert=None
-            )
+            settings = s.merge_environment_settings(url=httpbin("get"), proxies={}, stream=False, verify=True, cert=None)
         assert settings["verify"] == expected
 
     def test_http_with_certificate(self, httpbin):
@@ -1036,9 +1008,7 @@ class TestRequests:
         assert r.url == httpbin("get?test=foo&test=baz")
 
     def test_form_encoded_post_query_multivalued_element(self, httpbin):
-        r = niquests.Request(
-            method="POST", url=httpbin("post"), data=dict(test=["foo", "baz"])
-        )
+        r = niquests.Request(method="POST", url=httpbin("post"), data=dict(test=["foo", "baz"]))
         prep = r.prepare()
         assert prep.body == "test=foo&test=baz"
 
@@ -1397,9 +1367,7 @@ class TestRequests:
     def test_time_elapsed_blank(self, httpbin):
         r = niquests.get(httpbin("get"))
         td = r.elapsed
-        total_seconds = (
-            td.microseconds + (td.seconds + td.days * 24 * 3600) * 10**6
-        ) / 10**6
+        total_seconds = (td.microseconds + (td.seconds + td.days * 24 * 3600) * 10**6) / 10**6
         assert total_seconds > 0.0
 
     def test_empty_response_has_content_none(self):
@@ -1651,10 +1619,7 @@ class TestRequests:
         s.mount(more_specific_prefix, more_specific_prefix_adapter)
 
         assert s.get_adapter(url_matching_only_prefix) is prefix_adapter
-        assert (
-            s.get_adapter(url_matching_more_specific_prefix)
-            is more_specific_prefix_adapter
-        )
+        assert s.get_adapter(url_matching_more_specific_prefix) is more_specific_prefix_adapter
         assert s.get_adapter(url_not_matching_prefix) not in (
             prefix_adapter,
             more_specific_prefix_adapter,
@@ -1672,9 +1637,7 @@ class TestRequests:
 
     def test_session_get_adapter_prefix_matching_is_case_insensitive(self):
         mixed_case_prefix = "hTtPs://eXamPle.CoM/MixEd_CAse_PREfix"
-        url_matching_prefix_with_different_case = (
-            "HtTpS://exaMPLe.cOm/MiXeD_caSE_preFIX/another_url"
-        )
+        url_matching_prefix_with_different_case = "HtTpS://exaMPLe.cOm/MiXeD_caSE_preFIX/another_url"
 
         s = niquests.Session()
         my_adapter = HTTPAdapter()
@@ -1796,14 +1759,10 @@ class TestRequests:
         r_str = niquests.get(httpbin("get"), headers={MyString("x-custom"): "myheader"})
         assert r_str.request.headers["x-custom"] == "myheader"
 
-        r_bytes = niquests.get(
-            httpbin("get"), headers={MyBytes(b"x-custom"): b"myheader"}
-        )
+        r_bytes = niquests.get(httpbin("get"), headers={MyBytes(b"x-custom"): b"myheader"})
         assert r_bytes.request.headers["x-custom"] == b"myheader"
 
-        r_mixed = niquests.get(
-            httpbin("get"), headers={MyString("x-custom"): MyBytes(b"myheader")}
-        )
+        r_mixed = niquests.get(httpbin("get"), headers={MyString("x-custom"): MyBytes(b"myheader")})
         assert r_mixed.request.headers["x-custom"] == b"myheader"
 
     @pytest.mark.parametrize("files", ("foo", b"foo", bytearray(b"foo")))
@@ -1841,9 +1800,7 @@ class TestRequests:
             preq = req.prepare()
             assert test_url == preq.url
 
-    def test_auth_is_stripped_on_http_downgrade(
-        self, httpbin, httpbin_secure, httpbin_ca_bundle
-    ):
+    def test_auth_is_stripped_on_http_downgrade(self, httpbin, httpbin_secure, httpbin_ca_bundle):
         r = niquests.get(
             httpbin_secure("redirect-to"),
             params={"url": httpbin("get")},
@@ -1862,9 +1819,7 @@ class TestRequests:
 
     def test_should_strip_auth_host_change(self):
         s = niquests.Session()
-        assert s.should_strip_auth(
-            "http://example.com/foo", "http://another.example.com/"
-        )
+        assert s.should_strip_auth("http://example.com/foo", "http://another.example.com/")
 
     def test_should_strip_auth_http_downgrade(self):
         s = niquests.Session()
@@ -1872,28 +1827,16 @@ class TestRequests:
 
     def test_should_strip_auth_https_upgrade(self):
         s = niquests.Session()
-        assert not s.should_strip_auth(
-            "http://example.com/foo", "https://example.com/bar"
-        )
-        assert not s.should_strip_auth(
-            "http://example.com:80/foo", "https://example.com/bar"
-        )
-        assert not s.should_strip_auth(
-            "http://example.com/foo", "https://example.com:443/bar"
-        )
+        assert not s.should_strip_auth("http://example.com/foo", "https://example.com/bar")
+        assert not s.should_strip_auth("http://example.com:80/foo", "https://example.com/bar")
+        assert not s.should_strip_auth("http://example.com/foo", "https://example.com:443/bar")
         # Non-standard ports should trigger stripping
-        assert s.should_strip_auth(
-            "http://example.com:8080/foo", "https://example.com/bar"
-        )
-        assert s.should_strip_auth(
-            "http://example.com/foo", "https://example.com:8443/bar"
-        )
+        assert s.should_strip_auth("http://example.com:8080/foo", "https://example.com/bar")
+        assert s.should_strip_auth("http://example.com/foo", "https://example.com:8443/bar")
 
     def test_should_strip_auth_port_change(self):
         s = niquests.Session()
-        assert s.should_strip_auth(
-            "http://example.com:1234/foo", "https://example.com:4321/bar"
-        )
+        assert s.should_strip_auth("http://example.com:1234/foo", "https://example.com:4321/bar")
 
     @pytest.mark.parametrize(
         "old_uri, new_uri",
@@ -2194,9 +2137,7 @@ class TestRequests:
     def test_data_multipart_without_files(self, httpbin):
         payload = {"hello": "world", "Niquests": "Welcome you!"}
         url = httpbin("post")
-        r = niquests.post(
-            url, data=payload, headers={"Content-Type": "multipart/form-data"}
-        )
+        r = niquests.post(url, data=payload, headers={"Content-Type": "multipart/form-data"})
 
         assert r.status_code == 200
         assert b"Content-Disposition: form-data" in r.request.body
@@ -2209,9 +2150,7 @@ class TestRequests:
         r = niquests.post(
             url,
             data=payload,
-            headers={
-                "Content-Type": "multipart/form-data; boundary=c5c0e7f46481be260be8e9f68fcabf12"
-            },
+            headers={"Content-Type": "multipart/form-data; boundary=c5c0e7f46481be260be8e9f68fcabf12"},
         )
 
         assert r.status_code == 200
@@ -2234,9 +2173,9 @@ class TestRequests:
         """
         url_final = httpbin("html")
         querystring_malformed = urlencode({"location": url_final})
-        url_redirect_malformed = httpbin("response-headers?%s" % querystring_malformed)
+        url_redirect_malformed = httpbin(f"response-headers?{querystring_malformed}")
         querystring_redirect = urlencode({"url": url_redirect_malformed})
-        url_redirect = httpbin("redirect-to?%s" % querystring_redirect)
+        url_redirect = httpbin(f"redirect-to?{querystring_redirect}")
         urls_test = [
             url_redirect,
             url_redirect_malformed,
@@ -2502,9 +2441,7 @@ class TestTimeout:
         r = niquests.get(httpbin("get"), timeout=timeout)
         assert r.status_code == 200
 
-    @pytest.mark.parametrize(
-        "timeout", ((None, 0.1), Urllib3Timeout(connect=None, read=0.1))
-    )
+    @pytest.mark.parametrize("timeout", ((None, 0.1), Urllib3Timeout(connect=None, read=0.1)))
     def test_read_timeout(self, httpbin, timeout):
         try:
             niquests.get(httpbin("delay/10"), timeout=timeout)
@@ -2512,9 +2449,7 @@ class TestTimeout:
         except ReadTimeout:
             pass
 
-    @pytest.mark.parametrize(
-        "timeout", ((0.1, None), Urllib3Timeout(connect=0.1, read=None))
-    )
+    @pytest.mark.parametrize("timeout", ((0.1, None), Urllib3Timeout(connect=0.1, read=None)))
     def test_connect_timeout(self, timeout):
         try:
             niquests.get(TARPIT, timeout=timeout)
@@ -2523,9 +2458,7 @@ class TestTimeout:
             assert isinstance(e, ConnectionError)
             assert isinstance(e, Timeout)
 
-    @pytest.mark.parametrize(
-        "timeout", ((0.1, 0.1), Urllib3Timeout(connect=0.1, read=0.1))
-    )
+    @pytest.mark.parametrize("timeout", ((0.1, 0.1), Urllib3Timeout(connect=0.1, read=0.1)))
     def test_total_timeout_connect(self, timeout):
         try:
             niquests.get(TARPIT, timeout=timeout)
@@ -2669,9 +2602,7 @@ def test_data_argument_accepts_tuples(data):
     and properly encode them.
     """
     p = PreparedRequest()
-    p.prepare(
-        method="GET", url="http://www.example.com", data=data, hooks=default_hooks()
-    )
+    p.prepare(method="GET", url="http://www.example.com", data=data, hooks=default_hooks())
     assert p.body == urlencode(data)
 
 
@@ -2820,9 +2751,7 @@ class TestPreparingURLs:
         assert prepared.url == join_expected
 
     def test_base_url_skip(self):
-        r = niquests.Request(
-            "GET", url="https://google.com", base_url="http://example.com/api/v1"
-        )
+        r = niquests.Request("GET", url="https://google.com", base_url="http://example.com/api/v1")
 
         prepared = r.prepare()
 

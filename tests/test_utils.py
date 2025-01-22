@@ -12,8 +12,8 @@ from unittest import mock
 import pytest
 
 from niquests.cookies import RequestsCookieJar
-from niquests.structures import CaseInsensitiveDict
 from niquests.exceptions import MissingSchema
+from niquests.structures import CaseInsensitiveDict
 from niquests.utils import (
     _get_mask_bits,
     _parse_content_type_header,
@@ -32,6 +32,7 @@ from niquests.utils import (
     iter_slices,
     parse_dict_header,
     parse_header_links,
+    parse_scheme,
     prepend_scheme_if_needed,
     requote_uri,
     select_proxy,
@@ -42,7 +43,6 @@ from niquests.utils import (
     unquote_header_value,
     unquote_unreserved,
     urldefragauth,
-    parse_scheme,
 )
 
 
@@ -190,9 +190,7 @@ class TestGetEnvironProxies:
 
     @pytest.fixture(autouse=True, params=["no_proxy", "NO_PROXY"])
     def no_proxy(self, request, monkeypatch):
-        monkeypatch.setenv(
-            request.param, "192.168.0.0/24,127.0.0.1,localhost.localdomain,172.16.1.1"
-        )
+        monkeypatch.setenv(request.param, "192.168.0.0/24,127.0.0.1,localhost.localdomain,172.16.1.1")
         getproxies.cache_clear()
         getproxies_environment.cache_clear()
 

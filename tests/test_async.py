@@ -6,7 +6,7 @@ import os
 
 import pytest
 
-from niquests import AsyncSession, AsyncResponse, Response
+from niquests import AsyncResponse, AsyncSession, Response
 from niquests.exceptions import MultiplexingError
 
 
@@ -272,9 +272,7 @@ class TestAsyncWithMultiplex:
 
             async with AsyncSession(multiplexed=True) as s:
                 responses.append(await s.get("https://httpbingo.org/get", stream=True))
-                responses.append(
-                    await s.get("https://httpbingo.org/delay/5", stream=True)
-                )
+                responses.append(await s.get("https://httpbingo.org/delay/5", stream=True))
 
                 await s.gather()
 

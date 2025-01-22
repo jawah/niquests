@@ -48,14 +48,17 @@ from logging import NullHandler
 from ._compat import HAS_LEGACY_URLLIB3
 
 if HAS_LEGACY_URLLIB3 is False:
+    from urllib3 import Retry as RetryConfiguration
+    from urllib3 import Timeout as TimeoutConfiguration
     from urllib3.exceptions import DependencyWarning
-    from urllib3 import Timeout as TimeoutConfiguration, Retry as RetryConfiguration
 else:
-    from urllib3_future.exceptions import DependencyWarning  # type: ignore[assignment]
     from urllib3_future import (  # type: ignore[assignment]
-        Timeout as TimeoutConfiguration,
         Retry as RetryConfiguration,
     )
+    from urllib3_future import (  # type: ignore[assignment]
+        Timeout as TimeoutConfiguration,
+    )
+    from urllib3_future.exceptions import DependencyWarning  # type: ignore[assignment]
 
 # urllib3's DependencyWarnings should be silenced.
 warnings.simplefilter("ignore", DependencyWarning)
@@ -89,7 +92,7 @@ from .exceptions import (
     TooManyRedirects,
     URLRequired,
 )
-from .models import PreparedRequest, Request, Response, AsyncResponse
+from .models import AsyncResponse, PreparedRequest, Request, Response
 from .sessions import Session
 from .status_codes import codes
 

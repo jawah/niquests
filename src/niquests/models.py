@@ -39,10 +39,22 @@ from ._compat import HAS_LEGACY_URLLIB3
 
 if HAS_LEGACY_URLLIB3 is False:
     from urllib3 import (
-        BaseHTTPResponse,
         AsyncHTTPResponse as BaseAsyncHTTPResponse,
+    )
+    from urllib3 import (
+        BaseHTTPResponse,
         ConnectionInfo,
         ResponsePromise,
+    )
+    from urllib3.contrib.webextensions import (
+        RawExtensionFromHTTP,
+        ServerSideEventExtensionFromHTTP,
+        WebSocketExtensionFromHTTP,
+    )
+    from urllib3.contrib.webextensions._async import (
+        AsyncRawExtensionFromHTTP,
+        AsyncServerSideEventExtensionFromHTTP,
+        AsyncWebSocketExtensionFromHTTP,
     )
     from urllib3.exceptions import (
         DecodeError,
@@ -54,22 +66,24 @@ if HAS_LEGACY_URLLIB3 is False:
     from urllib3.fields import RequestField
     from urllib3.filepost import choose_boundary, encode_multipart_formdata
     from urllib3.util import parse_url
-    from urllib3.contrib.webextensions._async import (
-        AsyncWebSocketExtensionFromHTTP,
-        AsyncRawExtensionFromHTTP,
-        AsyncServerSideEventExtensionFromHTTP,
-    )
-    from urllib3.contrib.webextensions import (
-        WebSocketExtensionFromHTTP,
-        RawExtensionFromHTTP,
-        ServerSideEventExtensionFromHTTP,
-    )
 else:  # Defensive: tested in separate/isolated CI
     from urllib3_future import (  # type: ignore[assignment]
-        BaseHTTPResponse,
         AsyncHTTPResponse as BaseAsyncHTTPResponse,
+    )
+    from urllib3_future import (  # type: ignore[assignment]
+        BaseHTTPResponse,
         ConnectionInfo,
         ResponsePromise,
+    )
+    from urllib3_future.contrib.webextensions import (  # type: ignore[assignment]
+        RawExtensionFromHTTP,
+        ServerSideEventExtensionFromHTTP,
+        WebSocketExtensionFromHTTP,
+    )
+    from urllib3_future.contrib.webextensions._async import (  # type: ignore[assignment]
+        AsyncRawExtensionFromHTTP,
+        AsyncServerSideEventExtensionFromHTTP,
+        AsyncWebSocketExtensionFromHTTP,
     )
     from urllib3_future.exceptions import (  # type: ignore[assignment]
         DecodeError,
@@ -79,20 +93,15 @@ else:  # Defensive: tested in separate/isolated CI
         SSLError,
     )
     from urllib3_future.fields import RequestField  # type: ignore[assignment]
-    from urllib3_future.filepost import choose_boundary, encode_multipart_formdata  # type: ignore[assignment]
+    from urllib3_future.filepost import (  # type: ignore[assignment]
+        choose_boundary,
+        encode_multipart_formdata,
+    )
     from urllib3_future.util import parse_url  # type: ignore[assignment]
-    from urllib3_future.contrib.webextensions._async import (  # type: ignore[assignment]
-        AsyncWebSocketExtensionFromHTTP,
-        AsyncRawExtensionFromHTTP,
-        AsyncServerSideEventExtensionFromHTTP,
-    )
-    from urllib3_future.contrib.webextensions import (  # type: ignore[assignment]
-        WebSocketExtensionFromHTTP,
-        RawExtensionFromHTTP,
-        ServerSideEventExtensionFromHTTP,
-    )
 
 from ._typing import (
+    AsyncBodyType,
+    AsyncHttpAuthenticationType,
     BodyFormType,
     BodyType,
     CookiesType,
@@ -104,8 +113,6 @@ from ._typing import (
     MultiPartFilesAltType,
     MultiPartFilesType,
     QueryParameterType,
-    AsyncHttpAuthenticationType,
-    AsyncBodyType,
 )
 from .auth import BearerTokenAuth, HTTPBasicAuth
 from .cookies import (
@@ -122,24 +129,24 @@ from .exceptions import (
     InvalidJSONError,
     InvalidURL,
     MultiplexingError,
+    StreamConsumedError,
 )
 from .exceptions import JSONDecodeError as RequestsJSONDecodeError
 from .exceptions import SSLError as RequestsSSLError
-from .exceptions import StreamConsumedError
 from .hooks import default_hooks
 from .status_codes import codes
 from .structures import CaseInsensitiveDict
 from .utils import (
+    astream_decode_response_unicode,
     get_auth_from_url,
     guess_filename,
     iter_slices,
     parse_header_links,
+    parse_scheme,
     requote_uri,
     stream_decode_response_unicode,
     super_len,
     to_key_val_list,
-    astream_decode_response_unicode,
-    parse_scheme,
 )
 
 #: The set of HTTP status codes that indicate an automatically
@@ -178,9 +185,7 @@ class TransferProgress:
 
     def __repr__(self) -> str:
         if self.content_length:
-            return (
-                f"<Progress {self.percentage} % ({self.total} / {self.content_length})>"
-            )
+            return f"<Progress {self.percentage} % ({self.total} / {self.content_length})>"
         return f"<Progress {self.total} bytes sent ({'in progress' if self.is_completed is False else 'completed'})>"
 
 
@@ -258,8 +263,7 @@ class Request:
     def register_hook(
         self,
         event: str,
-        hook: HookCallableType[Response | PreparedRequest]
-        | list[HookCallableType[Response | PreparedRequest]],
+        hook: HookCallableType[Response | PreparedRequest] | list[HookCallableType[Response | PreparedRequest]],
     ) -> None:
         """Properly register a hook."""
 
@@ -271,9 +275,7 @@ class Request:
         elif isinstance(hook, list):
             self.hooks[event].extend(h for h in hook if callable(h))
 
-    def deregister_hook(
-        self, event: str, hook: HookCallableType[Response | PreparedRequest]
-    ) -> bool:
+    def deregister_hook(self, event: str, hook: HookCallableType[Response | PreparedRequest]) -> bool:
         """Deregister a previously registered hook.
         Returns True if the hook existed, False if not.
         """
@@ -454,12 +456,7 @@ class PreparedRequest:
         if host.startswith(("*", ".")):
             raise InvalidURL("URL has an invalid label.")
 
-        if (
-            (not path or "%" not in path)
-            and not auth
-            and not params
-            and not host.startswith("xn--")
-        ):
+        if (not path or "%" not in path) and not auth and not params and not host.startswith("xn--"):
             self.url = url
             return
 
@@ -488,9 +485,7 @@ class PreparedRequest:
                 else:
                     query = enc_params
 
-        self.url = requote_uri(
-            urlunparse([scheme, netloc, path, None, query, fragment])
-        )
+        self.url = requote_uri(urlunparse([scheme, netloc, path, None, query, fragment]))
 
     def prepare_headers(self, headers: HeadersType | None) -> None:
         """Prepares the given HTTP headers."""
@@ -569,9 +564,7 @@ class PreparedRequest:
                     self._body_position = object()
 
             if files:
-                raise NotImplementedError(
-                    "Streamed bodies and files are mutually exclusive."
-                )
+                raise NotImplementedError("Streamed bodies and files are mutually exclusive.")
 
             if length:
                 self.headers["Content-Length"] = str(length)
@@ -590,17 +583,12 @@ class PreparedRequest:
                     )
                     or data is None
                 ):
-                    raise ValueError(
-                        f"Conflicting parameters. Cannot pass files with given data: type({type(data)})"
-                    )
+                    raise ValueError(f"Conflicting parameters. Cannot pass files with given data: type({type(data)})")
                 # mypy seems to lose its way here.
                 (body, content_type) = self._encode_files(files, data)  # type: ignore[arg-type]
             else:
                 if data:
-                    enforce_form_data = (
-                        "content-type" in self.headers
-                        and "multipart/form-data" in self.headers["content-type"]
-                    )
+                    enforce_form_data = "content-type" in self.headers and "multipart/form-data" in self.headers["content-type"]
 
                     if enforce_form_data:
                         form_data_boundary = (
@@ -623,9 +611,7 @@ class PreparedRequest:
                         if not enforce_form_data:
                             content_type = "application/x-www-form-urlencoded"
                         else:
-                            content_type = (
-                                f"multipart/form-data; boundary={form_data_boundary}"
-                            )
+                            content_type = f"multipart/form-data; boundary={form_data_boundary}"
 
             assert isinstance(body, (list, dict)) is False
             self.prepare_content_length(body)
@@ -648,10 +634,7 @@ class PreparedRequest:
                 # If length exists, set it. Otherwise, we fallback
                 # to Transfer-Encoding: chunked.
                 self.headers["Content-Length"] = str(length)
-        elif (
-            self.method not in ("GET", "HEAD")
-            and self.headers.get("Content-Length") is None
-        ):
+        elif self.method not in ("GET", "HEAD") and self.headers.get("Content-Length") is None:
             # Set Content-Length to 0 for methods that can have a body
             # but don't provide one. (i.e. not GET or HEAD)
             self.headers["Content-Length"] = "0"
@@ -663,9 +646,7 @@ class PreparedRequest:
     ) -> None:
         """Prepares the given HTTP auth data."""
 
-        assert (
-            self.url is not None
-        ), "Cannot invoke prepare_auth method with incomplete PreparedRequest"
+        assert self.url is not None, "Cannot invoke prepare_auth method with incomplete PreparedRequest"
 
         # If no Auth is explicitly provided, extract it from the URL first.
         if auth is None:
@@ -680,9 +661,7 @@ class PreparedRequest:
                 auth = BearerTokenAuth(auth)
 
             if not callable(auth):
-                raise ValueError(
-                    "Unexpected non-callable authentication. Did you pass unsupported tuple to auth argument?"
-                )
+                raise ValueError("Unexpected non-callable authentication. Did you pass unsupported tuple to auth argument?")
 
             self._asynchronous_auth = (
                 hasattr(auth, "__call__") and asyncio.iscoroutinefunction(auth.__call__)
@@ -711,9 +690,7 @@ class PreparedRequest:
         to ``prepare_cookies`` will have no actual effect, unless the "Cookie"
         header is removed beforehand.
         """
-        assert (
-            self.headers is not None
-        ), "method prepare_cookies must be invoked after prepare_headers"
+        assert self.headers is not None, "method prepare_cookies must be invoked after prepare_headers"
 
         if isinstance(cookies, cookielib.CookieJar):
             self._cookies = cookies
@@ -796,9 +773,7 @@ class PreparedRequest:
             result = []
             for k, vs in to_key_val_list(data):
                 iterable_vs: typing.Iterable[str | bytes | None]
-                if isinstance(vs, (str, bytes, int, float, bool)) or not hasattr(
-                    vs, "__iter__"
-                ):
+                if isinstance(vs, (str, bytes, int, float, bool)) or not hasattr(vs, "__iter__"):
                     # not officially supported, but some people maybe passing ints, float, bool,
                     # or other string serializable classes.
                     if vs is not None and not isinstance(
@@ -828,16 +803,12 @@ class PreparedRequest:
                 )[0]
             return urlencode(result, doseq=True)
         else:
-            raise ValueError(
-                f"Function _encode_params got an unexpected type argument '{type(data)}'"
-            )
+            raise ValueError(f"Function _encode_params got an unexpected type argument '{type(data)}'")
 
     @staticmethod
     def _encode_files(
         files: MultiPartFilesType | MultiPartFilesAltType,
-        data: dict[str | bytes, str | bytes]
-        | list[tuple[str | bytes, str | bytes]]
-        | None,
+        data: dict[str | bytes, str | bytes] | list[tuple[str | bytes, str | bytes]] | None,
     ) -> tuple[bytes, str]:
         """Build the body for a multipart/form-data request.
 
@@ -876,9 +847,7 @@ class PreparedRequest:
 
                     new_fields.append(
                         (
-                            field.decode("utf-8")
-                            if isinstance(field, bytes)
-                            else field,
+                            field.decode("utf-8") if isinstance(field, bytes) else field,
                             v.encode("utf-8") if isinstance(v, str) else v,
                         )
                     )
@@ -913,9 +882,7 @@ class PreparedRequest:
             elif fp is None:
                 continue
             else:
-                raise ValueError(
-                    f"Unexpected fp type given for multipart form data preparation: '{type(fp)}'"
-                )
+                raise ValueError(f"Unexpected fp type given for multipart form data preparation: '{type(fp)}'")
 
             fh_converted: typing.MutableMapping[str, str] | None
 
@@ -935,9 +902,7 @@ class PreparedRequest:
                 else:
                     fh_converted = None
             except UnicodeDecodeError as e:
-                raise ValueError(
-                    "Tried to prepare a form data but failed due to non-decodable headers"
-                ) from e
+                raise ValueError("Tried to prepare a form data but failed due to non-decodable headers") from e
 
             rf = RequestField(name=fkey, data=fdata, filename=fn, headers=fh_converted)
             rf.make_multipart(content_type=ft)
@@ -997,9 +962,7 @@ class Response:
     #: internals used for lazy responses. Do not try to access those unless you know what you are doing.
     #: they don't always exist.
     _promise: ResponsePromise
-    _resolve_redirect: typing.Callable[
-        [Response, PreparedRequest], PreparedRequest | None
-    ]
+    _resolve_redirect: typing.Callable[[Response, PreparedRequest], PreparedRequest | None]
 
     def __init__(self) -> None:
         self._content: Literal[False] | bytes | None = False
@@ -1071,7 +1034,8 @@ class Response:
         """Access the I/O after an Upgraded connection. E.g. for a WebSocket handler.
         If the server opened a WebSocket, then the extension will be of type WebSocketExtensionFromHTTP.
         Otherwise, on unknown protocol, it will be RawExtensionFromHTTP.
-        Warning: If you stand in an async inclosure, the type will be AsyncWebSocketExtensionFromHTTP or AsyncRawExtensionFromHTTP."""
+        Warning: If you stand in an async inclosure, the type
+        will be AsyncWebSocketExtensionFromHTTP or AsyncRawExtensionFromHTTP."""
         return (
             self.raw.extension  # type: ignore[return-value]
             if self.raw is not None and hasattr(self.raw, "extension")
@@ -1100,14 +1064,8 @@ class Response:
 
     def __getattribute__(self, item):
         try:
-            if (
-                super().__getattribute__("raw") is None
-                and item in Response.__lazy_attrs__
-                and super().__getattribute__("lazy")
-            ):
-                if asyncio.iscoroutinefunction(
-                    super().__getattribute__("connection").gather
-                ):
+            if super().__getattribute__("raw") is None and item in Response.__lazy_attrs__ and super().__getattribute__("lazy"):
+                if asyncio.iscoroutinefunction(super().__getattribute__("connection").gather):
                     raise MultiplexingError(
                         "Accessing a lazy response produced by an AsyncSession is forbidden. "
                         "Either call await session.gather() or set stream=True to produce an AsyncResponse "
@@ -1130,9 +1088,7 @@ class Response:
         # Consume everything; accessing the content attribute makes
         # sure the content has been fully read.
         if self.lazy:
-            if asyncio.iscoroutinefunction(
-                super().__getattribute__("connection").gather
-            ):
+            if asyncio.iscoroutinefunction(super().__getattribute__("connection").gather):
                 raise MultiplexingError(
                     "Accessing a lazy response produced by an AsyncSession is forbidden. "
                     "Either call await session.gather() or set stream=True to produce an AsyncResponse "
@@ -1155,11 +1111,7 @@ class Response:
             setattr(self, name, value)
 
     def __repr__(self) -> str:
-        if (
-            self.request is None
-            or self.request.conn_info is None
-            or self.request.conn_info.http_version is None
-        ):
+        if self.request is None or self.request.conn_info is None or self.request.conn_info.http_version is None:
             return f"<Response Dummy [{self.status_code}]>"
 
         # HTTP/2.0 is not preferred, cast it to HTTP/2 instead.
@@ -1239,9 +1191,7 @@ class Response:
     ) -> typing.Generator[bytes, None, None]: ...
 
     @typing.overload
-    def iter_content(
-        self, chunk_size: int = ..., *, decode_unicode: Literal[True]
-    ) -> typing.Generator[str, None, None]: ...
+    def iter_content(self, chunk_size: int = ..., *, decode_unicode: Literal[True]) -> typing.Generator[str, None, None]: ...
 
     def iter_content(
         self, chunk_size: int = ITER_CHUNK_SIZE, decode_unicode: bool = False
@@ -1265,17 +1215,13 @@ class Response:
         def generate() -> typing.Generator[bytes, None, None]:
             assert self.raw is not None
 
-            can_track_progress = hasattr(self.raw, "_fp") and hasattr(
-                self.raw._fp, "data_in_count"
-            )
+            can_track_progress = hasattr(self.raw, "_fp") and hasattr(self.raw._fp, "data_in_count")
 
             if can_track_progress and self.download_progress is None:
                 if "content-length" in self.headers:
                     self.download_progress = TransferProgress()
                     try:
-                        self.download_progress.content_length = int(
-                            self.headers["content-length"]
-                        )
+                        self.download_progress.content_length = int(self.headers["content-length"])
                     except ValueError:
                         pass
             # Special case for urllib3.
@@ -1317,9 +1263,7 @@ class Response:
         if self._content_consumed and isinstance(self._content, bool):
             raise StreamConsumedError()
         elif chunk_size is not None and not isinstance(chunk_size, int):
-            raise TypeError(
-                f"chunk_size must be an int, it is instead a {type(chunk_size)}."
-            )
+            raise TypeError(f"chunk_size must be an int, it is instead a {type(chunk_size)}.")
         # simulate reading small chunks of the content
         reused_chunks = iter_slices(self._content or b"", chunk_size)
 
@@ -1361,13 +1305,10 @@ class Response:
 
         .. note:: This method is not reentrant safe.
         """
-        if (
-            delimiter is not None
-            and decode_unicode is False
-            and isinstance(delimiter, str)
-        ):
+        if delimiter is not None and decode_unicode is False and isinstance(delimiter, str):
             raise ValueError(
-                "delimiter MUST match the desired output type. e.g. if decode_unicode is set to True, delimiter MUST be a str, otherwise we expect a bytes-like variable."
+                "delimiter MUST match the desired output type. e.g. "
+                "if decode_unicode is set to True, delimiter MUST be a str, otherwise we expect a bytes-like variable."
             )
 
         pending = None
@@ -1475,10 +1416,7 @@ class Response:
             try:
                 info = codecs.lookup(self.encoding)
 
-                if (
-                    hasattr(info, "_is_text_encoding")
-                    and info._is_text_encoding is False
-                ):
+                if hasattr(info, "_is_text_encoding") and info._is_text_encoding is False:
                     return None
             except LookupError:
                 #: We cannot accept unsupported or nonexistent encoding. Override.
@@ -1506,13 +1444,8 @@ class Response:
             contain valid json or if content-type is not about json.
         """
 
-        if (
-            not self.content
-            or "json" not in self.headers.get("content-type", "").lower()
-        ):
-            raise RequestsJSONDecodeError(
-                "response content is not JSON", self.text or "", 0
-            )
+        if not self.content or "json" not in self.headers.get("content-type", "").lower():
+            raise RequestsJSONDecodeError("response content is not JSON", self.text or "", 0)
 
         if not self.encoding:
             # No encoding set. JSON RFC 4627 section 3 states we should expect
@@ -1542,9 +1475,7 @@ class Response:
         plain_content = self.text
 
         if plain_content is None:
-            raise RequestsJSONDecodeError(
-                "response cannot lead to decodable JSON", "", 0
-            )
+            raise RequestsJSONDecodeError("response cannot lead to decodable JSON", "", 0)
 
         try:
             return _json.loads(plain_content, **kwargs)
@@ -1601,14 +1532,10 @@ class Response:
             reason = self.reason
 
         if 400 <= self.status_code < 500:
-            http_error_msg = (
-                f"{self.status_code} Client Error: {reason} for url: {self.url}"
-            )
+            http_error_msg = f"{self.status_code} Client Error: {reason} for url: {self.url}"
 
         elif 500 <= self.status_code < 600:
-            http_error_msg = (
-                f"{self.status_code} Server Error: {reason} for url: {self.url}"
-            )
+            http_error_msg = f"{self.status_code} Server Error: {reason} for url: {self.url}"
 
         if http_error_msg:
             raise HTTPError(http_error_msg, response=self)
@@ -1711,25 +1638,19 @@ class AsyncResponse(Response):
         if self.lazy:
             await self._gather()
 
-        async def generate() -> (
-            typing.AsyncGenerator[
-                bytes,
-                None,
-            ]
-        ):
+        async def generate() -> typing.AsyncGenerator[
+            bytes,
+            None,
+        ]:
             assert self.raw is not None
 
-            can_track_progress = hasattr(self.raw, "_fp") and hasattr(
-                self.raw._fp, "data_in_count"
-            )
+            can_track_progress = hasattr(self.raw, "_fp") and hasattr(self.raw._fp, "data_in_count")
 
             if can_track_progress and self.download_progress is None:
                 if "content-length" in self.headers:
                     self.download_progress = TransferProgress()
                     try:
-                        self.download_progress.content_length = int(
-                            self.headers["content-length"]
-                        )
+                        self.download_progress.content_length = int(self.headers["content-length"])
                     except ValueError:
                         pass
 
@@ -1761,9 +1682,7 @@ class AsyncResponse(Response):
         if self._content_consumed and isinstance(self._content, bool):
             raise StreamConsumedError()
         elif chunk_size is not None and not isinstance(chunk_size, int):
-            raise TypeError(
-                f"chunk_size must be an int, it is instead a {type(chunk_size)}."
-            )
+            raise TypeError(f"chunk_size must be an int, it is instead a {type(chunk_size)}.")
 
         stream_chunks = generate()
 
@@ -1795,13 +1714,10 @@ class AsyncResponse(Response):
         decode_unicode: bool = False,
         delimiter: str | bytes | None = None,
     ) -> typing.AsyncGenerator[bytes | str, None]:
-        if (
-            delimiter is not None
-            and decode_unicode is False
-            and isinstance(delimiter, str)
-        ):
+        if delimiter is not None and decode_unicode is False and isinstance(delimiter, str):
             raise ValueError(
-                "delimiter MUST match the desired output type. e.g. if decode_unicode is set to True, delimiter MUST be a str, otherwise we expect a bytes-like variable."
+                "delimiter MUST match the desired output type. e.g. "
+                "if decode_unicode is set to True, delimiter MUST be a str, otherwise we expect a bytes-like variable."
             )
 
         pending = None
@@ -1874,10 +1790,7 @@ class AsyncResponse(Response):
             try:
                 info = codecs.lookup(self.encoding)
 
-                if (
-                    hasattr(info, "_is_text_encoding")
-                    and info._is_text_encoding is False
-                ):
+                if hasattr(info, "_is_text_encoding") and info._is_text_encoding is False:
                     return None
             except LookupError:
                 #: We cannot accept unsupported or nonexistent encoding. Override.
@@ -1901,9 +1814,7 @@ class AsyncResponse(Response):
         content = await self.content
 
         if not content or "json" not in self.headers.get("content-type", "").lower():
-            raise RequestsJSONDecodeError(
-                "response content is not JSON", await self.text or "", 0
-            )
+            raise RequestsJSONDecodeError("response content is not JSON", await self.text or "", 0)
 
         if not self.encoding:
             # No encoding set. JSON RFC 4627 section 3 states we should expect
@@ -1933,9 +1844,7 @@ class AsyncResponse(Response):
         plain_content = await self.text
 
         if plain_content is None:
-            raise RequestsJSONDecodeError(
-                "response cannot lead to decodable JSON", "", 0
-            )
+            raise RequestsJSONDecodeError("response cannot lead to decodable JSON", "", 0)
 
         try:
             return _json.loads(plain_content, **kwargs)

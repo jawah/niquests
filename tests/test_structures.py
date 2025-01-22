@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import pytest
 
-from niquests.structures import CaseInsensitiveDict, LookupDict
 from niquests._compat import HAS_LEGACY_URLLIB3
+from niquests.structures import CaseInsensitiveDict, LookupDict
 
 if not HAS_LEGACY_URLLIB3:
     from urllib3 import HTTPHeaderDict
@@ -21,9 +21,7 @@ class TestCaseInsensitiveDict:
     def test_list(self):
         assert list(self.case_insensitive_dict) == ["Accept"]
 
-    possible_keys = pytest.mark.parametrize(
-        "key", ("accept", "ACCEPT", "aCcEpT", "Accept")
-    )
+    possible_keys = pytest.mark.parametrize("key", ("accept", "ACCEPT", "aCcEpT", "Accept"))
 
     @possible_keys
     def test_getitem(self, key):
@@ -35,9 +33,7 @@ class TestCaseInsensitiveDict:
         assert key not in self.case_insensitive_dict
 
     def test_lower_items(self):
-        assert list(self.case_insensitive_dict.lower_items()) == [
-            ("accept", "application/json")
-        ]
+        assert list(self.case_insensitive_dict.lower_items()) == [("accept", "application/json")]
 
     def test_repr(self):
         assert repr(self.case_insensitive_dict) == "{'Accept': 'application/json'}"

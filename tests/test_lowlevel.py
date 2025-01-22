@@ -16,7 +16,7 @@ def echo_response_handler(sock):
     """Simple handler that will take request and echo it back to requester."""
     request_content = consume_socket_content(sock, timeout=0.5)
 
-    text_200 = (b"HTTP/1.1 200 OK\r\n" b"Content-Length: %d\r\n\r\n" b"%s") % (
+    text_200 = (b"HTTP/1.1 200 OK\r\nContent-Length: %d\r\n\r\n%s") % (
         len(request_content),
         request_content,
     )
@@ -45,7 +45,7 @@ def test_chunked_encoding_error():
         request_content = consume_socket_content(sock, timeout=0.5)
 
         # The server never ends the request and doesn't provide any valid chunks
-        sock.send(b"HTTP/1.1 200 OK\r\n" b"Transfer-Encoding: chunked\r\n\r\n")
+        sock.send(b"HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n")
 
         return request_content
 
@@ -145,14 +145,12 @@ def test_digestauth_401_count_reset_on_redirect():
         b'realm="me@kennethreitz.com", qop=auth\r\n\r\n'
     )
 
-    text_302 = b"HTTP/1.1 302 FOUND\r\n" b"Content-Length: 0\r\n" b"Location: /\r\n\r\n"
+    text_302 = b"HTTP/1.1 302 FOUND\r\nContent-Length: 0\r\nLocation: /\r\n\r\n"
 
-    text_200 = b"HTTP/1.1 200 OK\r\n" b"Content-Length: 0\r\n\r\n"
+    text_200 = b"HTTP/1.1 200 OK\r\nContent-Length: 0\r\n\r\n"
 
     expected_digest = (
-        b'Authorization: Digest username="user", '
-        b'realm="me@kennethreitz.com", '
-        b'nonce="6bf5d6e4da1ce66918800195d6b9130d", uri="/"'
+        b'Authorization: Digest username="user", realm="me@kennethreitz.com", nonce="6bf5d6e4da1ce66918800195d6b9130d", uri="/"'
     )
 
     auth = niquests.auth.HTTPDigestAuth("user", "pass")
@@ -218,9 +216,7 @@ def test_digestauth_401_only_sent_once():
     )
 
     expected_digest = (
-        b'Authorization: Digest username="user", '
-        b'realm="me@kennethreitz.com", '
-        b'nonce="6bf5d6e4da1ce66918800195d6b9130d", uri="/"'
+        b'Authorization: Digest username="user", realm="me@kennethreitz.com", nonce="6bf5d6e4da1ce66918800195d6b9130d", uri="/"'
     )
 
     auth = niquests.auth.HTTPDigestAuth("user", "pass")
@@ -343,15 +339,7 @@ def test_redirect_rfc1808_to_non_ascii_location():
     def redirect_resp_handler(sock):
         consume_socket_content(sock, timeout=0.5)
         location = f"//{host}:{port}/{path}"
-        sock.send(
-            (
-                b"HTTP/1.1 301 Moved Permanently\r\n"
-                b"Content-Length: 0\r\n"
-                b"Location: %s\r\n"
-                b"\r\n"
-            )
-            % location.encode("utf8")
-        )
+        sock.send((b"HTTP/1.1 301 Moved Permanently\r\nContent-Length: 0\r\nLocation: %s\r\n\r\n") % location.encode("utf8"))
         redirect_request.append(consume_socket_content(sock, timeout=0.5))
         sock.send(b"HTTP/1.1 200 OK\r\n\r\n")
 
@@ -408,17 +396,9 @@ def test_fragment_update_on_redirect():
 
     def response_handler(sock):
         consume_socket_content(sock, timeout=0.5)
-        sock.send(
-            b"HTTP/1.1 302 FOUND\r\n"
-            b"Content-Length: 0\r\n"
-            b"Location: /get#relevant-section\r\n\r\n"
-        )
+        sock.send(b"HTTP/1.1 302 FOUND\r\nContent-Length: 0\r\nLocation: /get#relevant-section\r\n\r\n")
         consume_socket_content(sock, timeout=0.5)
-        sock.send(
-            b"HTTP/1.1 302 FOUND\r\n"
-            b"Content-Length: 0\r\n"
-            b"Location: /final-url/\r\n\r\n"
-        )
+        sock.send(b"HTTP/1.1 302 FOUND\r\nContent-Length: 0\r\nLocation: /final-url/\r\n\r\n")
         consume_socket_content(sock, timeout=0.5)
         sock.send(b"HTTP/1.1 200 OK\r\n\r\n")
 
@@ -444,11 +424,7 @@ def test_fragment_update_on_redirect():
 def test_json_decode_compatibility_for_alt_utf_encodings():
     def response_handler(sock):
         consume_socket_content(sock, timeout=0.5)
-        sock.send(
-            b"HTTP/1.1 200 OK\r\n"
-            b"Content-Length: 18\r\n\r\n"
-            b'\xff\xfe{\x00"\x00K0"\x00=\x00"\x00\xab0"\x00\r\n'
-        )
+        sock.send(b'HTTP/1.1 200 OK\r\nContent-Length: 18\r\n\r\n\xff\xfe{\x00"\x00K0"\x00=\x00"\x00\xab0"\x00\r\n')
 
     close_server = threading.Event()
     server = Server(response_handler, wait_to_close_event=close_server)
