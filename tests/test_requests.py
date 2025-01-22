@@ -86,7 +86,7 @@ class TestRequests:
             (MissingSchema, "hiwpefhipowhefopw"),
             (InvalidSchema, "localhost:3128"),
             (MissingSchema, "localhost.localdomain:3128/"),
-            (MissingSchema, "10.122.1.1:3128/"),
+            (InvalidSchema, "10.122.1.1:3128/"),
             (InvalidURL, "http://"),
             (InvalidURL, "http://*example.com"),
             (InvalidURL, "http://.example.com"),
