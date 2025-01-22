@@ -94,11 +94,20 @@ packages = [
     "src/niquests",
 ]
 
-[tool.isort]
-profile = "black"
-src_paths = ["src/niquests", "tests"]
-honor_noqa = true
-add_imports = "from __future__ import annotations"
+[tool.ruff]
+line-length = 128
+
+[tool.ruff.lint]
+select = [
+    "E",  # pycodestyle
+    "F",  # Pyflakes
+    "W",  # pycodestyle
+    "I",  # isort
+    "U",  # pyupgrade
+]
+
+[tool.ruff.lint.isort]
+required-imports = ["from __future__ import annotations"]
 
 [tool.pytest.ini_options]
 addopts = "--doctest-modules"
