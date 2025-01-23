@@ -441,6 +441,9 @@ class HTTPAdapter(BaseAdapter):
             keepalive_idle_window=keepalive_idle_window,
         )
 
+    def __repr__(self) -> str:
+        return f"<{self.__class__.__name__} pool_maxsize={self._pool_maxsize} max_retries={self.max_retries}>"
+
     def __getstate__(self) -> dict[str, typing.Any | None]:
         return {attr: getattr(self, attr, None) for attr in self.__attrs__}
 
@@ -1492,6 +1495,9 @@ class AsyncHTTPAdapter(AsyncBaseAdapter):
             keepalive_delay=keepalive_delay,
             keepalive_idle_window=keepalive_idle_window,
         )
+
+    def __repr__(self) -> str:
+        return f"<{self.__class__.__name__} pool_maxsize={self._pool_maxsize} max_retries={self.max_retries}>"
 
     def __getstate__(self) -> dict[str, typing.Any | None]:
         return {attr: getattr(self, attr, None) for attr in self.__attrs__}
