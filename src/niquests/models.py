@@ -1350,7 +1350,7 @@ class Response:
         'text/html'
         """
         if self.raw:
-            headers = parse_it(self.raw)
+            headers = parse_it(self.raw.headers)
             headers -= "Set-Cookie"
             return headers
         return parse_it(self.headers)
