@@ -1444,8 +1444,8 @@ class Response:
             contain valid json or if content-type is not about json.
         """
 
-        if not self.content or "json" not in self.headers.get("content-type", "").lower():
-            raise RequestsJSONDecodeError("response content is not JSON", self.text or "", 0)
+        if not self.content:
+            raise RequestsJSONDecodeError("response content is not JSON", "", 0)
 
         if not self.encoding:
             # No encoding set. JSON RFC 4627 section 3 states we should expect
@@ -1467,10 +1467,13 @@ class Response:
             ).best()
 
             if encoding_guess is not None:
+                self.encoding = encoding_guess.encoding
                 try:
                     return _json.loads(str(encoding_guess), **kwargs)
                 except _json.JSONDecodeError as e:
                     raise RequestsJSONDecodeError(e.msg, e.doc, e.pos)
+            else:
+                self.encoding = "utf-8"  # try Unicode anyway[...]
 
         plain_content = self.text
 
@@ -1813,8 +1816,8 @@ class AsyncResponse(Response):
     async def json(self, **kwargs: typing.Any) -> typing.Any:  # type: ignore[override]
         content = await self.content
 
-        if not content or "json" not in self.headers.get("content-type", "").lower():
-            raise RequestsJSONDecodeError("response content is not JSON", await self.text or "", 0)
+        if not content:
+            raise RequestsJSONDecodeError("response content is not JSON", "", 0)
 
         if not self.encoding:
             # No encoding set. JSON RFC 4627 section 3 states we should expect
@@ -1836,15 +1839,18 @@ class AsyncResponse(Response):
             ).best()
 
             if encoding_guess is not None:
+                self.encoding = encoding_guess.encoding
                 try:
                     return _json.loads(str(encoding_guess), **kwargs)
                 except _json.JSONDecodeError as e:
                     raise RequestsJSONDecodeError(e.msg, e.doc, e.pos)
+            else:
+                self.encoding = "utf-8"
 
         plain_content = await self.text
 
         if plain_content is None:
-            raise RequestsJSONDecodeError("response cannot lead to decodable JSON", "", 0)
+            raise RequestsJSONDecodeError("response cannot lead to unserializable JSON", "", 0)
 
         try:
             return _json.loads(plain_content, **kwargs)

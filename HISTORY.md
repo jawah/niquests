@@ -1,6 +1,14 @@
 Release History
 ===============
 
+3.12.3 (2025-01-28)
+-------------------
+
+**Changed**
+- Relaxed strict compliance on JSON parsing. We brought strict compliance into Niquests, a response
+  must explicitly set `Content-Type: application/json` or alike prior to attempt parsing the JSON string.
+  We decided to relax that constraint as old and bad-behaving server may send JSON with missing or broken Content-Type.
+
 3.12.2 (2025-01-22)
 -------------------
 
