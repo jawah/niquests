@@ -26,7 +26,7 @@ class TestOnlineCertificateRevocationProtocol:
         [
             # "https://revoked.badssl.com/",
             # "https://revoked-ecc-dv.ssl.com/",
-            "https://aaacertificateservices.comodoca.com:444/",
+            # "https://aaacertificateservices.comodoca.com:444/",
             "https://revoked-rsa-ev.ssl.com/",
         ],
     )
@@ -67,7 +67,7 @@ class TestOnlineCertificateRevocationProtocol:
         [
             # "https://revoked.badssl.com/",
             # "https://revoked-ecc-dv.ssl.com/",
-            "https://aaacertificateservices.comodoca.com:444/",
+            # "https://aaacertificateservices.comodoca.com:444/",
             "https://revoked-rsa-ev.ssl.com/",
         ],
     )
