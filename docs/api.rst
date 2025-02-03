@@ -59,6 +59,10 @@ Lower-Level Classes
 .. autoclass:: Response
    :inherited-members:
 
+.. autoclass:: AsyncResponse
+   :inherited-members:
+
+.. warning:: AsyncResponse are only to be expected in async mode when you specify ``stream=True``. Otherwise expect the typical Response instance.
 
 Lower-Lower-Level Classes
 -------------------------
@@ -85,6 +89,8 @@ Authentication
 .. autoclass:: niquests.auth.HTTPBasicAuth
 .. autoclass:: niquests.auth.HTTPProxyAuth
 .. autoclass:: niquests.auth.HTTPDigestAuth
+
+.. autoclass:: niquests.auth.AsyncAuthBase
 
 .. _api-cookies:
 
