@@ -17,25 +17,26 @@ Developer migration
 Niquests aims to be as compatible as possible with Requests, and that is
 with confidence that you can migrate to Niquests without breaking changes.
 
-::
+.. code:: python
 
     import requests
     requests.get(...)
 
 Would turn into either
 
-::
+.. code:: python
 
     import niquests
     niquests.get(...)
 
 Or simply
 
-::
+.. code:: python
 
     import niquests as requests
     requests.get(...)
 
+.. tip:: If you were used to use ``urllib3.Timeout`` or ``urllib3.Retry`` you can either keep them as-is or use our fully compatible ``niquests.RetryConfiguration`` or ``niquests.TimeoutConfiguration`` instead.
 
 Maintainer migration
 --------------------
@@ -51,7 +52,7 @@ To overcome this, we will introduce you to a clever bypass. If you are using pyt
 following in your ``conftest.py``, see https://docs.pytest.org/en/6.2.x/fixture.html#conftest-py-sharing-fixtures-across-multiple-files
 for more information. (The goal would simply to execute the following piece of code before the tests)
 
-::
+.. code:: python
 
     from sys import modules
 
