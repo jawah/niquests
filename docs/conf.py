@@ -40,7 +40,7 @@ extensions = [
     "sphinx.ext.autodoc",
     "sphinx.ext.todo",
     "sphinx.ext.viewcode",
-    "sphinxcontrib.gtagjs",
+    "sphinxcontrib.googleanalytics",
     "sphinx_copybutton",
     "sphinx_mdinclude",
 ]
@@ -138,9 +138,7 @@ html_theme_options = {
     },
 }
 
-gtagjs_ids = [
-    'G-F8C2DJ1CJN',
-]
+googleanalytics_id = "G-F8C2DJ1CJN"
 
 # Add any paths that contain custom themes here, relative to this directory.
 # html_theme_path = []
