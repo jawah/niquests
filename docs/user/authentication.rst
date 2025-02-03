@@ -161,6 +161,8 @@ authentication will additionally add hooks to provide further functionality.
 Further examples can be found under the `Requests organization`_ and in the
 ``auth.py`` file.
 
+.. tip:: As Niquests support async http requests natively you can create async authentication classes by just inheriting from :class:`AsyncAuthBase <niquests.auth.AsyncAuthBase>`
+
 .. _OAuth: https://oauth.net/
 .. _requests_oauthlib: https://github.com/requests/requests-oauthlib
 .. _requests-oauthlib OAuth2 documentation: https://requests-oauthlib.readthedocs.io/en/latest/oauth2_workflow.html
