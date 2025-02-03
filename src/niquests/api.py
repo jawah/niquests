@@ -588,7 +588,7 @@ def delete(
     :param allow_redirects: (optional) Boolean. Enable/disable GET/OPTIONS/POST/PUT/PATCH/DELETE/HEAD redirection.
             Defaults to ``True``.
     :param proxies: (optional) Dictionary mapping protocol to the URL of the proxy.
-    ::param verify: (optional) Either a boolean, in which case it controls whether we verify
+    :param verify: (optional) Either a boolean, in which case it controls whether we verify
             the server's TLS certificate, or a path passed as a string or os.Pathlike object,
             in which case it must be a path to a CA bundle to use.
             Defaults to ``True``.
