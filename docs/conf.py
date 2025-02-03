@@ -40,6 +40,7 @@ extensions = [
     "sphinx.ext.autodoc",
     "sphinx.ext.todo",
     "sphinx.ext.viewcode",
+    "sphinxcontrib.gtagjs",
     "sphinx_copybutton",
     "sphinx_mdinclude",
 ]
@@ -136,6 +137,10 @@ html_theme_options = {
         "color-brand-content": "#7C4DFF",
     },
 }
+
+gtagjs_ids = [
+    'G-F8C2DJ1CJN',
+]
 
 # Add any paths that contain custom themes here, relative to this directory.
 # html_theme_path = []
