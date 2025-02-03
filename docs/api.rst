@@ -47,6 +47,8 @@ Request Sessions
 .. autoclass:: Session
    :inherited-members:
 
+.. autoclass:: AsyncSession
+   :inherited-members:
 
 Lower-Level Classes
 -------------------
@@ -68,6 +70,12 @@ Lower-Lower-Level Classes
    :inherited-members:
 
 .. autoclass:: niquests.adapters.HTTPAdapter
+   :inherited-members:
+
+.. autoclass:: niquests.adapters.AsyncBaseAdapter
+   :inherited-members:
+
+.. autoclass:: niquests.adapters.AsyncHTTPAdapter
    :inherited-members:
 
 Authentication
@@ -117,7 +125,6 @@ Removed
 * Property ``apparent_encoding`` in favor of a discrete internal inference.
 * Support for the legacy ``chardet`` detector in case it was present in environment.
   Extra ``chardet_on_py3`` is now unavailable.
-* **requests.compat** no longer hold reference to _chardet_.
 * Deprecated ``requests.packages`` that was meant to avoid breakage from people importing ``urllib3`` or ``chardet`` within this package.
   They were _vendored_ in early versions of Requests. A long time ago.
 * Deprecated function ``get_encodings_from_content`` from utils.
