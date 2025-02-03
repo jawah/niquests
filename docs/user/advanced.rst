@@ -1302,6 +1302,8 @@ Verify the availability by running ``python -m niquests.help``.
 
 .. note:: Access property ``ocsp_verified`` in both ``PreparedRequest``, and ``Response`` to have information about this post handshake verification.
 
+.. warning:: You may be interested in caching and restoring the OCSP validator state in between runs for performance concerns. To achieve that you are invited to pickle and restore your ``niquests.Session`` object.
+
 Specify HTTP/3 capable endpoint preemptively
 --------------------------------------------
 
