@@ -62,6 +62,10 @@ Do as follow::
         ...
 
 
+.. note:: Previously Requests and urllib3 was non-strict and allowed infinite growth of the pool by default. This was undesirable.
+    Upon exceeding the maximum pool capacity, urllib3 starts to create "disposable" connections that are killed as soon as possible.
+    This behavior masked an issue and users were misinformed about it.
+
 What is "urllib3.future"?
 -------------------------
 
@@ -97,8 +101,8 @@ It does not change anything for you. You may still pass ``urllib3.Retry`` and
 ``urllib3.Timeout`` regardless of the cohabitation, Niquests will do
 the translation internally.
 
-What are my headers are lowercased?
------------------------------------
+Why are my headers are lowercased?
+----------------------------------
 
 This may come as a surprise for some of you. Until Requests-era, header keys could arrive
 as they were originally sent (case-sensitive). This is possible thanks to HTTP/1.1 protocol.
@@ -128,7 +132,7 @@ A shortcut would be::
 
     $ pip uninstall qh3
 
-.. warning:: Your site-packages is shared, thus it is possible that other libraries depends on some of the listed programs. Do it with care!
+.. warning:: Your site-packages is shared, do it only if you are sure nothing else is using it.
 
 What are "pem lib" errors?
 --------------------------
@@ -150,7 +154,7 @@ If none of those seems related to your situation, feel free to open an issue at 
 Why HTTP/2 and HTTP/3 seems slower than HTTP/1.1?
 -------------------------------------------------
 
-Because you are not leveraging its potential properly. Most of the time, developers tends to
+Because you are not leveraging its potential properly. Most of the time, developers tend to
 make a request and immediately consume the response afterward. Let's call that making OneToOne requests.
 HTTP/2, and HTTP/3 both requires more computational power for a single request than HTTP/1.1 (in OneToOne context).
 The true reason for them to exist, is not the OneToOne scenario.
@@ -194,6 +198,6 @@ This example will quickly demonstrate, how to utilize and leverage your HTTP/2 c
     print("> With multiplexing:")
     make_requests(REQUEST_URL, REQUEST_COUNT, True)
 
-.. note:: This piece of code showcase how to emit concurrent requests in a synchronous context without threads and async.
+.. note:: This piece of code demonstrate how to emit concurrent requests in a synchronous context without threads and async.
 
 We would gladly discuss potential implementations if needed, just open a new issue at https://github.com/jawah/niquests/issues

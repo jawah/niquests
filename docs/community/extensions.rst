@@ -141,7 +141,19 @@ requests-mock
 
 You will need to create a fixture to override the default bind to Requests in ``conftest.py`` like so::
 
-    import niquests as requests
+    from sys import modules
+
+    import requests
+    import niquests
+    import urllib3
+
+    # impersonate Requests!
+    modules["requests"] = niquests
+    modules["requests.adapters"] = niquests.adapters
+    modules["requests.models"] = niquests.models
+    modules["requests.exceptions"] = niquests.exceptions
+    modules["requests.packages.urllib3"] = urllib3
+    modules["requests.compat"] = requests.compat
 
     @pytest.fixture(scope='function')
     def patched_requests_mock():
@@ -154,7 +166,7 @@ You will need to create a fixture to override the default bind to Requests in ``
 
             def __init__(self, session=None, **kwargs):
                 # we purposely skip invoking super() to avoid the strict typecheck on session.
-                self._mock_target = session or requests.Session
+                self._mock_target = session or niquests.Session
                 self.case_sensitive = kwargs.pop('case_sensitive', self.case_sensitive)
                 self._adapter = (
                     kwargs.pop('adapter', None)
@@ -182,6 +194,11 @@ Then, use it as you were used to::
 
     def test_sometime(patched_requests_mock):
         patched_requests_mock.get("https://example.com/", text="hello world")
+
+.. warning:: This extension load/import Requests at pytest startup.
+    Disable the plugin auto-loading first by either passing ``PYTEST_DISABLE_PLUGIN_AUTOLOAD=1`` (in environment)
+    or ``pytest -p "no:requests_mock"`` in CLI parameters. You may also append ``-p "no:requests_mock"`` in addopts
+    of your pyproject.toml or equivalent.
 
 requests-ntlm
 -------------
