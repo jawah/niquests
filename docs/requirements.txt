@@ -6,3 +6,4 @@ urllib3.future>=2.12.900
 wassima>=1,<2
 kiss_headers>=2,<4
 furo>=2023.9.10
+sphinx-mdinclude==0.6.2

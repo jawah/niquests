@@ -15,4 +15,4 @@ The best way to track the development of Niquests is through
 `the GitHub repo <https://github.com/jawah/niquests>`_.
 
 
-.. include:: ../../HISTORY.md
+.. mdinclude:: ../../HISTORY.md
