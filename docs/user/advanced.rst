@@ -401,9 +401,9 @@ no matter the used protocol using a discrete scheduled task for each host.
 
     import niquests
 
-    sess = niquests.Session(keepalive_delay=300, keepalive_idle_window=60)  # already the defaults!, you don't need to specify anything
+    sess = niquests.Session(keepalive_delay=3600, keepalive_idle_window=60)  # already the defaults!, you don't need to specify anything
 
-In that example, we indicate that we wish to keep a connection alive for 5 minutes and
+In that example, we indicate that we wish to keep a connection alive for 1 hour and
 eventually send ping every 60s after the connection was idle. (Those values are the default ones!)
 
 The pings are only sent when using HTTP/2 or HTTP/3 over QUIC. Any connection activity is considered as used, therefor
@@ -429,6 +429,28 @@ file-like object for your body::
 
 .. warning:: It is recommended that you open files in binary mode.
 
+Async Streaming Uploads
+-----------------------
+
+Since file may induce long I/O blocking moments, it is recommended to upload the file asynchronously.
+
+Niquests support uploading file that were opened using aiofile!
+
+.. code:: python
+
+    import niquests
+    import asyncio
+    import aiofile
+
+    async def upload() -> None:
+        async with niquests.AsyncSession() as s:
+            async with aiofile.async_open("massive-body", "rb") as afp:
+                r = await s.post("https://httpbingo.org/post", data=afp)
+
+    if __name__ == "__main__":
+        asyncio.run(upload())
+
+.. tip:: Any asynchronous file manager may be used. Here we're using the excellent aiofile library. see https://pypi.org/project/aiofile/
 
 .. _chunk-encoding:
 
