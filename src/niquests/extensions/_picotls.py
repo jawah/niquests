@@ -10,7 +10,12 @@ from __future__ import annotations
 import hmac
 from hashlib import sha256
 
-import idna
+from .._compat import HAS_LEGACY_URLLIB3
+
+if not HAS_LEGACY_URLLIB3:
+    from urllib3.util.url import _idna_encode
+else:
+    from urllib3_future.util.url import _idna_encode
 
 LEGACY_TLS_VERSION = b"\x03\x03"
 TLS_AES_128_GCM_SHA256 = b"\x13\x01"
@@ -340,10 +345,7 @@ def gen_client_hello(hostname, client_random, ecdh_pubkey_x, ecdh_pubkey_y):
     session_id = b""
     compression_method = b"\x00"  # no compression
 
-    if not hostname.isascii():
-        hostname = idna.encode(hostname)
-    else:
-        hostname = hostname.encode("ascii")
+    hostname = _idna_encode(hostname)
 
     hostname_prefix = b"\x00\x00"
     hostname_list_length = num_to_bytes(len(hostname) + 5, 2)

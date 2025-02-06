@@ -16,7 +16,12 @@ from json import JSONDecodeError
 
 import charset_normalizer
 import h11
-import idna
+
+try:
+    import idna  # type: ignore[import-not-found]
+except ImportError:
+    idna = None  # type: ignore[assignment]
+
 import jh2  # type: ignore
 import wassima
 
@@ -117,7 +122,7 @@ def info():
     charset_normalizer_info = {"version": charset_normalizer.__version__}
 
     idna_info = {
-        "version": getattr(idna, "__version__", ""),
+        "version": getattr(idna, "__version__", "N/A"),
     }
 
     if ssl is not None:
@@ -196,7 +201,7 @@ PACKAGE_TO_CHECK_FOR_UPGRADE = {
     "h11": h11.__version__,
     "charset-normalizer": charset_normalizer.__version__,
     "wassima": wassima.__version__,
-    "idna": idna.__version__,
+    "idna": idna.__version__ if idna is not None else None,
     "wsproto": wsproto.__version__ if wsproto is not None else None,
 }
 

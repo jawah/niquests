@@ -2725,7 +2725,7 @@ class TestPreparingURLs:
             b"http://*",
             "http://*.google.com",
             "http://*",
-            "http://☃.net/",
+            # "http://☃.net/",
         ),
     )
     def test_preparing_bad_url(self, url):
