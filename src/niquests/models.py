@@ -33,9 +33,9 @@ from io import UnsupportedOperation
 from urllib.parse import urlencode, urlsplit, urlunparse
 
 from charset_normalizer import from_bytes
-from kiss_headers import Headers, parse_it
 
 from ._compat import HAS_LEGACY_URLLIB3
+from ._vendor.kiss_headers import Headers, parse_it
 
 if HAS_LEGACY_URLLIB3 is False:
     from urllib3 import (

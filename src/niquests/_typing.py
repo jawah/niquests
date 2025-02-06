@@ -4,9 +4,8 @@ import typing
 from http.cookiejar import CookieJar
 from os import PathLike
 
-from kiss_headers import Headers
-
 from ._compat import HAS_LEGACY_URLLIB3
+from ._vendor.kiss_headers import Headers
 
 if HAS_LEGACY_URLLIB3 is False:
     from urllib3 import AsyncResolverDescription, ResolverDescription, Retry, Timeout
