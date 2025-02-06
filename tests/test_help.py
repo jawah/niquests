@@ -20,7 +20,7 @@ def test_idna_without_version_attribute():
     that if we have such a package, we don't blow up.
     """
     with mock.patch("niquests.help.idna", new=None):
-        assert info()["idna"] == {"version": ""}
+        assert info()["idna"] == {"version": "N/A"}
 
 
 def test_idna_with_version_attribute():
