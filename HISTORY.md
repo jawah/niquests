@@ -1,6 +1,17 @@
 Release History
 ===============
 
+3.13.0 (2025-02-05)
+-------------------
+
+**Removed**
+- Dependency on `idna`. Since qh3 version 1.4, we can rely on their internal idna encoder that does not require any external dependencies.
+  This change does not affect the feature on international domain names.
+- Dependency on `kiss-headers`. We decided to vendor kiss-headers into Niquests for several reasons. The principal one
+  is that the project is stable and require next to no maintenance. And pulling extra dependencies affect some end-users.
+  We are in the process of measuring potential interest for kiss-headers models. We may decide to remove its support completely
+  in a next major version.
+
 3.12.3 (2025-01-28)
 -------------------
 
