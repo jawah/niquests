@@ -12,6 +12,7 @@ source =
 [report]
 omit =
     src/niquests/help.py
+    src/niquests/_vendor/
 
 exclude_lines =
     except ModuleNotFoundError:
