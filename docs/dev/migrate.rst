@@ -57,12 +57,14 @@ for more information. (The goal would simply to execute the following piece of c
     from sys import modules
 
     import niquests
+    import requests
     import urllib3
 
     # the mock utility 'response' only works with 'requests'
     modules["requests"] = niquests
     modules["requests.adapters"] = niquests.adapters
     modules["requests.exceptions"] = niquests.exceptions
+    modules["requests.compat"] = requests.compat
     modules["requests.packages.urllib3"] = urllib3
 
 .. warning:: This code sample is only to be executed in a development environment, it permit to fool the third-party dependencies that have a strong tie on Requests.

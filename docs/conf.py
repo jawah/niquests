@@ -300,7 +300,7 @@ texinfo_documents = [
         u"Niquests Documentation",
         author,
         "Niquests",
-        "One line description of project.",
+        "“Safest, Fastest, Easiest, and Most advanced” Python HTTP Client. Production Ready! Drop-in replacement for Requests. HTTP/1.1, HTTP/2, and HTTP/3 supported. With WebSocket, and SSE! Be free of Requests bondage now.",
         "Miscellaneous",
     )
 ]

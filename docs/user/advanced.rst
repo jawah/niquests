@@ -626,7 +626,7 @@ You may find bellow a plausible example::
             print(req.upload_progress)
 
         with niquests.Session() as s:
-            s.post("https://pie.dev/post", data=b"foo"*16800*1024, hooks={"on_upload": [track]})
+            s.post("https://httpbingo.org/post", data=b"foo"*16800*1024, hooks={"on_upload": [track]})
 
 .. note:: Niquests recommend the excellent tqdm library to create progress bars with ease.
 
@@ -1493,7 +1493,7 @@ Here is a simple example::
 
     session = niquests.Session()
 
-    response = session.get("https://pie.dev/get")
+    response = session.get("https://httpbingo.org/get")
 
     print(response.conn_info.resolution_latency)  # output the DNS resolution latency
     print(response.conn_info.tls_handshake_latency)  # the TLS handshake completion
@@ -1516,7 +1516,7 @@ Here is a simple example::
     import niquests
 
     session = niquests.Session()
-    session.get("https://pie.dev/get", verify="sha256_8fff956b66667ffe5801c8432b12c367254727782d91bc695b7a53d0b512d721")
+    session.get("https://httpbingo.org/get", verify="sha256_8fff956b66667ffe5801c8432b12c367254727782d91bc695b7a53d0b512d721")
 
 .. warning:: Supported fingerprinting algorithms are sha256, and sha1. The prefix is mandatory.
 
