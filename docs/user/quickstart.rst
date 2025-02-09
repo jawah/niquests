@@ -682,11 +682,11 @@ Emitting concurrent requests and loading them via `Session.gather()`::
     responses = []
 
     responses.append(
-      s.get("https://pie.dev/delay/3")
+      s.get("https://httpbingo.org/delay/3")
     )
 
     responses.append(
-      s.get("https://pie.dev/delay/1")
+      s.get("https://httpbingo.org/delay/1")
     )
 
     s.gather()
@@ -708,11 +708,11 @@ Emitting concurrent requests and loading them via direct access::
     responses = []
 
     responses.append(
-      s.get("https://pie.dev/delay/3")
+      s.get("https://httpbingo.org/delay/3")
     )
 
     responses.append(
-      s.get("https://pie.dev/delay/1")
+      s.get("https://httpbingo.org/delay/1")
     )
 
     # internally call gather with self (Response)
@@ -760,7 +760,7 @@ Here is a basic example::
         tasks = []
 
         for _ in range(10):
-            tasks.append(asyncio.create_task(fetch("https://pie.dev/delay/1")))
+            tasks.append(asyncio.create_task(fetch("https://httpbingo.org/delay/1")))
 
         responses = await asyncio.gather(*tasks)
 
@@ -800,7 +800,7 @@ Look at this basic sample::
         tasks = []
 
         for _ in range(10):
-            tasks.append(asyncio.create_task(fetch("https://pie.dev/delay/1")))
+            tasks.append(asyncio.create_task(fetch("https://httpbingo.org/delay/1")))
 
         responses_responses = await asyncio.gather(*tasks)
         responses = [item for sublist in responses_responses for item in sublist]
@@ -824,7 +824,7 @@ Delaying the content consumption in an async context can be easily achieved usin
     async def main() -> None:
 
         async with niquests.AsyncSession() as s:
-            r = await s.get("https://pie.dev/get", stream=True)
+            r = await s.get("https://httpbingo.org/get", stream=True)
 
             async for chunk in await r.iter_content(16):
                 print(chunk)
@@ -841,7 +841,7 @@ Or using the ``iter_line`` method as such::
     async def main() -> None:
 
         async with niquests.AsyncSession() as s:
-            r = await s.get("https://pie.dev/get", stream=True)
+            r = await s.get("https://httpbingo.org/get", stream=True)
 
             async for chunk in r.iter_line():
                 print(chunk)
@@ -857,7 +857,7 @@ Or simply by doing::
     async def main() -> None:
 
         async with niquests.AsyncSession() as s:
-            r = await s.get("https://pie.dev/get", stream=True)
+            r = await s.get("https://httpbingo.org/get", stream=True)
             payload = await r.json()
 
     if __name__ == "__main__":
@@ -888,10 +888,10 @@ Here is a basic example of how you would do it::
 
         async with niquests.AsyncSession(multiplexed=True) as s:
             responses.append(
-                await s.get("https://pie.dev/get", stream=True)
+                await s.get("https://httpbingo.org/get", stream=True)
             )
             responses.append(
-                await s.get("https://pie.dev/get", stream=True)
+                await s.get("https://httpbingo.org/get", stream=True)
             )
 
             print(responses)
@@ -974,9 +974,9 @@ Here is a basic example that leverage Google public DNS over HTTPS::
     from niquests import Session
 
     with Session(resolver="doh+google://") as s:
-        resp = s.get("https://pie.dev/get")
+        resp = s.get("https://httpbingo.org/get")
 
-Here, the domain name (**pie.dev**) will be resolved using the provided DNS url.
+Here, the domain name (**httpbingo.org**) will be resolved using the provided DNS url.
 
 .. note:: By default, Niquests still use the good old, often insecure, system DNS.
 
@@ -988,7 +988,7 @@ You may specify a list of resolvers to be tested in order::
     from niquests import Session
 
     with Session(resolver=["doh+google://", "doh://cloudflare-dns.com"]) as s:
-        resp = s.get("https://pie.dev/get")
+        resp = s.get("https://httpbingo.org/get")
 
 The second entry ``doh://cloudflare-dns.com`` will only be tested if ``doh+google://`` failed to provide a usable answer.
 
@@ -1027,10 +1027,10 @@ Simply add ``verify=false`` into your DNS url to pursue::
     from niquests import Session
 
     with Session(resolver="doh+google://default/?verify=false") as s:
-        resp = s.get("https://pie.dev/get")
+        resp = s.get("https://httpbingo.org/get")
 
 
-.. warning:: Doing a ``s.get("https://pie.dev/get", verify=False)`` does not impact the resolver.
+.. warning:: Doing a ``s.get("https://httpbingo.org/get", verify=False)`` does not impact the resolver.
 
 Timeouts
 ~~~~~~~~
@@ -1042,7 +1042,7 @@ You may set a specific timeout for domain name resolution by appending ``?timeou
     from niquests import Session
 
     with Session(resolver="doh+google://default/?timeout=1") as s:
-        resp = s.get("https://pie.dev/get")
+        resp = s.get("https://httpbingo.org/get")
 
 This will prevent any resolution that last longer to a second.
 
