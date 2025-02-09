@@ -6,11 +6,11 @@
 Niquests: HTTP for Humans™
 ==========================
 
-Release v\ |version|. (:ref:`Installation <install>`)
+Release v\ |version| (:ref:`Installation <install>`)
 
 
-.. image:: https://static.pepy.tech/badge/niquests/month
-    :target: https://pepy.tech/project/niquests
+.. image:: https://img.shields.io/pypi/dm/niquests.svg
+    :target: https://pypistats.org/packages/niquests
     :alt: Niquests Downloads Per Month Badge
     
 .. image:: https://img.shields.io/pypi/l/niquests.svg
@@ -23,6 +23,8 @@ Release v\ |version|. (:ref:`Installation <install>`)
 
 **Niquests** is an elegant and simple HTTP library for Python, built for human beings. It
 is designed to be a drop-in replacement for **Requests** that is no longer under feature freeze.
+
+Supports HTTP/1.1, HTTP/2 and HTTP/3 out-of-the-box without breaking a sweat!
 
 -------------------
 
@@ -76,6 +78,8 @@ Niquests is ready for today's web.
 - Automatic honoring of `.netrc`
 - Basic & Digest Authentication
 - Familiar `dict`–like Cookies
+- Network settings fine-tuning
+- HTTP/2 with prior knowledge
 - Object-oriented headers
 - Multi-part File Uploads
 - Post-Quantum Security
@@ -94,6 +98,7 @@ Niquests is ready for today's web.
 - Trailers!
 - DNSSEC!
 - Async!
+- SSE!
 
 Niquests officially supports Python 3.7+, and runs great on PyPy.
 
