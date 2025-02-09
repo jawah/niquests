@@ -171,6 +171,8 @@ and returned. To check that a request is successful, use
 
 .. note:: Since Niquests 3.2, ``r.raise_for_status()`` is chainable as it returns self if everything went fine.
 
+.. tip:: Niquests support using ``orjson`` instead of the ``json`` standard library. To leverage that feature, install ``orjson`` or ``niquests[speedups]``. This can dramatically increase performance.
+
 Raw Response Content
 --------------------
 
@@ -411,7 +413,7 @@ But, since our ``status_code`` for ``r`` was ``200``, when we call
 ``raise_for_status()`` we get::
 
     >>> r.raise_for_status()
-    None
+    <Response HTTP/2 [200]>
 
 All is well.
 
@@ -560,7 +562,7 @@ Timeouts
 
 You can tell Niquests to stop waiting for a response after a given number of
 seconds with the ``timeout`` parameter. Nearly all production code should use
-this parameter in nearly all niquests. By default GET, HEAD, OPTIONS ships with a
+this parameter in nearly all requests. By default GET, HEAD, OPTIONS ships with a
 30 seconds timeout delay and 120 seconds for the rest::
 
     >>> niquests.get('https://github.com/', timeout=0.001)
@@ -569,7 +571,7 @@ this parameter in nearly all niquests. By default GET, HEAD, OPTIONS ships with 
     niquests.exceptions.Timeout: HTTPConnectionPool(host='github.com', port=80): Request timed out. (timeout=0.001)
 
 
-.. admonition:: Note
+.. note::
 
     ``timeout`` is not a time limit on the entire response download;
     rather, an exception is raised if the server has not issued a
@@ -577,6 +579,27 @@ this parameter in nearly all niquests. By default GET, HEAD, OPTIONS ships with 
     received on the underlying socket for ``timeout`` seconds). If no timeout is specified explicitly, requests
     use the default according to your HTTP verb. Either 30 seconds or 120 seconds.
 
+.. warning::
+
+    We know that users are surprised by the ``timeout`` behaviors. You should know
+    that Niquests is bound to some legacy behaviors that existed well prior us.
+    Let's say that you set up ``timeout=1`` to a specific host. Now let's say on
+    purpose that the host is down. Then we should expect the request to fail
+    exactly 1s after. That is correct. But! Beware that if the host has more than
+    1 DNS records (either A or AAAA), they all will be tested with set timeout limit!
+    So if ``example.tld`` has two IPs associated, then you should expect 2s max delay.
+    And so on, so forth...
+
+.. tip::
+
+    Set ``happy_eyeballs=True`` when constructing your ``Session`` to try all endpoints simultaneously.
+    This will help you circumvent most of the connectivity issues.
+
+.. warning::
+
+    Unfortunately, due to a Python restriction, we cannot ensure that ``timeout`` is respected if your system DNS is
+    unresponsive. This only applies in synchronous mode (i.e. not async).
+    To circumvent that issue, you should use a more modern DNS resolver solution. See ``resolver=...`` parameter.
 
 Errors and Exceptions
 ---------------------
@@ -606,7 +629,7 @@ The underlying package may or may not be installed on your environment.
 If it is not present, no HTTP/3 or QUIC support will be present.
 
 If you uninstall the qh3 package it disable the support for HTTP/3 without breaking anything.
-On the overhand, installing it manually (require compilation/non native wheel) will bring its support.
+On the overhand, installing it manually (may require compilation toolchain) will bring its support.
 
 Find a quick way to know if your environment is capable of emitting HTTP/3 requests by::
 
@@ -645,7 +668,10 @@ Any ``Response`` returned by get, post, put, etc... will be a lazy instance of `
    and actually leverage its perks, you will have to issue multiple concurrent request before
    actually trying to access any ``Response`` methods or attributes.
 
-**Example A)** Emitting concurrent requests and loading them via `Session.gather()`::
+Gather responses
+~~~~~~~~~~~~~~~~
+
+Emitting concurrent requests and loading them via `Session.gather()`::
 
     from niquests import Session
     from time import time
@@ -668,7 +694,10 @@ Any ``Response`` returned by get, post, put, etc... will be a lazy instance of `
     print(f"waited {time() - before} second(s)")  # will print 3s
 
 
-**Example B)** Emitting concurrent requests and loading them via direct access::
+Direct Access
+~~~~~~~~~~~~~
+
+Emitting concurrent requests and loading them via direct access::
 
     from niquests import Session
     from time import time
@@ -737,7 +766,6 @@ Here is a basic example::
 
         print(responses)
 
-
     if __name__ == "__main__":
         asyncio.run(main())
 
@@ -801,7 +829,6 @@ Delaying the content consumption in an async context can be easily achieved usin
             async for chunk in await r.iter_content(16):
                 print(chunk)
 
-
     if __name__ == "__main__":
 
         asyncio.run(main())
@@ -855,7 +882,6 @@ Here is a basic example of how you would do it::
     import niquests
     import asyncio
 
-
     async def main() -> None:
 
         responses = []
@@ -898,9 +924,36 @@ To do so, you are invited to set the following parameters within a Session const
 - **pool_connections** means the number of host target (or pool of connections if you prefer).
 - **pool_maxsize** means the maximum of concurrent connexion per host target/pool.
 
-.. warning:: Due to the multiplexed aspect of both HTTP/2, and HTTP/3 you can issue, usually, more than 200 requests per connection without ever needing to create another one.
+.. tip:: Due to the multiplexed aspect of both HTTP/2, and HTTP/3 you can issue, usually, more than 200 requests per connection without ever needing to create another one.
 
-.. note:: This setting is most useful for multi-threading application.
+.. note:: This setting is most useful for multi-threading/tasks application.
+
+Pool Connections
+~~~~~~~~~~~~~~~~
+
+Setting ``pool_connections=2`` will keep the connection to ``host-b.tld`` and ``host-c.tld``.
+``host-a.tld`` will be silently discarded.
+
+.. code:: python
+
+    import niquests
+
+    with niquests.Session(pool_connections=2) as s:
+        s.get("https://host-a.tld/some")
+        s.get("https://host-b.tld/some")
+        s.get("https://host-c.tld/some")
+
+.. attention::
+
+    Unfortunately, due to backward compatibility purposes, those settings applies PER SCHEME.
+    ``pool_connections=2`` will allow up to 2 HTTP (unencrypted) and 2 HTTPS (encrypted)
+    connections. Meaning that you can still get 4 hosts being kept alive.
+
+Pool Maxsize
+~~~~~~~~~~~~
+
+Setting ``pool_maxsize=2`` will allow up to 2 connection to ``host-a.tld``.
+This settings is only useful in a concurrent environment. Either async or threaded.
 
 DNS Resolution
 --------------
@@ -978,6 +1031,20 @@ Simply add ``verify=false`` into your DNS url to pursue::
 
 
 .. warning:: Doing a ``s.get("https://pie.dev/get", verify=False)`` does not impact the resolver.
+
+Timeouts
+~~~~~~~~
+
+You may set a specific timeout for domain name resolution by appending ``?timeout=1`` to the resolver configuration.
+
+.. code:: python
+
+    from niquests import Session
+
+    with Session(resolver="doh+google://default/?timeout=1") as s:
+        resp = s.get("https://pie.dev/get")
+
+This will prevent any resolution that last longer to a second.
 
 Speedups
 --------
