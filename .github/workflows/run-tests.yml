@@ -57,6 +57,7 @@ jobs:
       with:
         name: coverage-data-${{ matrix.os }}-${{ matrix.nox-session }}-${{ matrix.python-version }}-${{ matrix.traefik-server }}
         path: ".coverage.*"
+        include-hidden-files: true
         if-no-files-found: error
 
   coverage:
