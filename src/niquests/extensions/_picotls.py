@@ -10,12 +10,7 @@ from __future__ import annotations
 import hmac
 from hashlib import sha256
 
-from .._compat import HAS_LEGACY_URLLIB3
-
-if not HAS_LEGACY_URLLIB3:
-    from urllib3.util.url import _idna_encode
-else:
-    from urllib3_future.util.url import _idna_encode
+from ..packages.urllib3.util.url import _idna_encode
 
 LEGACY_TLS_VERSION = b"\x03\x03"
 TLS_AES_128_GCM_SHA256 = b"\x13\x01"

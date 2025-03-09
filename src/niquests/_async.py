@@ -16,20 +16,6 @@ if typing.TYPE_CHECKING:
     from typing_extensions import Literal
 
 from ._compat import HAS_LEGACY_URLLIB3, urllib3_ensure_type
-
-if HAS_LEGACY_URLLIB3 is False:
-    from urllib3 import ConnectionInfo
-    from urllib3.contrib.resolver._async import AsyncBaseResolver
-    from urllib3.contrib.webextensions._async import load_extension
-else:  # Defensive: tested in separate/isolated CI
-    from urllib3_future import ConnectionInfo  # type: ignore[assignment]
-    from urllib3_future.contrib.resolver._async import (  # type: ignore[assignment]
-        AsyncBaseResolver,
-    )
-    from urllib3_future.contrib.webextensions._async import (  # type: ignore[assignment]
-        load_extension,
-    )
-
 from ._constant import (
     DEFAULT_POOLSIZE,
     DEFAULT_RETRIES,
@@ -79,6 +65,9 @@ from .models import (
     Response,
     TransferProgress,
 )
+from .packages.urllib3 import ConnectionInfo
+from .packages.urllib3.contrib.resolver._async import AsyncBaseResolver
+from .packages.urllib3.contrib.webextensions._async import load_extension
 from .sessions import Session
 from .structures import AsyncQuicSharedCache
 from .utils import (

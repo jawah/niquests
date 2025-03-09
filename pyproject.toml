@@ -107,6 +107,10 @@ select = [
 [tool.ruff.lint.isort]
 required-imports = ["from __future__ import annotations"]
 
+[[tool.mypy.overrides]]
+module = ["niquests.packages.*"]
+ignore_missing_imports = true
+
 [tool.pytest.ini_options]
 addopts = "--doctest-modules"
 doctest_optionflags = "NORMALIZE_WHITESPACE ELLIPSIS"

@@ -34,71 +34,6 @@ from urllib.parse import urlencode, urlsplit, urlunparse
 
 from charset_normalizer import from_bytes
 
-from ._compat import HAS_LEGACY_URLLIB3
-from ._vendor.kiss_headers import Headers, parse_it
-
-if HAS_LEGACY_URLLIB3 is False:
-    from urllib3 import (
-        AsyncHTTPResponse as BaseAsyncHTTPResponse,
-    )
-    from urllib3 import (
-        BaseHTTPResponse,
-        ConnectionInfo,
-        ResponsePromise,
-    )
-    from urllib3.contrib.webextensions import (
-        RawExtensionFromHTTP,
-        ServerSideEventExtensionFromHTTP,
-        WebSocketExtensionFromHTTP,
-    )
-    from urllib3.contrib.webextensions._async import (
-        AsyncRawExtensionFromHTTP,
-        AsyncServerSideEventExtensionFromHTTP,
-        AsyncWebSocketExtensionFromHTTP,
-    )
-    from urllib3.exceptions import (
-        DecodeError,
-        LocationParseError,
-        ProtocolError,
-        ReadTimeoutError,
-        SSLError,
-    )
-    from urllib3.fields import RequestField
-    from urllib3.filepost import choose_boundary, encode_multipart_formdata
-    from urllib3.util import parse_url
-else:  # Defensive: tested in separate/isolated CI
-    from urllib3_future import (  # type: ignore[assignment]
-        AsyncHTTPResponse as BaseAsyncHTTPResponse,
-    )
-    from urllib3_future import (  # type: ignore[assignment]
-        BaseHTTPResponse,
-        ConnectionInfo,
-        ResponsePromise,
-    )
-    from urllib3_future.contrib.webextensions import (  # type: ignore[assignment]
-        RawExtensionFromHTTP,
-        ServerSideEventExtensionFromHTTP,
-        WebSocketExtensionFromHTTP,
-    )
-    from urllib3_future.contrib.webextensions._async import (  # type: ignore[assignment]
-        AsyncRawExtensionFromHTTP,
-        AsyncServerSideEventExtensionFromHTTP,
-        AsyncWebSocketExtensionFromHTTP,
-    )
-    from urllib3_future.exceptions import (  # type: ignore[assignment]
-        DecodeError,
-        LocationParseError,
-        ProtocolError,
-        ReadTimeoutError,
-        SSLError,
-    )
-    from urllib3_future.fields import RequestField  # type: ignore[assignment]
-    from urllib3_future.filepost import (  # type: ignore[assignment]
-        choose_boundary,
-        encode_multipart_formdata,
-    )
-    from urllib3_future.util import parse_url  # type: ignore[assignment]
-
 from ._typing import (
     AsyncBodyType,
     AsyncHttpAuthenticationType,
@@ -114,6 +49,7 @@ from ._typing import (
     MultiPartFilesType,
     QueryParameterType,
 )
+from ._vendor.kiss_headers import Headers, parse_it
 from .auth import BearerTokenAuth, HTTPBasicAuth
 from .cookies import (
     RequestsCookieJar,
@@ -134,6 +70,34 @@ from .exceptions import (
 from .exceptions import JSONDecodeError as RequestsJSONDecodeError
 from .exceptions import SSLError as RequestsSSLError
 from .hooks import default_hooks
+from .packages.urllib3 import (
+    AsyncHTTPResponse as BaseAsyncHTTPResponse,
+)
+from .packages.urllib3 import (
+    BaseHTTPResponse,
+    ConnectionInfo,
+    ResponsePromise,
+)
+from .packages.urllib3.contrib.webextensions import (
+    RawExtensionFromHTTP,
+    ServerSideEventExtensionFromHTTP,
+    WebSocketExtensionFromHTTP,
+)
+from .packages.urllib3.contrib.webextensions._async import (
+    AsyncRawExtensionFromHTTP,
+    AsyncServerSideEventExtensionFromHTTP,
+    AsyncWebSocketExtensionFromHTTP,
+)
+from .packages.urllib3.exceptions import (
+    DecodeError,
+    LocationParseError,
+    ProtocolError,
+    ReadTimeoutError,
+    SSLError,
+)
+from .packages.urllib3.fields import RequestField
+from .packages.urllib3.filepost import choose_boundary, encode_multipart_formdata
+from .packages.urllib3.util import parse_url
 from .status_codes import codes
 from .structures import CaseInsensitiveDict
 from .utils import (
@@ -1395,7 +1359,7 @@ class Response:
             self.trailers = CaseInsensitiveDict(self.raw.trailers)
         # don't need to release the connection; that's been handled by urllib3
         # since we exhausted the data.
-        return self._content
+        return self._content  # type: ignore[return-value]
 
     @property
     def text(self) -> str | None:
@@ -1780,7 +1744,7 @@ class AsyncResponse(Response):
         self._content_consumed = True
         # don't need to release the connection; that's been handled by urllib3
         # since we exhausted the data.
-        return self._content
+        return self._content  # type: ignore[return-value]
 
     @property
     async def text(self) -> str | None:  # type: ignore[override]

@@ -46,19 +46,13 @@ import warnings
 from logging import NullHandler
 
 from ._compat import HAS_LEGACY_URLLIB3
-
-if HAS_LEGACY_URLLIB3 is False:
-    from urllib3 import Retry as RetryConfiguration
-    from urllib3 import Timeout as TimeoutConfiguration
-    from urllib3.exceptions import DependencyWarning
-else:
-    from urllib3_future import (  # type: ignore[assignment]
-        Retry as RetryConfiguration,
-    )
-    from urllib3_future import (  # type: ignore[assignment]
-        Timeout as TimeoutConfiguration,
-    )
-    from urllib3_future.exceptions import DependencyWarning  # type: ignore[assignment]
+from .packages.urllib3 import (
+    Retry as RetryConfiguration,
+)
+from .packages.urllib3 import (
+    Timeout as TimeoutConfiguration,
+)
+from .packages.urllib3.exceptions import DependencyWarning
 
 # urllib3's DependencyWarnings should be silenced.
 warnings.simplefilter("ignore", DependencyWarning)
@@ -138,4 +132,5 @@ __all__ = (
     "AsyncResponse",
     "TimeoutConfiguration",
     "RetryConfiguration",
+    "HAS_LEGACY_URLLIB3",
 )

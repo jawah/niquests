@@ -20,13 +20,8 @@ from http.cookiejar import CookieJar
 from http.cookies import Morsel
 from urllib.parse import urlparse, urlunparse
 
-from ._compat import HAS_LEGACY_URLLIB3
+from .packages.urllib3 import BaseHTTPResponse
 from .utils import parse_scheme
-
-if HAS_LEGACY_URLLIB3 is False:
-    from urllib3 import BaseHTTPResponse
-else:  # Defensive: tested in separate/isolated CI
-    from urllib3_future import BaseHTTPResponse  # type: ignore[assignment]
 
 if typing.TYPE_CHECKING:
     from .models import PreparedRequest, Request

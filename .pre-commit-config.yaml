@@ -18,9 +18,9 @@ repos:
     # Run the formatter.
     - id: ruff-format
 - repo: https://github.com/pre-commit/mirrors-mypy
-  rev: v1.14.1
+  rev: v1.15.0
   hooks:
   -   id: mypy
       args: [--check-untyped-defs]
       exclude: 'tests/|noxfile.py'
-      additional_dependencies: ['charset_normalizer', 'urllib3.future>=2.12.900', 'wassima>=1.0.1', 'qh3>=1.4']
+      additional_dependencies: ['charset_normalizer', 'urllib3.future>=2.12.900', 'wassima>=1.0.1', 'qh3>=1.4', '.']

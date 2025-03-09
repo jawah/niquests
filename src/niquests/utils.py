@@ -33,48 +33,23 @@ from urllib.request import parse_http_list as _parse_list_header
 
 import wassima
 
-from ._compat import HAS_LEGACY_URLLIB3
-
-if HAS_LEGACY_URLLIB3 is False:
-    from urllib3 import ConnectionInfo
-    from urllib3.contrib.resolver import (
-        BaseResolver,
-        ManyResolver,
-        ProtocolResolver,
-        ResolverDescription,
-    )
-    from urllib3.contrib.resolver._async import (
-        AsyncBaseResolver,
-        AsyncManyResolver,
-        AsyncResolverDescription,
-    )
-    from urllib3.contrib.webextensions import ExtensionFromHTTP, load_extension
-    from urllib3.contrib.webextensions._async import AsyncExtensionFromHTTP
-    from urllib3.util import make_headers, parse_url
-else:  # Defensive: tested in separate/isolated CI
-    from urllib3_future import ConnectionInfo  # type: ignore[assignment]
-    from urllib3_future.contrib.resolver import (  # type: ignore[assignment]
-        BaseResolver,
-        ManyResolver,
-        ProtocolResolver,
-        ResolverDescription,
-    )
-    from urllib3_future.contrib.resolver._async import (  # type: ignore[assignment]
-        AsyncBaseResolver,
-        AsyncManyResolver,
-        AsyncResolverDescription,
-    )
-    from urllib3_future.contrib.webextensions import (  # type: ignore[assignment]
-        ExtensionFromHTTP,
-        load_extension,
-    )
-    from urllib3_future.contrib.webextensions._async import (  # type: ignore[assignment]
-        AsyncExtensionFromHTTP,
-    )
-    from urllib3_future.util import make_headers, parse_url  # type: ignore[assignment]
-
 from .__version__ import __version__
 from .exceptions import InvalidURL, MissingSchema, UnrewindableBodyError
+from .packages.urllib3 import ConnectionInfo
+from .packages.urllib3.contrib.resolver import (
+    BaseResolver,
+    ManyResolver,
+    ProtocolResolver,
+    ResolverDescription,
+)
+from .packages.urllib3.contrib.resolver._async import (
+    AsyncBaseResolver,
+    AsyncManyResolver,
+    AsyncResolverDescription,
+)
+from .packages.urllib3.contrib.webextensions import ExtensionFromHTTP, load_extension
+from .packages.urllib3.contrib.webextensions._async import AsyncExtensionFromHTTP
+from .packages.urllib3.util import make_headers, parse_url
 from .structures import CaseInsensitiveDict
 
 if typing.TYPE_CHECKING:
@@ -1190,44 +1165,6 @@ def wrap_extension_for_http(
     This function purposely wrap the extension class to achieve that.
     Warning: synchronous context only!
     """
-    if HAS_LEGACY_URLLIB3 is False:
-        from urllib3.exceptions import (
-            ClosedPoolError,
-            DecodeError,
-            ProtocolError,
-            ReadTimeoutError,
-        )
-        from urllib3.exceptions import (
-            HTTPError as _HTTPError,
-        )
-        from urllib3.exceptions import (
-            InvalidHeader as _InvalidHeader,
-        )
-        from urllib3.exceptions import (
-            ProxyError as _ProxyError,
-        )
-        from urllib3.exceptions import (
-            SSLError as _SSLError,
-        )
-    else:
-        from urllib3_future.exceptions import (  # type: ignore[assignment]
-            ClosedPoolError,
-            DecodeError,
-            ProtocolError,
-            ReadTimeoutError,
-        )
-        from urllib3_future.exceptions import (  # type: ignore[assignment]
-            HTTPError as _HTTPError,
-        )
-        from urllib3_future.exceptions import (  # type: ignore[assignment]
-            InvalidHeader as _InvalidHeader,
-        )
-        from urllib3_future.exceptions import (  # type: ignore[assignment]
-            ProxyError as _ProxyError,
-        )
-        from urllib3_future.exceptions import (  # type: ignore[assignment]
-            SSLError as _SSLError,
-        )
 
     from .exceptions import (
         ChunkedEncodingError,
@@ -1239,6 +1176,24 @@ def wrap_extension_for_http(
     )
     from .exceptions import (
         SSLError as RequestsSSLError,
+    )
+    from .packages.urllib3.exceptions import (
+        ClosedPoolError,
+        DecodeError,
+        ProtocolError,
+        ReadTimeoutError,
+    )
+    from .packages.urllib3.exceptions import (
+        HTTPError as _HTTPError,
+    )
+    from .packages.urllib3.exceptions import (
+        InvalidHeader as _InvalidHeader,
+    )
+    from .packages.urllib3.exceptions import (
+        ProxyError as _ProxyError,
+    )
+    from .packages.urllib3.exceptions import (
+        SSLError as _SSLError,
     )
 
     class _WrappedExtensionFromHTTP(extension):  # type: ignore[valid-type,misc]
@@ -1303,44 +1258,6 @@ def async_wrap_extension_for_http(
     This function purposely wrap the extension class to achieve that.
     Warning: asynchronous context only!
     """
-    if HAS_LEGACY_URLLIB3 is False:
-        from urllib3.exceptions import (
-            ClosedPoolError,
-            DecodeError,
-            ProtocolError,
-            ReadTimeoutError,
-        )
-        from urllib3.exceptions import (
-            HTTPError as _HTTPError,
-        )
-        from urllib3.exceptions import (
-            InvalidHeader as _InvalidHeader,
-        )
-        from urllib3.exceptions import (
-            ProxyError as _ProxyError,
-        )
-        from urllib3.exceptions import (
-            SSLError as _SSLError,
-        )
-    else:
-        from urllib3_future.exceptions import (  # type: ignore[assignment]
-            ClosedPoolError,
-            DecodeError,
-            ProtocolError,
-            ReadTimeoutError,
-        )
-        from urllib3_future.exceptions import (  # type: ignore[assignment]
-            HTTPError as _HTTPError,
-        )
-        from urllib3_future.exceptions import (  # type: ignore[assignment]
-            InvalidHeader as _InvalidHeader,
-        )
-        from urllib3_future.exceptions import (  # type: ignore[assignment]
-            ProxyError as _ProxyError,
-        )
-        from urllib3_future.exceptions import (  # type: ignore[assignment]
-            SSLError as _SSLError,
-        )
 
     from .exceptions import (
         ChunkedEncodingError,
@@ -1352,6 +1269,24 @@ def async_wrap_extension_for_http(
     )
     from .exceptions import (
         SSLError as RequestsSSLError,
+    )
+    from .packages.urllib3.exceptions import (
+        ClosedPoolError,
+        DecodeError,
+        ProtocolError,
+        ReadTimeoutError,
+    )
+    from .packages.urllib3.exceptions import (
+        HTTPError as _HTTPError,
+    )
+    from .packages.urllib3.exceptions import (
+        InvalidHeader as _InvalidHeader,
+    )
+    from .packages.urllib3.exceptions import (
+        ProxyError as _ProxyError,
+    )
+    from .packages.urllib3.exceptions import (
+        SSLError as _SSLError,
     )
 
     class _AsyncWrappedExtensionFromHTTP(extension):  # type: ignore[valid-type,misc]

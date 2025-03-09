@@ -19,26 +19,14 @@ from qh3._hazmat import (
     OCSPResponseStatus,
 )
 
-from .._compat import HAS_LEGACY_URLLIB3
-
-if HAS_LEGACY_URLLIB3 is False:
-    from urllib3 import ConnectionInfo
-    from urllib3.contrib.resolver._async import AsyncBaseResolver
-    from urllib3.contrib.ssa import AsyncSocket
-    from urllib3.exceptions import SecurityWarning
-    from urllib3.util.url import parse_url
-else:  # Defensive: tested in separate/isolated CI
-    from urllib3_future import ConnectionInfo  # type: ignore[assignment]
-    from urllib3_future.contrib.resolver._async import (  # type: ignore[assignment]
-        AsyncBaseResolver,
-    )
-    from urllib3_future.contrib.ssa import AsyncSocket  # type: ignore[assignment]
-    from urllib3_future.exceptions import SecurityWarning  # type: ignore[assignment]
-    from urllib3_future.util.url import parse_url  # type: ignore[assignment]
-
 from .._typing import ProxyType
 from ..exceptions import RequestException, SSLError
 from ..models import PreparedRequest
+from ..packages.urllib3 import ConnectionInfo
+from ..packages.urllib3.contrib.resolver._async import AsyncBaseResolver
+from ..packages.urllib3.contrib.ssa import AsyncSocket
+from ..packages.urllib3.exceptions import SecurityWarning
+from ..packages.urllib3.util.url import parse_url
 from ._ocsp import (
     _parse_x509_der_cached,
     _str_fingerprint_of,

@@ -10,12 +10,7 @@ from __future__ import annotations
 import typing
 from json import JSONDecodeError as CompatJSONDecodeError
 
-from ._compat import HAS_LEGACY_URLLIB3
-
-if HAS_LEGACY_URLLIB3 is False:
-    from urllib3.exceptions import HTTPError as BaseHTTPError
-else:  # Defensive: tested in separate/isolated CI
-    from urllib3_future.exceptions import HTTPError as BaseHTTPError  # type: ignore
+from .packages.urllib3.exceptions import HTTPError as BaseHTTPError
 
 if typing.TYPE_CHECKING:
     from .models import PreparedRequest, Response
