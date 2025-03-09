@@ -26,13 +26,30 @@ for package in (
     "idna",
     "chardet",
 ):
+    to_be_imported: str = package
+
+    if package == "chardet":
+        to_be_imported = "charset_normalizer"
+    elif package == "urllib3" and HAS_LEGACY_URLLIB3:
+        to_be_imported = "urllib3_future"
+
     try:
-        locals()[package] = __import__(package if package != "chardet" else "charset_normalizer")
+        locals()[package] = __import__(to_be_imported)
     except ImportError:
-        continue
+        continue  # idna could be missing. not required!
 
     # This traversal is apparently necessary such that the identities are
     # preserved (requests.packages.urllib3.* is urllib3.*)
     for mod in list(sys.modules):
-        if mod == package or mod.startswith(f"{package}."):
-            sys.modules[f"niquests.packages.{mod}"] = sys.modules[mod]
+        if mod == to_be_imported or mod.startswith(f"{to_be_imported}."):
+            inner_mod = mod
+
+            if HAS_LEGACY_URLLIB3 and inner_mod == "urllib3_future" or inner_mod.startswith("urllib3_future."):
+                inner_mod = inner_mod.replace("urllib3_future", "urllib3")
+            elif inner_mod == "charset_normalizer":
+                inner_mod = "chardet"
+
+            try:
+                sys.modules[f"niquests.packages.{inner_mod}"] = sys.modules[mod]
+            except KeyError:
+                continue
