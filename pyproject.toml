@@ -62,6 +62,16 @@ speedups = [
     "orjson>=3,<4",
     "urllib3.future[zstd,brotli]",
 ]
+zstd = [
+    "urllib3.future[zstd]",
+]
+brotli = [
+    "urllib3.future[brotli]",
+]
+full = [
+    "orjson>=3,<4",
+    "urllib3.future[zstd,brotli,ws,socks]",
+]
 
 [project.urls]
 "Changelog" = "https://github.com/jawah/niquests/blob/main/HISTORY.md"
