@@ -91,6 +91,12 @@ out-of-the-box with urllib3.future.
 This behavior was chosen to ensure the highest level of compatibility for your migration,
 ensuring the minimum friction during the migration between Requests to Niquests.
 
+Instead of importing ``urllib3`` do::
+
+    from niquests.packages import urllib3
+
+The package internally make sure you get it right everytime!
+
 Cohabitation
 ~~~~~~~~~~~~
 

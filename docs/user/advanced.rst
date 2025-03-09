@@ -305,7 +305,7 @@ DNS with mTLS
 You can pass your client side certificate to authenticate yourself against the given resolver.
 To do so, you will have to do as follow::
 
-    from urllib3 import ResolverDescription
+    from niquests.packages.urllib3 import ResolverDescription
     from niquests import Session
 
     rd = ResolverDescription.from_url("doq://my-resolver.tld")
@@ -1180,7 +1180,7 @@ passed-through to `urllib3.future`. We'll make a Transport Adapter that instruct
 library to use SSLv3::
 
     import ssl
-    from urllib3.poolmanager import PoolManager
+    from niquests.packages.urllib3 import PoolManager
 
     from niquests.adapters import HTTPAdapter
 
@@ -1201,7 +1201,7 @@ to implement automatic retries with a powerful array of features, including
 backoff, within a Niquests :class:`Session <niquests.Session>` using the
 `urllib3.util.Retry`_ class::
 
-    from urllib3.util import Retry
+    from niquests.packages.urllib3.util import Retry
     from niquests import Session
 
     retries = Retry(
