@@ -74,7 +74,7 @@ for more information. (The goal would simply to execute the following piece of c
 
     import niquests
     import requests
-    import urllib3
+    from niquests.packages import urllib3
 
     # the mock utility 'response' only works with 'requests'
     modules["requests"] = niquests
