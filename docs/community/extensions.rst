@@ -57,7 +57,7 @@ Apply the following code to your ``conftest.py``::
 
     import requests
     import niquests
-    import urllib3
+    from niquests.packages import urllib3
 
     # responses is tied to Requests
     # and Niquests is entirely compatible with it.
@@ -79,7 +79,7 @@ Apply the following code to your ``conftest.py``::
 
     import requests
     import niquests
-    import urllib3
+    import niquests.packages import urllib3
 
     # betamax is tied to Requests
     # and Niquests is almost entirely compatible with it.
@@ -145,7 +145,7 @@ You will need to create a fixture to override the default bind to Requests in ``
 
     import requests
     import niquests
-    import urllib3
+    from niquests.packages import urllib3
 
     # impersonate Requests!
     modules["requests"] = niquests

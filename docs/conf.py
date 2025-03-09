@@ -25,8 +25,6 @@ sys.path.insert(0, os.path.abspath("../src"))
 
 import niquests
 
-sys.modules["requests"] = niquests
-
 
 # -- General configuration ------------------------------------------------
 
@@ -43,6 +41,7 @@ extensions = [
     "sphinxcontrib.googleanalytics",
     "sphinx_copybutton",
     "sphinx_mdinclude",
+    "sphinx_inline_tabs",
 ]
 
 # Add any paths that contain templates here, relative to this directory.
@@ -136,7 +135,19 @@ html_theme_options = {
         "color-brand-primary": "#7C4DFF",
         "color-brand-content": "#7C4DFF",
     },
+    "announcement": """
+        <a style=\"text-decoration: none; color: white;\" 
+           href=\"https://github.com/jawah/Niquests\">
+            ⭐ Mark your support for Niquests initiative to bring an excellent, fair and free HTTP experience!
+        </a>
+        <iframe src="https://ghbtns.com/github-btn.html?user=jawah&repo=niquests&type=star&count=true&size=large" frameborder="0" scrolling="0" width="170" height="30" title="GitHub"></iframe>
+        """,
+    "sidebar_hide_name": True,
 }
+
+html_js_files = [
+    'https://unpkg.com/@terminhtml/bootstrap@1.x/dist/@terminhtml-bootstrap.umd.js'
+]
 
 googleanalytics_id = "G-F8C2DJ1CJN"
 
@@ -145,10 +156,10 @@ googleanalytics_id = "G-F8C2DJ1CJN"
 
 # The name for this set of Sphinx documents.  If None, it defaults to
 # "<project> v<release> documentation".
-# html_title = None
+html_title = "Niquests Documentation – Drop-in replacement for Requests – HTTP/1.1, HTTP/2, and HTTP/3."
 
 # A shorter title for the navigation bar.  Default is the same as html_title.
-# html_short_title = None
+html_short_title = f"Niquests {version} Documentation"
 
 # The name of an image file (relative to this directory) to place at the top
 # of the sidebar.
@@ -254,7 +265,7 @@ latex_elements = {
 # (source start file, target name, title,
 #  author, documentclass [howto, manual, or own class]).
 latex_documents = [
-    (master_doc, "Niquests.tex", u"Niquests Documentation", u"Kenneth Reitz", "manual")
+    (master_doc, "Niquests.tex", "Niquests Documentation – Drop-in replacement for Requests. HTTP/1.1, HTTP/2, and HTTP/3.", u"Kenneth Reitz", "manual")
 ]
 
 # The name of an image file (relative to this directory) to place at the top of
@@ -282,7 +293,7 @@ latex_documents = [
 
 # One entry per manual page. List of tuples
 # (source start file, name, description, authors, manual section).
-man_pages = [(master_doc, "niquests", u"Niquests Documentation", [author], 1)]
+man_pages = [(master_doc, "niquests", "Niquests Documentation – Drop-in replacement for Requests. HTTP/1.1, HTTP/2, and HTTP/3.", [author], 1)]
 
 # If true, show URL addresses after external links.
 # man_show_urls = False
@@ -297,7 +308,7 @@ texinfo_documents = [
     (
         master_doc,
         "Niquests",
-        u"Niquests Documentation",
+        "Niquests Documentation – Drop-in replacement for Requests. HTTP/1.1, HTTP/2, and HTTP/3.",
         author,
         "Niquests",
         "“Safest, Fastest, Easiest, and Most advanced” Python HTTP Client. Production Ready! Drop-in replacement for Requests. HTTP/1.1, HTTP/2, and HTTP/3 supported. With WebSocket, and SSE! Be free of Requests bondage now.",

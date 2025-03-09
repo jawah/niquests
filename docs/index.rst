@@ -28,17 +28,20 @@ Supports HTTP/1.1, HTTP/2 and HTTP/3 out-of-the-box without breaking a sweat!
 
 -------------------
 
-**Behold, the power of Niquests**::
+**Behold, the power of Niquests**
 
+.. raw:: html
+
+   <pre class="terminhtml">
    >>> import niquests
-   >>> s = niquests.Session(resolver="doh+google://", multiplexed=True)
+   >>> s = niquests.Session(resolver="doh+google://")
    >>> r = s.get('https://pie.dev/basic-auth/user/pass', auth=('user', 'pass'))
    >>> r.status_code
    200
    >>> r.headers['content-type']
-   'application/json; charset=utf8'
+   'application/json; charset=utf-8'
    >>> r.oheaders.content_type.charset
-   'utf8'
+   'utf-8'
    >>> r.encoding
    'utf-8'
    >>> r.text
@@ -46,14 +49,12 @@ Supports HTTP/1.1, HTTP/2 and HTTP/3 out-of-the-box without breaking a sweat!
    >>> r.json()
    {'authenticated': True, ...}
    >>> r
-   <Response HTTP/3 [200]>
+   &lt;Response HTTP/3 [200]&gt;
    >>> r.ocsp_verified
    True
    >>> r.conn_info.established_latency
    datetime.timedelta(microseconds=38)
-
-See `similar code, sans Niquests <https://gist.github.com/973705>`_.
-
+   </pre>
 
 **Niquests** allows you to send HTTP/1.1, HTTP/2 and HTTP/3 requests extremely easily.
 There's no need to manually add query strings to your
