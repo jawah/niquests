@@ -20,22 +20,13 @@ from qh3._hazmat import (
     ReasonFlags,
 )
 
-from .._compat import HAS_LEGACY_URLLIB3
-
-if HAS_LEGACY_URLLIB3 is False:
-    from urllib3 import ConnectionInfo
-    from urllib3.contrib.resolver import BaseResolver
-    from urllib3.exceptions import SecurityWarning
-    from urllib3.util.url import parse_url
-else:  # Defensive: tested in separate/isolated CI
-    from urllib3_future import ConnectionInfo  # type: ignore[assignment]
-    from urllib3_future.contrib.resolver import BaseResolver  # type: ignore[assignment]
-    from urllib3_future.exceptions import SecurityWarning  # type: ignore[assignment]
-    from urllib3_future.util.url import parse_url  # type: ignore[assignment]
-
 from .._typing import ProxyType
 from ..exceptions import RequestException, SSLError
 from ..models import PreparedRequest
+from ..packages.urllib3 import ConnectionInfo
+from ..packages.urllib3.contrib.resolver import BaseResolver
+from ..packages.urllib3.exceptions import SecurityWarning
+from ..packages.urllib3.util.url import parse_url
 from ._picotls import (
     ALERT,
     CHANGE_CIPHER,

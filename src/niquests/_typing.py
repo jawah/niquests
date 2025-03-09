@@ -4,28 +4,12 @@ import typing
 from http.cookiejar import CookieJar
 from os import PathLike
 
-from ._compat import HAS_LEGACY_URLLIB3
 from ._vendor.kiss_headers import Headers
-
-if HAS_LEGACY_URLLIB3 is False:
-    from urllib3 import AsyncResolverDescription, ResolverDescription, Retry, Timeout
-    from urllib3.contrib.resolver import BaseResolver
-    from urllib3.contrib.resolver._async import AsyncBaseResolver
-    from urllib3.fields import RequestField
-else:  # Defensive: tested in separate/isolated CI
-    from urllib3_future import (  # type: ignore[assignment]
-        AsyncResolverDescription,
-        ResolverDescription,
-        Retry,
-        Timeout,
-    )
-    from urllib3_future.contrib.resolver import BaseResolver  # type: ignore[assignment]
-    from urllib3_future.contrib.resolver._async import (  # type: ignore[assignment]
-        AsyncBaseResolver,
-    )
-    from urllib3_future.fields import RequestField  # type: ignore[assignment]
-
 from .auth import AsyncAuthBase, AuthBase
+from .packages.urllib3 import AsyncResolverDescription, ResolverDescription, Retry, Timeout
+from .packages.urllib3.contrib.resolver import BaseResolver
+from .packages.urllib3.contrib.resolver._async import AsyncBaseResolver
+from .packages.urllib3.fields import RequestField
 from .structures import CaseInsensitiveDict
 
 if typing.TYPE_CHECKING:

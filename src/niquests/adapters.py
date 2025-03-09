@@ -26,127 +26,7 @@ if sys.platform == "win32":
 else:
     preferred_clock = time.time
 
-from ._compat import HAS_LEGACY_URLLIB3, urllib3_ensure_type
-
-if HAS_LEGACY_URLLIB3 is False:
-    from urllib3 import (
-        AsyncHTTPConnectionPool,
-        AsyncHTTPSConnectionPool,
-        AsyncPoolManager,
-        AsyncProxyManager,
-        AsyncResolverDescription,
-        BaseHTTPResponse,
-        ConnectionInfo,
-        HTTPConnectionPool,
-        HTTPSConnectionPool,
-        HttpVersion,
-        PoolManager,
-        ProxyManager,
-        ResolverDescription,
-        ResponsePromise,
-        async_proxy_from_url,
-        proxy_from_url,
-    )
-    from urllib3 import (
-        AsyncHTTPResponse as BaseAsyncHTTPResponse,
-    )
-    from urllib3.contrib.resolver import BaseResolver
-    from urllib3.contrib.resolver._async import AsyncBaseResolver
-    from urllib3.contrib.webextensions import load_extension
-    from urllib3.contrib.webextensions._async import (
-        load_extension as async_load_extension,
-    )
-    from urllib3.exceptions import (
-        ClosedPoolError,
-        ConnectTimeoutError,
-        LocationValueError,
-        MaxRetryError,
-        NewConnectionError,
-        ProtocolError,
-        ReadTimeoutError,
-        ResponseError,
-    )
-    from urllib3.exceptions import (
-        HTTPError as _HTTPError,
-    )
-    from urllib3.exceptions import (
-        InvalidHeader as _InvalidHeader,
-    )
-    from urllib3.exceptions import (
-        ProxyError as _ProxyError,
-    )
-    from urllib3.exceptions import (
-        SSLError as _SSLError,
-    )
-    from urllib3.util import (
-        Retry,
-        parse_url,
-    )
-    from urllib3.util import (
-        Timeout as TimeoutSauce,
-    )
-else:  # Defensive: tested in separate/isolated CI
-    from urllib3_future import (  # type: ignore[assignment]
-        AsyncHTTPConnectionPool,
-        AsyncHTTPSConnectionPool,
-        AsyncPoolManager,
-        AsyncProxyManager,
-        AsyncResolverDescription,
-        BaseHTTPResponse,
-        ConnectionInfo,
-        HTTPConnectionPool,
-        HTTPSConnectionPool,
-        HttpVersion,
-        PoolManager,
-        ProxyManager,
-        ResolverDescription,
-        ResponsePromise,
-        async_proxy_from_url,
-        proxy_from_url,
-    )
-    from urllib3_future import (  # type: ignore[assignment]
-        AsyncHTTPResponse as BaseAsyncHTTPResponse,
-    )
-    from urllib3_future.contrib.resolver import BaseResolver  # type: ignore[assignment]
-    from urllib3_future.contrib.resolver._async import (  # type: ignore[assignment]
-        AsyncBaseResolver,
-    )
-    from urllib3_future.contrib.webextensions import (  # type: ignore[assignment]
-        load_extension,
-    )
-    from urllib3_future.contrib.webextensions._async import (  # type: ignore[assignment]
-        load_extension as async_load_extension,
-    )
-    from urllib3_future.exceptions import (  # type: ignore[assignment]
-        ClosedPoolError,
-        ConnectTimeoutError,
-        LocationValueError,
-        MaxRetryError,
-        NewConnectionError,
-        ProtocolError,
-        ReadTimeoutError,
-        ResponseError,
-    )
-    from urllib3_future.exceptions import (  # type: ignore[assignment]
-        HTTPError as _HTTPError,
-    )
-    from urllib3_future.exceptions import (  # type: ignore[assignment]
-        InvalidHeader as _InvalidHeader,
-    )
-    from urllib3_future.exceptions import (  # type: ignore[assignment]
-        ProxyError as _ProxyError,
-    )
-    from urllib3_future.exceptions import (  # type: ignore[assignment]
-        SSLError as _SSLError,
-    )
-    from urllib3_future.util import (  # type: ignore[assignment]
-        Retry,
-        parse_url,
-    )
-    from urllib3_future.util import (  # type: ignore[assignment]
-        Timeout as TimeoutSauce,
-    )
-
+from ._compat import urllib3_ensure_type
 from ._constant import DEFAULT_POOLBLOCK, DEFAULT_POOLSIZE, DEFAULT_RETRIES
 from ._typing import (
     AsyncResolverType,
@@ -177,6 +57,62 @@ from .exceptions import (
 )
 from .hooks import async_dispatch_hook, dispatch_hook
 from .models import AsyncResponse, PreparedRequest, Response
+from .packages.urllib3 import (
+    AsyncHTTPConnectionPool,
+    AsyncHTTPSConnectionPool,
+    AsyncPoolManager,
+    AsyncProxyManager,
+    AsyncResolverDescription,
+    BaseHTTPResponse,
+    ConnectionInfo,
+    HTTPConnectionPool,
+    HTTPSConnectionPool,
+    HttpVersion,
+    PoolManager,
+    ProxyManager,
+    ResolverDescription,
+    ResponsePromise,
+    async_proxy_from_url,
+    proxy_from_url,
+)
+from .packages.urllib3 import (
+    AsyncHTTPResponse as BaseAsyncHTTPResponse,
+)
+from .packages.urllib3.contrib.resolver import BaseResolver
+from .packages.urllib3.contrib.resolver._async import AsyncBaseResolver
+from .packages.urllib3.contrib.webextensions import load_extension
+from .packages.urllib3.contrib.webextensions._async import (
+    load_extension as async_load_extension,
+)
+from .packages.urllib3.exceptions import (
+    ClosedPoolError,
+    ConnectTimeoutError,
+    LocationValueError,
+    MaxRetryError,
+    NewConnectionError,
+    ProtocolError,
+    ReadTimeoutError,
+    ResponseError,
+)
+from .packages.urllib3.exceptions import (
+    HTTPError as _HTTPError,
+)
+from .packages.urllib3.exceptions import (
+    InvalidHeader as _InvalidHeader,
+)
+from .packages.urllib3.exceptions import (
+    ProxyError as _ProxyError,
+)
+from .packages.urllib3.exceptions import (
+    SSLError as _SSLError,
+)
+from .packages.urllib3.util import (
+    Retry,
+    parse_url,
+)
+from .packages.urllib3.util import (
+    Timeout as TimeoutSauce,
+)
 from .structures import CaseInsensitiveDict
 from .utils import (
     _deepcopy_ci,
@@ -194,13 +130,7 @@ from .utils import (
 )
 
 try:
-    if HAS_LEGACY_URLLIB3 is False:
-        from urllib3.contrib.socks import AsyncSOCKSProxyManager, SOCKSProxyManager
-    else:
-        from urllib3_future.contrib.socks import (  # type: ignore[assignment]
-            AsyncSOCKSProxyManager,
-            SOCKSProxyManager,
-        )
+    from .packages.urllib3.contrib.socks import AsyncSOCKSProxyManager, SOCKSProxyManager
 except ImportError:
 
     def SOCKSProxyManager(*args: typing.Any, **kwargs: typing.Any) -> None:  # type: ignore[no-redef]

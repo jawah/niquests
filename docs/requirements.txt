@@ -8,3 +8,4 @@ kiss_headers>=2,<4
 furo>=2023.9.10
 sphinx-mdinclude==0.6.2
 sphinxcontrib-googleanalytics==0.4
+sphinx-inline-tabs==2023.4.21

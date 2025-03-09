@@ -38,6 +38,22 @@ Or simply
 
 .. tip:: If you were used to use ``urllib3.Timeout`` or ``urllib3.Retry`` you can either keep them as-is or use our fully compatible ``niquests.RetryConfiguration`` or ``niquests.TimeoutConfiguration`` instead.
 
+If you were used to depends on urllib3.
+
+.. code:: python
+
+    from urllib3 import Timeout
+    import requests
+
+Will now become:
+
+.. code:: python
+
+    import niquests
+    from niquests.packages.urllib3 import Timeout
+
+.. note:: urllib3 is safely aliased as ``niquests.packages.urllib3``. Using the alias provided by Niquests is safer.
+
 Maintainer migration
 --------------------
 

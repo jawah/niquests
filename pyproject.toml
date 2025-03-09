@@ -62,6 +62,16 @@ speedups = [
     "orjson>=3,<4",
     "urllib3.future[zstd,brotli]",
 ]
+zstd = [
+    "urllib3.future[zstd]",
+]
+brotli = [
+    "urllib3.future[brotli]",
+]
+full = [
+    "orjson>=3,<4",
+    "urllib3.future[zstd,brotli,ws,socks]",
+]
 
 [project.urls]
 "Changelog" = "https://github.com/jawah/niquests/blob/main/HISTORY.md"
@@ -106,6 +116,10 @@ select = [
 
 [tool.ruff.lint.isort]
 required-imports = ["from __future__ import annotations"]
+
+[[tool.mypy.overrides]]
+module = ["niquests.packages.*"]
+ignore_missing_imports = true
 
 [tool.pytest.ini_options]
 addopts = "--doctest-modules"

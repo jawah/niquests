@@ -16,40 +16,92 @@ First, make sure that:
 
 Let's get started with some simple examples.
 
+.. note::
+
+    Any async example must be enclosed in a proper async function and started by ``asyncio.run(...)``.
+
+    .. code:: python
+
+        import asyncio
+        import niquests
+
+        async def main() -> None:
+            """past your example code here!"""
+
+        if __name__ == "__main__":
+            asyncio.run(main())
+
 
 Make a Request
 --------------
 
 Making a request with Niquests is very simple.
 
-Begin by importing the Niquests module::
+Begin by importing the Niquests module:
 
-    >>> import niquests
+.. code:: python
+
+    import niquests
 
 Now, let's try to get a webpage. For this example, let's get GitHub's public
-timeline::
+timeline.
 
-    >>> r = niquests.get('https://api.github.com/events')
+.. tab:: 🔂 Sync
+
+    .. code:: python
+
+        r = niquests.get('https://api.github.com/events')
+
+.. tab:: 🔀 Async
+
+    .. code:: python
+
+        async with niquests.AsyncSession() as s:
+            r = await s.get('https://api.github.com/events')
 
 Now, we have a :class:`Response <niquests.Response>` object called ``r``. We can
 get all the information we need from this object.
 
 Niquests' simple API means that all forms of HTTP request are as obvious. For
-example, this is how you make an HTTP POST request::
+example, this is how you make an HTTP POST request:
 
-    >>> r = niquests.post('https://httpbin.org/post', data={'key': 'value'})
+.. tab:: 🔂 Sync
+
+    .. code:: python
+
+        r = niquests.post('https://httpbin.org/post', data={'key': 'value'})
+
+.. tab:: 🔀 Async
+
+    .. code:: python
+
+        async with niquests.AsyncSession() as s:
+            r = await s.post('https://httpbin.org/post', data={'key': 'value'})
 
 Nice, right? What about the other HTTP request types: PUT, DELETE, HEAD and
-OPTIONS? These are all just as simple::
+OPTIONS? These are all just as simple:
 
-    >>> r = niquests.put('https://httpbin.org/put', data={'key': 'value'})
-    >>> r = niquests.delete('https://httpbin.org/delete')
-    >>> r = niquests.head('https://httpbin.org/get')
-    >>> r = niquests.options('https://httpbin.org/get')
+.. tab:: 🔂 Sync
+
+    .. code:: python
+
+        r = niquests.put('https://httpbin.org/put', data={'key': 'value'})
+        r = niquests.delete('https://httpbin.org/delete')
+        r = niquests.head('https://httpbin.org/get')
+        r = niquests.options('https://httpbin.org/get')
+
+.. tab:: 🔀 Async
+
+    .. code:: python
+
+        async with niquests.AsyncSession() as s:
+            r = await s.put('https://httpbin.org/put', data={'key': 'value'})
+            r = await s.delete('https://httpbin.org/delete')
+            r = await s.head('https://httpbin.org/get')
+            r = await s.options('https://httpbin.org/get')
 
 That's all well and good, but it's also only the start of what Niquests can
 do.
-
 
 Passing Parameters In URLs
 --------------------------
@@ -60,38 +112,77 @@ pairs in the URL after a question mark, e.g. ``httpbin.org/get?key=val``.
 Niquests allows you to provide these arguments as a dictionary of strings,
 using the ``params`` keyword argument. As an example, if you wanted to pass
 ``key1=value1`` and ``key2=value2`` to ``httpbin.org/get``, you would use the
-following code::
+following code:
 
-    >>> payload = {'key1': 'value1', 'key2': 'value2'}
-    >>> r = niquests.get('https://httpbin.org/get', params=payload)
+.. tab:: 🔂 Sync
 
-You can see that the URL has been correctly encoded by printing the URL::
+    .. code:: python
 
-    >>> print(r.url)
-    https://httpbin.org/get?key2=value2&key1=value1
+        payload = {'key1': 'value1', 'key2': 'value2'}
+        r = niquests.get('https://httpbin.org/get', params=payload)
+
+.. tab:: 🔀 Async
+
+    .. code:: python
+
+        async with niquests.AsyncSession() as s:
+            payload = {'key1': 'value1', 'key2': 'value2'}
+            r = await s.get('https://httpbin.org/get', params=payload)
+
+You can see that the URL has been correctly encoded by printing the URL:
+
+.. code:: python
+
+    print(r.url)  # 'https://httpbin.org/get?key2=value2&key1=value1'
 
 Note that any dictionary key whose value is ``None`` will not be added to the
 URL's query string.
 
-You can also pass a list of items as a value::
+You can also pass a list of items as a value:
 
-    >>> payload = {'key1': 'value1', 'key2': ['value2', 'value3']}
+.. tab:: 🔂 Sync
 
-    >>> r = niquests.get('https://httpbin.org/get', params=payload)
-    >>> print(r.url)
-    https://httpbin.org/get?key1=value1&key2=value2&key2=value3
+    .. code:: python
+
+        payload = {'key1': 'value1', 'key2': ['value2', 'value3']}
+        r = niquests.get('https://httpbin.org/get', params=payload)
+
+        print(r.url)  # 'https://httpbin.org/get?key1=value1&key2=value2&key2=value3'
+
+.. tab:: 🔀 Async
+
+    .. code:: python
+
+        async with niquests.AsyncSession() as s:
+            payload = {'key1': 'value1', 'key2': ['value2', 'value3']}
+            r = await s.get('https://httpbin.org/get', params=payload)
+
+            print(r.url)  # 'https://httpbin.org/get?key1=value1&key2=value2&key2=value3'
 
 Response Content
 ----------------
 
 We can read the content of the server's response. Consider the GitHub timeline
-again::
+again:
 
-    >>> import niquests
+.. tab:: 🔂 Sync
 
-    >>> r = niquests.get('https://api.github.com/events')
-    >>> r.text
-    '[{"repository":{"open_issues":0,"url":"https://github.com/...
+    .. code:: python
+
+        import niquests
+
+        r = niquests.get('https://api.github.com/events')
+        print(r.text)  # '[{"repository":{"open_issues":0,"url":"https://github.com/...
+
+.. tab:: 🔀 Async
+
+    .. code:: python
+
+        import niquests
+
+        async with niquests.AsyncSession() as s:
+            r = await s.get('https://api.github.com/events')
+            print(r.text)  # '[{"repository":{"open_issues":0,"url":"https://github.com/...
 
 Niquests will automatically decode content from the server. Most unicode
 charsets are seamlessly decoded.
@@ -99,11 +190,13 @@ charsets are seamlessly decoded.
 When you make a request, Niquests makes educated guesses about the encoding of
 the response based on the HTTP headers. The text encoding guessed by Niquests
 is used when you access ``r.text``. You can find out what encoding Niquests is
-using, and change it, using the ``r.encoding`` property::
+using, and change it, using the ``r.encoding`` property:
 
-    >>> r.encoding
-    'utf-8'
-    >>> r.encoding = 'ISO-8859-1'
+.. code:: python
+
+    print(r.encoding)  # 'utf-8'
+
+    r.encoding = 'ISO-8859-1'  # force assign a specific encoding!
 
 .. warning:: If Niquests is unable to decode the content to string with confidence, it simply return None.
 
@@ -147,13 +240,26 @@ use the following code::
 JSON Response Content
 ---------------------
 
-There's also a builtin JSON decoder, in case you're dealing with JSON data::
+There's also a builtin JSON decoder, in case you're dealing with JSON data:
 
-    >>> import niquests
+.. tab:: 🔂 Sync
 
-    >>> r = niquests.get('https://api.github.com/events')
-    >>> r.json()
-    [{'repository': {'open_issues': 0, 'url': 'https://github.com/...
+    .. code:: python
+
+        import niquests
+
+        r = niquests.get('https://api.github.com/events')
+        print(r.json())  # [{'repository': {'open_issues': 0, 'url': 'https://github.com/...
+
+.. tab:: 🔀 Async
+
+    .. code:: python
+
+        import niquests
+
+        async with niquests.AsyncSession() as s:
+            r = await s.get('https://api.github.com/events')
+            print(r.json())  # [{'repository': {'open_issues': 0, 'url': 'https://github.com/...
 
 In case the JSON decoding fails, ``r.json()`` raises an exception. For example, if
 the response gets a 204 (No Content), or if the response contains invalid JSON,
@@ -178,22 +284,54 @@ Raw Response Content
 
 In the rare case that you'd like to get the raw socket response from the
 server, you can access ``r.raw``. If you want to do this, make sure you set
-``stream=True`` in your initial request. Once you do, you can do this::
+``stream=True`` in your initial request. Once you do, you can do this:
 
-    >>> r = niquests.get('https://api.github.com/events', stream=True)
+.. tab:: 🔂 Sync
 
-    >>> r.raw
-    <urllib3.response.HTTPResponse object at 0x101194810>
+    .. code:: python
 
-    >>> r.raw.read(10)
-    b'\x1f\x8b\x08\x00\x00\x00\x00\x00\x00\x03'
+        r = niquests.get('https://api.github.com/events', stream=True)
+
+        r.raw
+        # <urllib3.response.HTTPResponse object at 0x101194810>
+
+        r.raw.read(10)
+        # b'\x1f\x8b\x08\x00\x00\x00\x00\x00\x00\x03'
+
+.. tab:: 🔀 Async
+
+    .. code:: python
+
+        async with niquests.AsyncSession() as s:
+            r = await s.get('https://api.github.com/events', stream=True)
+
+            r.raw
+            # <urllib3._async.response.AsyncHTTPResponse object at 0x101194810>
+
+            await r.raw.read(10)
+            # b'\x1f\x8b\x08\x00\x00\x00\x00\x00\x00\x03'
+
 
 In general, however, you should use a pattern like this to save what is being
-streamed to a file::
+streamed to a file:
 
-    with open(filename, 'wb') as fd:
-        for chunk in r.iter_content(chunk_size=128):
-            fd.write(chunk)
+.. tab:: 🔂 Sync
+
+    .. code:: python
+
+        with open(filename, 'wb') as fd:
+            for chunk in r.iter_content(chunk_size=128):
+                fd.write(chunk)
+
+.. tab:: 🔀 Async
+
+    .. code:: python
+
+        with open(filename, 'wb') as fd:
+            async for chunk in await r.iter_content(chunk_size=128):
+                fd.write(chunk)
+
+    .. warning:: It is recommended to use ``aiofile`` or similar to handle file I/O in async mode.
 
 Using ``Response.iter_content`` will handle a lot of what you would otherwise
 have to handle when using ``Response.raw`` directly. When streaming a
@@ -216,12 +354,26 @@ Custom Headers
 If you'd like to add HTTP headers to a request, simply pass in a ``dict`` to the
 ``headers`` parameter.
 
-For example, we didn't specify our user-agent in the previous example::
+For example, we didn't specify our user-agent in the previous example:
 
-    >>> url = 'https://api.github.com/some/endpoint'
-    >>> headers = {'user-agent': 'my-app/0.0.1'}
+.. tab:: 🔂 Sync
 
-    >>> r = niquests.get(url, headers=headers)
+    .. code:: python
+
+        url = 'https://api.github.com/some/endpoint'
+        headers = {'user-agent': 'my-app/0.0.1'}
+
+        r = niquests.get(url, headers=headers)
+
+.. tab:: 🔀 Async
+
+    .. code:: python
+
+        async with niquests.AsyncSession() as s:
+            url = 'https://api.github.com/some/endpoint'
+            headers = {'user-agent': 'my-app/0.0.1'}
+
+            r = await s.get(url, headers=headers)
 
 Note: Custom headers are given less precedence than more specific sources of information. For instance:
 
@@ -242,7 +394,9 @@ More complicated POST requests
 
 Typically, you want to send some form-encoded data — much like an HTML form.
 To do this, simply pass a dictionary to the ``data`` argument. Your
-dictionary of data will automatically be form-encoded when the request is made::
+dictionary of data will automatically be form-encoded when the request is made:
+
+.. code:: python
 
     >>> payload = {'key1': 'value1', 'key2': 'value2'}
 
@@ -647,7 +801,7 @@ alternative service. Once it finds it, and is deemed valid, it opens up a QUIC c
 It is saved in-memory by Niquests.
 
 You may also run the following command ``python -m niquests.help`` to find out if you support HTTP/3.
-In 95 percents of the case, the answer is yes!
+In 98 percents of the case, the answer is yes!
 
 .. note:: Since urllib3.future version 2.4+ we support negotiating HTTP/3 without a first TCP connection if the remote peer indicated in a HTTPS (DNS) record that the server support HTTP/3.
 
@@ -667,6 +821,9 @@ Any ``Response`` returned by get, post, put, etc... will be a lazy instance of `
    An important note about using ``Session(multiplexed=True)`` is that, in order to be efficient
    and actually leverage its perks, you will have to issue multiple concurrent request before
    actually trying to access any ``Response`` methods or attributes.
+
+Modern browsers like Firefox, and Chrome utilize something really like ``multiplexed=True`` mode!
+It's a bit like if we have a controlled concurrent environment.
 
 Gather responses
 ~~~~~~~~~~~~~~~~
@@ -1045,18 +1202,6 @@ You may set a specific timeout for domain name resolution by appending ``?timeou
         resp = s.get("https://httpbingo.org/get")
 
 This will prevent any resolution that last longer to a second.
-
-Speedups
---------
-
-Niquests support a wide range of optional dependencies that enable a significant speedup in your
-everyday HTTP flows.
-
-To enable various optimizations, such as native zstandard decompression and faster json serializer/deserializer,
-install Niquests with::
-
-    $ python -m pip install niquests[speedups]
-
 
 Happy Eyeballs
 --------------

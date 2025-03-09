@@ -62,7 +62,7 @@ Do as follow::
         ...
 
 
-.. note:: Previously Requests and urllib3 was non-strict and allowed infinite growth of the pool by default. This was undesirable.
+.. note:: Previously Requests and urllib3 was non-strict and allowed infinite growth of the pool by default. This is undesirable.
     Upon exceeding the maximum pool capacity, urllib3 starts to create "disposable" connections that are killed as soon as possible.
     This behavior masked an issue and users were misinformed about it.
 
@@ -90,6 +90,12 @@ out-of-the-box with urllib3.future.
 
 This behavior was chosen to ensure the highest level of compatibility for your migration,
 ensuring the minimum friction during the migration between Requests to Niquests.
+
+Instead of importing ``urllib3`` do::
+
+    from niquests.packages import urllib3
+
+The package internally make sure you get it right everytime!
 
 Cohabitation
 ~~~~~~~~~~~~

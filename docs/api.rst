@@ -64,6 +64,12 @@ Lower-Level Classes
 
 .. warning:: AsyncResponse are only to be expected in async mode when you specify ``stream=True``. Otherwise expect the typical Response instance.
 
+.. autoclass:: RetryConfiguration
+   :inherited-members:
+
+.. autoclass:: TimeoutConfiguration
+   :inherited-members:
+
 Lower-Lower-Level Classes
 -------------------------
 
@@ -131,16 +137,10 @@ Removed
 * Property ``apparent_encoding`` in favor of a discrete internal inference.
 * Support for the legacy ``chardet`` detector in case it was present in environment.
   Extra ``chardet_on_py3`` is now unavailable.
-* Deprecated ``requests.packages`` that was meant to avoid breakage from people importing ``urllib3`` or ``chardet`` within this package.
-  They were _vendored_ in early versions of Requests. A long time ago.
 * Deprecated function ``get_encodings_from_content`` from utils.
 * Deprecated function ``get_unicode_from_response`` from utils.
 * BasicAuth middleware no-longer support anything else than ``bytes`` or ``str`` for username and password.
-* ``requests.compat`` is stripped of every reference that no longer vary between supported interpreter version.
 * Charset fall back **ISO-8859-1** when content-type is text and no charset was specified.
-* Main function ``get``, ``post``, ``put``, ``patch``, ``delete``, and ``head`` no longer accept **kwargs**. They have a fixed list of typed argument.
-  It is no longer possible to specify non-supported additional keyword argument from a ``Session`` instance or directly through ``requests.api`` functions.
-  e.g. function ``delete`` no-longer accept ``json``, or ``files`` arguments. as per RFCs specifications. You can still override this behavior through the ``request`` function.
 * Mixin classes ``RequestEncodingMixin``, and ``RequestHooksMixin`` due to OOP violations. Now deported directly into child classes.
 * Function ``unicode_is_ascii`` as it is part of the stable ``str`` stdlib on Python 3 or greater.
 * Alias function ``session`` for ``Session`` context manager that was kept for BC reasons since the v1.

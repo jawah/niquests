@@ -1,6 +1,17 @@
 Release History
 ===============
 
+3.13.1 (2025-03-09)
+-------------------
+
+**Added**
+- Internal shortcut to urllib3-future as `niquests.packages.urllib3`. This immediately helps end-user migrating
+  from Requests to Niquests and avoid the confusion around `urllib3` and `urllib3-future`.
+  The package own code benefit from it. `idna`, `charset_normalizer` (+ aliased as `chardet`) can be used also.
+
+**Misc**
+- The documentation is improved. Especially around sync/async examples and migration snippets.
+
 3.13.0 (2025-02-06)
 -------------------
 

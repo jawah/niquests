@@ -21,16 +21,6 @@ from http.cookiejar import CookieJar
 from urllib.parse import urljoin, urlparse
 
 from ._compat import HAS_LEGACY_URLLIB3, urllib3_ensure_type
-
-if HAS_LEGACY_URLLIB3 is False:
-    from urllib3 import ConnectionInfo
-    from urllib3.contrib.webextensions import load_extension
-else:  # Defensive: tested in separate/isolated CI
-    from urllib3_future import ConnectionInfo  # type: ignore[assignment]
-    from urllib3_future.contrib.webextensions import (  # type: ignore[assignment]
-        load_extension,
-    )
-
 from ._constant import (
     DEFAULT_POOLSIZE,
     DEFAULT_RETRIES,
@@ -81,6 +71,8 @@ from .models import (  # noqa: F401
     Response,
     TransferProgress,
 )
+from .packages.urllib3 import ConnectionInfo
+from .packages.urllib3.contrib.webextensions import load_extension
 from .status_codes import codes
 from .structures import CaseInsensitiveDict, QuicSharedCache
 from .utils import (  # noqa: F401

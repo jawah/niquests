@@ -88,9 +88,9 @@ Take a deeper look at https://github.com/Ousret/niquests-stats
 >>> r.status_code
 200
 >>> r.headers['content-type']
-'application/json; charset=utf8'
+'application/json; charset=utf-8'
 >>> r.oheaders.content_type.charset
-'utf8'
+'utf-8'
 >>> r.encoding
 'utf-8'
 >>> r.text
