@@ -42,10 +42,17 @@ extensions = [
     "sphinx_copybutton",
     "sphinx_mdinclude",
     "sphinx_inline_tabs",
+    "sphinxext.opengraph",
 ]
+
+# Open Graph metadata
+ogp_type = "website"
+ogp_social_cards = {"image": "images/banner.png"}
+ogp_enable_meta_description = False
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ["_templates"]
+locale_dirs = ["locales"]
 
 # The suffix(es) of source filenames.
 # You can specify multiple suffix as a list of string:
@@ -59,9 +66,9 @@ source_suffix = ".rst"
 master_doc = "index"
 
 # General information about the project.
-project = u"Niquests"
-copyright = u'MMXVIX. A Kenneth Reitz Project'
-author = u"Kenneth Reitz"
+project = "Niquests"
+copyright = '2025 - Created by Kenneth Reitz - Maintained by Ahmed Tahri'
+author = "Ahmed Tahri"
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
@@ -143,6 +150,8 @@ html_theme_options = {
         <iframe src="https://ghbtns.com/github-btn.html?user=jawah&repo=niquests&type=star&count=true&size=large" frameborder="0" scrolling="0" width="170" height="30" title="GitHub"></iframe>
         """,
     "sidebar_hide_name": True,
+    "light_logo": "logo.png",
+    "dark_logo": "logo.png",
 }
 
 html_js_files = [

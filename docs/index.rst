@@ -1,7 +1,7 @@
-.. Requests documentation master file, created by
-   sphinx-quickstart on Sun Feb 13 23:54:25 2011.
-   You can adapt this file completely to your liking, but it should at least
-   contain the root `toctree` directive.
+:og:description: Niquests is an elegant and simple HTTP library for Python, built for human beings. It
+   is designed to be a drop-in replacement for Requests that is no longer under feature freeze.
+
+   Supports HTTP/1.1, HTTP/2 and HTTP/3 out-of-the-box without breaking a sweat!
 
 Niquests: HTTP for Humans™
 ==========================

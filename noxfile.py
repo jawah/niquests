@@ -80,3 +80,17 @@ def docs(session: nox.Session) -> None:
     if os.path.exists("_build"):
         shutil.rmtree("_build")
     session.run("sphinx-build", "-b", "html", ".", "_build/html")
+
+
+@nox.session
+def i18n(session: nox.Session) -> None:
+    session.install("-r", "docs/requirements.txt")
+    session.install(".[socks]")
+
+    session.chdir("docs")
+
+    if os.path.exists("_build"):
+        shutil.rmtree("_build")
+
+    session.run("sphinx-build", "-b", "gettext", ".", "_build/gettext")
+    session.run("sphinx-intl", "update", "-p", "_build/gettext", "-l", "fr_FR")

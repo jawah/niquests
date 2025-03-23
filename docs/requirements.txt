@@ -9,3 +9,5 @@ furo>=2023.9.10
 sphinx-mdinclude==0.6.2
 sphinxcontrib-googleanalytics==0.4
 sphinx-inline-tabs==2023.4.21
+sphinxext-opengraph>=0.9.1,<0.10
+sphinx-intl>=2.3.1,<3
