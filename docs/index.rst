@@ -3,6 +3,10 @@
 
    Supports HTTP/1.1, HTTP/2 and HTTP/3 out-of-the-box without breaking a sweat!
 
+.. meta::
+   :description: Niquests is an elegant and simple HTTP library for Python, built for human beings. It is designed to be a drop-in replacement for Requests that is no longer under feature freeze. Supports HTTP/1.1, HTTP/2 and HTTP/3 out-of-the-box without breaking a sweat!
+   :keywords: Python Niquests, Niquests, Python Requests Replacement, Python Requests Alternative, Requests HTTP/2, Requests HTTP/3, Async Requests, Python Requests Documentation, Python Niquests Documentation, Python Requests Drop-in Replacement, Python SSE Client, server side event client, WebSocket Client
+
 Niquests: HTTP for Humans™
 ==========================
 

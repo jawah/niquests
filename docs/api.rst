@@ -1,3 +1,7 @@
+.. meta::
+   :description: Classes, Functions and Methods API Documentation for Python Niquests. Session, AsyncSession, get, post, put, patch, delete, Response, Exceptions.
+   :keywords: Python Niquests API, API Docs Niquests, Requests API, Session, AsyncSession, get, post, put, patch, delete, async http, Timeout, ConnectionError, TooManyRedirects, Response, AsyncResponse
+
 .. _api:
 
 Developer Interface
