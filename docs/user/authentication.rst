@@ -1,3 +1,7 @@
+.. meta::
+   :description: Authentication with Niquests. Many web services require authentication, and there are many different types. Below, we outline various forms of authentication available in Niquests, from the simple to the complex. OAuth2, JWT, etc...
+   :keywords: Python Auth, Authentication Requests, OAuth Python, Bearer Python, Async Authentication, Niquests Auth, Niquests Authentication
+
 .. _authentication:
 
 Authentication

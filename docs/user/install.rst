@@ -1,3 +1,7 @@
+.. meta::
+   :description: Fast track to install Niquests and support latest protocols and security features. Install via pip, uv or poetry immediately! Discover available and most used optional extensions like zstandard, brotli, and WebSocket support.
+   :keywords: Install Requests Python, Pip http client, Uv http install, Uv http client, Pip Niquests, Uv Niquests, Python WebSocket, SOCKS proxy, proxy
+
 .. _install:
 
 Installation of Niquests

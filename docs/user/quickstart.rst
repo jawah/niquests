@@ -235,7 +235,6 @@ use the following code::
 
     >>> i = Image.open(BytesIO(r.content))
 
-
 JSON Response Content
 ---------------------
 
@@ -591,13 +590,16 @@ The dictionary is special, though: it's made just for HTTP headers. According to
 `RFC 7230 <https://tools.ietf.org/html/rfc7230#section-3.2>`_, HTTP Header names
 are case-insensitive.
 
-So, we can access the headers using any capitalization we want::
+So, we can access the headers using any capitalization we want:
 
+.. raw:: html
+
+   <pre class="terminhtml">
     >>> r.headers['Content-Type']
     'application/json'
-
     >>> r.headers.get('content-type')
     'application/json'
+   </pre>
 
 It is also special in that the server could have sent the same header multiple
 times with different values, but requests combines them so they can be
@@ -632,29 +634,40 @@ To explore possibilities, visit the ``kiss-headers`` documentation at https://ja
 Cookies
 -------
 
-If a response contains some Cookies, you can quickly access them::
+If a response contains some Cookies, you can quickly access them:
 
+.. raw:: html
+
+   <pre class="terminhtml">
     >>> url = 'http://example.com/some/cookie/setting/url'
     >>> r = niquests.get(url)
 
     >>> r.cookies['example_cookie_name']
     'example_cookie_value'
+   </pre>
 
 To send your own cookies to the server, you can use the ``cookies``
-parameter::
+parameter:
 
+.. raw:: html
+
+   <pre class="terminhtml">
     >>> url = 'https://httpbin.org/cookies'
     >>> cookies = dict(cookies_are='working')
 
     >>> r = niquests.get(url, cookies=cookies)
     >>> r.text
     '{"cookies": {"cookies_are": "working"}}'
+   </pre>
 
 Cookies are returned in a :class:`~niquests.cookies.RequestsCookieJar`,
 which acts like a ``dict`` but also offers a more complete interface,
 suitable for use over multiple domains or paths.  Cookie jars can
-also be passed in to requests::
+also be passed in to requests:
 
+.. raw:: html
+
+   <pre class="terminhtml">
     >>> jar = niquests.cookies.RequestsCookieJar()
     >>> jar.set('tasty_cookie', 'yum', domain='httpbin.org', path='/cookies')
     >>> jar.set('gross_cookie', 'blech', domain='httpbin.org', path='/elsewhere')
@@ -662,7 +675,7 @@ also be passed in to requests::
     >>> r = niquests.get(url, cookies=jar)
     >>> r.text
     '{"cookies": {"tasty_cookie": "yum"}}'
-
+   </pre>
 
 Redirection and History
 -----------------------
@@ -677,41 +690,44 @@ The :attr:`Response.history <niquests.Response.history>` list contains the
 complete the request. The list is sorted from the oldest to the most recent
 response.
 
-For example, GitHub redirects all HTTP requests to HTTPS::
+For example, GitHub redirects all HTTP requests to HTTPS:
 
+.. raw:: html
+
+   <pre class="terminhtml">
     >>> r = niquests.get('http://github.com/')
-
     >>> r.url
     'https://github.com/'
-
     >>> r.status_code
     200
-
     >>> r.history
     [<Response HTTP/2 [301]>]
-
+   </pre>
 
 If you're using GET, OPTIONS, POST, PUT, PATCH or DELETE, you can disable
-redirection handling with the ``allow_redirects`` parameter::
+redirection handling with the ``allow_redirects`` parameter:
 
+.. raw:: html
+
+   <pre class="terminhtml">
     >>> r = niquests.get('http://github.com/', allow_redirects=False)
-
     >>> r.status_code
     301
-
     >>> r.history
     []
+   </pre>
 
-If you're using HEAD, you can enable redirection as well::
+If you're using HEAD, you can enable redirection as well:
 
+.. raw:: html
+
+   <pre class="terminhtml">
     >>> r = niquests.head('http://github.com/', allow_redirects=True)
-
     >>> r.url
     'https://github.com/'
-
     >>> r.history
     [<Response HTTP/2 [301]>]
-
+   </pre>
 
 Timeouts
 --------
@@ -787,16 +803,19 @@ If it is not present, no HTTP/3 or QUIC support will be present.
 If you uninstall the qh3 package it disable the support for HTTP/3 without breaking anything.
 On the overhand, installing it manually (may require compilation toolchain) will bring its support.
 
-Find a quick way to know if your environment is capable of emitting HTTP/3 requests by::
+Find a quick way to know if your environment is capable of emitting HTTP/3 requests by:
 
+.. raw:: html
+
+   <pre class="terminhtml">
     >>> from niquests import get
-
     >>> r = get("https://1.1.1.1")
     >>> r
     <Response HTTP/2 [200]>
     >>> r = get("https://1.1.1.1")
     >>> r
     <Response HTTP/3 [200]>
+   </pre>
 
 The underlying library natively understand the ``Alt-Svc`` header and is constantly looking for the ``h3``
 alternative service. Once it finds it, and is deemed valid, it opens up a QUIC connection to the target.
@@ -1627,26 +1646,58 @@ you should at all time close the SSE extension to notify the remote peer about y
 
 For example, the following test server send events until you say to stop: ``sse://sse.dev/test``
 
-See how to stop cleanly the flow of events::
+See how to stop cleanly the flow of events:
 
-    import niquests
+.. tab:: 🔂 Sync
 
-    if __name__ == "__main__":
+    .. code:: python
 
-        r = niquests.post("sse://sse.dev/test")
+        import niquests
 
-        events = []
+        if __name__ == "__main__":
 
-        while r.extension.closed is False:
-            event = r.extension.next_payload()
+            r = niquests.post("sse://sse.dev/test")
 
-            if event is None:  # the remote peer closed it himself
-                break
+            events = []
 
-            events.append(event)  # add the event to list
+            while r.extension.closed is False:
+                event = r.extension.next_payload()
 
-            if len(events) >= 10:  # close ourselves SSE stream & notify remote peer.
-                r.extension.close()
+                if event is None:  # the remote peer closed it himself
+                    break
+
+                events.append(event)  # add the event to list
+
+                if len(events) >= 10:  # close ourselves SSE stream & notify remote peer.
+                    r.extension.close()
+
+.. tab:: 🔀 Async
+
+    .. code:: python
+
+        import niquests
+        import asyncio
+
+        async def main() -> None:
+            async with niquests.AsyncSession() as s:
+                r = await s.post("sse://sse.dev/test")
+
+                events = []
+
+                while r.extension.closed is False:
+                    event = await r.extension.next_payload()
+
+                    if event is None:  # the remote peer closed it himself
+                        break
+
+                    events.append(event)  # add the event to list
+
+                    if len(events) >= 10:  # close ourselves SSE stream & notify remote peer.
+                        await r.extension.close()
+
+        if __name__ == "__main__":
+
+            asyncio.run(main())
 
 ServerSentEvent
 ~~~~~~~~~~~~~~~
