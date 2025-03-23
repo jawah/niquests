@@ -371,6 +371,11 @@ class HTTPAdapter(BaseAdapter):
             keepalive_idle_window=keepalive_idle_window,
         )
 
+    def __repr__(self) -> str:
+        if self.proxy_manager:
+            return f"<HTTPAdapter main({self.poolmanager}) proxy({self.proxy_manager})>"
+        return f"<HTTPAdapter {self.poolmanager}>"
+
     def __getstate__(self) -> dict[str, typing.Any | None]:
         return {attr: getattr(self, attr, None) for attr in self.__attrs__}
 
@@ -1422,6 +1427,11 @@ class AsyncHTTPAdapter(AsyncBaseAdapter):
             keepalive_delay=keepalive_delay,
             keepalive_idle_window=keepalive_idle_window,
         )
+
+    def __repr__(self) -> str:
+        if self.proxy_manager:
+            return f"<AsyncHTTPAdapter main({self.poolmanager}) proxy({self.proxy_manager})>"
+        return f"<AsyncHTTPAdapter {self.poolmanager}>"
 
     def __getstate__(self) -> dict[str, typing.Any | None]:
         return {attr: getattr(self, attr, None) for attr in self.__attrs__}
