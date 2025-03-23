@@ -105,6 +105,14 @@ To force install ``qh3`` run the installation using::
 
 .. note:: ``ocsp`` extra is a mere alias of ``http3``. Our OCSP client depends on **qh3** inners anyway.
 
+- **full**
+
+If by any chance you wanted to get the full list of (extra) features, you may install Niquests with::
+
+    $ python -m pip install niquests[full]
+
+Instead of joining the long list of extras like ``zstd,socks,ws`` for example.
+
 Get the Source Code
 -------------------
 

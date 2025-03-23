@@ -13,7 +13,6 @@ First, make sure that:
 * Niquests is :ref:`installed <install>`
 * Niquests is :ref:`up-to-date <updates>`
 
-
 Let's get started with some simple examples.
 
 .. note::
@@ -612,8 +611,10 @@ represented in the dictionary within a single mapping, as per
 
 It most cases you'd rather quickly access specific key element of headers.
 Fortunately, you can access HTTP headers as they were objects.
-Like so::
 
+.. raw:: html
+
+   <pre class="terminhtml">
     >>> r.oheaders.content_type.charset
     'utf-8'
     >>> r.oheaders.report_to.max_age
@@ -624,6 +625,7 @@ Like so::
     >>> h = get_polymorphic(r.oheaders.date, Date)
     >>> repr(h.get_datetime())
     datetime.datetime(2023, 10, 2, 5, 39, 46, tzinfo=datetime.timezone.utc)
+   </pre>
 
 To explore possibilities, visit the ``kiss-headers`` documentation at https://jawah.github.io/kiss-headers/
 
@@ -1102,7 +1104,7 @@ Setting ``pool_connections=2`` will keep the connection to ``host-b.tld`` and ``
 
 .. attention::
 
-    Unfortunately, due to backward compatibility purposes, those settings applies PER SCHEME.
+    Unfortunately, due to backward compatibility issues, those settings applies PER SCHEME.
     ``pool_connections=2`` will allow up to 2 HTTP (unencrypted) and 2 HTTPS (encrypted)
     connections. Meaning that you can still get 4 hosts being kept alive.
 
@@ -1126,26 +1128,52 @@ Specify your own resolver
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
 In order to specify a resolver, you have to use a ``Session``. Each ``Session`` can have a different resolver.
-Here is a basic example that leverage Google public DNS over HTTPS::
+Here is a basic example that leverage Google public DNS over HTTPS.
 
-    from niquests import Session
+.. tab:: 🔂 Sync
 
-    with Session(resolver="doh+google://") as s:
-        resp = s.get("https://httpbingo.org/get")
+    .. code:: python
 
-Here, the domain name (**httpbingo.org**) will be resolved using the provided DNS url.
+        from niquests import Session
+
+        with Session(resolver="doh+google://") as s:
+            resp = s.get("https://httpbingo.org/get")
+
+.. tab:: 🔀 Async
+
+    .. code:: python
+
+        from niquests import AsyncSession
+
+        async with AsyncSession(resolver="doh+google://") as s:
+            resp = await s.get("https://httpbingo.org/get")
+
+Here, the domain name (**httpbingo.org**) will be resolved using the provided DNS provider (e.g. Google public and encrypted DNS).
 
 .. note:: By default, Niquests still use the good old, often insecure, system DNS.
 
 Use multiple resolvers
 ~~~~~~~~~~~~~~~~~~~~~~
 
-You may specify a list of resolvers to be tested in order::
+You may specify a list of resolvers to be tested in presented order.
 
-    from niquests import Session
+.. tab:: 🔂 Sync
 
-    with Session(resolver=["doh+google://", "doh://cloudflare-dns.com"]) as s:
-        resp = s.get("https://httpbingo.org/get")
+    .. code:: python
+
+        from niquests import Session
+
+        with Session(resolver=["doh+google://", "doh://cloudflare-dns.com"]) as s:
+            resp = s.get("https://httpbingo.org/get")
+
+.. tab:: 🔀 Async
+
+    .. code:: python
+
+        from niquests import AsyncSession
+
+        async with AsyncSession(resolver=["doh+google://", "doh://cloudflare-dns.com"]) as s:
+            resp = await s.get("https://httpbingo.org/get")
 
 The second entry ``doh://cloudflare-dns.com`` will only be tested if ``doh+google://`` failed to provide a usable answer.
 
@@ -1179,13 +1207,25 @@ Example::
 Disable DNS certificate verification
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Simply add ``verify=false`` into your DNS url to pursue::
+Simply add ``verify=false`` into your DNS url to pursue.
 
-    from niquests import Session
+.. tab:: 🔂 Sync
 
-    with Session(resolver="doh+google://default/?verify=false") as s:
-        resp = s.get("https://httpbingo.org/get")
+    .. code:: python
 
+        from niquests import Session
+
+        with Session(resolver="doh+google://default/?verify=false") as s:
+            resp = s.get("https://httpbingo.org/get")
+
+.. tab:: 🔀 Async
+
+    .. code:: python
+
+        from niquests import AsyncSession
+
+        async with AsyncSession(resolver="doh+google://default/?verify=false") as s:
+            resp = await s.get("https://httpbingo.org/get")
 
 .. warning:: Doing a ``s.get("https://httpbingo.org/get", verify=False)`` does not impact the resolver.
 
@@ -1194,14 +1234,25 @@ Timeouts
 
 You may set a specific timeout for domain name resolution by appending ``?timeout=1`` to the resolver configuration.
 
-.. code:: python
+.. tab:: 🔂 Sync
 
-    from niquests import Session
+    .. code:: python
 
-    with Session(resolver="doh+google://default/?timeout=1") as s:
-        resp = s.get("https://httpbingo.org/get")
+        from niquests import Session
 
-This will prevent any resolution that last longer to a second.
+        with Session(resolver="doh+google://default/?timeout=1") as s:
+            resp = s.get("https://httpbingo.org/get")
+
+.. tab:: 🔀 Async
+
+    .. code:: python
+
+        from niquests import AsyncSession
+
+        async with AsyncSession(resolver="doh+google://default/?timeout=1") as s:
+            resp = await s.get("https://httpbingo.org/get")
+
+This will prevent any DNS resolution that last longer to a second.
 
 Happy Eyeballs
 --------------
@@ -1216,19 +1267,23 @@ at the same time (preferring IPv6), thus minimizing common problems experienced 
 
 The name “happy eyeballs” derives from the term “eyeball” to describe endpoints which represent human Internet end-users, as opposed to servers.
 
-To enable Happy Eyeballs in Niquests, do as follow::
+.. tab:: 🔂 Sync
 
-    import niquests
+    .. code:: python
 
-    with niquests.Session(happy_eyeballs=True) as s:
-        ...
+        import niquests
 
-Or.. in async::
+        with niquests.Session(happy_eyeballs=True) as s:
+            ...
 
-    import niquests
+.. tab:: 🔀 Async
 
-    async with niquests.AsyncSession(happy_eyeballs=True) as s:
-        ...
+    .. code:: python
+
+        import niquests
+
+        async with niquests.AsyncSession(happy_eyeballs=True) as s:
+            ...
 
 A mere ``happy_eyeballs=True`` is sufficient to leverage its potential.
 
@@ -1249,27 +1304,52 @@ It is undeniable that WebSockets are a vital part of the web ecosystem along wit
 most users met frictions when trying to deal with a WebSocket server for the first time, that is why
 we decided to expand Niquests capabilities to automatically handle WebSockets for you.
 
-Synchronous
+Quick start
 ~~~~~~~~~~~
 
-In the following example, we will explore how to interact with a basic, but well known echo server::
+In the following example, we will explore how to interact with a basic, but well known echo server.
 
-    from niquests import Session
+.. tab:: 🔂 Sync
 
-    with Session() as s:
-        resp = s.get(
-            "wss://echo.websocket.org",
-        )
+    .. code:: python
 
-        print(resp.status_code)  # it says "101", for "Switching Protocol"
+        from niquests import Session
 
-        print(resp.extension.next_payload())  # unpack the next message from server
+        with Session() as s:
+            resp = s.get(
+                "wss://echo.websocket.org",
+            )
 
-        resp.extension.send_payload("Hello World")  # automatically sends a text message to the server
+            print(resp.status_code)  # it says "101", for "Switching Protocol"
 
-        print(resp.extension.next_payload() == "Hello World")  # output True!
+            print(resp.extension.next_payload())  # unpack the next message from server
 
-        resp.extension.close()  # don't forget this call to release the connection!
+            resp.extension.send_payload("Hello World")  # automatically sends a text message to the server
+
+            print(resp.extension.next_payload() == "Hello World")  # output True!
+
+            resp.extension.close()  # don't forget this call to release the connection!
+
+.. tab:: 🔀 Async
+
+    .. code:: python
+
+        from niquests import AsyncSession
+        import asyncio
+
+        async def main() -> None:
+            async with AsyncSession() as s:
+                resp = await s.get("wss://echo.websocket.org")
+
+                # ...
+
+                print(await resp.extension.next_payload())  # unpack the next message from server
+
+                await resp.extension.send_payload("Hello World")  # automatically sends a text message to the server
+
+                print((await resp.extension.next_payload()) == "Hello World")  # output True!
+
+                await resp.extension.close()
 
 .. warning:: Without the extra installed, you will get an exception that indicate that the scheme is unsupported.
 
@@ -1284,29 +1364,7 @@ By default, Niquests negotiate WebSocket over HTTP/1.1 but it is well capable of
 But rare are the servers capable of bootstrapping WebSocket over a multiplexed connection. There's a little tweak to the URL
 so that it can infer your desire to use a modern protocol, like so ``wss+rfc8441://echo.websocket.org``.
 
-Asynchronous
-~~~~~~~~~~~~
-
-Of course, as per our feature coverage, this is doable both in synchronous and asynchronous contexts.
-Like so::
-
-    from niquests import AsyncSession
-    import asyncio
-
-    async def main() -> None:
-        async with AsyncSession() as s:
-            resp = await s.get("wss://echo.websocket.org")
-
-            # ...
-
-            print(await resp.extension.next_payload())  # unpack the next message from server
-
-            await resp.extension.send_payload("Hello World")  # automatically sends a text message to the server
-
-            print((await resp.extension.next_payload()) == "Hello World")  # output True!
-
-            await resp.extension.close()
-
+.. warning:: echo.websocket.org don't support WebSocket over HTTP/2.
 
 Ping and Pong
 ~~~~~~~~~~~~~
@@ -1314,16 +1372,31 @@ Ping and Pong
 Ping sent by a server are automatically handled/answered by Niquests each time to read from the socket with `next_payload()`.
 However, we do not send automatically Ping TO the server.
 
-In order to do so::
+.. tab:: 🔂 Sync
 
-    from niquests import Session
+    .. code:: python
 
-    with Session() as s:
-        resp = s.get(
-            "wss://echo.websocket.org",
-        )
+        from niquests import Session
 
-        print(resp.extension.ping())  # send a ping to the websocket server, notify it that you're still there!
+        with Session() as s:
+            resp = s.get(
+                "wss://echo.websocket.org",
+            )
+
+            resp.extension.ping()  # send a ping to the websocket server, notify it that you're still there!
+
+.. tab:: 🔀 Async
+
+    .. code:: python
+
+        from niquests import AsyncSession
+
+        async with AsyncSession() as s:
+            resp = await s.get(
+                "wss://echo.websocket.org",
+            )
+
+            await resp.extension.ping()  # send a ping to the websocket server, notify it that you're still there!
 
 You can use the elementary methods provided by Niquests to construct your own logic.
 
@@ -1348,132 +1421,129 @@ Others
 Every other features still applies with WebSocket, like proxies, happy eyeballs, thread/task safety, etc...
 See relevant docs for more.
 
-Example with Concurrency (Thread)
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Example with Concurrency
+~~~~~~~~~~~~~~~~~~~~~~~~
 
 In the following example, we will see how to communicate with a WebSocket server that echo what we send to him.
 We will use a Thread for the reads and the main thread for write operations.
 
-See::
+.. tab:: 🔂 Sync
 
-    from __future__ import annotations
+    .. code:: python
 
-    from niquests import Session, Response, ReadTimeout
-    from threading import Thread
-    from time import sleep
+        from __future__ import annotations
 
-
-    def pull_message_from_server(my_response: Response) -> None:
-        """Read messages here."""
-        iteration_counter = 0
-
-        while my_response.extension.closed is False:
-            try:
-                # will block for 1s top
-                message = my_response.extension.next_payload()
-
-                if message is None:  # server just closed the connection. exit.
-                    print("received goaway from server")
-                    return
-
-                print(f"received message: '{message}'")
-            except ReadTimeout:  # if no message received within 1s
-                pass
-
-            sleep(1)  # let some time for the write part to acquire the lock
-            iteration_counter += 1
-
-            # send a ping every four iteration
-            if iteration_counter % 4 == 0:
-                my_response.extension.ping()
-                print("ping sent")
-
-    if __name__ == "__main__":
-
-        with Session() as s:
-            # connect to websocket server "echo.websocket.org" with timeout of 1s (both read and connect)
-            resp = s.get("wss://echo.websocket.org", timeout=1)
-
-            if resp.status_code != 101:
-                exit(1)
-
-            t = Thread(target=pull_message_from_server, args=(resp,))
-            t.start()
-
-            # send messages here
-            for i in range(30):
-                to_send = f"Hello World {i}"
-                resp.extension.send_payload(to_send)
-                print(f"sent message: '{to_send}'")
-                sleep(1)  # let some time for the read part to acquire the lock
-
-            # exit gently!
-            resp.extension.close()
-
-            # wait for thread proper exit.
-            t.join()
-
-            print("program ended!")
+        from niquests import Session, Response, ReadTimeout
+        from threading import Thread
+        from time import sleep
 
 
-.. warning:: The sleep serve the purpose to relax the lock on either the read or write side, so that one would not block the other forever.
+        def pull_message_from_server(my_response: Response) -> None:
+            """Read messages here."""
+            iteration_counter = 0
 
-Example with Concurrency (Async)
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+            while my_response.extension.closed is False:
+                try:
+                    # will block for 1s top
+                    message = my_response.extension.next_payload()
 
-The same example as before, but using async instead.
+                    if message is None:  # server just closed the connection. exit.
+                        print("received goaway from server")
+                        return
 
-See::
+                    print(f"received message: '{message}'")
+                except ReadTimeout:  # if no message received within 1s
+                    pass
 
-    import asyncio
-    from niquests import AsyncSession, ReadTimeout, Response
+                sleep(1)  # let some time for the write part to acquire the lock
+                iteration_counter += 1
 
-    async def read_from_ws(my_response: Response) -> None:
-        iteration_counter = 0
+                # send a ping every four iteration
+                if iteration_counter % 4 == 0:
+                    my_response.extension.ping()
+                    print("ping sent")
 
-        while my_response.extension.closed is False:
-            try:
-                # will block for 1s top
-                message = await my_response.extension.next_payload()
+        if __name__ == "__main__":
 
-                if message is None:  # server just closed the connection. exit.
-                    print("received goaway from server")
-                    return
+            with Session() as s:
+                # connect to websocket server "echo.websocket.org" with timeout of 1s (both read and connect)
+                resp = s.get("wss://echo.websocket.org", timeout=1)
 
-                print(f"received message: '{message}'")
-            except ReadTimeout:  # if no message received within 1s
-                pass
+                if resp.status_code != 101:
+                    exit(1)
 
-            await asyncio.sleep(1)  # let some time for the write part to acquire the lock
-            iteration_counter += 1
+                t = Thread(target=pull_message_from_server, args=(resp,))
+                t.start()
 
-            # send a ping every four iteration
-            if iteration_counter % 4 == 0:
-                await my_response.extension.ping()
-                print("ping sent")
+                # send messages here
+                for i in range(30):
+                    to_send = f"Hello World {i}"
+                    resp.extension.send_payload(to_send)
+                    print(f"sent message: '{to_send}'")
+                    sleep(1)  # let some time for the read part to acquire the lock
 
-    async def main() -> None:
-        async with AsyncSession() as s:
-            resp = await s.get("wss://echo.websocket.org", timeout=1)
+                # exit gently!
+                resp.extension.close()
 
-            print(resp)
+                # wait for thread proper exit.
+                t.join()
 
-            task = asyncio.create_task(read_from_ws(resp))
+                print("program ended!")
 
-            for i in range(30):
-                to_send = f"Hello World {i}"
-                await resp.extension.send_payload(to_send)
-                print(f"sent message: '{to_send}'")
-                await asyncio.sleep(1)  # let some time for the read part to acquire the lock
+    .. warning:: The sleep serve the purpose to relax the lock on either the read or write side, so that one would not block the other forever.
 
-            # exit gently!
-            await resp.extension.close()
-            await task
+.. tab:: 🔀 Async
+
+    .. code:: python
+
+        import asyncio
+        from niquests import AsyncSession, ReadTimeout, Response
+
+        async def read_from_ws(my_response: Response) -> None:
+            iteration_counter = 0
+
+            while my_response.extension.closed is False:
+                try:
+                    # will block for 1s top
+                    message = await my_response.extension.next_payload()
+
+                    if message is None:  # server just closed the connection. exit.
+                        print("received goaway from server")
+                        return
+
+                    print(f"received message: '{message}'")
+                except ReadTimeout:  # if no message received within 1s
+                    pass
+
+                await asyncio.sleep(1)  # let some time for the write part to acquire the lock
+                iteration_counter += 1
+
+                # send a ping every four iteration
+                if iteration_counter % 4 == 0:
+                    await my_response.extension.ping()
+                    print("ping sent")
+
+        async def main() -> None:
+            async with AsyncSession() as s:
+                resp = await s.get("wss://echo.websocket.org", timeout=1)
+
+                print(resp)
+
+                task = asyncio.create_task(read_from_ws(resp))
+
+                for i in range(30):
+                    to_send = f"Hello World {i}"
+                    await resp.extension.send_payload(to_send)
+                    print(f"sent message: '{to_send}'")
+                    await asyncio.sleep(1)  # let some time for the read part to acquire the lock
+
+                # exit gently!
+                await resp.extension.close()
+                await task
 
 
-    if __name__ == "__main__":
-        asyncio.run(main())
-
+        if __name__ == "__main__":
+            asyncio.run(main())
 
 .. note:: The given example are really basic ones. You may adjust at will the settings and algorithm to match your requisites.
 
@@ -1491,18 +1561,42 @@ Starting example
 ~~~~~~~~~~~~~~~~
 
 Thanks to urllib3-future native SSE extension, we can effortlessly manage a stream of event.
-Here is a really basic example of how to proceed::
+Here is a really basic example of how to proceed.
 
-    import niquests
+.. tab:: 🔂 Sync
 
-    if __name__ == "__main__":
+    .. code:: python
 
-        r = niquests.post("sse://httpbingo.org/sse")
+        import niquests
 
-        print(r)  # output: <Response HTTP/2 [200]>
+        if __name__ == "__main__":
 
-        while r.extension.closed is False:
-            print(r.extension.next_payload())  # ServerSentEvent(event='ping', data='{"id":0,"timestamp":1732857000473}')
+            r = niquests.post("sse://httpbingo.org/sse")
+
+            print(r)  # output: <Response HTTP/2 [200]>
+
+            while r.extension.closed is False:
+                print(r.extension.next_payload())  # ServerSentEvent(event='ping', data='{"id":0,"timestamp":1732857000473}')
+
+.. tab:: 🔀 Async
+
+    .. code:: python
+
+        import niquests
+        import asyncio
+
+        async def main() -> None:
+            async with niquests.AsyncSession() as s:
+                r = await s.post("sse://httpbingo.org/sse")
+
+                print(r)  # output: <Response HTTP/2 [200]>
+
+                while r.extension.closed is False:
+                    print(await r.extension.next_payload())  # ServerSentEvent(event='ping', data='{"id":0,"timestamp":1732857000473}')
+
+        if __name__ == "__main__":
+
+            asyncio.run(main())
 
 We purposely set the scheme to ``sse://`` to indicate our intent to consume a SSE endpoint.
 

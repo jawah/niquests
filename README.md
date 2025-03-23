@@ -113,8 +113,13 @@ async def main() -> None:
     async with niquests.AsyncSession(resolver="doh+google://") as s:
         r = await s.get('https://one.one.one.one', stream=True)
         print(r)  # Output: <Response HTTP/3 [200]>
-        payload = await r.json()
-        print(payload)  # Output: {'authenticated': True, ...}
+        payload = await r.text  # we await text because we set `stream=True`!
+        print(payload)  # Output: <html>...
+        # or... without stream=True
+        r = await s.get('https://one.one.one.one')
+        print(r)  # Output: <Response HTTP/3 [200]>
+        payload = r.text  # we don't need to away anything, it's already loaded!
+        print(payload)  # Output: <html>...
 
 asyncio.run(main())
 ```
