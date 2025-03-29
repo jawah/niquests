@@ -1827,4 +1827,9 @@ class AsyncResponse(Response):
         if self.lazy:
             await self._gather()
 
-        super().close()
+        if self._content_consumed is False and self.raw is not None:
+            await self.raw.close()
+
+        release_conn = getattr(self.raw, "release_conn", None)
+        if release_conn is not None:
+            release_conn()

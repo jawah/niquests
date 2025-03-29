@@ -130,6 +130,13 @@ class TestAsyncWithoutMultiplex:
             assert content
             assert "Herman Melville - Moby-Dick" in content
 
+    async def test_explicit_close_in_streaming_response(self) -> None:
+        async with AsyncSession() as s:
+            try:
+                r = await s.get("https://httpbingo.org/html", stream=True)
+            finally:
+                await r.close()
+
 
 @pytest.mark.usefixtures("requires_wan")
 @pytest.mark.asyncio
