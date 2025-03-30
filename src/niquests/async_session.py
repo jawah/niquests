@@ -127,6 +127,7 @@ class AsyncSession(Session):
         keepalive_delay: float | int | None = 3600.0,
         keepalive_idle_window: float | int | None = 60.0,
         base_url: str | None = None,
+        timeout: TimeoutType | None = None,
     ):
         if [disable_ipv4, disable_ipv6].count(True) == 2:
             raise RuntimeError("Cannot disable both IPv4 and IPv6")
@@ -174,6 +175,9 @@ class AsyncSession(Session):
         self.resolver: AsyncBaseResolver = create_async_resolver(resolver)
         #: Internal use, know whether we should/can close it on session close.
         self._own_resolver: bool = resolver != self.resolver
+
+        #: global timeout configuration
+        self.timeout = timeout
 
         #: Bind to address/network adapter
         self.source_address = source_address
@@ -880,7 +884,7 @@ class AsyncSession(Session):
 
         # Send the request.
         send_kwargs = {
-            "timeout": timeout,
+            "timeout": timeout or self.timeout,
             "allow_redirects": allow_redirects,
         }
         send_kwargs.update(settings)

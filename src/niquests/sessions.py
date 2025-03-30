@@ -222,6 +222,7 @@ class Session:
         "_keepalive_idle_window",
         "base_url",
         "quic_cache_layer",
+        "timeout",
     ]
 
     def __init__(
@@ -243,6 +244,7 @@ class Session:
         keepalive_delay: float | int | None = 3600.0,
         keepalive_idle_window: float | int | None = 60.0,
         base_url: str | None = None,
+        timeout: TimeoutType | None = None,
     ):
         """
         :param resolver: Specify a DNS resolver that should be used within this Session.
@@ -266,6 +268,7 @@ class Session:
         :param keepalive_idle_window: Delay expressed in seconds, in which we should send a PING frame after the connection
             being completely idle. This only applies to HTTP/2 onward.
         :param base_url: Automatically set a URL prefix (or base url) on every request emitted if applicable.
+        :param timeout: Default timeout configuration to be used if no timeout is provided in exposed methods.
         """
         if [disable_ipv4, disable_ipv6].count(True) == 2:
             raise RuntimeError("Cannot disable both IPv4 and IPv6")
@@ -313,6 +316,9 @@ class Session:
         self.resolver = create_resolver(resolver)
         #: Internal use, know whether we should/can close it on session close.
         self._own_resolver: bool = resolver != self.resolver
+
+        #: global timeout configuration
+        self.timeout = timeout
 
         #: Bind to address/network adapter
         self.source_address = source_address
@@ -555,7 +561,7 @@ class Session:
 
         # Send the request.
         send_kwargs = {
-            "timeout": timeout,
+            "timeout": timeout or self.timeout,
             "allow_redirects": allow_redirects,
         }
         send_kwargs.update(settings)
