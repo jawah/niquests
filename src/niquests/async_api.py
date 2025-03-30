@@ -151,9 +151,6 @@ async def request(
       >>> req = await niquests.arequest('GET', 'https://httpbin.org/get')
       >>> req
       <Response HTTP/2 [200]>
-      >>> req = await niquests.arequest('GET', 'https://httpbin.org/get', stream=True)
-      >>> req
-      <AsyncResponse HTTP/2 [200]>
     """
 
     # By using the 'with' statement we are sure the session is closed, thus we
