@@ -71,7 +71,7 @@ from .__version__ import (
     __url__,
     __version__,
 )
-from ._async import AsyncSession
+from .async_session import AsyncSession
 from .api import delete, get, head, options, patch, post, put, request
 from .async_api import (
     delete as adelete,

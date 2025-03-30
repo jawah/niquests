@@ -53,10 +53,9 @@ from .packages.urllib3.util import make_headers, parse_url
 from .structures import CaseInsensitiveDict
 
 if typing.TYPE_CHECKING:
-    from ._async import AsyncResponse
     from ._typing import AsyncResolverType, ResolverType
     from .cookies import RequestsCookieJar
-    from .models import PreparedRequest, Request, Response
+    from .models import PreparedRequest, Request, Response, AsyncResponse
 
 
 getproxies = lru_cache()(getproxies)

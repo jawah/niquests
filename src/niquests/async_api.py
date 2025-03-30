@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import typing
 
-from ._async import AsyncSession
+from .async_session import AsyncSession
 from ._constant import DEFAULT_RETRIES, READ_DEFAULT_TIMEOUT, WRITE_DEFAULT_TIMEOUT
 from ._typing import (
     BodyType,
