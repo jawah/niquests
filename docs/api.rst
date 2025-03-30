@@ -29,6 +29,13 @@ They all return an instance of the :class:`Response <Response>` object.
 .. autofunction:: patch
 .. autofunction:: delete
 
+.. autofunction:: ahead
+.. autofunction:: aget
+.. autofunction:: apost
+.. autofunction:: aput
+.. autofunction:: apatch
+.. autofunction:: adelete
+
 Exceptions
 ----------
 
