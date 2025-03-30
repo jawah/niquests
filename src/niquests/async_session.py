@@ -31,7 +31,6 @@ from ._typing import (
     CacheLayerAltSvcType,
     CookiesType,
     HeadersType,
-    HookType,
     HttpAuthenticationType,
     HttpMethodType,
     MultiPartFilesAltType,

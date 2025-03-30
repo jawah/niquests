@@ -12,9 +12,11 @@ from __future__ import annotations
 
 import typing
 
-from .async_session import AsyncSession
 from ._constant import DEFAULT_RETRIES, READ_DEFAULT_TIMEOUT, WRITE_DEFAULT_TIMEOUT
 from ._typing import (
+    AsyncBodyType,
+    AsyncHookType,
+    AsyncHttpAuthenticationType,
     BodyType,
     CacheLayerAltSvcType,
     CookiesType,
@@ -29,11 +31,9 @@ from ._typing import (
     TimeoutType,
     TLSClientCertType,
     TLSVerifyType,
-    AsyncBodyType,
-    AsyncHttpAuthenticationType,
-    AsyncHookType,
 )
-from .models import PreparedRequest, Response, AsyncResponse
+from .async_session import AsyncSession
+from .models import AsyncResponse, PreparedRequest, Response
 from .structures import AsyncQuicSharedCache
 
 _SHARED_QUIC_CACHE: CacheLayerAltSvcType = AsyncQuicSharedCache(max_size=12_288)
@@ -105,7 +105,8 @@ async def request(
     json: typing.Any | None = None,
     retries: RetryType = DEFAULT_RETRIES,
 ) -> Response | AsyncResponse:
-    """Constructs and sends a :class:`Request <Request>`. This does not keep the connection alive. Use an :class:`AsyncSession` to reuse the connection.
+    """Constructs and sends a :class:`Request <Request>`. This does not keep the connection alive.
+    Use an :class:`AsyncSession` to reuse the connection.
 
     :param method: method for the new :class:`Request` object: ``GET``, ``OPTIONS``, ``HEAD``, ``POST``, ``PUT``, ``PATCH``,
         or ``DELETE``.
@@ -737,6 +738,7 @@ async def put(
         hooks=hooks,
         retries=retries,
     )
+
 
 @typing.overload
 async def patch(

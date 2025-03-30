@@ -55,7 +55,7 @@ from .structures import CaseInsensitiveDict
 if typing.TYPE_CHECKING:
     from ._typing import AsyncResolverType, ResolverType
     from .cookies import RequestsCookieJar
-    from .models import PreparedRequest, Request, Response, AsyncResponse
+    from .models import AsyncResponse, PreparedRequest, Request, Response
 
 
 getproxies = lru_cache()(getproxies)
