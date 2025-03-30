@@ -59,6 +59,8 @@ def request(
 ) -> Response:
     """Constructs and sends a :class:`Request <Request>`.
 
+    This does not keep the connection alive. Use a :class:`Session` to reuse the connection.
+
     :param method: method for the new :class:`Request` object: ``GET``, ``OPTIONS``, ``HEAD``, ``POST``, ``PUT``, ``PATCH``,
         or ``DELETE``.
     :param url: URL for the new :class:`Request` object.
@@ -144,7 +146,7 @@ def get(
     retries: RetryType = DEFAULT_RETRIES,
     **kwargs: typing.Any,
 ) -> Response:
-    r"""Sends a GET request.
+    r"""Sends a GET request. This does not keep the connection alive. Use a :class:`Session` to reuse the connection.
 
     :param url: URL for the new :class:`Request` object.
     :param params: (optional) Dictionary, list of tuples or bytes to send
@@ -210,7 +212,7 @@ def options(
     retries: RetryType = DEFAULT_RETRIES,
     **kwargs: typing.Any,
 ) -> Response:
-    r"""Sends an OPTIONS request.
+    r"""Sends an OPTIONS request. This does not keep the connection alive. Use a :class:`Session` to reuse the connection.
 
     :param url: URL for the new :class:`Request` object.
     :param params: (optional) Dictionary, list of tuples or bytes to send
@@ -275,7 +277,7 @@ def head(
     retries: RetryType = DEFAULT_RETRIES,
     **kwargs: typing.Any,
 ) -> Response:
-    r"""Sends a HEAD request.
+    r"""Sends a HEAD request. This does not keep the connection alive. Use a :class:`Session` to reuse the connection.
 
     :param url: URL for the new :class:`Request` object.
     :param params: (optional) Dictionary, list of tuples or bytes to send
@@ -342,7 +344,7 @@ def post(
     hooks: HookType[PreparedRequest | Response] | None = None,
     retries: RetryType = DEFAULT_RETRIES,
 ) -> Response:
-    r"""Sends a POST request.
+    r"""Sends a POST request. This does not keep the connection alive. Use a :class:`Session` to reuse the connection.
 
     :param url: URL for the new :class:`Request` object.
     :param params: (optional) Dictionary, list of tuples or bytes to send
@@ -420,7 +422,7 @@ def put(
     hooks: HookType[PreparedRequest | Response] | None = None,
     retries: RetryType = DEFAULT_RETRIES,
 ) -> Response:
-    r"""Sends a PUT request.
+    r"""Sends a PUT request. This does not keep the connection alive. Use a :class:`Session` to reuse the connection.
 
     :param url: URL for the new :class:`Request` object.
     :param params: (optional) Dictionary, list of tuples or bytes to send
@@ -498,7 +500,7 @@ def patch(
     hooks: HookType[PreparedRequest | Response] | None = None,
     retries: RetryType = DEFAULT_RETRIES,
 ) -> Response:
-    r"""Sends a PATCH request.
+    r"""Sends a PATCH request. This does not keep the connection alive. Use a :class:`Session` to reuse the connection.
 
     :param url: URL for the new :class:`Request` object.
     :param params: (optional) Dictionary, list of tuples or bytes to send
@@ -574,7 +576,7 @@ def delete(
     retries: RetryType = DEFAULT_RETRIES,
     **kwargs: typing.Any,
 ) -> Response:
-    r"""Sends a DELETE request.
+    r"""Sends a DELETE request. This does not keep the connection alive. Use a :class:`Session` to reuse the connection.
 
     :param url: URL for the new :class:`Request` object.
     :param params: (optional) Dictionary, list of tuples or bytes to send

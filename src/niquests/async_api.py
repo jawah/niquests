@@ -105,7 +105,7 @@ async def request(
     json: typing.Any | None = None,
     retries: RetryType = DEFAULT_RETRIES,
 ) -> Response | AsyncResponse:
-    """Constructs and sends a :class:`Request <Request>`.
+    """Constructs and sends a :class:`Request <Request>`. This does not keep the connection alive. Use an :class:`AsyncSession` to reuse the connection.
 
     :param method: method for the new :class:`Request` object: ``GET``, ``OPTIONS``, ``HEAD``, ``POST``, ``PUT``, ``PATCH``,
         or ``DELETE``.
@@ -236,7 +236,7 @@ async def get(
     retries: RetryType = DEFAULT_RETRIES,
     **kwargs: typing.Any,
 ) -> Response | AsyncResponse:
-    r"""Sends a GET request.
+    r"""Sends a GET request. This does not keep the connection alive. Use an :class:`AsyncSession` to reuse the connection.
 
     :param url: URL for the new :class:`Request` object.
     :param params: (optional) Dictionary, list of tuples or bytes to send
@@ -342,7 +342,7 @@ async def options(
     retries: RetryType = DEFAULT_RETRIES,
     **kwargs: typing.Any,
 ) -> Response | AsyncResponse:
-    r"""Sends an OPTIONS request.
+    r"""Sends an OPTIONS request. This does not keep the connection alive. Use an :class:`AsyncSession` to reuse the connection.
 
     :param url: URL for the new :class:`Request` object.
     :param params: (optional) Dictionary, list of tuples or bytes to send
@@ -447,7 +447,7 @@ async def head(
     retries: RetryType = DEFAULT_RETRIES,
     **kwargs: typing.Any,
 ) -> Response | AsyncResponse:
-    r"""Sends a HEAD request.
+    r"""Sends a HEAD request. This does not keep the connection alive. Use an :class:`AsyncSession` to reuse the connection.
 
     :param url: URL for the new :class:`Request` object.
     :param params: (optional) Dictionary, list of tuples or bytes to send
@@ -558,7 +558,7 @@ async def post(
     cert: TLSClientCertType | None = None,
     retries: RetryType = DEFAULT_RETRIES,
 ) -> Response | AsyncResponse:
-    r"""Sends a POST request.
+    r"""Sends a POST request. This does not keep the connection alive. Use an :class:`AsyncSession` to reuse the connection.
 
     :param url: URL for the new :class:`Request` object.
     :param params: (optional) Dictionary, list of tuples or bytes to send
@@ -680,7 +680,7 @@ async def put(
     cert: TLSClientCertType | None = None,
     retries: RetryType = DEFAULT_RETRIES,
 ) -> Response | AsyncResponse:
-    r"""Sends a PUT request.
+    r"""Sends a PUT request. This does not keep the connection alive. Use an :class:`AsyncSession` to reuse the connection.
 
     :param url: URL for the new :class:`Request` object.
     :param params: (optional) Dictionary, list of tuples or bytes to send
@@ -801,7 +801,7 @@ async def patch(
     cert: TLSClientCertType | None = None,
     retries: RetryType = DEFAULT_RETRIES,
 ) -> Response | AsyncResponse:
-    r"""Sends a PATCH request.
+    r"""Sends a PATCH request. This does not keep the connection alive. Use an :class:`AsyncSession` to reuse the connection.
 
     :param url: URL for the new :class:`Request` object.
     :param params: (optional) Dictionary, list of tuples or bytes to send
@@ -917,7 +917,7 @@ async def delete(
     retries: RetryType = DEFAULT_RETRIES,
     **kwargs: typing.Any,
 ) -> Response | AsyncResponse:
-    r"""Sends a DELETE request.
+    r"""Sends a DELETE request. This does not keep the connection alive. Use an :class:`AsyncSession` to reuse the connection.
 
     :param url: URL for the new :class:`Request` object.
     :param params: (optional) Dictionary, list of tuples or bytes to send
