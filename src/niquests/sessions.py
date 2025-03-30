@@ -478,7 +478,7 @@ class Session:
         cookies: CookiesType | None = None,
         files: MultiPartFilesType | MultiPartFilesAltType | None = None,
         auth: HttpAuthenticationType | None = None,
-        timeout: TimeoutType | None = WRITE_DEFAULT_TIMEOUT,
+        timeout: TimeoutType | None = None,
         allow_redirects: bool = True,
         proxies: ProxyType | None = None,
         hooks: HookType[PreparedRequest | Response] | None = None,
@@ -565,6 +565,12 @@ class Session:
             "allow_redirects": allow_redirects,
         }
         send_kwargs.update(settings)
+
+        if send_kwargs["timeout"] is None:
+            send_kwargs["timeout"] = (
+                WRITE_DEFAULT_TIMEOUT if method in {"POST", "PUT", "DELETE", "PATCH"} else READ_DEFAULT_TIMEOUT
+            )
+
         resp = self.send(prep, **send_kwargs)
 
         return resp
@@ -577,7 +583,7 @@ class Session:
         headers: HeadersType | None = None,
         cookies: CookiesType | None = None,
         auth: HttpAuthenticationType | None = None,
-        timeout: TimeoutType | None = READ_DEFAULT_TIMEOUT,
+        timeout: TimeoutType | None = None,
         allow_redirects: bool = True,
         proxies: ProxyType | None = None,
         hooks: HookType[PreparedRequest | Response] | None = None,
@@ -646,7 +652,7 @@ class Session:
         headers: HeadersType | None = None,
         cookies: CookiesType | None = None,
         auth: HttpAuthenticationType | None = None,
-        timeout: TimeoutType | None = READ_DEFAULT_TIMEOUT,
+        timeout: TimeoutType | None = None,
         allow_redirects: bool = True,
         proxies: ProxyType | None = None,
         hooks: HookType[PreparedRequest | Response] | None = None,
@@ -715,7 +721,7 @@ class Session:
         headers: HeadersType | None = None,
         cookies: CookiesType | None = None,
         auth: HttpAuthenticationType | None = None,
-        timeout: TimeoutType | None = READ_DEFAULT_TIMEOUT,
+        timeout: TimeoutType | None = None,
         allow_redirects: bool = True,
         proxies: ProxyType | None = None,
         hooks: HookType[PreparedRequest | Response] | None = None,
@@ -787,7 +793,7 @@ class Session:
         cookies: CookiesType | None = None,
         files: MultiPartFilesType | MultiPartFilesAltType | None = None,
         auth: HttpAuthenticationType | None = None,
-        timeout: TimeoutType | None = WRITE_DEFAULT_TIMEOUT,
+        timeout: TimeoutType | None = None,
         allow_redirects: bool = True,
         proxies: ProxyType | None = None,
         hooks: HookType[PreparedRequest | Response] | None = None,
@@ -866,7 +872,7 @@ class Session:
         cookies: CookiesType | None = None,
         files: MultiPartFilesType | MultiPartFilesAltType | None = None,
         auth: HttpAuthenticationType | None = None,
-        timeout: TimeoutType | None = WRITE_DEFAULT_TIMEOUT,
+        timeout: TimeoutType | None = None,
         allow_redirects: bool = True,
         proxies: ProxyType | None = None,
         hooks: HookType[PreparedRequest | Response] | None = None,
@@ -945,7 +951,7 @@ class Session:
         cookies: CookiesType | None = None,
         files: MultiPartFilesType | MultiPartFilesAltType | None = None,
         auth: HttpAuthenticationType | None = None,
-        timeout: TimeoutType | None = WRITE_DEFAULT_TIMEOUT,
+        timeout: TimeoutType | None = None,
         allow_redirects: bool = True,
         proxies: ProxyType | None = None,
         hooks: HookType[PreparedRequest | Response] | None = None,
@@ -1021,7 +1027,7 @@ class Session:
         headers: HeadersType | None = None,
         cookies: CookiesType | None = None,
         auth: HttpAuthenticationType | None = None,
-        timeout: TimeoutType | None = WRITE_DEFAULT_TIMEOUT,
+        timeout: TimeoutType | None = None,
         allow_redirects: bool = True,
         proxies: ProxyType | None = None,
         hooks: HookType[PreparedRequest | Response] | None = None,

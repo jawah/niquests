@@ -834,7 +834,7 @@ class AsyncSession(Session):
         cookies: CookiesType | None = None,
         files: MultiPartFilesType | MultiPartFilesAltType | None = None,
         auth: HttpAuthenticationType | AsyncHttpAuthenticationType | None = None,
-        timeout: TimeoutType | None = WRITE_DEFAULT_TIMEOUT,
+        timeout: TimeoutType | None = None,
         allow_redirects: bool = True,
         proxies: ProxyType | None = None,
         hooks: AsyncHookType[PreparedRequest | Response] | None = None,
@@ -888,6 +888,12 @@ class AsyncSession(Session):
         }
         send_kwargs.update(settings)
 
+        # Ensuring we always apply a default timeout as per Niquests policy.
+        if send_kwargs["timeout"] is None:
+            send_kwargs["timeout"] = (
+                WRITE_DEFAULT_TIMEOUT if method in {"POST", "PUT", "DELETE", "PATCH"} else READ_DEFAULT_TIMEOUT
+            )
+
         return await self.send(prep, **send_kwargs)
 
     @typing.overload  # type: ignore[override]
@@ -936,7 +942,7 @@ class AsyncSession(Session):
         headers: HeadersType | None = None,
         cookies: CookiesType | None = None,
         auth: HttpAuthenticationType | AsyncHttpAuthenticationType | None = None,
-        timeout: TimeoutType | None = READ_DEFAULT_TIMEOUT,
+        timeout: TimeoutType | None = None,
         allow_redirects: bool = True,
         proxies: ProxyType | None = None,
         hooks: AsyncHookType[PreparedRequest | Response] | None = None,
@@ -1008,7 +1014,7 @@ class AsyncSession(Session):
         headers: HeadersType | None = None,
         cookies: CookiesType | None = None,
         auth: HttpAuthenticationType | AsyncHttpAuthenticationType | None = None,
-        timeout: TimeoutType | None = READ_DEFAULT_TIMEOUT,
+        timeout: TimeoutType | None = None,
         allow_redirects: bool = True,
         proxies: ProxyType | None = None,
         hooks: AsyncHookType[PreparedRequest | Response] | None = None,
@@ -1080,7 +1086,7 @@ class AsyncSession(Session):
         headers: HeadersType | None = None,
         cookies: CookiesType | None = None,
         auth: HttpAuthenticationType | AsyncHttpAuthenticationType | None = None,
-        timeout: TimeoutType | None = READ_DEFAULT_TIMEOUT,
+        timeout: TimeoutType | None = None,
         allow_redirects: bool = True,
         proxies: ProxyType | None = None,
         hooks: AsyncHookType[PreparedRequest | Response] | None = None,
@@ -1159,7 +1165,7 @@ class AsyncSession(Session):
         cookies: CookiesType | None = None,
         files: MultiPartFilesType | MultiPartFilesAltType | None = None,
         auth: HttpAuthenticationType | AsyncHttpAuthenticationType | None = None,
-        timeout: TimeoutType | None = WRITE_DEFAULT_TIMEOUT,
+        timeout: TimeoutType | None = None,
         allow_redirects: bool = True,
         proxies: ProxyType | None = None,
         hooks: AsyncHookType[PreparedRequest | Response] | None = None,
@@ -1239,7 +1245,7 @@ class AsyncSession(Session):
         cookies: CookiesType | None = None,
         files: MultiPartFilesType | MultiPartFilesAltType | None = None,
         auth: HttpAuthenticationType | AsyncHttpAuthenticationType | None = None,
-        timeout: TimeoutType | None = WRITE_DEFAULT_TIMEOUT,
+        timeout: TimeoutType | None = None,
         allow_redirects: bool = True,
         proxies: ProxyType | None = None,
         hooks: AsyncHookType[PreparedRequest | Response] | None = None,
@@ -1319,7 +1325,7 @@ class AsyncSession(Session):
         cookies: CookiesType | None = None,
         files: MultiPartFilesType | MultiPartFilesAltType | None = None,
         auth: HttpAuthenticationType | AsyncHttpAuthenticationType | None = None,
-        timeout: TimeoutType | None = WRITE_DEFAULT_TIMEOUT,
+        timeout: TimeoutType | None = None,
         allow_redirects: bool = True,
         proxies: ProxyType | None = None,
         hooks: AsyncHookType[PreparedRequest | Response] | None = None,
@@ -1392,7 +1398,7 @@ class AsyncSession(Session):
         headers: HeadersType | None = None,
         cookies: CookiesType | None = None,
         auth: HttpAuthenticationType | AsyncHttpAuthenticationType | None = None,
-        timeout: TimeoutType | None = WRITE_DEFAULT_TIMEOUT,
+        timeout: TimeoutType | None = None,
         allow_redirects: bool = True,
         proxies: ProxyType | None = None,
         hooks: AsyncHookType[PreparedRequest | Response] | None = None,
