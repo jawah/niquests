@@ -160,7 +160,7 @@ async def request(
     # avoid leaving sockets open which can trigger a ResourceWarning in some
     # cases, and look like a memory leak in others.
     async with AsyncSession(quic_cache_layer=_SHARED_QUIC_CACHE, retries=retries) as session:
-        return await session.request(
+        return await session.request(  # type: ignore[misc]
             method,
             url,
             params,
@@ -173,7 +173,7 @@ async def request(
             allow_redirects,
             proxies,
             hooks,
-            stream,
+            stream,  # type: ignore[arg-type]
             verify,
             cert,
             json,
@@ -267,7 +267,7 @@ async def get(
             Otherwise, for fine gained retry, use directly a ``Retry`` instance from urllib3.
     :return: :class:`Response <Response>` object if stream=None or False. Otherwise :class:`AsyncResponse <AsyncResponse>`
     """
-    return await request(
+    return await request(  # type: ignore[misc]
         "GET",
         url,
         params=params,
@@ -278,7 +278,7 @@ async def get(
         allow_redirects=allow_redirects,
         proxies=proxies,
         verify=verify,
-        stream=stream,
+        stream=stream,  # type: ignore[arg-type]
         cert=cert,
         hooks=hooks,
         retries=retries,
@@ -372,7 +372,7 @@ async def options(
 
     :return: :class:`Response <Response>` object if stream=None or False. Otherwise :class:`AsyncResponse <AsyncResponse>`
     """
-    return await request(
+    return await request(  # type: ignore[misc]
         "OPTIONS",
         url,
         params=params,
@@ -383,7 +383,7 @@ async def options(
         allow_redirects=allow_redirects,
         proxies=proxies,
         verify=verify,
-        stream=stream,
+        stream=stream,  # type: ignore[arg-type]
         cert=cert,
         hooks=hooks,
         retries=retries,
@@ -477,7 +477,7 @@ async def head(
 
     :return: :class:`Response <Response>` object if stream=None or False. Otherwise :class:`AsyncResponse <AsyncResponse>`
     """
-    return await request(
+    return await request(  # type: ignore[misc]
         "HEAD",
         url,
         allow_redirects=allow_redirects,
@@ -488,7 +488,7 @@ async def head(
         timeout=timeout,
         proxies=proxies,
         verify=verify,
-        stream=stream,
+        stream=stream,  # type: ignore[arg-type]
         cert=cert,
         hooks=hooks,
         retries=retries,
@@ -597,7 +597,7 @@ async def post(
 
     :return: :class:`Response <Response>` object if stream=None or False. Otherwise :class:`AsyncResponse <AsyncResponse>`
     """
-    return await request(
+    return await request(  # type: ignore[misc]
         "POST",
         url,
         data=data,
@@ -611,7 +611,7 @@ async def post(
         allow_redirects=allow_redirects,
         proxies=proxies,
         verify=verify,
-        stream=stream,
+        stream=stream,  # type: ignore[arg-type]
         cert=cert,
         hooks=hooks,
         retries=retries,
@@ -719,7 +719,7 @@ async def put(
 
     :return: :class:`Response <Response>` object if stream=None or False. Otherwise :class:`AsyncResponse <AsyncResponse>`
     """
-    return await request(
+    return await request(  # type: ignore[misc]
         "PUT",
         url,
         data=data,
@@ -733,7 +733,7 @@ async def put(
         allow_redirects=allow_redirects,
         proxies=proxies,
         verify=verify,
-        stream=stream,
+        stream=stream,  # type: ignore[arg-type]
         cert=cert,
         hooks=hooks,
         retries=retries,
@@ -841,7 +841,7 @@ async def patch(
 
     :return: :class:`Response <Response>` object if stream=None or False. Otherwise :class:`AsyncResponse <AsyncResponse>`
     """
-    return await request(
+    return await request(  # type: ignore[misc]
         "PATCH",
         url,
         data=data,
@@ -855,7 +855,7 @@ async def patch(
         allow_redirects=allow_redirects,
         proxies=proxies,
         verify=verify,
-        stream=stream,
+        stream=stream,  # type: ignore[arg-type]
         cert=cert,
         hooks=hooks,
         retries=retries,
@@ -948,7 +948,7 @@ async def delete(
 
     :return: :class:`Response <Response>` object if stream=None or False. Otherwise :class:`AsyncResponse <AsyncResponse>`
     """
-    return await request(
+    return await request(  # type: ignore[misc]
         "DELETE",
         url,
         params=params,
@@ -959,7 +959,7 @@ async def delete(
         allow_redirects=allow_redirects,
         proxies=proxies,
         verify=verify,
-        stream=stream,
+        stream=stream,  # type: ignore[arg-type]
         cert=cert,
         hooks=hooks,
         retries=retries,
