@@ -55,8 +55,7 @@ timeline.
 
     .. code:: python
 
-        async with niquests.AsyncSession() as s:
-            r = await s.get('https://api.github.com/events')
+        r = await niquests.aget('https://api.github.com/events')
 
 Now, we have a :class:`Response <niquests.Response>` object called ``r``. We can
 get all the information we need from this object.
@@ -74,8 +73,7 @@ example, this is how you make an HTTP POST request:
 
     .. code:: python
 
-        async with niquests.AsyncSession() as s:
-            r = await s.post('https://httpbin.org/post', data={'key': 'value'})
+        r = await niquests.apost('https://httpbin.org/post', data={'key': 'value'})
 
 Nice, right? What about the other HTTP request types: PUT, DELETE, HEAD and
 OPTIONS? These are all just as simple:
@@ -93,11 +91,10 @@ OPTIONS? These are all just as simple:
 
     .. code:: python
 
-        async with niquests.AsyncSession() as s:
-            r = await s.put('https://httpbin.org/put', data={'key': 'value'})
-            r = await s.delete('https://httpbin.org/delete')
-            r = await s.head('https://httpbin.org/get')
-            r = await s.options('https://httpbin.org/get')
+        r = await niquests.aput('https://httpbin.org/put', data={'key': 'value'})
+        r = await niquests.adelete('https://httpbin.org/delete')
+        r = await niquests.ahead('https://httpbin.org/get')
+        r = await niquests.aoptions('https://httpbin.org/get')
 
 That's all well and good, but it's also only the start of what Niquests can
 do.
@@ -124,9 +121,8 @@ following code:
 
     .. code:: python
 
-        async with niquests.AsyncSession() as s:
-            payload = {'key1': 'value1', 'key2': 'value2'}
-            r = await s.get('https://httpbin.org/get', params=payload)
+        payload = {'key1': 'value1', 'key2': 'value2'}
+        r = await niquests.aget('https://httpbin.org/get', params=payload)
 
 You can see that the URL has been correctly encoded by printing the URL:
 
@@ -152,11 +148,10 @@ You can also pass a list of items as a value:
 
     .. code:: python
 
-        async with niquests.AsyncSession() as s:
-            payload = {'key1': 'value1', 'key2': ['value2', 'value3']}
-            r = await s.get('https://httpbin.org/get', params=payload)
+        payload = {'key1': 'value1', 'key2': ['value2', 'value3']}
+        r = await niquests.aget('https://httpbin.org/get', params=payload)
 
-            print(r.url)  # 'https://httpbin.org/get?key1=value1&key2=value2&key2=value3'
+        print(r.url)  # 'https://httpbin.org/get?key1=value1&key2=value2&key2=value3'
 
 Response Content
 ----------------
@@ -179,9 +174,8 @@ again:
 
         import niquests
 
-        async with niquests.AsyncSession() as s:
-            r = await s.get('https://api.github.com/events')
-            print(r.text)  # '[{"repository":{"open_issues":0,"url":"https://github.com/...
+        r = await niquests.aget('https://api.github.com/events')
+        print(r.text)  # '[{"repository":{"open_issues":0,"url":"https://github.com/...
 
 Niquests will automatically decode content from the server. Most unicode
 charsets are seamlessly decoded.
@@ -255,9 +249,8 @@ There's also a builtin JSON decoder, in case you're dealing with JSON data:
 
         import niquests
 
-        async with niquests.AsyncSession() as s:
-            r = await s.get('https://api.github.com/events')
-            print(r.json())  # [{'repository': {'open_issues': 0, 'url': 'https://github.com/...
+        r = await niquests.aget('https://api.github.com/events')
+        print(r.json())  # [{'repository': {'open_issues': 0, 'url': 'https://github.com/...
 
 In case the JSON decoding fails, ``r.json()`` raises an exception. For example, if
 the response gets a 204 (No Content), or if the response contains invalid JSON,
@@ -300,14 +293,13 @@ server, you can access ``r.raw``. If you want to do this, make sure you set
 
     .. code:: python
 
-        async with niquests.AsyncSession() as s:
-            r = await s.get('https://api.github.com/events', stream=True)
+        r = await niquests.aget('https://api.github.com/events', stream=True)
 
-            r.raw
-            # <urllib3._async.response.AsyncHTTPResponse object at 0x101194810>
+        r.raw
+        # <urllib3._async.response.AsyncHTTPResponse object at 0x101194810>
 
-            await r.raw.read(10)
-            # b'\x1f\x8b\x08\x00\x00\x00\x00\x00\x00\x03'
+        await r.raw.read(10)
+        # b'\x1f\x8b\x08\x00\x00\x00\x00\x00\x00\x03'
 
 
 In general, however, you should use a pattern like this to save what is being
@@ -341,9 +333,9 @@ may better fit your use cases.
 
    An important note about using ``Response.iter_content`` versus ``Response.raw``.
    ``Response.iter_content`` will automatically decode the ``gzip`` and ``deflate``
-   transfer-encodings.  ``Response.raw`` is a raw stream of bytes -- it does not
+   transfer-encodings.  ``Response.iter_raw`` is a raw stream of bytes -- it does not
    transform the response content.  If you really need access to the bytes as they
-   were returned, use ``Response.raw``.
+   were returned, use ``Response.iter_raw``.
 
 
 Custom Headers
@@ -367,11 +359,10 @@ For example, we didn't specify our user-agent in the previous example:
 
     .. code:: python
 
-        async with niquests.AsyncSession() as s:
-            url = 'https://api.github.com/some/endpoint'
-            headers = {'user-agent': 'my-app/0.0.1'}
+        url = 'https://api.github.com/some/endpoint'
+        headers = {'user-agent': 'my-app/0.0.1'}
 
-            r = await s.get(url, headers=headers)
+        r = await niquests.aget(url, headers=headers)
 
 Note: Custom headers are given less precedence than more specific sources of information. For instance:
 

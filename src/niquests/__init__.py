@@ -71,8 +71,32 @@ from .__version__ import (
     __url__,
     __version__,
 )
-from ._async import AsyncSession
 from .api import delete, get, head, options, patch, post, put, request
+from .async_api import (
+    delete as adelete,
+)
+from .async_api import (
+    get as aget,
+)
+from .async_api import (
+    head as ahead,
+)
+from .async_api import (
+    options as aoptions,
+)
+from .async_api import (
+    patch as apatch,
+)
+from .async_api import (
+    post as apost,
+)
+from .async_api import (
+    put as aput,
+)
+from .async_api import (
+    request as arequest,
+)
+from .async_session import AsyncSession
 from .exceptions import (
     ConnectionError,
     ConnectTimeout,
@@ -113,6 +137,14 @@ __all__ = (
     "post",
     "put",
     "request",
+    "adelete",
+    "aget",
+    "ahead",
+    "aoptions",
+    "apatch",
+    "apost",
+    "aput",
+    "arequest",
     "ConnectionError",
     "ConnectTimeout",
     "FileModeWarning",

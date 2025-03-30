@@ -15,6 +15,7 @@ import datetime
 # Implicit import within threads may cause LookupError when standard library is in a ZIP,
 # such as in Embedded Python. See https://github.com/psf/requests/issues/3578.
 import encodings.idna  # noqa: F401
+import warnings
 
 try:
     import orjson as _json  # type: ignore[import]
@@ -1174,6 +1175,9 @@ class Response:
 
         If decode_unicode is True, content will be decoded using the best
         available encoding based on the response.
+
+        We recommend setting chunk_size=-1 (default) to receive chunk as they come
+        for performance purposes.
         """
 
         def generate() -> typing.Generator[bytes, None, None]:
@@ -1239,6 +1243,84 @@ class Response:
             return stream_decode_response_unicode(chunks, self)
 
         return chunks
+
+    def iter_raw(self, chunk_size: int = ITER_CHUNK_SIZE) -> typing.Generator[bytes, None, None]:
+        """Iterates over the response raw and possibly compressed data.
+        When stream=True is set on the request, this avoids
+        reading the content at once into memory for
+        large responses. The chunk size is the number of bytes it should
+        read into memory. This is not necessarily the length of each item
+        returned as decoding can take place.
+
+        chunk_size must be of type int or None. A value of None will
+        function differently depending on the value of `stream`.
+        stream=True will read data as it arrives in whatever size the
+        chunks are received. If stream=False, data is returned as
+        a single chunk.
+
+        If decode_unicode is True, content will be decoded using the best
+        available encoding based on the response.
+
+        We recommend setting chunk_size=-1 (default) to receive chunk as they come
+        for performance purposes.
+        """
+
+        def generate() -> typing.Generator[bytes, None, None]:
+            assert self.raw is not None
+
+            can_track_progress = hasattr(self.raw, "_fp") and hasattr(self.raw._fp, "data_in_count")
+
+            if can_track_progress and self.download_progress is None:
+                if "content-length" in self.headers:
+                    self.download_progress = TransferProgress()
+                    try:
+                        self.download_progress.content_length = int(self.headers["content-length"])
+                    except ValueError:
+                        pass
+            # Special case for urllib3.
+            if hasattr(self.raw, "stream"):
+                try:
+                    for chunk in self.raw.stream(chunk_size, decode_content=False):
+                        if self.download_progress is not None:
+                            self.download_progress.total = self.raw._fp.data_in_count  # type: ignore[union-attr]
+                        yield chunk
+                except ProtocolError as e:
+                    if self.download_progress is not None:
+                        self.download_progress.any_error = True
+                    raise ChunkedEncodingError(e)
+                except DecodeError as e:
+                    if self.download_progress is not None:
+                        self.download_progress.any_error = True
+                    raise ContentDecodingError(e)
+                except ReadTimeoutError as e:
+                    if self.download_progress is not None:
+                        self.download_progress.any_error = True
+                    raise ConnectionError(e)
+                except SSLError as e:
+                    if self.download_progress is not None:
+                        self.download_progress.any_error = True
+                    raise RequestsSSLError(e)
+            else:
+                # Standard file-like object.
+                while True:
+                    chunk = self.raw.read(chunk_size)
+                    if not chunk:
+                        break
+                    yield chunk
+
+            if self.raw is not None and hasattr(self.raw, "trailers"):
+                self.trailers = CaseInsensitiveDict(self.raw.trailers)
+
+            self._content_consumed = True
+
+        if self._content_consumed and isinstance(self._content, bool):
+            raise StreamConsumedError()
+        elif chunk_size is not None and not isinstance(chunk_size, int):
+            raise TypeError(f"chunk_size must be an int, it is instead a {type(chunk_size)}.")
+        # simulate reading small chunks of the content
+        reused_chunks = iter_slices(self._content or b"", chunk_size)
+
+        return reused_chunks if self._content_consumed else generate()
 
     @typing.overload
     def iter_lines(
@@ -1516,7 +1598,27 @@ class Response:
         *Note: Should not normally need to be called explicitly.*
         """
         if self._content_consumed is False and self.raw is not None:
-            self.raw.close()
+            if not asyncio.iscoroutinefunction(self.raw.close):
+                self.raw.close()
+            else:
+                warnings.warn(
+                    "use 'async with response' to be able to cleanly close the response in async mode.",
+                    UserWarning,
+                )
+
+        release_conn = getattr(self.raw, "release_conn", None)
+        if release_conn is not None:
+            release_conn()
+
+    async def __aenter__(self) -> Response:
+        return self
+
+    async def __aexit__(self, exc_type, exc_val, exc_tb) -> None:
+        if self._content_consumed is False and self.raw is not None:
+            if not asyncio.iscoroutinefunction(self.raw.close):
+                raise OSError("Attempted to use a synchronous response in an awaitable context.")
+
+            await self.raw.close()
 
         release_conn = getattr(self.raw, "release_conn", None)
         if release_conn is not None:
@@ -1565,7 +1667,7 @@ class AsyncResponse(Response):
             else None
         )
 
-    def __aenter__(self) -> AsyncResponse:
+    def __aenter__(self) -> AsyncResponse:  # type: ignore[override]
         return self
 
     async def __aiter__(self) -> typing.AsyncIterator[bytes]:
@@ -1657,6 +1759,60 @@ class AsyncResponse(Response):
             return astream_decode_response_unicode(stream_chunks, self)
 
         return stream_chunks
+
+    async def iter_raw(  # type: ignore[override]
+        self, chunk_size: int = ITER_CHUNK_SIZE
+    ) -> typing.AsyncGenerator[bytes, None]:
+        if self.lazy:
+            await self._gather()
+
+        async def generate() -> typing.AsyncGenerator[
+            bytes,
+            None,
+        ]:
+            assert self.raw is not None
+
+            can_track_progress = hasattr(self.raw, "_fp") and hasattr(self.raw._fp, "data_in_count")
+
+            if can_track_progress and self.download_progress is None:
+                if "content-length" in self.headers:
+                    self.download_progress = TransferProgress()
+                    try:
+                        self.download_progress.content_length = int(self.headers["content-length"])
+                    except ValueError:
+                        pass
+
+            while True:
+                try:
+                    chunk = await self.raw.read(chunk_size, decode_content=False)
+
+                    if self.download_progress is not None:
+                        self.download_progress.total = self.raw._fp.data_in_count  # type: ignore[union-attr]
+                except ProtocolError as e:
+                    raise ChunkedEncodingError(e)
+                except DecodeError as e:
+                    raise ContentDecodingError(e)
+                except ReadTimeoutError as e:
+                    raise ConnectionError(e)
+                except SSLError as e:
+                    raise RequestsSSLError(e)
+
+                if not chunk:
+                    break
+
+                yield chunk
+
+            if self.raw is not None and hasattr(self.raw, "trailers"):
+                self.trailers = CaseInsensitiveDict(self.raw.trailers)
+
+            self._content_consumed = True
+
+        if self._content_consumed and isinstance(self._content, bool):
+            raise StreamConsumedError()
+        elif chunk_size is not None and not isinstance(chunk_size, int):
+            raise TypeError(f"chunk_size must be an int, it is instead a {type(chunk_size)}.")
+
+        return generate()
 
     @typing.overload  # type: ignore[override]
     async def iter_lines(

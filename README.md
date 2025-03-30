@@ -81,10 +81,7 @@ Take a deeper look at https://github.com/Ousret/niquests-stats
 
 ```python
 >>> import niquests
->>> s = niquests.Session(resolver="doh+google://", multiplexed=True)
->>> r = s.get('https://one.one.one.one')
->>> r
-<ResponsePromise HTTP/3>
+>>> r = niquests.get('https://one.one.one.one')
 >>> r.status_code
 200
 >>> r.headers['content-type']
@@ -98,7 +95,7 @@ Take a deeper look at https://github.com/Ousret/niquests-stats
 >>> r.json()
 {'authenticated': True, ...}
 >>> r
-<Response HTTP/3 [200]>
+<Response HTTP/2 [200]>
 >>> r.ocsp_verified
 True
 >>> r.conn_info.established_latency
@@ -110,16 +107,15 @@ import niquests
 import asyncio
 
 async def main() -> None:
-    async with niquests.AsyncSession(resolver="doh+google://") as s:
-        r = await s.get('https://one.one.one.one', stream=True)
-        print(r)  # Output: <Response HTTP/3 [200]>
-        payload = await r.text  # we await text because we set `stream=True`!
-        print(payload)  # Output: <html>...
-        # or... without stream=True
-        r = await s.get('https://one.one.one.one')
-        print(r)  # Output: <Response HTTP/3 [200]>
-        payload = r.text  # we don't need to away anything, it's already loaded!
-        print(payload)  # Output: <html>...
+    r = await niquests.aget('https://one.one.one.one', stream=True)
+    print(r)  # Output: <Response HTTP/2 [200]>
+    payload = await r.text  # we await text because we set `stream=True`!
+    print(payload)  # Output: <html>...
+    # or... without stream=True
+    r = await niquests.aget('https://one.one.one.one')
+    print(r)  # Output: <Response HTTP/3 [200]>
+    payload = r.text  # we don't need to away anything, it's already loaded!
+    print(payload)  # Output: <html>...
 
 asyncio.run(main())
 ```

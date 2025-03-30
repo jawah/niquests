@@ -1,6 +1,19 @@
 Release History
 ===============
 
+3.14.0 (2025-03-30)
+-------------------
+
+**Added**
+- "Repr" for our HTTPAdapter and AsyncHTTPAdapter for debugging purposes. (#201) (#227)
+- Top level `aget`, `apost`, `aput`, ..., as the asynchronous counterpart of `niquests.get`, `niquests.post`, ...
+- Global timeout configuration per `Session` or `AsyncSession`. Like `Session(timeout=10)`. (#232)
+- `iter_raw` method in `Response` and `AsyncResponse` in order to retrieve content from remote without decompression. (#233)
+
+**Fixed**
+- Missing awaited coroutine in `AsyncResponse.close(...)`. (#231)
+- Attempt to call `close` coroutine (urllib3 raw Response) in async mode when the response is not awaitable.
+
 3.13.1 (2025-03-09)
 -------------------
 

@@ -376,7 +376,7 @@ async def verify(
 
             return
 
-        from .._async import AsyncSession
+        from ..async_session import AsyncSession
 
         async with AsyncSession(resolver=resolver, happy_eyeballs=happy_eyeballs) as session:
             session.trust_env = False
