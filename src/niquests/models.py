@@ -15,6 +15,7 @@ import datetime
 # Implicit import within threads may cause LookupError when standard library is in a ZIP,
 # such as in Embedded Python. See https://github.com/psf/requests/issues/3578.
 import encodings.idna  # noqa: F401
+import warnings
 
 try:
     import orjson as _json  # type: ignore[import]
@@ -1174,6 +1175,9 @@ class Response:
 
         If decode_unicode is True, content will be decoded using the best
         available encoding based on the response.
+
+        We recommend setting chunk_size=-1 (default) to receive chunk as they come
+        for performance purposes.
         """
 
         def generate() -> typing.Generator[bytes, None, None]:
@@ -1594,7 +1598,27 @@ class Response:
         *Note: Should not normally need to be called explicitly.*
         """
         if self._content_consumed is False and self.raw is not None:
-            self.raw.close()
+            if not asyncio.iscoroutinefunction(self.raw.close):
+                self.raw.close()
+            else:
+                warnings.warn(
+                    "use 'async with response' to be able to cleanly close the response in async mode.",
+                    UserWarning,
+                )
+
+        release_conn = getattr(self.raw, "release_conn", None)
+        if release_conn is not None:
+            release_conn()
+
+    async def __aenter__(self) -> Response:
+        return self
+
+    async def __aexit__(self, exc_type, exc_val, exc_tb) -> None:
+        if self._content_consumed is False and self.raw is not None:
+            if not asyncio.iscoroutinefunction(self.raw.close):
+                raise OSError("Attempted to use a synchronous response in an awaitable context.")
+
+            await self.raw.close()
 
         release_conn = getattr(self.raw, "release_conn", None)
         if release_conn is not None:
@@ -1643,7 +1667,7 @@ class AsyncResponse(Response):
             else None
         )
 
-    def __aenter__(self) -> AsyncResponse:
+    def __aenter__(self) -> AsyncResponse:  # type: ignore[override]
         return self
 
     async def __aiter__(self) -> typing.AsyncIterator[bytes]:
