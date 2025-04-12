@@ -548,7 +548,8 @@ class Session:
         )
 
         prep: PreparedRequest = self.prepare_request(req)
-        prep: PreparedRequest = dispatch_hook(
+
+        prep = dispatch_hook(
             "pre_request",
             prep.hooks,  # type: ignore[arg-type]
             prep,
