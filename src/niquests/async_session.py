@@ -871,7 +871,7 @@ class AsyncSession(Session):
 
         prep = await async_dispatch_hook(
             "pre_request",
-            hooks,  # type: ignore[arg-type]
+            prep.hooks,  # type: ignore[arg-type]
             prep,
         )
 

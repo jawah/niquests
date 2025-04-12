@@ -547,10 +547,11 @@ class Session:
             base_url=self.base_url,
         )
 
+        prep: PreparedRequest = self.prepare_request(req)
         prep: PreparedRequest = dispatch_hook(
             "pre_request",
-            hooks,  # type: ignore[arg-type]
-            self.prepare_request(req),
+            prep.hooks,  # type: ignore[arg-type]
+            prep,
         )
 
         assert prep.url is not None
