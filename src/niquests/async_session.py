@@ -530,7 +530,7 @@ class AsyncSession(Session):
         request.conn_info = _deepcopy_ci(request.conn_info)
 
         # We are leveraging a multiplexed connection
-        if r.lazy is True:
+        if hasattr(r, "lazy") and r.lazy is True:
 
             async def _redirect_method_ref(x, y):
                 aiter_gen = self.resolve_redirects(x, y, yield_requests=True, **kwargs)
@@ -773,7 +773,7 @@ class AsyncSession(Session):
                 # If the initial request was intended to be lazy but didn't meet required criteria
                 # e.g. Setting multiplexed=True, requesting HTTP/1.1 only capable and getting redirected
                 # to an HTTP/2+ endpoint.
-                if resp.lazy:
+                if hasattr(resp, "lazy") and resp.lazy:
                     await self.gather(resp)
 
                 extract_cookies_to_jar(self.cookies, prepared_request, resp.raw)
