@@ -61,6 +61,7 @@ from .exceptions import (
     TooManyRedirects,
 )
 from .hooks import HOOKS, default_hooks, dispatch_hook
+from .middlewares import Middleware, MiddlewareExecutor
 
 # formerly defined here, reexposed here for backward compatibility
 from .models import (  # noqa: F401
@@ -98,15 +99,14 @@ if sys.platform == "win32":
 else:
     preferred_clock = time.time
 
-
 _MSI = typing.TypeVar("_MSI", bound=typing.Mapping)
 _MSI_EX = typing.TypeVar("_MSI_EX", typing.Any, None)
 
 
 def merge_setting(
-    request_setting: _MSI | _MSI_EX,
-    session_setting: _MSI | _MSI_EX,
-    dict_class=OrderedDict,
+        request_setting: _MSI | _MSI_EX,
+        session_setting: _MSI | _MSI_EX,
+        dict_class=OrderedDict,
 ) -> _MSI | _MSI_EX:
     """Determines appropriate setting for a given request, taking into account
     the explicit setting on that request, and the setting in the session. If a
@@ -120,7 +120,8 @@ def merge_setting(
         return session_setting
 
     # Bypass if not a dictionary (e.g. verify)
-    if isinstance(session_setting, bool) or not (isinstance(session_setting, Mapping) and isinstance(request_setting, Mapping)):
+    if isinstance(session_setting, bool) or not (
+            isinstance(session_setting, Mapping) and isinstance(request_setting, Mapping)):
         return request_setting
 
     if hasattr(session_setting, "copy"):
@@ -143,9 +144,9 @@ def merge_setting(
 
 
 def merge_hooks(
-    request_hooks: HookType,
-    session_hooks: HookType,
-    dict_class=OrderedDict,
+        request_hooks: HookType,
+        session_hooks: HookType,
+        dict_class=OrderedDict,
 ) -> HookType:
     """Properly merges both requests and session hooks.
 
@@ -201,6 +202,7 @@ class Session:
         "auth",
         "proxies",
         "hooks",
+        "middlewares",
         "params",
         "verify",
         "cert",
@@ -226,25 +228,25 @@ class Session:
     ]
 
     def __init__(
-        self,
-        *,
-        resolver: ResolverType | None = None,
-        source_address: tuple[str, int] | None = None,
-        quic_cache_layer: CacheLayerAltSvcType | None = None,
-        retries: RetryType = DEFAULT_RETRIES,
-        multiplexed: bool = False,
-        disable_http1: bool = False,
-        disable_http2: bool = False,
-        disable_http3: bool = False,
-        disable_ipv6: bool = False,
-        disable_ipv4: bool = False,
-        pool_connections: int = DEFAULT_POOLSIZE,
-        pool_maxsize: int = DEFAULT_POOLSIZE,
-        happy_eyeballs: bool | int = False,
-        keepalive_delay: float | int | None = 3600.0,
-        keepalive_idle_window: float | int | None = 60.0,
-        base_url: str | None = None,
-        timeout: TimeoutType | None = None,
+            self,
+            *,
+            resolver: ResolverType | None = None,
+            source_address: tuple[str, int] | None = None,
+            quic_cache_layer: CacheLayerAltSvcType | None = None,
+            retries: RetryType = DEFAULT_RETRIES,
+            multiplexed: bool = False,
+            disable_http1: bool = False,
+            disable_http2: bool = False,
+            disable_http3: bool = False,
+            disable_ipv6: bool = False,
+            disable_ipv4: bool = False,
+            pool_connections: int = DEFAULT_POOLSIZE,
+            pool_maxsize: int = DEFAULT_POOLSIZE,
+            happy_eyeballs: bool | int = False,
+            keepalive_delay: float | int | None = 3600.0,
+            keepalive_idle_window: float | int | None = 60.0,
+            base_url: str | None = None,
+            timeout: TimeoutType | None = None
     ):
         """
         :param resolver: Specify a DNS resolver that should be used within this Session.
@@ -277,10 +279,10 @@ class Session:
         self.retries = retries
 
         if (
-            self.retries
-            and HAS_LEGACY_URLLIB3
-            and hasattr(self.retries, "total")
-            and "urllib3_future" not in str(type(self.retries))
+                self.retries
+                and HAS_LEGACY_URLLIB3
+                and hasattr(self.retries, "total")
+                and "urllib3_future" not in str(type(self.retries))
         ):
             self.retries = urllib3_ensure_type(self.retries)  # type: ignore[type-var]
 
@@ -300,6 +302,9 @@ class Session:
 
         #: Event-handling hooks.
         self.hooks: HookType[PreparedRequest | Response] = default_hooks()
+
+        #: Middleware defaults.
+        self.middlewares: list[Middleware] = []
 
         #: Dictionary of querystring data to attach to each
         #: :class:`Request <Request>`. The dictionary values may be lists for
@@ -447,7 +452,8 @@ class Session:
 
         # Set environment's basic authentication if not explicitly set.
         auth = request.auth
-        has_authorization_set = "authorization" in self.headers or "authorization" in CaseInsensitiveDict(request.headers)
+        has_authorization_set = "authorization" in self.headers or "authorization" in CaseInsensitiveDict(
+            request.headers)
 
         if self.trust_env and not auth and not self.auth and not has_authorization_set:
             auth = get_netrc_auth(request.url)
@@ -464,28 +470,30 @@ class Session:
             auth=merge_setting(auth, self.auth),
             cookies=merged_cookies,
             hooks=merge_hooks(request.hooks, self.hooks),
+            middlewares = self.middlewares + request.middlewares,
             base_url=self.base_url,
         )
         return p
 
     def request(
-        self,
-        method: HttpMethodType,
-        url: str,
-        params: QueryParameterType | None = None,
-        data: BodyType | None = None,
-        headers: HeadersType | None = None,
-        cookies: CookiesType | None = None,
-        files: MultiPartFilesType | MultiPartFilesAltType | None = None,
-        auth: HttpAuthenticationType | None = None,
-        timeout: TimeoutType | None = None,
-        allow_redirects: bool = True,
-        proxies: ProxyType | None = None,
-        hooks: HookType[PreparedRequest | Response] | None = None,
-        stream: bool | None = None,
-        verify: TLSVerifyType | None = None,
-        cert: TLSClientCertType | None = None,
-        json: typing.Any | None = None,
+            self,
+            method: HttpMethodType,
+            url: str,
+            params: QueryParameterType | None = None,
+            data: BodyType | None = None,
+            headers: HeadersType | None = None,
+            cookies: CookiesType | None = None,
+            files: MultiPartFilesType | MultiPartFilesAltType | None = None,
+            auth: HttpAuthenticationType | None = None,
+            timeout: TimeoutType | None = None,
+            allow_redirects: bool = True,
+            proxies: ProxyType | None = None,
+            hooks: HookType[PreparedRequest | Response] | None = None,
+            middlewares: list[Middleware] | None = None,
+            stream: bool | None = None,
+            verify: TLSVerifyType | None = None,
+            cert: TLSClientCertType | None = None,
+            json: typing.Any | None = None,
     ) -> Response:
         """Constructs a :class:`Request <Request>`, prepares it and sends it.
         Returns :class:`Response <Response>` object.
@@ -514,6 +522,8 @@ class Session:
             hostname to the URL of the proxy.
         :param hooks: (optional) Dictionary mapping hook name to one event or
             list of events, event must be callable.
+        :param middlewares: (optional) List of middleware to be used for this
+            request. This will merge with the session middlewares.
         :param stream: (optional) whether to immediately download the response
             content. Defaults to ``False``.
         :param verify: (optional) Either a boolean, in which case it controls whether we verify
@@ -544,6 +554,7 @@ class Session:
             auth=auth,
             cookies=cookies,
             hooks=hooks,
+            middlewares=middlewares,
             base_url=self.base_url,
         )
 
@@ -577,21 +588,22 @@ class Session:
         return resp
 
     def get(
-        self,
-        url: str,
-        *,
-        params: QueryParameterType | None = None,
-        headers: HeadersType | None = None,
-        cookies: CookiesType | None = None,
-        auth: HttpAuthenticationType | None = None,
-        timeout: TimeoutType | None = None,
-        allow_redirects: bool = True,
-        proxies: ProxyType | None = None,
-        hooks: HookType[PreparedRequest | Response] | None = None,
-        verify: TLSVerifyType | None = None,
-        stream: bool | None = None,
-        cert: TLSClientCertType | None = None,
-        **kwargs: typing.Any,
+            self,
+            url: str,
+            *,
+            params: QueryParameterType | None = None,
+            headers: HeadersType | None = None,
+            cookies: CookiesType | None = None,
+            auth: HttpAuthenticationType | None = None,
+            timeout: TimeoutType | None = None,
+            allow_redirects: bool = True,
+            proxies: ProxyType | None = None,
+            hooks: HookType[PreparedRequest | Response] | None = None,
+            middlewares: list[Middleware] | None = None,
+            verify: TLSVerifyType | None = None,
+            stream: bool | None = None,
+            cert: TLSClientCertType | None = None,
+            **kwargs: typing.Any,
     ) -> Response:
         r"""Sends a GET request. Returns :class:`Response` object.
 
@@ -612,6 +624,8 @@ class Session:
             hostname to the URL of the proxy.
         :param hooks: (optional) Dictionary mapping hook name to one event or
             list of events, event must be callable.
+        :param middlewares: (optional) List of middleware to be used for this
+            request. This will merge with the session middlewares.
         :param stream: (optional) whether to immediately download the response
             content. Defaults to ``False``.
         :param verify: (optional) Either a boolean, in which case it controls whether we verify
@@ -639,6 +653,7 @@ class Session:
             allow_redirects=allow_redirects,
             proxies=proxies,
             hooks=hooks,
+            middlewares=middlewares,
             verify=verify,
             stream=stream,
             cert=cert,
@@ -646,21 +661,22 @@ class Session:
         )
 
     def options(
-        self,
-        url: str,
-        *,
-        params: QueryParameterType | None = None,
-        headers: HeadersType | None = None,
-        cookies: CookiesType | None = None,
-        auth: HttpAuthenticationType | None = None,
-        timeout: TimeoutType | None = None,
-        allow_redirects: bool = True,
-        proxies: ProxyType | None = None,
-        hooks: HookType[PreparedRequest | Response] | None = None,
-        verify: TLSVerifyType | None = None,
-        stream: bool | None = None,
-        cert: TLSClientCertType | None = None,
-        **kwargs: typing.Any,
+            self,
+            url: str,
+            *,
+            params: QueryParameterType | None = None,
+            headers: HeadersType | None = None,
+            cookies: CookiesType | None = None,
+            auth: HttpAuthenticationType | None = None,
+            timeout: TimeoutType | None = None,
+            allow_redirects: bool = True,
+            proxies: ProxyType | None = None,
+            hooks: HookType[PreparedRequest | Response] | None = None,
+            middlewares: list[Middleware] | None = None,
+            verify: TLSVerifyType | None = None,
+            stream: bool | None = None,
+            cert: TLSClientCertType | None = None,
+            **kwargs: typing.Any,
     ) -> Response:
         r"""Sends a OPTIONS request. Returns :class:`Response` object.
 
@@ -681,6 +697,8 @@ class Session:
             hostname to the URL of the proxy.
         :param hooks: (optional) Dictionary mapping hook name to one event or
             list of events, event must be callable.
+        :param middlewares: (optional) List of middleware to be used for this
+            request. This will merge with the session middlewares.
         :param stream: (optional) whether to immediately download the response
             content. Defaults to ``False``.
         :param verify: (optional) Either a boolean, in which case it controls whether we verify
@@ -708,6 +726,7 @@ class Session:
             allow_redirects=allow_redirects,
             proxies=proxies,
             hooks=hooks,
+            middlewares=middlewares,
             verify=verify,
             stream=stream,
             cert=cert,
@@ -715,21 +734,22 @@ class Session:
         )
 
     def head(
-        self,
-        url: str,
-        *,
-        params: QueryParameterType | None = None,
-        headers: HeadersType | None = None,
-        cookies: CookiesType | None = None,
-        auth: HttpAuthenticationType | None = None,
-        timeout: TimeoutType | None = None,
-        allow_redirects: bool = True,
-        proxies: ProxyType | None = None,
-        hooks: HookType[PreparedRequest | Response] | None = None,
-        verify: TLSVerifyType | None = None,
-        stream: bool | None = None,
-        cert: TLSClientCertType | None = None,
-        **kwargs: typing.Any,
+            self,
+            url: str,
+            *,
+            params: QueryParameterType | None = None,
+            headers: HeadersType | None = None,
+            cookies: CookiesType | None = None,
+            auth: HttpAuthenticationType | None = None,
+            timeout: TimeoutType | None = None,
+            allow_redirects: bool = True,
+            proxies: ProxyType | None = None,
+            hooks: HookType[PreparedRequest | Response] | None = None,
+            middlewares: list[Middleware] | None = None,
+            verify: TLSVerifyType | None = None,
+            stream: bool | None = None,
+            cert: TLSClientCertType | None = None,
+            **kwargs: typing.Any,
     ) -> Response:
         r"""Sends a HEAD request. Returns :class:`Response` object.
 
@@ -750,6 +770,8 @@ class Session:
             hostname to the URL of the proxy.
         :param hooks: (optional) Dictionary mapping hook name to one event or
             list of events, event must be callable.
+        :param middlewares: (optional) List of middleware to be used for this
+            request. This will merge with the session middlewares.
         :param stream: (optional) whether to immediately download the response
             content. Defaults to ``False``.
         :param verify: (optional) Either a boolean, in which case it controls whether we verify
@@ -777,6 +799,7 @@ class Session:
             allow_redirects=allow_redirects,
             proxies=proxies,
             hooks=hooks,
+            middlewares=middlewares,
             verify=verify,
             stream=stream,
             cert=cert,
@@ -784,23 +807,24 @@ class Session:
         )
 
     def post(
-        self,
-        url: str,
-        data: BodyType | None = None,
-        json: typing.Any | None = None,
-        *,
-        params: QueryParameterType | None = None,
-        headers: HeadersType | None = None,
-        cookies: CookiesType | None = None,
-        files: MultiPartFilesType | MultiPartFilesAltType | None = None,
-        auth: HttpAuthenticationType | None = None,
-        timeout: TimeoutType | None = None,
-        allow_redirects: bool = True,
-        proxies: ProxyType | None = None,
-        hooks: HookType[PreparedRequest | Response] | None = None,
-        verify: TLSVerifyType | None = None,
-        stream: bool | None = None,
-        cert: TLSClientCertType | None = None,
+            self,
+            url: str,
+            data: BodyType | None = None,
+            json: typing.Any | None = None,
+            *,
+            params: QueryParameterType | None = None,
+            headers: HeadersType | None = None,
+            cookies: CookiesType | None = None,
+            files: MultiPartFilesType | MultiPartFilesAltType | None = None,
+            auth: HttpAuthenticationType | None = None,
+            timeout: TimeoutType | None = None,
+            allow_redirects: bool = True,
+            proxies: ProxyType | None = None,
+            hooks: HookType[PreparedRequest | Response] | None = None,
+            middlewares: list[Middleware] | None = None,
+            verify: TLSVerifyType | None = None,
+            stream: bool | None = None,
+            cert: TLSClientCertType | None = None,
     ) -> Response:
         r"""Sends a POST request. Returns :class:`Response` object.
 
@@ -827,6 +851,8 @@ class Session:
             hostname to the URL of the proxy.
         :param hooks: (optional) Dictionary mapping hook name to one event or
             list of events, event must be callable.
+        :param middlewares: (optional) List of middleware to be used for this
+            request. This will merge with the session middlewares.
         :param stream: (optional) whether to immediately download the response
             content. Defaults to ``False``.
         :param verify: (optional) Either a boolean, in which case it controls whether we verify
@@ -857,29 +883,31 @@ class Session:
             allow_redirects=allow_redirects,
             proxies=proxies,
             hooks=hooks,
+            middlewares=middlewares,
             verify=verify,
             stream=stream,
             cert=cert,
         )
 
     def put(
-        self,
-        url: str,
-        data: BodyType | None = None,
-        *,
-        json: typing.Any | None = None,
-        params: QueryParameterType | None = None,
-        headers: HeadersType | None = None,
-        cookies: CookiesType | None = None,
-        files: MultiPartFilesType | MultiPartFilesAltType | None = None,
-        auth: HttpAuthenticationType | None = None,
-        timeout: TimeoutType | None = None,
-        allow_redirects: bool = True,
-        proxies: ProxyType | None = None,
-        hooks: HookType[PreparedRequest | Response] | None = None,
-        verify: TLSVerifyType | None = None,
-        stream: bool | None = None,
-        cert: TLSClientCertType | None = None,
+            self,
+            url: str,
+            data: BodyType | None = None,
+            *,
+            json: typing.Any | None = None,
+            params: QueryParameterType | None = None,
+            headers: HeadersType | None = None,
+            cookies: CookiesType | None = None,
+            files: MultiPartFilesType | MultiPartFilesAltType | None = None,
+            auth: HttpAuthenticationType | None = None,
+            timeout: TimeoutType | None = None,
+            allow_redirects: bool = True,
+            proxies: ProxyType | None = None,
+            hooks: HookType[PreparedRequest | Response] | None = None,
+            middlewares: list[Middleware] | None = None,
+            verify: TLSVerifyType | None = None,
+            stream: bool | None = None,
+            cert: TLSClientCertType | None = None,
     ) -> Response:
         r"""Sends a PUT request. Returns :class:`Response` object.
 
@@ -906,6 +934,8 @@ class Session:
             hostname to the URL of the proxy.
         :param hooks: (optional) Dictionary mapping hook name to one event or
             list of events, event must be callable.
+        :param middlewares: (optional) List of middleware to be used for this
+            request. This will merge with the session middlewares.
         :param stream: (optional) whether to immediately download the response
             content. Defaults to ``False``.
         :param verify: (optional) Either a boolean, in which case it controls whether we verify
@@ -936,29 +966,31 @@ class Session:
             allow_redirects=allow_redirects,
             proxies=proxies,
             hooks=hooks,
+            middlewares=middlewares,
             verify=verify,
             stream=stream,
             cert=cert,
         )
 
     def patch(
-        self,
-        url: str,
-        data: BodyType | None = None,
-        *,
-        json: typing.Any | None = None,
-        params: QueryParameterType | None = None,
-        headers: HeadersType | None = None,
-        cookies: CookiesType | None = None,
-        files: MultiPartFilesType | MultiPartFilesAltType | None = None,
-        auth: HttpAuthenticationType | None = None,
-        timeout: TimeoutType | None = None,
-        allow_redirects: bool = True,
-        proxies: ProxyType | None = None,
-        hooks: HookType[PreparedRequest | Response] | None = None,
-        verify: TLSVerifyType | None = None,
-        stream: bool | None = None,
-        cert: TLSClientCertType | None = None,
+            self,
+            url: str,
+            data: BodyType | None = None,
+            *,
+            json: typing.Any | None = None,
+            params: QueryParameterType | None = None,
+            headers: HeadersType | None = None,
+            cookies: CookiesType | None = None,
+            files: MultiPartFilesType | MultiPartFilesAltType | None = None,
+            auth: HttpAuthenticationType | None = None,
+            timeout: TimeoutType | None = None,
+            allow_redirects: bool = True,
+            proxies: ProxyType | None = None,
+            hooks: HookType[PreparedRequest | Response] | None = None,
+            middlewares: list[Middleware] | None = None,
+            verify: TLSVerifyType | None = None,
+            stream: bool | None = None,
+            cert: TLSClientCertType | None = None,
     ) -> Response:
         r"""Sends a PATCH request. Returns :class:`Response` object.
 
@@ -985,6 +1017,8 @@ class Session:
             hostname to the URL of the proxy.
         :param hooks: (optional) Dictionary mapping hook name to one event or
             list of events, event must be callable.
+        :param middlewares: (optional) List of middleware to be used for this
+            request. This will merge with the session middlewares.
         :param stream: (optional) whether to immediately download the response
             content. Defaults to ``False``.
         :param verify: (optional) Either a boolean, in which case it controls whether we verify
@@ -1015,27 +1049,29 @@ class Session:
             allow_redirects=allow_redirects,
             proxies=proxies,
             hooks=hooks,
+            middlewares=middlewares,
             verify=verify,
             stream=stream,
             cert=cert,
         )
 
     def delete(
-        self,
-        url: str,
-        *,
-        params: QueryParameterType | None = None,
-        headers: HeadersType | None = None,
-        cookies: CookiesType | None = None,
-        auth: HttpAuthenticationType | None = None,
-        timeout: TimeoutType | None = None,
-        allow_redirects: bool = True,
-        proxies: ProxyType | None = None,
-        hooks: HookType[PreparedRequest | Response] | None = None,
-        verify: TLSVerifyType | None = None,
-        stream: bool | None = None,
-        cert: TLSClientCertType | None = None,
-        **kwargs: typing.Any,
+            self,
+            url: str,
+            *,
+            params: QueryParameterType | None = None,
+            headers: HeadersType | None = None,
+            cookies: CookiesType | None = None,
+            auth: HttpAuthenticationType | None = None,
+            timeout: TimeoutType | None = None,
+            allow_redirects: bool = True,
+            proxies: ProxyType | None = None,
+            hooks: HookType[PreparedRequest | Response] | None = None,
+            middlewares: list[Middleware] | None = None,
+            verify: TLSVerifyType | None = None,
+            stream: bool | None = None,
+            cert: TLSClientCertType | None = None,
+            **kwargs: typing.Any,
     ) -> Response:
         r"""Sends a DELETE request. Returns :class:`Response` object.
 
@@ -1056,6 +1092,8 @@ class Session:
             hostname to the URL of the proxy.
         :param hooks: (optional) Dictionary mapping hook name to one event or
             list of events, event must be callable.
+        :param middlewares: (optional) List of middleware to be used for this
+            request. This will merge with the session middlewares.
         :param stream: (optional) whether to immediately download the response
             content. Defaults to ``False``.
         :param verify: (optional) Either a boolean, in which case it controls whether we verify
@@ -1083,6 +1121,7 @@ class Session:
             allow_redirects=allow_redirects,
             proxies=proxies,
             hooks=hooks,
+            middlewares=middlewares,
             verify=verify,
             stream=stream,
             cert=cert,
@@ -1106,11 +1145,11 @@ class Session:
             kwargs["proxies"] = resolve_proxies(request, self.proxies, self.trust_env)
 
         if (
-            HAS_LEGACY_URLLIB3
-            and "timeout" in kwargs
-            and kwargs["timeout"]
-            and hasattr(kwargs["timeout"], "total")
-            and "urllib3_future" not in str(type(kwargs["timeout"]))
+                HAS_LEGACY_URLLIB3
+                and "timeout" in kwargs
+                and kwargs["timeout"]
+                and hasattr(kwargs["timeout"], "total")
+                and "urllib3_future" not in str(type(kwargs["timeout"]))
         ):
             kwargs["timeout"] = urllib3_ensure_type(kwargs["timeout"])
 
@@ -1118,6 +1157,7 @@ class Session:
         allow_redirects = kwargs.pop("allow_redirects", True)
         stream = kwargs.get("stream")
         hooks = request.hooks
+        middleware_executor = MiddlewareExecutor(request.middlewares)
 
         ptr_request = request
 
@@ -1126,7 +1166,8 @@ class Session:
             nonlocal ptr_request, request, kwargs
             ptr_request.conn_info = conn_info
 
-            if ptr_request.url and parse_scheme(ptr_request.url) == "https" and kwargs["verify"] and is_ocsp_capable(conn_info):
+            if ptr_request.url and parse_scheme(ptr_request.url) == "https" and kwargs["verify"] and is_ocsp_capable(
+                    conn_info):
                 strict_ocsp_enabled: bool = os.environ.get("NIQUESTS_STRICT_OCSP", "0") != "0"
 
                 try:
@@ -1156,10 +1197,10 @@ class Session:
                 dispatch_hook("pre_send", hooks, ptr_request)  # type: ignore[arg-type]
 
         def handle_upload_progress(
-            total_sent: int,
-            content_length: int | None,
-            is_completed: bool,
-            any_error: bool,
+                total_sent: int,
+                content_length: int | None,
+                is_completed: bool,
+                any_error: bool,
         ) -> None:
             nonlocal ptr_request, request, kwargs
             if ptr_request != request:
@@ -1232,6 +1273,9 @@ class Session:
                 ),
             )
 
+        # Fire middlewares here to give a last opportunity to modify the request
+        middleware_executor.execute_on_request_sync(request=request)
+
         # Get the appropriate adapter to use
         adapter = self.get_adapter(url=request.url)
 
@@ -1298,6 +1342,9 @@ class Session:
         elapsed = preferred_clock() - start
         r.elapsed = timedelta(seconds=elapsed)
 
+        # Fire middlewares
+        middleware_executor.execute_on_response_sync(response=r)
+
         # Response manipulation hooks
         r = dispatch_hook("response", hooks, r, **kwargs)  # type: ignore[arg-type]
 
@@ -1362,12 +1409,12 @@ class Session:
             adapter.gather(*responses, max_fetch=max_fetch)
 
     def merge_environment_settings(
-        self,
-        url: str,
-        proxies: ProxyType,
-        stream: bool | None,
-        verify: TLSVerifyType | None,
-        cert: TLSClientCertType | None,
+            self,
+            url: str,
+            proxies: ProxyType,
+            stream: bool | None,
+            verify: TLSVerifyType | None,
+            cert: TLSClientCertType | None,
     ) -> dict[str, typing.Any]:
         """
         Check the environment and merge it with some settings.
@@ -1412,7 +1459,8 @@ class Session:
         try:
             extension = load_extension(scheme, implementation=implementation)
             for prefix, adapter in self.adapters.items():
-                if scheme in extension.supported_schemes() and extension.scheme_to_http_scheme(scheme) == parse_scheme(prefix):
+                if scheme in extension.supported_schemes() and extension.scheme_to_http_scheme(scheme) == parse_scheme(
+                        prefix):
                     return adapter
         except ImportError:
             pass
@@ -1448,9 +1496,9 @@ class Session:
     def __getstate__(self):
         state = {attr: getattr(self, attr, None) for attr in self.__attrs__}
         if (
-            self._ocsp_cache is not None
-            and hasattr(self._ocsp_cache, "support_pickle")
-            and self._ocsp_cache.support_pickle() is True
+                self._ocsp_cache is not None
+                and hasattr(self._ocsp_cache, "support_pickle")
+                and self._ocsp_cache.support_pickle() is True
         ):
             state["_ocsp_cache"] = self._ocsp_cache
         return state
@@ -1537,10 +1585,10 @@ class Session:
         # breaking backwards compatibility with older versions of requests
         # that allowed any redirects on the same host.
         if (
-            old_parsed.scheme == "http"
-            and old_parsed.port in (80, None)
-            and new_parsed.scheme == "https"
-            and new_parsed.port in (443, None)
+                old_parsed.scheme == "http"
+                and old_parsed.port in (80, None)
+                and new_parsed.scheme == "https"
+                and new_parsed.port in (443, None)
         ):
             return False
 
@@ -1555,17 +1603,17 @@ class Session:
         return changed_port or changed_scheme
 
     def resolve_redirects(
-        self,
-        resp: Response,
-        req: PreparedRequest,
-        stream: bool = False,
-        timeout: int | float | None = None,
-        verify: TLSVerifyType = True,
-        cert: TLSClientCertType | None = None,
-        proxies: ProxyType | None = None,
-        yield_requests: bool = False,
-        yield_requests_trail: bool = False,
-        **adapter_kwargs: typing.Any,
+            self,
+            resp: Response,
+            req: PreparedRequest,
+            stream: bool = False,
+            timeout: int | float | None = None,
+            verify: TLSVerifyType = True,
+            cert: TLSClientCertType | None = None,
+            proxies: ProxyType | None = None,
+            yield_requests: bool = False,
+            yield_requests_trail: bool = False,
+            **adapter_kwargs: typing.Any,
     ) -> typing.Generator[Response | PreparedRequest, None, None]:
         """Receives a Response. Returns a generator of Responses or Requests."""
 
@@ -1606,7 +1654,8 @@ class Session:
             parsed = urlparse(url)
             if parsed.fragment == "" and previous_fragment:
                 parsed = parsed._replace(
-                    fragment=previous_fragment if isinstance(previous_fragment, str) else previous_fragment.decode("utf-8")
+                    fragment=previous_fragment if isinstance(previous_fragment, str) else previous_fragment.decode(
+                        "utf-8")
                 )
             elif parsed.fragment:
                 previous_fragment = parsed.fragment
@@ -1632,8 +1681,8 @@ class Session:
 
             # https://github.com/psf/requests/issues/1084
             if resp.status_code not in (
-                codes.temporary_redirect,  # type: ignore[attr-defined]
-                codes.permanent_redirect,  # type: ignore[attr-defined]
+                    codes.temporary_redirect,  # type: ignore[attr-defined]
+                    codes.permanent_redirect,  # type: ignore[attr-defined]
             ):
                 # https://github.com/psf/requests/issues/3490
                 purged_headers = ("Content-Length", "Content-Type", "Transfer-Encoding")
@@ -1661,7 +1710,7 @@ class Session:
             # value ensures `rewindable` will be True, allowing us to raise an
             # UnrewindableBodyError, instead of hanging the connection.
             rewindable = prepared_request._body_position is not None and (
-                "Content-Length" in headers or "Transfer-Encoding" in headers
+                    "Content-Length" in headers or "Transfer-Encoding" in headers
             )
 
             # Attempt to rewind consumed file-like object.
