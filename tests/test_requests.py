@@ -1117,6 +1117,28 @@ class TestRequests:
         assert prep.hooks["response"] != []
         assert prep.hooks["response"] == [hook]
 
+    def test_session_pre_request_fired(self, httpbin):
+        hook_called = False
+
+        def hook(*args, **kwargs):
+            nonlocal hook_called
+            hook_called = True
+
+        s = niquests.Session()
+        s.hooks["pre_request"] = [hook]
+
+        s.get(httpbin())
+
+        assert hook_called
+
+        hook_called = False
+
+        s.hooks["pre_request"] = []
+
+        s.get(httpbin(), hooks={"pre_request": [hook]})
+
+        assert hook_called
+
     def test_session_hooks_are_overridden_by_request_hooks(self, httpbin):
         def hook1(*args, **kwargs):
             pass
