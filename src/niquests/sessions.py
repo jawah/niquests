@@ -1278,7 +1278,7 @@ class Session:
             )
 
         # Fire middlewares here to give a last opportunity to modify the request
-        middleware_executor.execute_on_request_sync(request=request)
+        middleware_executor.on_request(request=request)
 
         # Get the appropriate adapter to use
         adapter = self.get_adapter(url=request.url)
@@ -1347,7 +1347,7 @@ class Session:
         r.elapsed = timedelta(seconds=elapsed)
 
         # Fire middlewares
-        middleware_executor.execute_on_response_sync(response=r)
+        middleware_executor.on_response(response=r)
 
         # Response manipulation hooks
         r = dispatch_hook("response", hooks, r, **kwargs)  # type: ignore[arg-type]

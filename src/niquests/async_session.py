@@ -10,7 +10,7 @@ from datetime import timedelta
 from http.cookiejar import CookieJar
 from urllib.parse import urljoin, urlparse
 
-from .middlewares import Middleware, MiddlewareExecutor
+from .middlewares import Middleware, AsyncMiddlewareExecutor
 from .status_codes import codes
 
 if typing.TYPE_CHECKING:
@@ -409,7 +409,7 @@ class AsyncSession(Session):
         allow_redirects = kwargs.pop("allow_redirects", True)
         stream = kwargs.get("stream")
         hooks = request.hooks
-        middleware_executor = MiddlewareExecutor(request.middlewares)
+        middleware_executor = AsyncMiddlewareExecutor(request.middlewares)
 
         ptr_request = request
 
@@ -527,7 +527,7 @@ class AsyncSession(Session):
             )
 
         # Fire middlewares here to allow them to modify the request
-        await middleware_executor.execute_on_request_async(request=request)
+        await middleware_executor.on_request(request=request)
 
         # Get the appropriate adapter to use
         adapter = self.get_adapter(url=request.url)
@@ -585,7 +585,7 @@ class AsyncSession(Session):
         r.elapsed = timedelta(seconds=elapsed)
 
         # Fire middleware on response
-        await middleware_executor.execute_on_response_async(response=r)
+        await middleware_executor.on_response(response=r)
 
         # Response manipulation hooks
         r = await async_dispatch_hook("response", hooks, r, **kwargs)  # type: ignore[arg-type]

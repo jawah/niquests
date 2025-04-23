@@ -1,6 +1,5 @@
 import typing
 from inspect import iscoroutinefunction
-from typing import Iterable
 from abc import ABC
 
 if typing.TYPE_CHECKING:
@@ -28,34 +27,72 @@ class Middleware(ABC):
 
 
 class MiddlewareExecutor:
-    """
-    MiddlewareExecutor is a class that manages the execution of middleware
-    functions during the request lifecycle.
-    It allows for the chaining of multiple middleware functions, ensuring
-    that each middleware can modify the request or response as needed.
-    """
+    """Executes a chain of middleware for different stages of a request lifecycle."""
 
-    def __init__(self, middlewares: Iterable[Middleware]):
-        self.middlewares = middlewares
+    def __init__(self, middlewares: list[Middleware] = None):
+        """Initialize with a list of middleware instances."""
+        self.middlewares = middlewares or []
 
-    def execute_on_request_sync(self, request: 'PreparedRequest', *args, **kwargs) -> None:
+    def execute_stage(
+            self,
+            stage: str,
+            *args,
+            **kwargs
+    ) -> None:
+        """
+        Execute middleware for a specific stage (e.g., on_request, on_response).
+
+        Args:
+            stage: The middleware method to call (e.g., 'on_request', 'on_response').
+            *args, **kwargs: Arguments to pass to the middleware method.
+        """
         for middleware in self.middlewares:
-            middleware.on_request(request, *args, **kwargs) or request
+            getattr(middleware, stage)(*args, **kwargs)
 
-    def execute_on_response_sync(self, response: 'Response', *args, **kwargs) -> None:
-        for middleware in self.middlewares:
-            middleware.on_response(response, *args, **kwargs) or response
+    def on_request(self, request: PreparedRequest, *args, **kwargs) -> None:
+        """Execute on_request middleware stage."""
+        self.execute_stage("on_request", request=request, *args, **kwargs)
 
-    async def execute_on_request_async(self, request: 'PreparedRequest', *args, **kwargs) -> None:
+    def on_response(self, response: Response, *args, **kwargs) -> None:
+        """Execute on_response middleware stage."""
+        self.execute_stage("on_response", response=response, *args, **kwargs)
+
+    def __call__(self, stage: str, *args, **kwargs) -> None:
+        """Allow direct stage execution for flexibility."""
+        self.execute_stage(stage, *args, **kwargs)
+
+
+class AsyncMiddlewareExecutor(MiddlewareExecutor):
+    """Executes a chain of asynchronous middleware for different stages of a request lifecycle."""
+
+    async def execute_stage(
+            self,
+            stage: str,
+            *args,
+            **kwargs
+    ) -> None:
+        """
+        Execute middleware for a specific stage (e.g., on_request, on_response) asynchronously.
+
+        Args:
+            stage: The middleware method to call (e.g., 'on_request', 'on_response').
+            *args, **kwargs: Arguments to pass to the middleware method.
+        """
         for middleware in self.middlewares:
-            if iscoroutinefunction(middleware.on_request):
-                await middleware.on_request(request=request, *args, **kwargs)
+            method = getattr(middleware, stage)
+            if iscoroutinefunction(method):
+                await method(*args, **kwargs)
             else:
-                middleware.on_request(request=request, *args, **kwargs)
+                method(*args, **kwargs)
 
-    async def execute_on_response_async(self, response: 'Response', *args, **kwargs) -> None:
-        for middleware in self.middlewares:
-            if iscoroutinefunction(middleware.on_response):
-                await middleware.on_response(response=response, *args, **kwargs)
-            else:
-                middleware.on_response(response=response, *args, **kwargs)
+    async def on_request(self, request: PreparedRequest, *args, **kwargs) -> None:
+        """Execute on_request middleware stage asynchronously."""
+        await self.execute_stage("on_request", default=request, request=request, *args, **kwargs)
+
+    async def on_response(self, response: Response, *args, **kwargs) -> None:
+        """Execute on_response middleware stage asynchronously."""
+        await self.execute_stage("on_response", default=response, response=response, *args, **kwargs)
+
+    async def __call__(self, stage: str, *args, **kwargs) -> None:
+        """Allow direct stage execution for flexibility."""
+        await self.execute_stage(stage, *args, **kwargs)
