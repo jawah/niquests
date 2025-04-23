@@ -246,7 +246,8 @@ class Session:
             keepalive_delay: float | int | None = 3600.0,
             keepalive_idle_window: float | int | None = 60.0,
             base_url: str | None = None,
-            timeout: TimeoutType | None = None
+            timeout: TimeoutType | None = None,
+            middlewares: list[Middleware] | None = None,
     ):
         """
         :param resolver: Specify a DNS resolver that should be used within this Session.
@@ -271,6 +272,8 @@ class Session:
             being completely idle. This only applies to HTTP/2 onward.
         :param base_url: Automatically set a URL prefix (or base url) on every request emitted if applicable.
         :param timeout: Default timeout configuration to be used if no timeout is provided in exposed methods.
+        :param middlewares: List of middleware to be used for this session. This will be merged with the request
+            middlewares.
         """
         if [disable_ipv4, disable_ipv6].count(True) == 2:
             raise RuntimeError("Cannot disable both IPv4 and IPv6")
@@ -304,7 +307,7 @@ class Session:
         self.hooks: HookType[PreparedRequest | Response] = default_hooks()
 
         #: Middleware defaults.
-        self.middlewares: list[Middleware] = []
+        self.middlewares: list[Middleware] = middlewares or []
 
         #: Dictionary of querystring data to attach to each
         #: :class:`Request <Request>`. The dictionary values may be lists for

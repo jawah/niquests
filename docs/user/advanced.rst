@@ -701,10 +701,10 @@ Here’s an example of applying the `CustomHeaderMiddleware` to a session:
     from niquests import Session
 
     # Create a session with middleware
-    session = Session(middlewares=[CustomHeaderMiddleware()])
+    session = Session()
 
     # Make a request
-    response = session.get("https://httpbin.org/get")
+    response = session.get("https://httpbin.org/get", middlewares=[CustomHeaderMiddleware()])
     # The request will have the custom header, and the response status code will be printed
 
 You can also add multiple middleware instances, which will be executed in the order they are provided:
@@ -715,8 +715,8 @@ You can also add multiple middleware instances, which will be executed in the or
         def on_request(self, request: PreparedRequest, *args, **kwargs) -> None:
             print(f"Sending request to {request.url}")
 
-    session = Session(middlewares=[CustomHeaderMiddleware(), LoggingMiddleware()])
-    response = session.get("https://httpbin.org/get")
+    session = Session()
+    response = session.get("https://httpbin.org/get", middlewares=[CustomHeaderMiddleware(), LoggingMiddleware()])
     # Output:
     # Sending request to https://httpbin.org/get
     # Received response with status code: 200
@@ -739,8 +739,8 @@ Here’s an example of an asynchronous middleware that adds a delay before proce
             print(f"Processed response after delay: {response.status_code}")
 
     async def main():
-        async with niquests.AsyncSession(middlewares=[AsyncDelayMiddleware()]) as session:
-            response = await session.get("https://httpbin.org/get")
+        async with niquests.AsyncSession() as session:
+            response = await session.get("https://httpbin.org/get", middlewares=[AsyncDelayMiddleware()])
 
     asyncio.run(main())
 
@@ -781,8 +781,8 @@ Here’s a practical example of a middleware that adds an API key to every reque
         def on_request(self, request: PreparedRequest, *args, **kwargs) -> None:
             request.headers["Authorization"] = f"Bearer {self.api_key}"
 
-    session = niquests.Session(middlewares=[ApiKeyMiddleware("my-api-key")])
-    response = session.get("https://api.example.com/data")
+    session = niquests.Session()
+    response = session.get("https://api.example.com/data", middlewares=[ApiKeyMiddleware("my-api-key")])
     # The request includes the Authorization header with the API key
 
 .. note:: For asynchronous requests, ensure that any middleware performing I/O (e.g., fetching tokens) is implemented as an `async` method.
