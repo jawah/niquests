@@ -49,11 +49,11 @@ class MiddlewareExecutor:
         for middleware in self.middlewares:
             getattr(middleware, stage)(*args, **kwargs)
 
-    def on_request(self, request: PreparedRequest, *args, **kwargs) -> None:
+    def on_request(self, request: "PreparedRequest", *args, **kwargs) -> None:
         """Execute on_request middleware stage."""
         self.execute_stage("on_request", request=request, *args, **kwargs)
 
-    def on_response(self, response: Response, *args, **kwargs) -> None:
+    def on_response(self, response: "Response", *args, **kwargs) -> None:
         """Execute on_response middleware stage."""
         self.execute_stage("on_response", response=response, *args, **kwargs)
 
@@ -85,13 +85,13 @@ class AsyncMiddlewareExecutor(MiddlewareExecutor):
             else:
                 method(*args, **kwargs)
 
-    async def on_request(self, request: PreparedRequest, *args, **kwargs) -> None:
+    async def on_request(self, request: "PreparedRequest", *args, **kwargs) -> None:
         """Execute on_request middleware stage asynchronously."""
-        await self.execute_stage("on_request", default=request, request=request, *args, **kwargs)
+        await self.execute_stage("on_request", request=request, *args, **kwargs)
 
-    async def on_response(self, response: Response, *args, **kwargs) -> None:
+    async def on_response(self, response: "Response", *args, **kwargs) -> None:
         """Execute on_response middleware stage asynchronously."""
-        await self.execute_stage("on_response", default=response, response=response, *args, **kwargs)
+        await self.execute_stage("on_response", response=response, *args, **kwargs)
 
     async def __call__(self, stage: str, *args, **kwargs) -> None:
         """Allow direct stage execution for flexibility."""

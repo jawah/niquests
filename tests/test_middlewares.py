@@ -2,7 +2,8 @@ from __future__ import annotations
 
 import pytest
 from niquests import PreparedRequest, Response
-from niquests.middlewares import Middleware, MiddlewareExecutor
+from niquests.middlewares import Middleware, MiddlewareExecutor, AsyncMiddlewareExecutor
+from inspect import iscoroutinefunction
 
 
 # Mock Middleware classes for testing
@@ -17,13 +18,13 @@ class SyncMiddleware(Middleware):
         self.request_called = True
         self.request_kwargs = kwargs
         if hasattr(request, "test_data"):
-            request.test_data += "_sync_request"
+            request.test_data += "_request"
 
     def on_response(self, response: Response, *args, **kwargs) -> None:
         self.response_called = True
         self.response_kwargs = kwargs
         if hasattr(response, "test_data"):
-            response.test_data += "_sync_response"
+            response.test_data += "_response"
 
 
 class AsyncMiddleware(Middleware):
@@ -74,20 +75,20 @@ def async_middleware():
 # Synchronous MiddlewareExecutor Tests
 def test_execute_on_request_sync(prepared_request, sync_middleware):
     executor = MiddlewareExecutor([sync_middleware])
-    executor.execute_on_request_sync(prepared_request, extra="test")
+    executor.on_request(prepared_request, extra="test")
 
     assert sync_middleware.request_called
     assert sync_middleware.request_kwargs == {"extra": "test"}
-    assert prepared_request.test_data == "initial_sync_request"
+    assert prepared_request.test_data == "initial_request"
 
 
 def test_execute_on_response_sync(response, sync_middleware):
     executor = MiddlewareExecutor([sync_middleware])
-    executor.execute_on_response_sync(response, extra="test")
+    executor.on_response(response, extra="test")
 
     assert sync_middleware.response_called
     assert sync_middleware.response_kwargs == {"extra": "test"}
-    assert response.test_data == "initial_sync_response"
+    assert response.test_data == "initial_response"
 
 
 def test_multiple_sync_middlewares(prepared_request, response):
@@ -95,18 +96,32 @@ def test_multiple_sync_middlewares(prepared_request, response):
     middleware2 = SyncMiddleware()
     executor = MiddlewareExecutor([middleware1, middleware2])
 
-    executor.execute_on_request_sync(prepared_request)
-    assert prepared_request.test_data == "initial_sync_request_sync_request"
+    executor.on_request(prepared_request)
+    assert prepared_request.test_data == "initial_request_request"
 
-    executor.execute_on_response_sync(response)
-    assert response.test_data == "initial_sync_response_sync_response"
+    executor.on_response(response)
+    assert response.test_data == "initial_response_response"
+
+
+def test_sync_executor_call_method(prepared_request, response, sync_middleware):
+    executor = MiddlewareExecutor([sync_middleware])
+
+    executor("on_request", request=prepared_request, extra="test")
+    assert sync_middleware.request_called
+    assert sync_middleware.request_kwargs == {"extra": "test"}
+    assert prepared_request.test_data == "initial_request"
+
+    executor("on_response", response=response, extra="test")
+    assert sync_middleware.response_called
+    assert sync_middleware.response_kwargs == {"extra": "test"}
+    assert response.test_data == "initial_response"
 
 
 # Asynchronous MiddlewareExecutor Tests
 @pytest.mark.asyncio
 async def test_execute_on_request_async(prepared_request, async_middleware):
-    executor = MiddlewareExecutor([async_middleware])
-    await executor.execute_on_request_async(prepared_request, extra="test")
+    executor = AsyncMiddlewareExecutor([async_middleware])
+    await executor.on_request(prepared_request, extra="test")
 
     assert async_middleware.request_called
     assert async_middleware.request_kwargs == {"extra": "test"}
@@ -115,8 +130,8 @@ async def test_execute_on_request_async(prepared_request, async_middleware):
 
 @pytest.mark.asyncio
 async def test_execute_on_response_async(response, async_middleware):
-    executor = MiddlewareExecutor([async_middleware])
-    await executor.execute_on_response_async(response, extra="test")
+    executor = AsyncMiddlewareExecutor([async_middleware])
+    await executor.on_response(response, extra="test")
 
     assert async_middleware.response_called
     assert async_middleware.response_kwargs == {"extra": "test"}
@@ -125,60 +140,89 @@ async def test_execute_on_response_async(response, async_middleware):
 
 @pytest.mark.asyncio
 async def test_mixed_sync_async_middlewares(prepared_request, response, sync_middleware, async_middleware):
-    executor = MiddlewareExecutor([sync_middleware, async_middleware])
+    executor = AsyncMiddlewareExecutor([sync_middleware, async_middleware])
 
-    await executor.execute_on_request_async(prepared_request)
-    assert prepared_request.test_data == "initial_sync_request_async_request"
+    await executor.on_request(prepared_request)
+    assert prepared_request.test_data == "initial_request_async_request"
 
-    await executor.execute_on_response_async(response)
-    assert response.test_data == "initial_sync_response_async_response"
+    await executor.on_response(response)
+    assert response.test_data == "initial_response_async_response"
 
 
 @pytest.mark.asyncio
 async def test_async_executor_with_sync_middleware(prepared_request, response, sync_middleware):
-    executor = MiddlewareExecutor([sync_middleware])
+    executor = AsyncMiddlewareExecutor([sync_middleware])
 
-    await executor.execute_on_request_async(prepared_request, extra="test")
+    await executor.on_request(prepared_request, extra="test")
     assert sync_middleware.request_called
     assert sync_middleware.request_kwargs == {"extra": "test"}
-    assert prepared_request.test_data == "initial_sync_request"
+    assert prepared_request.test_data == "initial_request"
 
-    await executor.execute_on_response_async(response, extra="test")
+    await executor.on_response(response, extra="test")
     assert sync_middleware.response_called
     assert sync_middleware.response_kwargs == {"extra": "test"}
-    assert response.test_data == "initial_sync_response"
+    assert response.test_data == "initial_response"
+
+
+@pytest.mark.asyncio
+async def test_async_executor_call_method(prepared_request, response, async_middleware):
+    executor = AsyncMiddlewareExecutor([async_middleware])
+
+    await executor("on_request", request=prepared_request, extra="test")
+    assert async_middleware.request_called
+    assert async_middleware.request_kwargs == {"extra": "test"}
+    assert prepared_request.test_data == "initial_async_request"
+
+    await executor("on_response", response=response, extra="test")
+    assert async_middleware.response_called
+    assert async_middleware.response_kwargs == {"extra": "test"}
+    assert response.test_data == "initial_async_response"
 
 
 # Edge Case Tests
-def test_empty_middleware_list(prepared_request, response):
+def test_empty_middleware_list_sync(prepared_request, response):
     executor = MiddlewareExecutor([])
 
-    executor.execute_on_request_sync(prepared_request)
-    executor.execute_on_response_sync(response)
+    executor.on_request(prepared_request)
+    executor.on_response(response)
 
     assert prepared_request.test_data == "initial"
     assert response.test_data == "initial"
 
 
 @pytest.mark.asyncio
-async def test_async_empty_middleware_list(prepared_request, response):
-    executor = MiddlewareExecutor([])
+async def test_empty_middleware_list_async(prepared_request, response):
+    executor = AsyncMiddlewareExecutor([])
 
-    await executor.execute_on_request_async(prepared_request)
-    await executor.execute_on_response_async(response)
+    await executor.on_request(prepared_request)
+    await executor.on_response(response)
 
     assert prepared_request.test_data == "initial"
     assert response.test_data == "initial"
 
 
-def test_middleware_no_modification(prepared_request, response):
+def test_middleware_no_modification_sync(prepared_request, response):
     class NoOpMiddleware(Middleware):
         pass
 
     executor = MiddlewareExecutor([NoOpMiddleware()])
 
-    executor.execute_on_request_sync(prepared_request)
-    executor.execute_on_response_sync(response)
+    executor.on_request(prepared_request)
+    executor.on_response(response)
+
+    assert prepared_request.test_data == "initial"
+    assert response.test_data == "initial"
+
+
+@pytest.mark.asyncio
+async def test_middleware_no_modification_async(prepared_request, response):
+    class NoOpMiddleware(Middleware):
+        pass
+
+    executor = AsyncMiddlewareExecutor([NoOpMiddleware()])
+
+    await executor.on_request(prepared_request)
+    await executor.on_response(response)
 
     assert prepared_request.test_data == "initial"
     assert response.test_data == "initial"
