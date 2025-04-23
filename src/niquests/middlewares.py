@@ -29,7 +29,7 @@ class Middleware(ABC):
 class MiddlewareExecutor:
     """Executes a chain of middleware for different stages of a request lifecycle."""
 
-    def __init__(self, middlewares: list[Middleware] = None):
+    def __init__(self, middlewares: list[Middleware] | None = None):
         """Initialize with a list of middleware instances."""
         self.middlewares = middlewares or []
 
@@ -62,8 +62,12 @@ class MiddlewareExecutor:
         self.execute_stage(stage, *args, **kwargs)
 
 
-class AsyncMiddlewareExecutor(MiddlewareExecutor):
+class AsyncMiddlewareExecutor:
     """Executes a chain of asynchronous middleware for different stages of a request lifecycle."""
+
+    def __init__(self, middlewares: list[Middleware] | None = None):
+        """Initialize with a list of middleware instances."""
+        self.middlewares = middlewares or []
 
     async def execute_stage(
             self,
