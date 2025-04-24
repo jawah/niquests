@@ -247,7 +247,7 @@ class Session:
             keepalive_idle_window: float | int | None = 60.0,
             base_url: str | None = None,
             timeout: TimeoutType | None = None,
-            middlewares: list[Middleware] | None = None,
+            middlewares: typing.List[Middleware] | None = None,
     ):
         """
         :param resolver: Specify a DNS resolver that should be used within this Session.
@@ -307,7 +307,7 @@ class Session:
         self.hooks: HookType[PreparedRequest | Response] = default_hooks()
 
         #: Middleware defaults.
-        self.middlewares: list[Middleware] = middlewares or []
+        self.middlewares: typing.List[Middleware] = middlewares or []
 
         #: Dictionary of querystring data to attach to each
         #: :class:`Request <Request>`. The dictionary values may be lists for
@@ -492,7 +492,7 @@ class Session:
             allow_redirects: bool = True,
             proxies: ProxyType | None = None,
             hooks: HookType[PreparedRequest | Response] | None = None,
-            middlewares: list[Middleware] | None = None,
+            middlewares: typing.List[Middleware] | None = None,
             stream: bool | None = None,
             verify: TLSVerifyType | None = None,
             cert: TLSClientCertType | None = None,
@@ -603,7 +603,7 @@ class Session:
             allow_redirects: bool = True,
             proxies: ProxyType | None = None,
             hooks: HookType[PreparedRequest | Response] | None = None,
-            middlewares: list[Middleware] | None = None,
+            middlewares: typing.List[Middleware] | None = None,
             verify: TLSVerifyType | None = None,
             stream: bool | None = None,
             cert: TLSClientCertType | None = None,
@@ -676,7 +676,7 @@ class Session:
             allow_redirects: bool = True,
             proxies: ProxyType | None = None,
             hooks: HookType[PreparedRequest | Response] | None = None,
-            middlewares: list[Middleware] | None = None,
+            middlewares: typing.List[Middleware] | None = None,
             verify: TLSVerifyType | None = None,
             stream: bool | None = None,
             cert: TLSClientCertType | None = None,
@@ -749,7 +749,7 @@ class Session:
             allow_redirects: bool = True,
             proxies: ProxyType | None = None,
             hooks: HookType[PreparedRequest | Response] | None = None,
-            middlewares: list[Middleware] | None = None,
+            middlewares: typing.List[Middleware] | None = None,
             verify: TLSVerifyType | None = None,
             stream: bool | None = None,
             cert: TLSClientCertType | None = None,
@@ -825,7 +825,7 @@ class Session:
             allow_redirects: bool = True,
             proxies: ProxyType | None = None,
             hooks: HookType[PreparedRequest | Response] | None = None,
-            middlewares: list[Middleware] | None = None,
+            middlewares: typing.List[Middleware] | None = None,
             verify: TLSVerifyType | None = None,
             stream: bool | None = None,
             cert: TLSClientCertType | None = None,
@@ -908,7 +908,7 @@ class Session:
             allow_redirects: bool = True,
             proxies: ProxyType | None = None,
             hooks: HookType[PreparedRequest | Response] | None = None,
-            middlewares: list[Middleware] | None = None,
+            middlewares: typing.List[Middleware] | None = None,
             verify: TLSVerifyType | None = None,
             stream: bool | None = None,
             cert: TLSClientCertType | None = None,
@@ -991,7 +991,7 @@ class Session:
             allow_redirects: bool = True,
             proxies: ProxyType | None = None,
             hooks: HookType[PreparedRequest | Response] | None = None,
-            middlewares: list[Middleware] | None = None,
+            middlewares: typing.List[Middleware] | None = None,
             verify: TLSVerifyType | None = None,
             stream: bool | None = None,
             cert: TLSClientCertType | None = None,
@@ -1071,7 +1071,7 @@ class Session:
             allow_redirects: bool = True,
             proxies: ProxyType | None = None,
             hooks: HookType[PreparedRequest | Response] | None = None,
-            middlewares: list[Middleware] | None = None,
+            middlewares: typing.List[Middleware] | None = None,
             verify: TLSVerifyType | None = None,
             stream: bool | None = None,
             cert: TLSClientCertType | None = None,

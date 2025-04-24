@@ -195,7 +195,7 @@ class Request:
             auth: HttpAuthenticationType | AsyncHttpAuthenticationType | None = None,
             cookies: CookiesType | None = None,
             hooks: HookType | None = None,
-            middlewares: list[Middleware] | None = None,
+            middlewares: typing.List[Middleware] | None = None,
             json: typing.Any | None = None,
             base_url: str | None = None,
     ):
@@ -210,7 +210,7 @@ class Request:
         for k, v in list(hooks.items()):
             self.register_hook(event=k, hook=v)
 
-        self.middlewares: list[Middleware] = middlewares or []
+        self.middlewares: typing.List[Middleware] = middlewares or []
 
         self.method = method
         self.url = url
@@ -316,7 +316,7 @@ class PreparedRequest:
         #: dictionary of callback hooks, for internal usage.
         self.hooks: HookType[Response | PreparedRequest] = default_hooks()
         #: list of middlewares to be used in request flow.
-        self.middlewares: list[Middleware] = []
+        self.middlewares: typing.List[Middleware] = []
         #: integer denoting starting position of a readable file-like body.
         self._body_position: int | object | None = None
         #: valuable intel about the opened connection.
@@ -343,7 +343,7 @@ class PreparedRequest:
             auth: HttpAuthenticationType | AsyncHttpAuthenticationType | None = None,
             cookies: CookiesType | None = None,
             hooks: HookType[Response | PreparedRequest] | None = None,
-            middlewares: list[Middleware] | None = None,
+            middlewares: typing.List[Middleware] | None = None,
             json: typing.Any | None = None,
             base_url: str | None = None,
     ) -> None:
@@ -679,7 +679,7 @@ class PreparedRequest:
         if cookie_header is not None:
             self.headers["Cookie"] = cookie_header
 
-    def prepare_middlewares(self, middlewares: list[Middleware] | None) -> None:
+    def prepare_middlewares(self, middlewares: typing.List[Middleware] | None) -> None:
         """Prepares the given middlewares."""
         # middlewares can be passed as None to the prepare method and to this
         # method. To prevent iterating over None, simply use an empty list
