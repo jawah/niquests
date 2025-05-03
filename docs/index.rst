@@ -134,6 +134,7 @@ Niquests ecosystem and community.
    :maxdepth: 2
 
    dev/migrate
+   dev/httpx
    community/extensions
    community/faq
    community/support
