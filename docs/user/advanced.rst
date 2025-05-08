@@ -639,6 +639,162 @@ You may find bellow a plausible example::
 - **is_completed** : Determine if the transfer ended
 - **any_error** : Simple boolean that indicate whenever a error occurred during transfer (like early response from peer)
 
+.. _middleware:
+
+Middleware
+----------
+
+Niquests provides a middleware system that allows you to intercept and manipulate the request and response lifecycle. Middleware enables developers to add custom logic before a request is sent or after a response is received, making it ideal for tasks such as logging, modifying headers, or handling authentication.
+
+Middleware Overview
+~~~~~~~~~~~~~~~~~~
+
+Middleware in Niquests is implemented through the `Middleware` abstract base class. You can create custom middleware by subclassing `Middleware` and overriding its methods to handle specific parts of the request-response lifecycle.
+
+Available Methods
+~~~~~~~~~~~~~~~~
+
+The `Middleware` class provides two methods that you can override:
+
+``on_request``:
+    Called after the request is prepared but before it is sent. Use this to modify the `PreparedRequest` object or perform pre-request actions.
+
+    - **Parameters**:
+        - `request`: The `PreparedRequest` object.
+        - `args`, `kwargs`: Additional context passed during execution.
+    - **Return**: `None`. Modifications to the request should be made in-place.
+
+``on_response``:
+    Called after receiving a response from the server. Use this to process or modify the `Response` object.
+
+    - **Parameters**:
+        - `response`: The `Response` object.
+        - `args`, `kwargs`: Additional context passed during execution.
+    - **Return**: `None`. Modifications to the response should be made in-place.
+
+Creating a Middleware
+~~~~~~~~~~~~~~~~~~~~
+
+To create a middleware, subclass `Middleware` and implement the `on_request` and/or `on_response` methods. Here’s an example of a middleware that adds a custom header to every request and logs the response status code:
+
+::
+
+    from niquests import Middleware, PreparedRequest, Response
+
+    class CustomHeaderMiddleware(Middleware):
+        def on_request(self, request: PreparedRequest, *args, **kwargs) -> None:
+            request.headers["X-Custom-Header"] = "MyValue"
+
+        def on_response(self, response: Response, *args, **kwargs) -> None:
+            print(f"Received response with status code: {response.status_code}")
+
+Using Middleware
+~~~~~~~~~~~~~~~~
+
+Middleware can be applied to a `Session` instance, and it will be executed for every request made through that session. To use middleware, pass a list of middleware instances to the `Session` constructor or add them to an existing session.
+
+Here’s an example of applying the `CustomHeaderMiddleware` to a session:
+
+::
+
+    import niquests
+    from niquests import Session
+
+    # Create a session with middleware
+    session = Session()
+
+    # Make a request
+    response = session.get("https://httpbin.org/get", middlewares=[CustomHeaderMiddleware()])
+    # The request will have the custom header, and the response status code will be printed
+
+You can also add multiple middleware instances, which will be executed in the order they are provided:
+
+::
+
+    class LoggingMiddleware(Middleware):
+        def on_request(self, request: PreparedRequest, *args, **kwargs) -> None:
+            print(f"Sending request to {request.url}")
+
+    session = Session()
+    response = session.get("https://httpbin.org/get", middlewares=[CustomHeaderMiddleware(), LoggingMiddleware()])
+    # Output:
+    # Sending request to https://httpbin.org/get
+    # Received response with status code: 200
+
+Asynchronous Middleware
+~~~~~~~~~~~~~~~~~~~~~~~
+
+Niquests supports asynchronous middleware for use with asynchronous HTTP requests. To create an asynchronous middleware, define `on_request` and/or `on_response` as `async` methods. The `MiddlewareExecutor` automatically detects and awaits asynchronous methods.
+
+Here’s an example of an asynchronous middleware that adds a delay before processing the response:
+
+::
+
+    import asyncio
+    from niquests import Middleware, PreparedRequest, Response
+
+    class AsyncDelayMiddleware(Middleware):
+        async def on_response(self, response: Response, *args, **kwargs) -> None:
+            await asyncio.sleep(1)  # Simulate async work
+            print(f"Processed response after delay: {response.status_code}")
+
+    async def main():
+        async with niquests.AsyncSession() as session:
+            response = await session.get("https://httpbin.org/get", middlewares=[AsyncDelayMiddleware()])
+
+    asyncio.run(main())
+
+Middleware Execution
+~~~~~~~~~~~~~~~~~~~
+
+Middleware is managed by the `MiddlewareExecutor` class, which ensures that all middleware methods are called in the correct order. The executor supports both synchronous and asynchronous middleware, automatically handling `async` methods when detected.
+
+- **Request Phase**: The `on_request` methods of all middleware are called sequentially before the request is sent.
+- **Response Phase**: The `on_response` methods are called sequentially after the response is received.
+
+.. warning:: Middleware methods should handle their own exceptions. Unhandled exceptions will propagate and may interrupt the request lifecycle.
+
+.. note:: Modifications to `request` or `response` objects should be made in-place, as the return value of middleware methods is ignored.
+
+Use Cases
+~~~~~~~~~
+
+Middleware is versatile and can be used for a variety of purposes, including:
+
+- **Authentication**: Add or refresh authentication tokens in request headers.
+- **Logging**: Log request and response details for debugging or monitoring.
+- **Header Manipulation**: Add, remove, or modify headers dynamically.
+- **Rate Limiting**: Implement client-side rate limiting before sending requests.
+- **Response Processing**: Parse or transform response data before it’s returned to the caller.
+
+Example: Authentication Middleware
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Here’s a practical example of a middleware that adds an API key to every request:
+
+::
+
+    class ApiKeyMiddleware(Middleware):
+        def __init__(self, api_key: str):
+            self.api_key = api_key
+
+        def on_request(self, request: PreparedRequest, *args, **kwargs) -> None:
+            request.headers["Authorization"] = f"Bearer {self.api_key}"
+
+    session = niquests.Session()
+    response = session.get("https://api.example.com/data", middlewares=[ApiKeyMiddleware("my-api-key")])
+    # The request includes the Authorization header with the API key
+
+.. note:: For asynchronous requests, ensure that any middleware performing I/O (e.g., fetching tokens) is implemented as an `async` method.
+
+Best Practices
+~~~~~~~~~~~~~~
+
+- **Keep Middleware Lightweight**: Avoid heavy computations or I/O in middleware to prevent performance bottlenecks.
+- **Handle Exceptions**: Ensure middleware methods catch and handle exceptions to avoid breaking the request lifecycle.
+- **Use In-Place Modifications**: Modify `request` or `response` objects directly rather than returning new objects.
+- **Combine with Hooks**: Middleware can complement event hooks for more fine-grained control over the request lifecycle.
+
 .. _custom-auth:
 
 Custom Authentication

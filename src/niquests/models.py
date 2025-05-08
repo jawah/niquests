@@ -17,6 +17,8 @@ import datetime
 import encodings.idna  # noqa: F401
 import warnings
 
+from .middlewares import Middleware
+
 try:
     import orjson as _json  # type: ignore[import]
 except ImportError:
@@ -183,18 +185,19 @@ class Request:
     """
 
     def __init__(
-        self,
-        method: HttpMethodType | None = None,
-        url: str | None = None,
-        headers: HeadersType | None = None,
-        files: MultiPartFilesType | MultiPartFilesAltType | None = None,
-        data: BodyType | AsyncBodyType | None = None,
-        params: QueryParameterType | None = None,
-        auth: HttpAuthenticationType | AsyncHttpAuthenticationType | None = None,
-        cookies: CookiesType | None = None,
-        hooks: HookType | None = None,
-        json: typing.Any | None = None,
-        base_url: str | None = None,
+            self,
+            method: HttpMethodType | None = None,
+            url: str | None = None,
+            headers: HeadersType | None = None,
+            files: MultiPartFilesType | MultiPartFilesAltType | None = None,
+            data: BodyType | AsyncBodyType | None = None,
+            params: QueryParameterType | None = None,
+            auth: HttpAuthenticationType | AsyncHttpAuthenticationType | None = None,
+            cookies: CookiesType | None = None,
+            hooks: HookType | None = None,
+            middlewares: list[Middleware] | None = None,
+            json: typing.Any | None = None,
+            base_url: str | None = None,
     ):
         # Default empty dicts for dict params.
         data = [] if data is None else data
@@ -206,6 +209,8 @@ class Request:
         self.hooks: HookType[Response | PreparedRequest] = default_hooks()
         for k, v in list(hooks.items()):
             self.register_hook(event=k, hook=v)
+
+        self.middlewares: list[Middleware] = middlewares or []
 
         self.method = method
         self.url = url
@@ -226,9 +231,9 @@ class Request:
         return f"<Request [{self.method}]>"
 
     def register_hook(
-        self,
-        event: str,
-        hook: HookCallableType[Response | PreparedRequest] | list[HookCallableType[Response | PreparedRequest]],
+            self,
+            event: str,
+            hook: HookCallableType[Response | PreparedRequest] | list[HookCallableType[Response | PreparedRequest]],
     ) -> None:
         """Properly register a hook."""
 
@@ -266,6 +271,7 @@ class Request:
             auth=self.auth,
             cookies=self.cookies,
             hooks=self.hooks,
+            middlewares=self.middlewares,
             base_url=self.base_url,
         )
 
@@ -309,6 +315,8 @@ class PreparedRequest:
         self.body: BodyType | AsyncBodyType | None = None
         #: dictionary of callback hooks, for internal usage.
         self.hooks: HookType[Response | PreparedRequest] = default_hooks()
+        #: list of middlewares to be used in request flow.
+        self.middlewares: list[Middleware] = []
         #: integer denoting starting position of a readable file-like body.
         self._body_position: int | object | None = None
         #: valuable intel about the opened connection.
@@ -325,18 +333,19 @@ class PreparedRequest:
         return parse_it(self.headers)
 
     def prepare(
-        self,
-        method: HttpMethodType | None = None,
-        url: str | None = None,
-        headers: HeadersType | None = None,
-        files: MultiPartFilesType | MultiPartFilesAltType | None = None,
-        data: BodyType | AsyncBodyType | None = None,
-        params: QueryParameterType | None = None,
-        auth: HttpAuthenticationType | AsyncHttpAuthenticationType | None = None,
-        cookies: CookiesType | None = None,
-        hooks: HookType[Response | PreparedRequest] | None = None,
-        json: typing.Any | None = None,
-        base_url: str | None = None,
+            self,
+            method: HttpMethodType | None = None,
+            url: str | None = None,
+            headers: HeadersType | None = None,
+            files: MultiPartFilesType | MultiPartFilesAltType | None = None,
+            data: BodyType | AsyncBodyType | None = None,
+            params: QueryParameterType | None = None,
+            auth: HttpAuthenticationType | AsyncHttpAuthenticationType | None = None,
+            cookies: CookiesType | None = None,
+            hooks: HookType[Response | PreparedRequest] | None = None,
+            middlewares: list[Middleware] | None = None,
+            json: typing.Any | None = None,
+            base_url: str | None = None,
     ) -> None:
         """Prepares the entire request with the given parameters."""
 
@@ -350,7 +359,8 @@ class PreparedRequest:
         # Note that prepare_auth must be last to enable authentication schemes
         # such as OAuth to work on a fully prepared request.
 
-        # This MUST go after prepare_auth. Authenticators could add a hook
+        # This MUST go after prepare_auth. Authenticators could add a hook / middleware
+        self.prepare_middlewares(middlewares)
         self.prepare_hooks(hooks)
 
     def __repr__(self) -> str:
@@ -364,6 +374,7 @@ class PreparedRequest:
         p._cookies = _copy_cookie_jar(self._cookies)
         p.body = self.body
         p.hooks = self.hooks
+        p.middlewares = self.middlewares.copy()
         p._body_position = self._body_position
         return p
 
@@ -372,11 +383,11 @@ class PreparedRequest:
         self.method = method.upper() if method else method
 
     def prepare_url(
-        self,
-        url: str | None,
-        params: QueryParameterType | None,
-        *,
-        base_url: str | None = None,
+            self,
+            url: str | None,
+            params: QueryParameterType | None,
+            *,
+            base_url: str | None = None,
     ) -> None:
         """Prepares the given HTTP URL."""
         assert url is not None, "Missing URL in PreparedRequest"
@@ -468,10 +479,10 @@ class PreparedRequest:
                     self.headers[name] = value
 
     def prepare_body(
-        self,
-        data: BodyType | AsyncBodyType | None,
-        files: MultiPartFilesType | MultiPartFilesAltType | None,
-        json: typing.Any | None = None,
+            self,
+            data: BodyType | AsyncBodyType | None,
+            files: MultiPartFilesType | MultiPartFilesAltType | None,
+            json: typing.Any | None = None,
     ) -> None:
         """Prepares the given HTTP body data."""
 
@@ -539,28 +550,29 @@ class PreparedRequest:
             # Multi-part file uploads.
             if files:
                 if not (
-                    isinstance(
-                        data,
-                        (
-                            list,
-                            dict,
-                        ),
-                    )
-                    or data is None
+                        isinstance(
+                            data,
+                            (
+                                    list,
+                                    dict,
+                            ),
+                        )
+                        or data is None
                 ):
                     raise ValueError(f"Conflicting parameters. Cannot pass files with given data: type({type(data)})")
                 # mypy seems to lose its way here.
                 (body, content_type) = self._encode_files(files, data)  # type: ignore[arg-type]
             else:
                 if data:
-                    enforce_form_data = "content-type" in self.headers and "multipart/form-data" in self.headers["content-type"]
+                    enforce_form_data = "content-type" in self.headers and "multipart/form-data" in self.headers[
+                        "content-type"]
 
                     if enforce_form_data:
                         form_data_boundary = (
                             self.oheaders.content_type.get("boundary")  # type: ignore[union-attr]
                             if enforce_form_data
-                            and self.oheaders.content_type.has_many("boundary") is False  # type: ignore[union-attr]
-                            and self.oheaders.content_type.get("boundary") is not None  # type: ignore[union-attr]
+                               and self.oheaders.content_type.has_many("boundary") is False  # type: ignore[union-attr]
+                               and self.oheaders.content_type.get("boundary") is not None  # type: ignore[union-attr]
                             else choose_boundary()
                         )
                     else:
@@ -605,9 +617,9 @@ class PreparedRequest:
             self.headers["Content-Length"] = "0"
 
     def prepare_auth(
-        self,
-        auth: HttpAuthenticationType | AsyncHttpAuthenticationType | None,
-        url: str = "",
+            self,
+            auth: HttpAuthenticationType | AsyncHttpAuthenticationType | None,
+            url: str = "",
     ) -> None:
         """Prepares the given HTTP auth data."""
 
@@ -626,11 +638,12 @@ class PreparedRequest:
                 auth = BearerTokenAuth(auth)
 
             if not callable(auth):
-                raise ValueError("Unexpected non-callable authentication. Did you pass unsupported tuple to auth argument?")
+                raise ValueError(
+                    "Unexpected non-callable authentication. Did you pass unsupported tuple to auth argument?")
 
             self._asynchronous_auth = (
-                hasattr(auth, "__call__") and asyncio.iscoroutinefunction(auth.__call__)
-            ) or asyncio.iscoroutinefunction(auth)
+                                              hasattr(auth, "__call__") and asyncio.iscoroutinefunction(auth.__call__)
+                                      ) or asyncio.iscoroutinefunction(auth)
 
             if not self._asynchronous_auth:
                 # Allow auth to make its changes.
@@ -665,6 +678,14 @@ class PreparedRequest:
         cookie_header = get_cookie_header(self._cookies, self)
         if cookie_header is not None:
             self.headers["Cookie"] = cookie_header
+
+    def prepare_middlewares(self, middlewares: list[Middleware] | None) -> None:
+        """Prepares the given middlewares."""
+        # middlewares can be passed as None to the prepare method and to this
+        # method. To prevent iterating over None, simply use an empty list
+        # if middlewares is False-y
+        middlewares = middlewares or []
+        self.middlewares.extend(middlewares)
 
     def prepare_hooks(self, hooks) -> None:
         """Prepares the given hooks."""
@@ -720,8 +741,8 @@ class PreparedRequest:
 
     @staticmethod
     def _encode_params(
-        data: QueryParameterType | BodyFormType | typing.IO,
-        boundary_for_multipart: str | None = None,
+            data: QueryParameterType | BodyFormType | typing.IO,
+            boundary_for_multipart: str | None = None,
     ) -> str | bytes | bytearray:
         """Encode parameters in a piece of data.
 
@@ -742,11 +763,11 @@ class PreparedRequest:
                     # not officially supported, but some people maybe passing ints, float, bool,
                     # or other string serializable classes.
                     if vs is not None and not isinstance(
-                        vs,
-                        (
-                            str,
-                            bytes,
-                        ),
+                            vs,
+                            (
+                                    str,
+                                    bytes,
+                            ),
                     ):
                         iterable_vs = [str(vs)]
                     else:
@@ -772,8 +793,8 @@ class PreparedRequest:
 
     @staticmethod
     def _encode_files(
-        files: MultiPartFilesType | MultiPartFilesAltType,
-        data: dict[str | bytes, str | bytes] | list[tuple[str | bytes, str | bytes]] | None,
+            files: MultiPartFilesType | MultiPartFilesAltType,
+            data: dict[str | bytes, str | bytes] | list[tuple[str | bytes, str | bytes]] | None,
     ) -> tuple[bytes, str]:
         """Build the body for a multipart/form-data request.
 
@@ -795,11 +816,11 @@ class PreparedRequest:
         for field, val in fields:
             iterable_val: list[str | bytes]
             if isinstance(
-                val,
-                (
-                    str,
-                    bytes,
-                ),
+                    val,
+                    (
+                            str,
+                            bytes,
+                    ),
             ) or not hasattr(val, "__iter__"):
                 iterable_val = [val]
             else:
@@ -986,15 +1007,15 @@ class Response:
 
     @property
     def extension(
-        self,
+            self,
     ) -> (
-        WebSocketExtensionFromHTTP
-        | RawExtensionFromHTTP
-        | ServerSideEventExtensionFromHTTP
-        | AsyncWebSocketExtensionFromHTTP
-        | AsyncRawExtensionFromHTTP
-        | AsyncServerSideEventExtensionFromHTTP
-        | None
+            WebSocketExtensionFromHTTP
+            | RawExtensionFromHTTP
+            | ServerSideEventExtensionFromHTTP
+            | AsyncWebSocketExtensionFromHTTP
+            | AsyncRawExtensionFromHTTP
+            | AsyncServerSideEventExtensionFromHTTP
+            | None
     ):
         """Access the I/O after an Upgraded connection. E.g. for a WebSocket handler.
         If the server opened a WebSocket, then the extension will be of type WebSocketExtensionFromHTTP.
@@ -1029,7 +1050,8 @@ class Response:
 
     def __getattribute__(self, item):
         try:
-            if super().__getattribute__("raw") is None and item in Response.__lazy_attrs__ and super().__getattribute__("lazy"):
+            if super().__getattribute__("raw") is None and item in Response.__lazy_attrs__ and super().__getattribute__(
+                    "lazy"):
                 if asyncio.iscoroutinefunction(super().__getattribute__("connection").gather):
                     raise MultiplexingError(
                         "Accessing a lazy response produced by an AsyncSession is forbidden. "
@@ -1152,14 +1174,17 @@ class Response:
 
     @typing.overload
     def iter_content(
-        self, chunk_size: int = ..., decode_unicode: Literal[False] = ...
-    ) -> typing.Generator[bytes, None, None]: ...
+            self, chunk_size: int = ..., decode_unicode: Literal[False] = ...
+    ) -> typing.Generator[bytes, None, None]:
+        ...
 
     @typing.overload
-    def iter_content(self, chunk_size: int = ..., *, decode_unicode: Literal[True]) -> typing.Generator[str, None, None]: ...
+    def iter_content(self, chunk_size: int = ..., *, decode_unicode: Literal[True]) -> typing.Generator[
+        str, None, None]:
+        ...
 
     def iter_content(
-        self, chunk_size: int = ITER_CHUNK_SIZE, decode_unicode: bool = False
+            self, chunk_size: int = ITER_CHUNK_SIZE, decode_unicode: bool = False
     ) -> typing.Generator[bytes | str, None, None]:
         """Iterates over the response data.  When stream=True is set on the
         request, this avoids reading the content at once into memory for
@@ -1324,26 +1349,28 @@ class Response:
 
     @typing.overload
     def iter_lines(
-        self,
-        chunk_size: int = ...,
-        decode_unicode: Literal[False] = ...,
-        delimiter: str | bytes | None = ...,
-    ) -> typing.Generator[bytes, None, None]: ...
+            self,
+            chunk_size: int = ...,
+            decode_unicode: Literal[False] = ...,
+            delimiter: str | bytes | None = ...,
+    ) -> typing.Generator[bytes, None, None]:
+        ...
 
     @typing.overload
     def iter_lines(
-        self,
-        chunk_size: int = ...,
-        *,
-        decode_unicode: Literal[True],
-        delimiter: str | bytes | None = ...,
-    ) -> typing.Generator[str, None, None]: ...
+            self,
+            chunk_size: int = ...,
+            *,
+            decode_unicode: Literal[True],
+            delimiter: str | bytes | None = ...,
+    ) -> typing.Generator[str, None, None]:
+        ...
 
     def iter_lines(
-        self,
-        chunk_size: int = ITER_CHUNK_SIZE,
-        decode_unicode: bool = False,
-        delimiter: str | bytes | None = None,
+            self,
+            chunk_size: int = ITER_CHUNK_SIZE,
+            decode_unicode: bool = False,
+            delimiter: str | bytes | None = None,
     ) -> typing.Generator[bytes | str, None, None]:
         """Iterates over the response data, one line at a time.  When
         stream=True is set on the request, this avoids reading the
@@ -1360,7 +1387,7 @@ class Response:
         pending = None
 
         for chunk in self.iter_content(  # type: ignore[call-overload]
-            chunk_size=chunk_size, decode_unicode=decode_unicode
+                chunk_size=chunk_size, decode_unicode=decode_unicode
         ):
             if pending is not None:
                 chunk = pending + chunk
@@ -1656,7 +1683,7 @@ class AsyncResponse(Response):
 
     @property
     def extension(  # type: ignore[override]
-        self,
+            self,
     ) -> AsyncWebSocketExtensionFromHTTP | AsyncRawExtensionFromHTTP | None:
         """Access the I/O after an Upgraded connection. E.g. for a WebSocket handler.
         If the server opened a WebSocket, then the extension will be of type AsyncWebSocketExtensionFromHTTP.
@@ -1693,16 +1720,18 @@ class AsyncResponse(Response):
 
     @typing.overload  # type: ignore[override]
     async def iter_content(
-        self, chunk_size: int = ..., decode_unicode: Literal[False] = ...
-    ) -> typing.AsyncGenerator[bytes, None]: ...
+            self, chunk_size: int = ..., decode_unicode: Literal[False] = ...
+    ) -> typing.AsyncGenerator[bytes, None]:
+        ...
 
     @typing.overload  # type: ignore[override]
     async def iter_content(
-        self, chunk_size: int = ..., *, decode_unicode: Literal[True]
-    ) -> typing.AsyncGenerator[str, None]: ...
+            self, chunk_size: int = ..., *, decode_unicode: Literal[True]
+    ) -> typing.AsyncGenerator[str, None]:
+        ...
 
     async def iter_content(  # type: ignore[override]
-        self, chunk_size: int = ITER_CHUNK_SIZE, decode_unicode: bool = False
+            self, chunk_size: int = ITER_CHUNK_SIZE, decode_unicode: bool = False
     ) -> typing.AsyncGenerator[bytes | str, None]:
         if self.lazy:
             await self._gather()
@@ -1761,7 +1790,7 @@ class AsyncResponse(Response):
         return stream_chunks
 
     async def iter_raw(  # type: ignore[override]
-        self, chunk_size: int = ITER_CHUNK_SIZE
+            self, chunk_size: int = ITER_CHUNK_SIZE
     ) -> typing.AsyncGenerator[bytes, None]:
         if self.lazy:
             await self._gather()
@@ -1816,26 +1845,28 @@ class AsyncResponse(Response):
 
     @typing.overload  # type: ignore[override]
     async def iter_lines(
-        self,
-        chunk_size: int = ...,
-        decode_unicode: Literal[False] = ...,
-        delimiter: str | bytes | None = ...,
-    ) -> typing.AsyncGenerator[bytes, None]: ...
+            self,
+            chunk_size: int = ...,
+            decode_unicode: Literal[False] = ...,
+            delimiter: str | bytes | None = ...,
+    ) -> typing.AsyncGenerator[bytes, None]:
+        ...
 
     @typing.overload  # type: ignore[override]
     async def iter_lines(
-        self,
-        chunk_size: int = ...,
-        *,
-        decode_unicode: Literal[True],
-        delimiter: str | bytes | None = ...,
-    ) -> typing.AsyncGenerator[str, None]: ...
+            self,
+            chunk_size: int = ...,
+            *,
+            decode_unicode: Literal[True],
+            delimiter: str | bytes | None = ...,
+    ) -> typing.AsyncGenerator[str, None]:
+        ...
 
     async def iter_lines(  # type: ignore[misc]
-        self,
-        chunk_size: int = ITER_CHUNK_SIZE,
-        decode_unicode: bool = False,
-        delimiter: str | bytes | None = None,
+            self,
+            chunk_size: int = ITER_CHUNK_SIZE,
+            decode_unicode: bool = False,
+            delimiter: str | bytes | None = None,
     ) -> typing.AsyncGenerator[bytes | str, None]:
         if delimiter is not None and decode_unicode is False and isinstance(delimiter, str):
             raise ValueError(
@@ -1846,7 +1877,7 @@ class AsyncResponse(Response):
         pending = None
 
         async for chunk in await self.iter_content(  # type: ignore[call-overload]
-            chunk_size=chunk_size, decode_unicode=decode_unicode
+                chunk_size=chunk_size, decode_unicode=decode_unicode
         ):
             if pending is not None:
                 chunk = pending + chunk

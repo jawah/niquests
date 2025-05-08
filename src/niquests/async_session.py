@@ -10,6 +10,7 @@ from datetime import timedelta
 from http.cookiejar import CookieJar
 from urllib.parse import urljoin, urlparse
 
+from .middlewares import Middleware, AsyncMiddlewareExecutor
 from .status_codes import codes
 
 if typing.TYPE_CHECKING:
@@ -108,25 +109,26 @@ class AsyncSession(Session):
     """
 
     def __init__(
-        self,
-        *,
-        resolver: AsyncResolverType | None = None,
-        source_address: tuple[str, int] | None = None,
-        quic_cache_layer: CacheLayerAltSvcType | None = None,
-        retries: RetryType = DEFAULT_RETRIES,
-        multiplexed: bool = False,
-        disable_http1: bool = False,
-        disable_http2: bool = False,
-        disable_http3: bool = False,
-        disable_ipv6: bool = False,
-        disable_ipv4: bool = False,
-        pool_connections: int = DEFAULT_POOLSIZE,
-        pool_maxsize: int = DEFAULT_POOLSIZE,
-        happy_eyeballs: bool | int = False,
-        keepalive_delay: float | int | None = 3600.0,
-        keepalive_idle_window: float | int | None = 60.0,
-        base_url: str | None = None,
-        timeout: TimeoutType | None = None,
+            self,
+            *,
+            resolver: AsyncResolverType | None = None,
+            source_address: tuple[str, int] | None = None,
+            quic_cache_layer: CacheLayerAltSvcType | None = None,
+            retries: RetryType = DEFAULT_RETRIES,
+            multiplexed: bool = False,
+            disable_http1: bool = False,
+            disable_http2: bool = False,
+            disable_http3: bool = False,
+            disable_ipv6: bool = False,
+            disable_ipv4: bool = False,
+            pool_connections: int = DEFAULT_POOLSIZE,
+            pool_maxsize: int = DEFAULT_POOLSIZE,
+            happy_eyeballs: bool | int = False,
+            keepalive_delay: float | int | None = 3600.0,
+            keepalive_idle_window: float | int | None = 60.0,
+            base_url: str | None = None,
+            timeout: TimeoutType | None = None,
+            middlewares: list[Middleware] | None = None,
     ):
         if [disable_ipv4, disable_ipv6].count(True) == 2:
             raise RuntimeError("Cannot disable both IPv4 and IPv6")
@@ -135,10 +137,10 @@ class AsyncSession(Session):
         self.retries = retries
 
         if (
-            self.retries
-            and HAS_LEGACY_URLLIB3
-            and hasattr(self.retries, "total")
-            and "urllib3_future" not in str(type(self.retries))
+                self.retries
+                and HAS_LEGACY_URLLIB3
+                and hasattr(self.retries, "total")
+                and "urllib3_future" not in str(type(self.retries))
         ):
             self.retries = urllib3_ensure_type(self.retries)  # type: ignore[type-var]
 
@@ -157,7 +159,11 @@ class AsyncSession(Session):
         self.proxies: ProxyType = {}
 
         #: Event-handling hooks.
-        self.hooks: AsyncHookType[PreparedRequest | Response | AsyncResponse] = default_hooks()  # type: ignore[assignment]
+        self.hooks: AsyncHookType[
+            PreparedRequest | Response | AsyncResponse] = default_hooks()  # type: ignore[assignment]
+
+        #: Middleware defaults.
+        self.middlewares: list[Middleware] = middlewares or []
 
         #: Dictionary of querystring data to attach to each
         #: :class:`Request <Request>`. The dictionary values may be lists for
@@ -232,7 +238,8 @@ class AsyncSession(Session):
         #: A simple dict that allows us to persist which server support QUIC
         #: It is simply forwarded to urllib3.future that handle the caching logic.
         #: Can be any mutable mapping.
-        self.quic_cache_layer = quic_cache_layer if quic_cache_layer is not None else AsyncQuicSharedCache(max_size=12_288)
+        self.quic_cache_layer = quic_cache_layer if quic_cache_layer is not None else AsyncQuicSharedCache(
+            max_size=12_288)
 
         #: Don't try to manipulate this object.
         #: It cannot be pickled and accessing this object may cause
@@ -354,7 +361,8 @@ class AsyncSession(Session):
         try:
             extension = load_extension(scheme, implementation=implementation)
             for prefix, adapter in self.adapters.items():
-                if scheme in extension.supported_schemes() and extension.scheme_to_http_scheme(scheme) == parse_scheme(prefix):
+                if scheme in extension.supported_schemes() and extension.scheme_to_http_scheme(scheme) == parse_scheme(
+                        prefix):
                     return adapter
         except ImportError:
             pass
@@ -370,7 +378,7 @@ class AsyncSession(Session):
         raise InvalidSchema(f"No connection adapters were found for {url!r}{additional_hint}")
 
     async def send(  # type: ignore[override]
-        self, request: PreparedRequest, **kwargs: typing.Any
+            self, request: PreparedRequest, **kwargs: typing.Any
     ) -> Response | AsyncResponse:  # type: ignore[override]
         """Send a given PreparedRequest."""
 
@@ -389,11 +397,11 @@ class AsyncSession(Session):
             kwargs["proxies"] = resolve_proxies(request, self.proxies, self.trust_env)
 
         if (
-            "timeout" in kwargs
-            and kwargs["timeout"]
-            and HAS_LEGACY_URLLIB3
-            and hasattr(kwargs["timeout"], "total")
-            and "urllib3_future" not in str(type(kwargs["timeout"]))
+                "timeout" in kwargs
+                and kwargs["timeout"]
+                and HAS_LEGACY_URLLIB3
+                and hasattr(kwargs["timeout"], "total")
+                and "urllib3_future" not in str(type(kwargs["timeout"]))
         ):
             kwargs["timeout"] = urllib3_ensure_type(kwargs["timeout"])
 
@@ -401,6 +409,7 @@ class AsyncSession(Session):
         allow_redirects = kwargs.pop("allow_redirects", True)
         stream = kwargs.get("stream")
         hooks = request.hooks
+        middleware_executor = AsyncMiddlewareExecutor(request.middlewares)
 
         ptr_request = request
 
@@ -409,7 +418,8 @@ class AsyncSession(Session):
             nonlocal ptr_request, request, kwargs
             ptr_request.conn_info = conn_info
 
-            if ptr_request.url and ptr_request.url.startswith("https://") and kwargs["verify"] and is_ocsp_capable(conn_info):
+            if ptr_request.url and ptr_request.url.startswith("https://") and kwargs["verify"] and is_ocsp_capable(
+                    conn_info):
                 strict_ocsp_enabled: bool = os.environ.get("NIQUESTS_STRICT_OCSP", "0") != "0"
 
                 try:
@@ -440,10 +450,10 @@ class AsyncSession(Session):
                 await async_dispatch_hook("pre_send", hooks, ptr_request)  # type: ignore[arg-type]
 
         async def handle_upload_progress(
-            total_sent: int,
-            content_length: int | None,
-            is_completed: bool,
-            any_error: bool,
+                total_sent: int,
+                content_length: int | None,
+                is_completed: bool,
+                any_error: bool,
         ) -> None:
             nonlocal ptr_request, request, kwargs
             if ptr_request != request:
@@ -516,6 +526,9 @@ class AsyncSession(Session):
                 ),
             )
 
+        # Fire middlewares here to allow them to modify the request
+        await middleware_executor.on_request(request=request)
+
         # Get the appropriate adapter to use
         adapter = self.get_adapter(url=request.url)
 
@@ -570,6 +583,9 @@ class AsyncSession(Session):
         # Total elapsed time of the request (approximately)
         elapsed = preferred_clock() - start
         r.elapsed = timedelta(seconds=elapsed)
+
+        # Fire middlewares on response
+        await middleware_executor.on_response(response=r)
 
         # Response manipulation hooks
         r = await async_dispatch_hook("response", hooks, r, **kwargs)  # type: ignore[arg-type]
@@ -631,17 +647,17 @@ class AsyncSession(Session):
         return r
 
     async def resolve_redirects(  # type: ignore[override]
-        self,
-        resp: AsyncResponse,
-        req: PreparedRequest,
-        stream: bool = False,
-        timeout: int | float | None = None,
-        verify: TLSVerifyType = True,
-        cert: TLSClientCertType | None = None,
-        proxies: ProxyType | None = None,
-        yield_requests: bool = False,
-        yield_requests_trail: bool = False,
-        **adapter_kwargs: typing.Any,
+            self,
+            resp: AsyncResponse,
+            req: PreparedRequest,
+            stream: bool = False,
+            timeout: int | float | None = None,
+            verify: TLSVerifyType = True,
+            cert: TLSClientCertType | None = None,
+            proxies: ProxyType | None = None,
+            yield_requests: bool = False,
+            yield_requests_trail: bool = False,
+            **adapter_kwargs: typing.Any,
     ) -> typing.AsyncGenerator[AsyncResponse | PreparedRequest, None]:
         """Receives a Response. Returns a generator of Responses or Requests."""
 
@@ -688,7 +704,8 @@ class AsyncSession(Session):
             parsed = urlparse(url)
             if parsed.fragment == "" and previous_fragment:
                 parsed = parsed._replace(
-                    fragment=previous_fragment if isinstance(previous_fragment, str) else previous_fragment.decode("utf-8")
+                    fragment=previous_fragment if isinstance(previous_fragment, str) else previous_fragment.decode(
+                        "utf-8")
                 )
             elif parsed.fragment:
                 previous_fragment = parsed.fragment
@@ -714,8 +731,8 @@ class AsyncSession(Session):
 
             # https://github.com/psf/requests/issues/1084
             if resp.status_code not in (
-                codes.temporary_redirect,  # type: ignore[attr-defined]
-                codes.permanent_redirect,  # type: ignore[attr-defined]
+                    codes.temporary_redirect,  # type: ignore[attr-defined]
+                    codes.permanent_redirect,  # type: ignore[attr-defined]
             ):
                 # https://github.com/psf/requests/issues/3490
                 purged_headers = ("Content-Length", "Content-Type", "Transfer-Encoding")
@@ -743,7 +760,7 @@ class AsyncSession(Session):
             # value ensures `rewindable` will be True, allowing us to raise an
             # UnrewindableBodyError, instead of hanging the connection.
             rewindable = prepared_request._body_position is not None and (
-                "Content-Length" in headers or "Transfer-Encoding" in headers
+                    "Content-Length" in headers or "Transfer-Encoding" in headers
             )
 
             # Attempt to rewind consumed file-like object.
@@ -784,64 +801,69 @@ class AsyncSession(Session):
 
     @typing.overload  # type: ignore[override]
     async def request(
-        self,
-        method: HttpMethodType,
-        url: str,
-        params: QueryParameterType | None = ...,
-        data: BodyType | AsyncBodyType | None = ...,
-        headers: HeadersType | None = ...,
-        cookies: CookiesType | None = ...,
-        files: MultiPartFilesType | MultiPartFilesAltType | None = ...,
-        auth: HttpAuthenticationType | AsyncHttpAuthenticationType | None = ...,
-        timeout: TimeoutType | None = ...,
-        allow_redirects: bool = ...,
-        proxies: ProxyType | None = ...,
-        hooks: AsyncHookType[PreparedRequest | Response] | None = ...,
-        stream: Literal[False] | None = ...,
-        verify: TLSVerifyType | None = ...,
-        cert: TLSClientCertType | None = ...,
-        json: typing.Any | None = ...,
-    ) -> Response: ...
+            self,
+            method: HttpMethodType,
+            url: str,
+            params: QueryParameterType | None = ...,
+            data: BodyType | AsyncBodyType | None = ...,
+            headers: HeadersType | None = ...,
+            cookies: CookiesType | None = ...,
+            files: MultiPartFilesType | MultiPartFilesAltType | None = ...,
+            auth: HttpAuthenticationType | AsyncHttpAuthenticationType | None = ...,
+            timeout: TimeoutType | None = ...,
+            allow_redirects: bool = ...,
+            proxies: ProxyType | None = ...,
+            hooks: AsyncHookType[PreparedRequest | Response] | None = ...,
+            middlewares: list[Middleware] | None = None,
+            stream: Literal[False] | None = ...,
+            verify: TLSVerifyType | None = ...,
+            cert: TLSClientCertType | None = ...,
+            json: typing.Any | None = ...,
+    ) -> Response:
+        ...
 
     @typing.overload  # type: ignore[override]
     async def request(
-        self,
-        method: HttpMethodType,
-        url: str,
-        params: QueryParameterType | None = ...,
-        data: BodyType | AsyncBodyType | None = ...,
-        headers: HeadersType | None = ...,
-        cookies: CookiesType | None = ...,
-        files: MultiPartFilesType | MultiPartFilesAltType | None = ...,
-        auth: HttpAuthenticationType | AsyncHttpAuthenticationType | None = ...,
-        timeout: TimeoutType | None = ...,
-        allow_redirects: bool = ...,
-        proxies: ProxyType | None = ...,
-        hooks: AsyncHookType[PreparedRequest | Response] | None = ...,
-        stream: Literal[True] = ...,
-        verify: TLSVerifyType | None = ...,
-        cert: TLSClientCertType | None = ...,
-        json: typing.Any | None = ...,
-    ) -> AsyncResponse: ...
+            self,
+            method: HttpMethodType,
+            url: str,
+            params: QueryParameterType | None = ...,
+            data: BodyType | AsyncBodyType | None = ...,
+            headers: HeadersType | None = ...,
+            cookies: CookiesType | None = ...,
+            files: MultiPartFilesType | MultiPartFilesAltType | None = ...,
+            auth: HttpAuthenticationType | AsyncHttpAuthenticationType | None = ...,
+            timeout: TimeoutType | None = ...,
+            allow_redirects: bool = ...,
+            proxies: ProxyType | None = ...,
+            hooks: AsyncHookType[PreparedRequest | Response] | None = ...,
+            middlewares: list[Middleware] | None = None,
+            stream: Literal[True] = ...,
+            verify: TLSVerifyType | None = ...,
+            cert: TLSClientCertType | None = ...,
+            json: typing.Any | None = ...,
+    ) -> AsyncResponse:
+        ...
 
     async def request(  # type: ignore[override]
-        self,
-        method: HttpMethodType,
-        url: str,
-        params: QueryParameterType | None = None,
-        data: BodyType | AsyncBodyType | None = None,
-        headers: HeadersType | None = None,
-        cookies: CookiesType | None = None,
-        files: MultiPartFilesType | MultiPartFilesAltType | None = None,
-        auth: HttpAuthenticationType | AsyncHttpAuthenticationType | None = None,
-        timeout: TimeoutType | None = None,
-        allow_redirects: bool = True,
-        proxies: ProxyType | None = None,
-        hooks: AsyncHookType[PreparedRequest | Response] | None = None,
-        stream: bool | None = None,
-        verify: TLSVerifyType | None = None,
-        cert: TLSClientCertType | None = None,
-        json: typing.Any | None = None,
+            self,
+            method: HttpMethodType,
+            url: str,
+            params: QueryParameterType | None = None,
+            data: BodyType | AsyncBodyType | None = None,
+            headers: HeadersType | None = None,
+            cookies: CookiesType | None = None,
+            files: MultiPartFilesType | MultiPartFilesAltType | None = None,
+            auth: HttpAuthenticationType | AsyncHttpAuthenticationType | None = None,
+            timeout: TimeoutType | None = None,
+            allow_redirects: bool = True,
+            proxies: ProxyType | None = None,
+            hooks: AsyncHookType[PreparedRequest | Response] | None = None,
+            middlewares: list[Middleware] | None = None,
+            stream: bool | None = None,
+            verify: TLSVerifyType | None = None,
+            cert: TLSClientCertType | None = None,
+            json: typing.Any | None = None,
     ) -> Response | AsyncResponse:
         if method.isupper() is False:
             method = method.upper()
@@ -858,6 +880,7 @@ class AsyncSession(Session):
             auth=auth,
             cookies=cookies,
             hooks=hooks,
+            middlewares=middlewares,
             base_url=self.base_url,
         )
 
@@ -898,58 +921,63 @@ class AsyncSession(Session):
 
     @typing.overload  # type: ignore[override]
     async def get(
-        self,
-        url: str,
-        *,
-        params: QueryParameterType | None = ...,
-        headers: HeadersType | None = ...,
-        cookies: CookiesType | None = ...,
-        auth: HttpAuthenticationType | AsyncHttpAuthenticationType | None = ...,
-        timeout: TimeoutType | None = ...,
-        allow_redirects: bool = ...,
-        proxies: ProxyType | None = ...,
-        hooks: AsyncHookType[PreparedRequest | Response] | None = ...,
-        verify: TLSVerifyType | None = ...,
-        stream: Literal[False] | None = ...,
-        cert: TLSClientCertType | None = ...,
-        **kwargs: typing.Any,
-    ) -> Response: ...
+            self,
+            url: str,
+            *,
+            params: QueryParameterType | None = ...,
+            headers: HeadersType | None = ...,
+            cookies: CookiesType | None = ...,
+            auth: HttpAuthenticationType | AsyncHttpAuthenticationType | None = ...,
+            timeout: TimeoutType | None = ...,
+            allow_redirects: bool = ...,
+            proxies: ProxyType | None = ...,
+            hooks: AsyncHookType[PreparedRequest | Response] | None = ...,
+            middlewares: list[Middleware] | None = None,
+            verify: TLSVerifyType | None = ...,
+            stream: Literal[False] | None = ...,
+            cert: TLSClientCertType | None = ...,
+            **kwargs: typing.Any,
+    ) -> Response:
+        ...
 
     @typing.overload  # type: ignore[override]
     async def get(
-        self,
-        url: str,
-        *,
-        params: QueryParameterType | None = ...,
-        headers: HeadersType | None = ...,
-        cookies: CookiesType | None = ...,
-        auth: HttpAuthenticationType | AsyncHttpAuthenticationType | None = ...,
-        timeout: TimeoutType | None = ...,
-        allow_redirects: bool = ...,
-        proxies: ProxyType | None = ...,
-        hooks: AsyncHookType[PreparedRequest | Response] | None = ...,
-        verify: TLSVerifyType | None = ...,
-        stream: Literal[True] = ...,
-        cert: TLSClientCertType | None = ...,
-        **kwargs: typing.Any,
-    ) -> AsyncResponse: ...
+            self,
+            url: str,
+            *,
+            params: QueryParameterType | None = ...,
+            headers: HeadersType | None = ...,
+            cookies: CookiesType | None = ...,
+            auth: HttpAuthenticationType | AsyncHttpAuthenticationType | None = ...,
+            timeout: TimeoutType | None = ...,
+            allow_redirects: bool = ...,
+            proxies: ProxyType | None = ...,
+            hooks: AsyncHookType[PreparedRequest | Response] | None = ...,
+            middlewares: list[Middleware] | None = None,
+            verify: TLSVerifyType | None = ...,
+            stream: Literal[True] = ...,
+            cert: TLSClientCertType | None = ...,
+            **kwargs: typing.Any,
+    ) -> AsyncResponse:
+        ...
 
     async def get(  # type: ignore[override]
-        self,
-        url: str,
-        *,
-        params: QueryParameterType | None = None,
-        headers: HeadersType | None = None,
-        cookies: CookiesType | None = None,
-        auth: HttpAuthenticationType | AsyncHttpAuthenticationType | None = None,
-        timeout: TimeoutType | None = None,
-        allow_redirects: bool = True,
-        proxies: ProxyType | None = None,
-        hooks: AsyncHookType[PreparedRequest | Response] | None = None,
-        verify: TLSVerifyType | None = None,
-        stream: bool | None = None,
-        cert: TLSClientCertType | None = None,
-        **kwargs: typing.Any,
+            self,
+            url: str,
+            *,
+            params: QueryParameterType | None = None,
+            headers: HeadersType | None = None,
+            cookies: CookiesType | None = None,
+            auth: HttpAuthenticationType | AsyncHttpAuthenticationType | None = None,
+            timeout: TimeoutType | None = None,
+            allow_redirects: bool = True,
+            proxies: ProxyType | None = None,
+            hooks: AsyncHookType[PreparedRequest | Response] | None = None,
+            middlewares: list[Middleware] | None = None,
+            verify: TLSVerifyType | None = None,
+            stream: bool | None = None,
+            cert: TLSClientCertType | None = None,
+            **kwargs: typing.Any,
     ) -> Response | AsyncResponse:
         return await self.request(  # type: ignore[call-overload,misc]
             "GET",
@@ -962,6 +990,7 @@ class AsyncSession(Session):
             allow_redirects=allow_redirects,
             proxies=proxies,
             hooks=hooks,
+            middlewares=middlewares,
             verify=verify,
             stream=stream,  # type: ignore[arg-type]
             cert=cert,
@@ -970,58 +999,63 @@ class AsyncSession(Session):
 
     @typing.overload  # type: ignore[override]
     async def options(
-        self,
-        url: str,
-        *,
-        params: QueryParameterType | None = ...,
-        headers: HeadersType | None = ...,
-        cookies: CookiesType | None = ...,
-        auth: HttpAuthenticationType | AsyncHttpAuthenticationType | None = ...,
-        timeout: TimeoutType | None = ...,
-        allow_redirects: bool = ...,
-        proxies: ProxyType | None = ...,
-        hooks: AsyncHookType[PreparedRequest | Response] | None = ...,
-        verify: TLSVerifyType | None = ...,
-        stream: Literal[False] | Literal[None] = ...,
-        cert: TLSClientCertType | None = ...,
-        **kwargs: typing.Any,
-    ) -> Response: ...
+            self,
+            url: str,
+            *,
+            params: QueryParameterType | None = ...,
+            headers: HeadersType | None = ...,
+            cookies: CookiesType | None = ...,
+            auth: HttpAuthenticationType | AsyncHttpAuthenticationType | None = ...,
+            timeout: TimeoutType | None = ...,
+            allow_redirects: bool = ...,
+            proxies: ProxyType | None = ...,
+            hooks: AsyncHookType[PreparedRequest | Response] | None = ...,
+            middlewares: list[Middleware] | None = None,
+            verify: TLSVerifyType | None = ...,
+            stream: Literal[False] | Literal[None] = ...,
+            cert: TLSClientCertType | None = ...,
+            **kwargs: typing.Any,
+    ) -> Response:
+        ...
 
     @typing.overload  # type: ignore[override]
     async def options(
-        self,
-        url: str,
-        *,
-        params: QueryParameterType | None = ...,
-        headers: HeadersType | None = ...,
-        cookies: CookiesType | None = ...,
-        auth: HttpAuthenticationType | AsyncHttpAuthenticationType | None = ...,
-        timeout: TimeoutType | None = ...,
-        allow_redirects: bool = ...,
-        proxies: ProxyType | None = ...,
-        hooks: AsyncHookType[PreparedRequest | Response] | None = ...,
-        verify: TLSVerifyType | None = ...,
-        stream: Literal[True],
-        cert: TLSClientCertType | None = ...,
-        **kwargs: typing.Any,
-    ) -> AsyncResponse: ...
+            self,
+            url: str,
+            *,
+            params: QueryParameterType | None = ...,
+            headers: HeadersType | None = ...,
+            cookies: CookiesType | None = ...,
+            auth: HttpAuthenticationType | AsyncHttpAuthenticationType | None = ...,
+            timeout: TimeoutType | None = ...,
+            allow_redirects: bool = ...,
+            proxies: ProxyType | None = ...,
+            hooks: AsyncHookType[PreparedRequest | Response] | None = ...,
+            middlewares: list[Middleware] | None = None,
+            verify: TLSVerifyType | None = ...,
+            stream: Literal[True],
+            cert: TLSClientCertType | None = ...,
+            **kwargs: typing.Any,
+    ) -> AsyncResponse:
+        ...
 
     async def options(  # type: ignore[override]
-        self,
-        url: str,
-        *,
-        params: QueryParameterType | None = None,
-        headers: HeadersType | None = None,
-        cookies: CookiesType | None = None,
-        auth: HttpAuthenticationType | AsyncHttpAuthenticationType | None = None,
-        timeout: TimeoutType | None = None,
-        allow_redirects: bool = True,
-        proxies: ProxyType | None = None,
-        hooks: AsyncHookType[PreparedRequest | Response] | None = None,
-        verify: TLSVerifyType | None = None,
-        stream: bool | None = None,
-        cert: TLSClientCertType | None = None,
-        **kwargs: typing.Any,
+            self,
+            url: str,
+            *,
+            params: QueryParameterType | None = None,
+            headers: HeadersType | None = None,
+            cookies: CookiesType | None = None,
+            auth: HttpAuthenticationType | AsyncHttpAuthenticationType | None = None,
+            timeout: TimeoutType | None = None,
+            allow_redirects: bool = True,
+            proxies: ProxyType | None = None,
+            hooks: AsyncHookType[PreparedRequest | Response] | None = None,
+            middlewares: list[Middleware] | None = None,
+            verify: TLSVerifyType | None = None,
+            stream: bool | None = None,
+            cert: TLSClientCertType | None = None,
+            **kwargs: typing.Any,
     ) -> Response | AsyncResponse:
         return await self.request(  # type: ignore[call-overload,misc]
             "OPTIONS",
@@ -1034,6 +1068,7 @@ class AsyncSession(Session):
             allow_redirects=allow_redirects,
             proxies=proxies,
             hooks=hooks,
+            middlewares=middlewares,
             verify=verify,
             stream=stream,  # type: ignore[arg-type]
             cert=cert,
@@ -1042,58 +1077,63 @@ class AsyncSession(Session):
 
     @typing.overload  # type: ignore[override]
     async def head(
-        self,
-        url: str,
-        *,
-        params: QueryParameterType | None = ...,
-        headers: HeadersType | None = ...,
-        cookies: CookiesType | None = ...,
-        auth: HttpAuthenticationType | AsyncHttpAuthenticationType | None = ...,
-        timeout: TimeoutType | None = ...,
-        allow_redirects: bool = ...,
-        proxies: ProxyType | None = ...,
-        hooks: AsyncHookType[PreparedRequest | Response] | None = ...,
-        verify: TLSVerifyType | None = ...,
-        stream: Literal[False] | Literal[None] = ...,
-        cert: TLSClientCertType | None = ...,
-        **kwargs: typing.Any,
-    ) -> Response: ...
+            self,
+            url: str,
+            *,
+            params: QueryParameterType | None = ...,
+            headers: HeadersType | None = ...,
+            cookies: CookiesType | None = ...,
+            auth: HttpAuthenticationType | AsyncHttpAuthenticationType | None = ...,
+            timeout: TimeoutType | None = ...,
+            allow_redirects: bool = ...,
+            proxies: ProxyType | None = ...,
+            hooks: AsyncHookType[PreparedRequest | Response] | None = ...,
+            middlewares: list[Middleware] | None = None,
+            verify: TLSVerifyType | None = ...,
+            stream: Literal[False] | Literal[None] = ...,
+            cert: TLSClientCertType | None = ...,
+            **kwargs: typing.Any,
+    ) -> Response:
+        ...
 
     @typing.overload  # type: ignore[override]
     async def head(
-        self,
-        url: str,
-        *,
-        params: QueryParameterType | None = ...,
-        headers: HeadersType | None = ...,
-        cookies: CookiesType | None = ...,
-        auth: HttpAuthenticationType | AsyncHttpAuthenticationType | None = ...,
-        timeout: TimeoutType | None = ...,
-        allow_redirects: bool = ...,
-        proxies: ProxyType | None = ...,
-        hooks: AsyncHookType[PreparedRequest | Response] | None = ...,
-        verify: TLSVerifyType | None = ...,
-        stream: Literal[True],
-        cert: TLSClientCertType | None = ...,
-        **kwargs: typing.Any,
-    ) -> AsyncResponse: ...
+            self,
+            url: str,
+            *,
+            params: QueryParameterType | None = ...,
+            headers: HeadersType | None = ...,
+            cookies: CookiesType | None = ...,
+            auth: HttpAuthenticationType | AsyncHttpAuthenticationType | None = ...,
+            timeout: TimeoutType | None = ...,
+            allow_redirects: bool = ...,
+            proxies: ProxyType | None = ...,
+            hooks: AsyncHookType[PreparedRequest | Response] | None = ...,
+            middlewares: list[Middleware] | None = None,
+            verify: TLSVerifyType | None = ...,
+            stream: Literal[True],
+            cert: TLSClientCertType | None = ...,
+            **kwargs: typing.Any,
+    ) -> AsyncResponse:
+        ...
 
     async def head(  # type: ignore[override]
-        self,
-        url: str,
-        *,
-        params: QueryParameterType | None = None,
-        headers: HeadersType | None = None,
-        cookies: CookiesType | None = None,
-        auth: HttpAuthenticationType | AsyncHttpAuthenticationType | None = None,
-        timeout: TimeoutType | None = None,
-        allow_redirects: bool = True,
-        proxies: ProxyType | None = None,
-        hooks: AsyncHookType[PreparedRequest | Response] | None = None,
-        verify: TLSVerifyType | None = None,
-        stream: bool | None = None,
-        cert: TLSClientCertType | None = None,
-        **kwargs: typing.Any,
+            self,
+            url: str,
+            *,
+            params: QueryParameterType | None = None,
+            headers: HeadersType | None = None,
+            cookies: CookiesType | None = None,
+            auth: HttpAuthenticationType | AsyncHttpAuthenticationType | None = None,
+            timeout: TimeoutType | None = None,
+            allow_redirects: bool = True,
+            proxies: ProxyType | None = None,
+            hooks: AsyncHookType[PreparedRequest | Response] | None = None,
+            middlewares: list[Middleware] | None = None,
+            verify: TLSVerifyType | None = None,
+            stream: bool | None = None,
+            cert: TLSClientCertType | None = None,
+            **kwargs: typing.Any,
     ) -> Response | AsyncResponse:
         return await self.request(  # type: ignore[call-overload,misc]
             "HEAD",
@@ -1106,6 +1146,7 @@ class AsyncSession(Session):
             allow_redirects=allow_redirects,
             proxies=proxies,
             hooks=hooks,
+            middlewares=middlewares,
             verify=verify,
             stream=stream,  # type: ignore[arg-type]
             cert=cert,
@@ -1114,64 +1155,69 @@ class AsyncSession(Session):
 
     @typing.overload  # type: ignore[override]
     async def post(
-        self,
-        url: str,
-        data: BodyType | AsyncBodyType | None = ...,
-        json: typing.Any | None = ...,
-        *,
-        params: QueryParameterType | None = ...,
-        headers: HeadersType | None = ...,
-        cookies: CookiesType | None = ...,
-        files: MultiPartFilesType | MultiPartFilesAltType | None = ...,
-        auth: HttpAuthenticationType | AsyncHttpAuthenticationType | None = ...,
-        timeout: TimeoutType | None = ...,
-        allow_redirects: bool = ...,
-        proxies: ProxyType | None = ...,
-        hooks: AsyncHookType[PreparedRequest | Response] | None = ...,
-        verify: TLSVerifyType | None = ...,
-        stream: Literal[False] | Literal[None] = ...,
-        cert: TLSClientCertType | None = ...,
-    ) -> Response: ...
+            self,
+            url: str,
+            data: BodyType | AsyncBodyType | None = ...,
+            json: typing.Any | None = ...,
+            *,
+            params: QueryParameterType | None = ...,
+            headers: HeadersType | None = ...,
+            cookies: CookiesType | None = ...,
+            files: MultiPartFilesType | MultiPartFilesAltType | None = ...,
+            auth: HttpAuthenticationType | AsyncHttpAuthenticationType | None = ...,
+            timeout: TimeoutType | None = ...,
+            allow_redirects: bool = ...,
+            proxies: ProxyType | None = ...,
+            hooks: AsyncHookType[PreparedRequest | Response] | None = ...,
+            middlewares: list[Middleware] | None = None,
+            verify: TLSVerifyType | None = ...,
+            stream: Literal[False] | Literal[None] = ...,
+            cert: TLSClientCertType | None = ...,
+    ) -> Response:
+        ...
 
     @typing.overload  # type: ignore[override]
     async def post(
-        self,
-        url: str,
-        data: BodyType | AsyncBodyType | None = ...,
-        json: typing.Any | None = ...,
-        *,
-        params: QueryParameterType | None = ...,
-        headers: HeadersType | None = ...,
-        cookies: CookiesType | None = ...,
-        files: MultiPartFilesType | MultiPartFilesAltType | None = ...,
-        auth: HttpAuthenticationType | AsyncHttpAuthenticationType | None = ...,
-        timeout: TimeoutType | None = ...,
-        allow_redirects: bool = ...,
-        proxies: ProxyType | None = ...,
-        hooks: AsyncHookType[PreparedRequest | Response] | None = ...,
-        verify: TLSVerifyType | None = ...,
-        stream: Literal[True],
-        cert: TLSClientCertType | None = ...,
-    ) -> AsyncResponse: ...
+            self,
+            url: str,
+            data: BodyType | AsyncBodyType | None = ...,
+            json: typing.Any | None = ...,
+            *,
+            params: QueryParameterType | None = ...,
+            headers: HeadersType | None = ...,
+            cookies: CookiesType | None = ...,
+            files: MultiPartFilesType | MultiPartFilesAltType | None = ...,
+            auth: HttpAuthenticationType | AsyncHttpAuthenticationType | None = ...,
+            timeout: TimeoutType | None = ...,
+            allow_redirects: bool = ...,
+            proxies: ProxyType | None = ...,
+            hooks: AsyncHookType[PreparedRequest | Response] | None = ...,
+            middlewares: list[Middleware] | None = None,
+            verify: TLSVerifyType | None = ...,
+            stream: Literal[True],
+            cert: TLSClientCertType | None = ...,
+    ) -> AsyncResponse:
+        ...
 
     async def post(  # type: ignore[override]
-        self,
-        url: str,
-        data: BodyType | AsyncBodyType | None = None,
-        json: typing.Any | None = None,
-        *,
-        params: QueryParameterType | None = None,
-        headers: HeadersType | None = None,
-        cookies: CookiesType | None = None,
-        files: MultiPartFilesType | MultiPartFilesAltType | None = None,
-        auth: HttpAuthenticationType | AsyncHttpAuthenticationType | None = None,
-        timeout: TimeoutType | None = None,
-        allow_redirects: bool = True,
-        proxies: ProxyType | None = None,
-        hooks: AsyncHookType[PreparedRequest | Response] | None = None,
-        verify: TLSVerifyType | None = None,
-        stream: bool | None = None,
-        cert: TLSClientCertType | None = None,
+            self,
+            url: str,
+            data: BodyType | AsyncBodyType | None = None,
+            json: typing.Any | None = None,
+            *,
+            params: QueryParameterType | None = None,
+            headers: HeadersType | None = None,
+            cookies: CookiesType | None = None,
+            files: MultiPartFilesType | MultiPartFilesAltType | None = None,
+            auth: HttpAuthenticationType | AsyncHttpAuthenticationType | None = None,
+            timeout: TimeoutType | None = None,
+            allow_redirects: bool = True,
+            proxies: ProxyType | None = None,
+            hooks: AsyncHookType[PreparedRequest | Response] | None = None,
+            middlewares: list[Middleware] | None = None,
+            verify: TLSVerifyType | None = None,
+            stream: bool | None = None,
+            cert: TLSClientCertType | None = None,
     ) -> Response | AsyncResponse:
         return await self.request(  # type: ignore[call-overload,misc]
             "POST",
@@ -1187,6 +1233,7 @@ class AsyncSession(Session):
             allow_redirects=allow_redirects,
             proxies=proxies,
             hooks=hooks,
+            middlewares=middlewares,
             verify=verify,
             stream=stream,  # type: ignore[arg-type]
             cert=cert,
@@ -1194,64 +1241,69 @@ class AsyncSession(Session):
 
     @typing.overload  # type: ignore[override]
     async def put(
-        self,
-        url: str,
-        data: BodyType | AsyncBodyType | None = ...,
-        *,
-        json: typing.Any | None = ...,
-        params: QueryParameterType | None = ...,
-        headers: HeadersType | None = ...,
-        cookies: CookiesType | None = ...,
-        files: MultiPartFilesType | MultiPartFilesAltType | None = ...,
-        auth: HttpAuthenticationType | AsyncHttpAuthenticationType | None = ...,
-        timeout: TimeoutType | None = ...,
-        allow_redirects: bool = ...,
-        proxies: ProxyType | None = ...,
-        hooks: AsyncHookType[PreparedRequest | Response] | None = ...,
-        verify: TLSVerifyType | None = ...,
-        stream: Literal[False] | Literal[None] = ...,
-        cert: TLSClientCertType | None = ...,
-    ) -> Response: ...
+            self,
+            url: str,
+            data: BodyType | AsyncBodyType | None = ...,
+            *,
+            json: typing.Any | None = ...,
+            params: QueryParameterType | None = ...,
+            headers: HeadersType | None = ...,
+            cookies: CookiesType | None = ...,
+            files: MultiPartFilesType | MultiPartFilesAltType | None = ...,
+            auth: HttpAuthenticationType | AsyncHttpAuthenticationType | None = ...,
+            timeout: TimeoutType | None = ...,
+            allow_redirects: bool = ...,
+            proxies: ProxyType | None = ...,
+            hooks: AsyncHookType[PreparedRequest | Response] | None = ...,
+            middlewares: list[Middleware] | None = None,
+            verify: TLSVerifyType | None = ...,
+            stream: Literal[False] | Literal[None] = ...,
+            cert: TLSClientCertType | None = ...,
+    ) -> Response:
+        ...
 
     @typing.overload  # type: ignore[override]
     async def put(
-        self,
-        url: str,
-        data: BodyType | AsyncBodyType | None = ...,
-        *,
-        json: typing.Any | None = ...,
-        params: QueryParameterType | None = ...,
-        headers: HeadersType | None = ...,
-        cookies: CookiesType | None = ...,
-        files: MultiPartFilesType | MultiPartFilesAltType | None = ...,
-        auth: HttpAuthenticationType | AsyncHttpAuthenticationType | None = ...,
-        timeout: TimeoutType | None = ...,
-        allow_redirects: bool = ...,
-        proxies: ProxyType | None = ...,
-        hooks: AsyncHookType[PreparedRequest | Response] | None = ...,
-        verify: TLSVerifyType | None = ...,
-        stream: Literal[True],
-        cert: TLSClientCertType | None = ...,
-    ) -> AsyncResponse: ...
+            self,
+            url: str,
+            data: BodyType | AsyncBodyType | None = ...,
+            *,
+            json: typing.Any | None = ...,
+            params: QueryParameterType | None = ...,
+            headers: HeadersType | None = ...,
+            cookies: CookiesType | None = ...,
+            files: MultiPartFilesType | MultiPartFilesAltType | None = ...,
+            auth: HttpAuthenticationType | AsyncHttpAuthenticationType | None = ...,
+            timeout: TimeoutType | None = ...,
+            allow_redirects: bool = ...,
+            proxies: ProxyType | None = ...,
+            hooks: AsyncHookType[PreparedRequest | Response] | None = ...,
+            middlewares: list[Middleware] | None = None,
+            verify: TLSVerifyType | None = ...,
+            stream: Literal[True],
+            cert: TLSClientCertType | None = ...,
+    ) -> AsyncResponse:
+        ...
 
     async def put(  # type: ignore[override]
-        self,
-        url: str,
-        data: BodyType | AsyncBodyType | None = None,
-        *,
-        json: typing.Any | None = None,
-        params: QueryParameterType | None = None,
-        headers: HeadersType | None = None,
-        cookies: CookiesType | None = None,
-        files: MultiPartFilesType | MultiPartFilesAltType | None = None,
-        auth: HttpAuthenticationType | AsyncHttpAuthenticationType | None = None,
-        timeout: TimeoutType | None = None,
-        allow_redirects: bool = True,
-        proxies: ProxyType | None = None,
-        hooks: AsyncHookType[PreparedRequest | Response] | None = None,
-        verify: TLSVerifyType | None = None,
-        stream: bool | None = None,
-        cert: TLSClientCertType | None = None,
+            self,
+            url: str,
+            data: BodyType | AsyncBodyType | None = None,
+            *,
+            json: typing.Any | None = None,
+            params: QueryParameterType | None = None,
+            headers: HeadersType | None = None,
+            cookies: CookiesType | None = None,
+            files: MultiPartFilesType | MultiPartFilesAltType | None = None,
+            auth: HttpAuthenticationType | AsyncHttpAuthenticationType | None = None,
+            timeout: TimeoutType | None = None,
+            allow_redirects: bool = True,
+            proxies: ProxyType | None = None,
+            hooks: AsyncHookType[PreparedRequest | Response] | None = None,
+            middlewares: list[Middleware] | None = None,
+            verify: TLSVerifyType | None = None,
+            stream: bool | None = None,
+            cert: TLSClientCertType | None = None,
     ) -> Response | AsyncResponse:
         return await self.request(  # type: ignore[call-overload,misc]
             "PUT",
@@ -1267,6 +1319,7 @@ class AsyncSession(Session):
             allow_redirects=allow_redirects,
             proxies=proxies,
             hooks=hooks,
+            middlewares=middlewares,
             verify=verify,
             stream=stream,  # type: ignore[arg-type]
             cert=cert,
@@ -1274,64 +1327,69 @@ class AsyncSession(Session):
 
     @typing.overload  # type: ignore[override]
     async def patch(
-        self,
-        url: str,
-        data: BodyType | AsyncBodyType | None = ...,
-        *,
-        json: typing.Any | None = ...,
-        params: QueryParameterType | None = ...,
-        headers: HeadersType | None = ...,
-        cookies: CookiesType | None = ...,
-        files: MultiPartFilesType | MultiPartFilesAltType | None = ...,
-        auth: HttpAuthenticationType | AsyncHttpAuthenticationType | None = ...,
-        timeout: TimeoutType | None = ...,
-        allow_redirects: bool = ...,
-        proxies: ProxyType | None = ...,
-        hooks: AsyncHookType[PreparedRequest | Response] | None = ...,
-        verify: TLSVerifyType | None = ...,
-        stream: Literal[False] | Literal[None] = ...,
-        cert: TLSClientCertType | None = ...,
-    ) -> Response: ...
+            self,
+            url: str,
+            data: BodyType | AsyncBodyType | None = ...,
+            *,
+            json: typing.Any | None = ...,
+            params: QueryParameterType | None = ...,
+            headers: HeadersType | None = ...,
+            cookies: CookiesType | None = ...,
+            files: MultiPartFilesType | MultiPartFilesAltType | None = ...,
+            auth: HttpAuthenticationType | AsyncHttpAuthenticationType | None = ...,
+            timeout: TimeoutType | None = ...,
+            allow_redirects: bool = ...,
+            proxies: ProxyType | None = ...,
+            hooks: AsyncHookType[PreparedRequest | Response] | None = ...,
+            middlewares: list[Middleware] | None = None,
+            verify: TLSVerifyType | None = ...,
+            stream: Literal[False] | Literal[None] = ...,
+            cert: TLSClientCertType | None = ...,
+    ) -> Response:
+        ...
 
     @typing.overload  # type: ignore[override]
     async def patch(
-        self,
-        url: str,
-        data: BodyType | AsyncBodyType | None = ...,
-        *,
-        json: typing.Any | None = ...,
-        params: QueryParameterType | None = ...,
-        headers: HeadersType | None = ...,
-        cookies: CookiesType | None = ...,
-        files: MultiPartFilesType | MultiPartFilesAltType | None = ...,
-        auth: HttpAuthenticationType | AsyncHttpAuthenticationType | None = ...,
-        timeout: TimeoutType | None = ...,
-        allow_redirects: bool = ...,
-        proxies: ProxyType | None = ...,
-        hooks: AsyncHookType[PreparedRequest | Response] | None = ...,
-        verify: TLSVerifyType | None = ...,
-        stream: Literal[True],
-        cert: TLSClientCertType | None = ...,
-    ) -> AsyncResponse: ...
+            self,
+            url: str,
+            data: BodyType | AsyncBodyType | None = ...,
+            *,
+            json: typing.Any | None = ...,
+            params: QueryParameterType | None = ...,
+            headers: HeadersType | None = ...,
+            cookies: CookiesType | None = ...,
+            files: MultiPartFilesType | MultiPartFilesAltType | None = ...,
+            auth: HttpAuthenticationType | AsyncHttpAuthenticationType | None = ...,
+            timeout: TimeoutType | None = ...,
+            allow_redirects: bool = ...,
+            proxies: ProxyType | None = ...,
+            hooks: AsyncHookType[PreparedRequest | Response] | None = ...,
+            middlewares: list[Middleware] | None = None,
+            verify: TLSVerifyType | None = ...,
+            stream: Literal[True],
+            cert: TLSClientCertType | None = ...,
+    ) -> AsyncResponse:
+        ...
 
     async def patch(  # type: ignore[override]
-        self,
-        url: str,
-        data: BodyType | AsyncBodyType | None = None,
-        *,
-        json: typing.Any | None = None,
-        params: QueryParameterType | None = None,
-        headers: HeadersType | None = None,
-        cookies: CookiesType | None = None,
-        files: MultiPartFilesType | MultiPartFilesAltType | None = None,
-        auth: HttpAuthenticationType | AsyncHttpAuthenticationType | None = None,
-        timeout: TimeoutType | None = None,
-        allow_redirects: bool = True,
-        proxies: ProxyType | None = None,
-        hooks: AsyncHookType[PreparedRequest | Response] | None = None,
-        verify: TLSVerifyType | None = None,
-        stream: bool | None = None,
-        cert: TLSClientCertType | None = None,
+            self,
+            url: str,
+            data: BodyType | AsyncBodyType | None = None,
+            *,
+            json: typing.Any | None = None,
+            params: QueryParameterType | None = None,
+            headers: HeadersType | None = None,
+            cookies: CookiesType | None = None,
+            files: MultiPartFilesType | MultiPartFilesAltType | None = None,
+            auth: HttpAuthenticationType | AsyncHttpAuthenticationType | None = None,
+            timeout: TimeoutType | None = None,
+            allow_redirects: bool = True,
+            proxies: ProxyType | None = None,
+            hooks: AsyncHookType[PreparedRequest | Response] | None = None,
+            middlewares: list[Middleware] | None = None,
+            verify: TLSVerifyType | None = None,
+            stream: bool | None = None,
+            cert: TLSClientCertType | None = None,
     ) -> Response | AsyncResponse:
         return await self.request(  # type: ignore[call-overload,misc]
             "PATCH",
@@ -1347,6 +1405,7 @@ class AsyncSession(Session):
             allow_redirects=allow_redirects,
             proxies=proxies,
             hooks=hooks,
+            middlewares=middlewares,
             verify=verify,
             stream=stream,  # type: ignore[arg-type]
             cert=cert,
@@ -1354,58 +1413,63 @@ class AsyncSession(Session):
 
     @typing.overload  # type: ignore[override]
     async def delete(
-        self,
-        url: str,
-        *,
-        params: QueryParameterType | None = ...,
-        headers: HeadersType | None = ...,
-        cookies: CookiesType | None = ...,
-        auth: HttpAuthenticationType | AsyncHttpAuthenticationType | None = ...,
-        timeout: TimeoutType | None = ...,
-        allow_redirects: bool = ...,
-        proxies: ProxyType | None = ...,
-        hooks: AsyncHookType[PreparedRequest | Response] | None = ...,
-        verify: TLSVerifyType | None = ...,
-        stream: Literal[False] | Literal[None] = ...,
-        cert: TLSClientCertType | None = ...,
-        **kwargs: typing.Any,
-    ) -> Response: ...
+            self,
+            url: str,
+            *,
+            params: QueryParameterType | None = ...,
+            headers: HeadersType | None = ...,
+            cookies: CookiesType | None = ...,
+            auth: HttpAuthenticationType | AsyncHttpAuthenticationType | None = ...,
+            timeout: TimeoutType | None = ...,
+            allow_redirects: bool = ...,
+            proxies: ProxyType | None = ...,
+            hooks: AsyncHookType[PreparedRequest | Response] | None = ...,
+            middlewares: list[Middleware] | None = None,
+            verify: TLSVerifyType | None = ...,
+            stream: Literal[False] | Literal[None] = ...,
+            cert: TLSClientCertType | None = ...,
+            **kwargs: typing.Any,
+    ) -> Response:
+        ...
 
     @typing.overload  # type: ignore[override]
     async def delete(
-        self,
-        url: str,
-        *,
-        params: QueryParameterType | None = ...,
-        headers: HeadersType | None = ...,
-        cookies: CookiesType | None = ...,
-        auth: HttpAuthenticationType | AsyncHttpAuthenticationType | None = ...,
-        timeout: TimeoutType | None = ...,
-        allow_redirects: bool = ...,
-        proxies: ProxyType | None = ...,
-        hooks: AsyncHookType[PreparedRequest | Response] | None = ...,
-        verify: TLSVerifyType | None = ...,
-        stream: Literal[True],
-        cert: TLSClientCertType | None = ...,
-        **kwargs: typing.Any,
-    ) -> AsyncResponse: ...
+            self,
+            url: str,
+            *,
+            params: QueryParameterType | None = ...,
+            headers: HeadersType | None = ...,
+            cookies: CookiesType | None = ...,
+            auth: HttpAuthenticationType | AsyncHttpAuthenticationType | None = ...,
+            timeout: TimeoutType | None = ...,
+            allow_redirects: bool = ...,
+            proxies: ProxyType | None = ...,
+            hooks: AsyncHookType[PreparedRequest | Response] | None = ...,
+            middlewares: list[Middleware] | None = None,
+            verify: TLSVerifyType | None = ...,
+            stream: Literal[True],
+            cert: TLSClientCertType | None = ...,
+            **kwargs: typing.Any,
+    ) -> AsyncResponse:
+        ...
 
     async def delete(  # type: ignore[override]
-        self,
-        url: str,
-        *,
-        params: QueryParameterType | None = None,
-        headers: HeadersType | None = None,
-        cookies: CookiesType | None = None,
-        auth: HttpAuthenticationType | AsyncHttpAuthenticationType | None = None,
-        timeout: TimeoutType | None = None,
-        allow_redirects: bool = True,
-        proxies: ProxyType | None = None,
-        hooks: AsyncHookType[PreparedRequest | Response] | None = None,
-        verify: TLSVerifyType | None = None,
-        stream: bool | None = None,
-        cert: TLSClientCertType | None = None,
-        **kwargs: typing.Any,
+            self,
+            url: str,
+            *,
+            params: QueryParameterType | None = None,
+            headers: HeadersType | None = None,
+            cookies: CookiesType | None = None,
+            auth: HttpAuthenticationType | AsyncHttpAuthenticationType | None = None,
+            timeout: TimeoutType | None = None,
+            allow_redirects: bool = True,
+            proxies: ProxyType | None = None,
+            hooks: AsyncHookType[PreparedRequest | Response] | None = None,
+            middlewares: list[Middleware] | None = None,
+            verify: TLSVerifyType | None = None,
+            stream: bool | None = None,
+            cert: TLSClientCertType | None = None,
+            **kwargs: typing.Any,
     ) -> Response | AsyncResponse:
         return await self.request(  # type: ignore[call-overload,misc]
             "DELETE",
@@ -1418,6 +1482,7 @@ class AsyncSession(Session):
             allow_redirects=allow_redirects,
             proxies=proxies,
             hooks=hooks,
+            middlewares=middlewares,
             verify=verify,
             stream=stream,  # type: ignore[arg-type]
             cert=cert,

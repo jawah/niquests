@@ -33,6 +33,7 @@ from ._typing import (
     TLSVerifyType,
 )
 from .async_session import AsyncSession
+from .middlewares import Middleware
 from .models import AsyncResponse, PreparedRequest, Response
 from .structures import AsyncQuicSharedCache
 
@@ -41,69 +42,72 @@ _SHARED_QUIC_CACHE: CacheLayerAltSvcType = AsyncQuicSharedCache(max_size=12_288)
 
 @typing.overload
 async def request(
-    method: HttpMethodType,
-    url: str,
-    *,
-    params: QueryParameterType | None = ...,
-    data: BodyType | AsyncBodyType | None = ...,
-    headers: HeadersType | None = ...,
-    cookies: CookiesType | None = ...,
-    files: MultiPartFilesType | MultiPartFilesAltType | None = ...,
-    auth: HttpAuthenticationType | AsyncHttpAuthenticationType | None = ...,
-    timeout: TimeoutType | None = ...,
-    allow_redirects: bool = ...,
-    proxies: ProxyType | None = ...,
-    hooks: AsyncHookType[PreparedRequest | Response] | None = ...,
-    stream: typing.Literal[False] | None = ...,
-    verify: TLSVerifyType | None = ...,
-    cert: TLSClientCertType | None = ...,
-    json: typing.Any | None = ...,
-    retries: RetryType = ...,
+        method: HttpMethodType,
+        url: str,
+        *,
+        params: QueryParameterType | None = ...,
+        data: BodyType | AsyncBodyType | None = ...,
+        headers: HeadersType | None = ...,
+        cookies: CookiesType | None = ...,
+        files: MultiPartFilesType | MultiPartFilesAltType | None = ...,
+        auth: HttpAuthenticationType | AsyncHttpAuthenticationType | None = ...,
+        timeout: TimeoutType | None = ...,
+        allow_redirects: bool = ...,
+        proxies: ProxyType | None = ...,
+        hooks: AsyncHookType[PreparedRequest | Response] | None = ...,
+        middlewares: list[Middleware] | None = None,
+        stream: typing.Literal[False] | None = ...,
+        verify: TLSVerifyType | None = ...,
+        cert: TLSClientCertType | None = ...,
+        json: typing.Any | None = ...,
+        retries: RetryType = ...,
 ) -> Response: ...
 
 
 @typing.overload
 async def request(
-    method: HttpMethodType,
-    url: str,
-    *,
-    params: QueryParameterType | None = ...,
-    data: BodyType | AsyncBodyType | None = ...,
-    headers: HeadersType | None = ...,
-    cookies: CookiesType | None = ...,
-    files: MultiPartFilesType | MultiPartFilesAltType | None = ...,
-    auth: HttpAuthenticationType | AsyncHttpAuthenticationType | None = ...,
-    timeout: TimeoutType | None = ...,
-    allow_redirects: bool = ...,
-    proxies: ProxyType | None = ...,
-    hooks: AsyncHookType[PreparedRequest | Response] | None = ...,
-    stream: typing.Literal[True] = ...,
-    verify: TLSVerifyType | None = ...,
-    cert: TLSClientCertType | None = ...,
-    json: typing.Any | None = ...,
-    retries: RetryType = ...,
+        method: HttpMethodType,
+        url: str,
+        *,
+        params: QueryParameterType | None = ...,
+        data: BodyType | AsyncBodyType | None = ...,
+        headers: HeadersType | None = ...,
+        cookies: CookiesType | None = ...,
+        files: MultiPartFilesType | MultiPartFilesAltType | None = ...,
+        auth: HttpAuthenticationType | AsyncHttpAuthenticationType | None = ...,
+        timeout: TimeoutType | None = ...,
+        allow_redirects: bool = ...,
+        proxies: ProxyType | None = ...,
+        hooks: AsyncHookType[PreparedRequest | Response] | None = ...,
+        middlewares: list[Middleware] | None = None,
+        stream: typing.Literal[True] = ...,
+        verify: TLSVerifyType | None = ...,
+        cert: TLSClientCertType | None = ...,
+        json: typing.Any | None = ...,
+        retries: RetryType = ...,
 ) -> AsyncResponse: ...
 
 
 async def request(
-    method: HttpMethodType,
-    url: str,
-    *,
-    params: QueryParameterType | None = None,
-    data: BodyType | AsyncBodyType | None = None,
-    headers: HeadersType | None = None,
-    cookies: CookiesType | None = None,
-    files: MultiPartFilesType | MultiPartFilesAltType | None = None,
-    auth: HttpAuthenticationType | AsyncHttpAuthenticationType | None = None,
-    timeout: TimeoutType | None = WRITE_DEFAULT_TIMEOUT,
-    allow_redirects: bool = True,
-    proxies: ProxyType | None = None,
-    hooks: AsyncHookType[PreparedRequest | Response] | None = None,
-    stream: bool | None = None,
-    verify: TLSVerifyType | None = None,
-    cert: TLSClientCertType | None = None,
-    json: typing.Any | None = None,
-    retries: RetryType = DEFAULT_RETRIES,
+        method: HttpMethodType,
+        url: str,
+        *,
+        params: QueryParameterType | None = None,
+        data: BodyType | AsyncBodyType | None = None,
+        headers: HeadersType | None = None,
+        cookies: CookiesType | None = None,
+        files: MultiPartFilesType | MultiPartFilesAltType | None = None,
+        auth: HttpAuthenticationType | AsyncHttpAuthenticationType | None = None,
+        timeout: TimeoutType | None = WRITE_DEFAULT_TIMEOUT,
+        allow_redirects: bool = True,
+        proxies: ProxyType | None = None,
+        hooks: AsyncHookType[PreparedRequest | Response] | None = None,
+        middlewares: list[Middleware] | None = None,
+        stream: bool | None = None,
+        verify: TLSVerifyType | None = None,
+        cert: TLSClientCertType | None = None,
+        json: typing.Any | None = None,
+        retries: RetryType = DEFAULT_RETRIES,
 ) -> Response | AsyncResponse:
     """Constructs and sends a :class:`Request <Request>`. This does not keep the connection alive.
     Use an :class:`AsyncSession` to reuse the connection.
@@ -141,6 +145,8 @@ async def request(
     :param cert: (optional) if String, path to ssl client cert file (.pem).
             If Tuple, ('cert', 'key') pair, or ('cert', 'key', 'key_password').
     :param hooks: (optional) Register functions that should be called at very specific moment in the request lifecycle.
+    :param middlewares: (optional) List of middleware to be used for this
+            request. This will merge with the session middlewares.
     :param retries: (optional) If integer, determine the number of retry in case of a timeout or connection error.
             Otherwise, for fine gained retry, use directly a ``Retry`` instance from urllib3.
     :return: :class:`Response <Response>` object if stream=None or False. Otherwise :class:`AsyncResponse <AsyncResponse>`
@@ -170,6 +176,7 @@ async def request(
             allow_redirects,
             proxies,
             hooks,
+            middlewares,
             stream,  # type: ignore[arg-type]
             verify,
             cert,
@@ -179,60 +186,63 @@ async def request(
 
 @typing.overload
 async def get(
-    url: str,
-    params: QueryParameterType | None = ...,
-    *,
-    headers: HeadersType | None = ...,
-    cookies: CookiesType | None = ...,
-    auth: HttpAuthenticationType | AsyncHttpAuthenticationType | None = ...,
-    timeout: TimeoutType | None = ...,
-    allow_redirects: bool = ...,
-    proxies: ProxyType | None = ...,
-    hooks: AsyncHookType[PreparedRequest | Response] | None = ...,
-    verify: TLSVerifyType | None = ...,
-    stream: typing.Literal[False] | None = ...,
-    cert: TLSClientCertType | None = ...,
-    retries: RetryType = ...,
-    **kwargs: typing.Any,
+        url: str,
+        params: QueryParameterType | None = ...,
+        *,
+        headers: HeadersType | None = ...,
+        cookies: CookiesType | None = ...,
+        auth: HttpAuthenticationType | AsyncHttpAuthenticationType | None = ...,
+        timeout: TimeoutType | None = ...,
+        allow_redirects: bool = ...,
+        proxies: ProxyType | None = ...,
+        hooks: AsyncHookType[PreparedRequest | Response] | None = ...,
+        middlewares: list[Middleware] | None = None,
+        verify: TLSVerifyType | None = ...,
+        stream: typing.Literal[False] | None = ...,
+        cert: TLSClientCertType | None = ...,
+        retries: RetryType = ...,
+        **kwargs: typing.Any,
 ) -> Response: ...
 
 
 @typing.overload
 async def get(
-    url: str,
-    params: QueryParameterType | None = ...,
-    *,
-    headers: HeadersType | None = ...,
-    cookies: CookiesType | None = ...,
-    auth: HttpAuthenticationType | AsyncHttpAuthenticationType | None = ...,
-    timeout: TimeoutType | None = ...,
-    allow_redirects: bool = ...,
-    proxies: ProxyType | None = ...,
-    hooks: AsyncHookType[PreparedRequest | Response] | None = ...,
-    verify: TLSVerifyType | None = ...,
-    stream: typing.Literal[True] = ...,
-    cert: TLSClientCertType | None = ...,
-    retries: RetryType = ...,
-    **kwargs: typing.Any,
+        url: str,
+        params: QueryParameterType | None = ...,
+        *,
+        headers: HeadersType | None = ...,
+        cookies: CookiesType | None = ...,
+        auth: HttpAuthenticationType | AsyncHttpAuthenticationType | None = ...,
+        timeout: TimeoutType | None = ...,
+        allow_redirects: bool = ...,
+        proxies: ProxyType | None = ...,
+        hooks: AsyncHookType[PreparedRequest | Response] | None = ...,
+        middlewares: list[Middleware] | None = None,
+        verify: TLSVerifyType | None = ...,
+        stream: typing.Literal[True] = ...,
+        cert: TLSClientCertType | None = ...,
+        retries: RetryType = ...,
+        **kwargs: typing.Any,
 ) -> AsyncResponse: ...
 
 
 async def get(
-    url: str,
-    params: QueryParameterType | None = None,
-    *,
-    headers: HeadersType | None = None,
-    cookies: CookiesType | None = None,
-    auth: HttpAuthenticationType | AsyncHttpAuthenticationType | None = None,
-    timeout: TimeoutType | None = READ_DEFAULT_TIMEOUT,
-    allow_redirects: bool = True,
-    proxies: ProxyType | None = None,
-    hooks: AsyncHookType[PreparedRequest | Response] | None = None,
-    verify: TLSVerifyType | None = None,
-    stream: bool | None = None,
-    cert: TLSClientCertType | None = None,
-    retries: RetryType = DEFAULT_RETRIES,
-    **kwargs: typing.Any,
+        url: str,
+        params: QueryParameterType | None = None,
+        *,
+        headers: HeadersType | None = None,
+        cookies: CookiesType | None = None,
+        auth: HttpAuthenticationType | AsyncHttpAuthenticationType | None = None,
+        timeout: TimeoutType | None = READ_DEFAULT_TIMEOUT,
+        allow_redirects: bool = True,
+        proxies: ProxyType | None = None,
+        hooks: AsyncHookType[PreparedRequest | Response] | None = None,
+        middlewares: list[Middleware] | None = None,
+        verify: TLSVerifyType | None = None,
+        stream: bool | None = None,
+        cert: TLSClientCertType | None = None,
+        retries: RetryType = DEFAULT_RETRIES,
+        **kwargs: typing.Any,
 ) -> Response | AsyncResponse:
     r"""Sends a GET request. This does not keep the connection alive. Use an :class:`AsyncSession` to reuse the connection.
 
@@ -260,6 +270,8 @@ async def get(
     :param cert: (optional) if String, path to ssl client cert file (.pem).
             If Tuple, ('cert', 'key') pair, or ('cert', 'key', 'key_password').
     :param hooks: (optional) Register functions that should be called at very specific moment in the request lifecycle.
+    :param middlewares: (optional) List of middleware to be used for this
+            request. This will merge with the session middlewares.
     :param retries: (optional) If integer, determine the number of retry in case of a timeout or connection error.
             Otherwise, for fine gained retry, use directly a ``Retry`` instance from urllib3.
     :return: :class:`Response <Response>` object if stream=None or False. Otherwise :class:`AsyncResponse <AsyncResponse>`
@@ -278,6 +290,7 @@ async def get(
         stream=stream,  # type: ignore[arg-type]
         cert=cert,
         hooks=hooks,
+        middlewares=middlewares,
         retries=retries,
         **kwargs,
     )
@@ -285,60 +298,63 @@ async def get(
 
 @typing.overload
 async def options(
-    url: str,
-    *,
-    params: QueryParameterType | None = ...,
-    headers: HeadersType | None = ...,
-    cookies: CookiesType | None = ...,
-    auth: HttpAuthenticationType | AsyncHttpAuthenticationType | None = ...,
-    timeout: TimeoutType | None = ...,
-    allow_redirects: bool = ...,
-    proxies: ProxyType | None = ...,
-    hooks: AsyncHookType[PreparedRequest | Response] | None = ...,
-    verify: TLSVerifyType | None = ...,
-    stream: typing.Literal[False] | typing.Literal[None] = ...,
-    cert: TLSClientCertType | None = ...,
-    retries: RetryType = ...,
-    **kwargs: typing.Any,
+        url: str,
+        *,
+        params: QueryParameterType | None = ...,
+        headers: HeadersType | None = ...,
+        cookies: CookiesType | None = ...,
+        auth: HttpAuthenticationType | AsyncHttpAuthenticationType | None = ...,
+        timeout: TimeoutType | None = ...,
+        allow_redirects: bool = ...,
+        proxies: ProxyType | None = ...,
+        hooks: AsyncHookType[PreparedRequest | Response] | None = ...,
+        middlewares: list[Middleware] | None = None,
+        verify: TLSVerifyType | None = ...,
+        stream: typing.Literal[False] | typing.Literal[None] = ...,
+        cert: TLSClientCertType | None = ...,
+        retries: RetryType = ...,
+        **kwargs: typing.Any,
 ) -> Response: ...
 
 
 @typing.overload
 async def options(
-    url: str,
-    *,
-    params: QueryParameterType | None = ...,
-    headers: HeadersType | None = ...,
-    cookies: CookiesType | None = ...,
-    auth: HttpAuthenticationType | AsyncHttpAuthenticationType | None = ...,
-    timeout: TimeoutType | None = ...,
-    allow_redirects: bool = ...,
-    proxies: ProxyType | None = ...,
-    hooks: AsyncHookType[PreparedRequest | Response] | None = ...,
-    verify: TLSVerifyType | None = ...,
-    stream: typing.Literal[True],
-    cert: TLSClientCertType | None = ...,
-    retries: RetryType = ...,
-    **kwargs: typing.Any,
+        url: str,
+        *,
+        params: QueryParameterType | None = ...,
+        headers: HeadersType | None = ...,
+        cookies: CookiesType | None = ...,
+        auth: HttpAuthenticationType | AsyncHttpAuthenticationType | None = ...,
+        timeout: TimeoutType | None = ...,
+        allow_redirects: bool = ...,
+        proxies: ProxyType | None = ...,
+        hooks: AsyncHookType[PreparedRequest | Response] | None = ...,
+        middlewares: list[Middleware] | None = None,
+        verify: TLSVerifyType | None = ...,
+        stream: typing.Literal[True],
+        cert: TLSClientCertType | None = ...,
+        retries: RetryType = ...,
+        **kwargs: typing.Any,
 ) -> AsyncResponse: ...
 
 
 async def options(
-    url: str,
-    *,
-    params: QueryParameterType | None = None,
-    headers: HeadersType | None = None,
-    cookies: CookiesType | None = None,
-    auth: HttpAuthenticationType | AsyncHttpAuthenticationType | None = None,
-    timeout: TimeoutType | None = READ_DEFAULT_TIMEOUT,
-    allow_redirects: bool = True,
-    proxies: ProxyType | None = None,
-    hooks: AsyncHookType[PreparedRequest | Response] | None = None,
-    verify: TLSVerifyType | None = None,
-    stream: bool | None = None,
-    cert: TLSClientCertType | None = None,
-    retries: RetryType = DEFAULT_RETRIES,
-    **kwargs: typing.Any,
+        url: str,
+        *,
+        params: QueryParameterType | None = None,
+        headers: HeadersType | None = None,
+        cookies: CookiesType | None = None,
+        auth: HttpAuthenticationType | AsyncHttpAuthenticationType | None = None,
+        timeout: TimeoutType | None = READ_DEFAULT_TIMEOUT,
+        allow_redirects: bool = True,
+        proxies: ProxyType | None = None,
+        hooks: AsyncHookType[PreparedRequest | Response] | None = None,
+        middlewares: list[Middleware] | None = None,
+        verify: TLSVerifyType | None = None,
+        stream: bool | None = None,
+        cert: TLSClientCertType | None = None,
+        retries: RetryType = DEFAULT_RETRIES,
+        **kwargs: typing.Any,
 ) -> Response | AsyncResponse:
     r"""Sends an OPTIONS request. This does not keep the connection alive. Use an :class:`AsyncSession` to reuse the connection.
 
@@ -364,6 +380,8 @@ async def options(
     :param cert: (optional) if String, path to ssl client cert file (.pem).
             If Tuple, ('cert', 'key') pair, or ('cert', 'key', 'key_password').
     :param hooks: (optional) Register functions that should be called at very specific moment in the request lifecycle.
+    :param middlewares: (optional) List of middleware to be used for this
+            request. This will merge with the session middlewares.
     :param retries: (optional) If integer, determine the number of retry in case of a timeout or connection error.
             Otherwise, for fine gained retry, use directly a ``Retry`` instance from urllib3.
 
@@ -383,6 +401,7 @@ async def options(
         stream=stream,  # type: ignore[arg-type]
         cert=cert,
         hooks=hooks,
+        middlewares=middlewares,
         retries=retries,
         **kwargs,
     )
@@ -390,60 +409,63 @@ async def options(
 
 @typing.overload
 async def head(
-    url: str,
-    *,
-    params: QueryParameterType | None = ...,
-    headers: HeadersType | None = ...,
-    cookies: CookiesType | None = ...,
-    auth: HttpAuthenticationType | AsyncHttpAuthenticationType | None = ...,
-    timeout: TimeoutType | None = ...,
-    allow_redirects: bool = ...,
-    proxies: ProxyType | None = ...,
-    hooks: AsyncHookType[PreparedRequest | Response] | None = ...,
-    verify: TLSVerifyType | None = ...,
-    stream: typing.Literal[False] | typing.Literal[None] = ...,
-    cert: TLSClientCertType | None = ...,
-    retries: RetryType = ...,
-    **kwargs: typing.Any,
+        url: str,
+        *,
+        params: QueryParameterType | None = ...,
+        headers: HeadersType | None = ...,
+        cookies: CookiesType | None = ...,
+        auth: HttpAuthenticationType | AsyncHttpAuthenticationType | None = ...,
+        timeout: TimeoutType | None = ...,
+        allow_redirects: bool = ...,
+        proxies: ProxyType | None = ...,
+        hooks: AsyncHookType[PreparedRequest | Response] | None = ...,
+        middlewares: list[Middleware] | None = None,
+        verify: TLSVerifyType | None = ...,
+        stream: typing.Literal[False] | typing.Literal[None] = ...,
+        cert: TLSClientCertType | None = ...,
+        retries: RetryType = ...,
+        **kwargs: typing.Any,
 ) -> Response: ...
 
 
 @typing.overload
 async def head(
-    url: str,
-    *,
-    params: QueryParameterType | None = ...,
-    headers: HeadersType | None = ...,
-    cookies: CookiesType | None = ...,
-    auth: HttpAuthenticationType | AsyncHttpAuthenticationType | None = ...,
-    timeout: TimeoutType | None = ...,
-    allow_redirects: bool = ...,
-    proxies: ProxyType | None = ...,
-    hooks: AsyncHookType[PreparedRequest | Response] | None = ...,
-    verify: TLSVerifyType | None = ...,
-    stream: typing.Literal[True],
-    cert: TLSClientCertType | None = ...,
-    retries: RetryType = ...,
-    **kwargs: typing.Any,
+        url: str,
+        *,
+        params: QueryParameterType | None = ...,
+        headers: HeadersType | None = ...,
+        cookies: CookiesType | None = ...,
+        auth: HttpAuthenticationType | AsyncHttpAuthenticationType | None = ...,
+        timeout: TimeoutType | None = ...,
+        allow_redirects: bool = ...,
+        proxies: ProxyType | None = ...,
+        hooks: AsyncHookType[PreparedRequest | Response] | None = ...,
+        middlewares: list[Middleware] | None = None,
+        verify: TLSVerifyType | None = ...,
+        stream: typing.Literal[True],
+        cert: TLSClientCertType | None = ...,
+        retries: RetryType = ...,
+        **kwargs: typing.Any,
 ) -> AsyncResponse: ...
 
 
 async def head(
-    url: str,
-    *,
-    params: QueryParameterType | None = None,
-    headers: HeadersType | None = None,
-    cookies: CookiesType | None = None,
-    auth: HttpAuthenticationType | AsyncHttpAuthenticationType | None = None,
-    timeout: TimeoutType | None = READ_DEFAULT_TIMEOUT,
-    allow_redirects: bool = True,
-    proxies: ProxyType | None = None,
-    hooks: AsyncHookType[PreparedRequest | Response] | None = None,
-    verify: TLSVerifyType | None = None,
-    stream: bool | None = None,
-    cert: TLSClientCertType | None = None,
-    retries: RetryType = DEFAULT_RETRIES,
-    **kwargs: typing.Any,
+        url: str,
+        *,
+        params: QueryParameterType | None = None,
+        headers: HeadersType | None = None,
+        cookies: CookiesType | None = None,
+        auth: HttpAuthenticationType | AsyncHttpAuthenticationType | None = None,
+        timeout: TimeoutType | None = READ_DEFAULT_TIMEOUT,
+        allow_redirects: bool = True,
+        proxies: ProxyType | None = None,
+        hooks: AsyncHookType[PreparedRequest | Response] | None = None,
+        middlewares: list[Middleware] | None = None,
+        verify: TLSVerifyType | None = None,
+        stream: bool | None = None,
+        cert: TLSClientCertType | None = None,
+        retries: RetryType = DEFAULT_RETRIES,
+        **kwargs: typing.Any,
 ) -> Response | AsyncResponse:
     r"""Sends a HEAD request. This does not keep the connection alive. Use an :class:`AsyncSession` to reuse the connection.
 
@@ -469,6 +491,7 @@ async def head(
     :param cert: (optional) if String, path to ssl client cert file (.pem).
             If Tuple, ('cert', 'key') pair, or ('cert', 'key', 'key_password').
     :param hooks: (optional) Register functions that should be called at very specific moment in the request lifecycle.
+    :param middlewares: (optional) List of middleware to be used for this
     :param retries: (optional) If integer, determine the number of retry in case of a timeout or connection error.
             Otherwise, for fine gained retry, use directly a ``Retry`` instance from urllib3.
 
@@ -488,6 +511,7 @@ async def head(
         stream=stream,  # type: ignore[arg-type]
         cert=cert,
         hooks=hooks,
+        middlewares=middlewares,
         retries=retries,
         **kwargs,
     )
@@ -495,66 +519,69 @@ async def head(
 
 @typing.overload
 async def post(
-    url: str,
-    data: BodyType | AsyncBodyType | None = ...,
-    json: typing.Any | None = ...,
-    *,
-    params: QueryParameterType | None = ...,
-    headers: HeadersType | None = ...,
-    cookies: CookiesType | None = ...,
-    files: MultiPartFilesType | MultiPartFilesAltType | None = ...,
-    auth: HttpAuthenticationType | AsyncHttpAuthenticationType | None = ...,
-    timeout: TimeoutType | None = ...,
-    allow_redirects: bool = ...,
-    proxies: ProxyType | None = ...,
-    hooks: AsyncHookType[PreparedRequest | Response] | None = ...,
-    verify: TLSVerifyType | None = ...,
-    stream: typing.Literal[False] | typing.Literal[None] = ...,
-    cert: TLSClientCertType | None = ...,
-    retries: RetryType = ...,
+        url: str,
+        data: BodyType | AsyncBodyType | None = ...,
+        json: typing.Any | None = ...,
+        *,
+        params: QueryParameterType | None = ...,
+        headers: HeadersType | None = ...,
+        cookies: CookiesType | None = ...,
+        files: MultiPartFilesType | MultiPartFilesAltType | None = ...,
+        auth: HttpAuthenticationType | AsyncHttpAuthenticationType | None = ...,
+        timeout: TimeoutType | None = ...,
+        allow_redirects: bool = ...,
+        proxies: ProxyType | None = ...,
+        hooks: AsyncHookType[PreparedRequest | Response] | None = ...,
+        middlewares: list[Middleware] | None = None,
+        verify: TLSVerifyType | None = ...,
+        stream: typing.Literal[False] | typing.Literal[None] = ...,
+        cert: TLSClientCertType | None = ...,
+        retries: RetryType = ...,
 ) -> Response: ...
 
 
 @typing.overload
 async def post(
-    url: str,
-    data: BodyType | AsyncBodyType | None = ...,
-    json: typing.Any | None = ...,
-    *,
-    params: QueryParameterType | None = ...,
-    headers: HeadersType | None = ...,
-    cookies: CookiesType | None = ...,
-    files: MultiPartFilesType | MultiPartFilesAltType | None = ...,
-    auth: HttpAuthenticationType | AsyncHttpAuthenticationType | None = ...,
-    timeout: TimeoutType | None = ...,
-    allow_redirects: bool = ...,
-    proxies: ProxyType | None = ...,
-    hooks: AsyncHookType[PreparedRequest | Response] | None = ...,
-    verify: TLSVerifyType | None = ...,
-    stream: typing.Literal[True],
-    cert: TLSClientCertType | None = ...,
-    retries: RetryType = ...,
+        url: str,
+        data: BodyType | AsyncBodyType | None = ...,
+        json: typing.Any | None = ...,
+        *,
+        params: QueryParameterType | None = ...,
+        headers: HeadersType | None = ...,
+        cookies: CookiesType | None = ...,
+        files: MultiPartFilesType | MultiPartFilesAltType | None = ...,
+        auth: HttpAuthenticationType | AsyncHttpAuthenticationType | None = ...,
+        timeout: TimeoutType | None = ...,
+        allow_redirects: bool = ...,
+        proxies: ProxyType | None = ...,
+        hooks: AsyncHookType[PreparedRequest | Response] | None = ...,
+        middlewares: list[Middleware] | None = None,
+        verify: TLSVerifyType | None = ...,
+        stream: typing.Literal[True],
+        cert: TLSClientCertType | None = ...,
+        retries: RetryType = ...,
 ) -> AsyncResponse: ...
 
 
 async def post(
-    url: str,
-    data: BodyType | AsyncBodyType | None = None,
-    json: typing.Any | None = None,
-    *,
-    params: QueryParameterType | None = None,
-    headers: HeadersType | None = None,
-    cookies: CookiesType | None = None,
-    files: MultiPartFilesType | MultiPartFilesAltType | None = None,
-    auth: HttpAuthenticationType | AsyncHttpAuthenticationType | None = None,
-    timeout: TimeoutType | None = WRITE_DEFAULT_TIMEOUT,
-    allow_redirects: bool = True,
-    proxies: ProxyType | None = None,
-    hooks: AsyncHookType[PreparedRequest | Response] | None = None,
-    verify: TLSVerifyType | None = None,
-    stream: bool | None = None,
-    cert: TLSClientCertType | None = None,
-    retries: RetryType = DEFAULT_RETRIES,
+        url: str,
+        data: BodyType | AsyncBodyType | None = None,
+        json: typing.Any | None = None,
+        *,
+        params: QueryParameterType | None = None,
+        headers: HeadersType | None = None,
+        cookies: CookiesType | None = None,
+        files: MultiPartFilesType | MultiPartFilesAltType | None = None,
+        auth: HttpAuthenticationType | AsyncHttpAuthenticationType | None = None,
+        timeout: TimeoutType | None = WRITE_DEFAULT_TIMEOUT,
+        allow_redirects: bool = True,
+        proxies: ProxyType | None = None,
+        hooks: AsyncHookType[PreparedRequest | Response] | None = None,
+        middlewares: list[Middleware] | None = None,
+        verify: TLSVerifyType | None = None,
+        stream: bool | None = None,
+        cert: TLSClientCertType | None = None,
+        retries: RetryType = DEFAULT_RETRIES,
 ) -> Response | AsyncResponse:
     r"""Sends a POST request. This does not keep the connection alive. Use an :class:`AsyncSession` to reuse the connection.
 
@@ -589,6 +616,8 @@ async def post(
     :param cert: (optional) if String, path to ssl client cert file (.pem).
             If Tuple, ('cert', 'key') pair, or ('cert', 'key', 'key_password').
     :param hooks: (optional) Register functions that should be called at very specific moment in the request lifecycle.
+    :param middlewares: (optional) List of middleware to be used for this
+            request. This will merge with the session middlewares.
     :param retries: (optional) If integer, determine the number of retry in case of a timeout or connection error.
             Otherwise, for fine gained retry, use directly a ``Retry`` instance from urllib3.
 
@@ -611,72 +640,76 @@ async def post(
         stream=stream,  # type: ignore[arg-type]
         cert=cert,
         hooks=hooks,
+        middlewares=middlewares,
         retries=retries,
     )
 
 
 @typing.overload
 async def put(
-    url: str,
-    data: BodyType | AsyncBodyType | None = ...,
-    *,
-    json: typing.Any | None = ...,
-    params: QueryParameterType | None = ...,
-    headers: HeadersType | None = ...,
-    cookies: CookiesType | None = ...,
-    files: MultiPartFilesType | MultiPartFilesAltType | None = ...,
-    auth: HttpAuthenticationType | AsyncHttpAuthenticationType | None = ...,
-    timeout: TimeoutType | None = ...,
-    allow_redirects: bool = ...,
-    proxies: ProxyType | None = ...,
-    hooks: AsyncHookType[PreparedRequest | Response] | None = ...,
-    verify: TLSVerifyType | None = ...,
-    stream: typing.Literal[False] | typing.Literal[None] = ...,
-    cert: TLSClientCertType | None = ...,
-    retries: RetryType = ...,
+        url: str,
+        data: BodyType | AsyncBodyType | None = ...,
+        *,
+        json: typing.Any | None = ...,
+        params: QueryParameterType | None = ...,
+        headers: HeadersType | None = ...,
+        cookies: CookiesType | None = ...,
+        files: MultiPartFilesType | MultiPartFilesAltType | None = ...,
+        auth: HttpAuthenticationType | AsyncHttpAuthenticationType | None = ...,
+        timeout: TimeoutType | None = ...,
+        allow_redirects: bool = ...,
+        proxies: ProxyType | None = ...,
+        hooks: AsyncHookType[PreparedRequest | Response] | None = ...,
+        middlewares: list[Middleware] | None = None,
+        verify: TLSVerifyType | None = ...,
+        stream: typing.Literal[False] | typing.Literal[None] = ...,
+        cert: TLSClientCertType | None = ...,
+        retries: RetryType = ...,
 ) -> Response: ...
 
 
 @typing.overload
 async def put(
-    url: str,
-    data: BodyType | AsyncBodyType | None = ...,
-    *,
-    json: typing.Any | None = ...,
-    params: QueryParameterType | None = ...,
-    headers: HeadersType | None = ...,
-    cookies: CookiesType | None = ...,
-    files: MultiPartFilesType | MultiPartFilesAltType | None = ...,
-    auth: HttpAuthenticationType | AsyncHttpAuthenticationType | None = ...,
-    timeout: TimeoutType | None = ...,
-    allow_redirects: bool = ...,
-    proxies: ProxyType | None = ...,
-    hooks: AsyncHookType[PreparedRequest | Response] | None = ...,
-    verify: TLSVerifyType | None = ...,
-    stream: typing.Literal[True],
-    cert: TLSClientCertType | None = ...,
-    retries: RetryType = ...,
+        url: str,
+        data: BodyType | AsyncBodyType | None = ...,
+        *,
+        json: typing.Any | None = ...,
+        params: QueryParameterType | None = ...,
+        headers: HeadersType | None = ...,
+        cookies: CookiesType | None = ...,
+        files: MultiPartFilesType | MultiPartFilesAltType | None = ...,
+        auth: HttpAuthenticationType | AsyncHttpAuthenticationType | None = ...,
+        timeout: TimeoutType | None = ...,
+        allow_redirects: bool = ...,
+        proxies: ProxyType | None = ...,
+        hooks: AsyncHookType[PreparedRequest | Response] | None = ...,
+        middlewares: list[Middleware] | None = None,
+        verify: TLSVerifyType | None = ...,
+        stream: typing.Literal[True],
+        cert: TLSClientCertType | None = ...,
+        retries: RetryType = ...,
 ) -> AsyncResponse: ...
 
 
 async def put(
-    url: str,
-    data: BodyType | AsyncBodyType | None = None,
-    *,
-    json: typing.Any | None = None,
-    params: QueryParameterType | None = None,
-    headers: HeadersType | None = None,
-    cookies: CookiesType | None = None,
-    files: MultiPartFilesType | MultiPartFilesAltType | None = None,
-    auth: HttpAuthenticationType | AsyncHttpAuthenticationType | None = None,
-    timeout: TimeoutType | None = WRITE_DEFAULT_TIMEOUT,
-    allow_redirects: bool = True,
-    proxies: ProxyType | None = None,
-    hooks: AsyncHookType[PreparedRequest | Response] | None = None,
-    verify: TLSVerifyType | None = None,
-    stream: bool | None = None,
-    cert: TLSClientCertType | None = None,
-    retries: RetryType = DEFAULT_RETRIES,
+        url: str,
+        data: BodyType | AsyncBodyType | None = None,
+        *,
+        json: typing.Any | None = None,
+        params: QueryParameterType | None = None,
+        headers: HeadersType | None = None,
+        cookies: CookiesType | None = None,
+        files: MultiPartFilesType | MultiPartFilesAltType | None = None,
+        auth: HttpAuthenticationType | AsyncHttpAuthenticationType | None = None,
+        timeout: TimeoutType | None = WRITE_DEFAULT_TIMEOUT,
+        allow_redirects: bool = True,
+        proxies: ProxyType | None = None,
+        hooks: AsyncHookType[PreparedRequest | Response] | None = None,
+        middlewares: list[Middleware] | None = None,
+        verify: TLSVerifyType | None = None,
+        stream: bool | None = None,
+        cert: TLSClientCertType | None = None,
+        retries: RetryType = DEFAULT_RETRIES,
 ) -> Response | AsyncResponse:
     r"""Sends a PUT request. This does not keep the connection alive. Use an :class:`AsyncSession` to reuse the connection.
 
@@ -711,6 +744,8 @@ async def put(
     :param cert: (optional) if String, path to ssl client cert file (.pem).
             If Tuple, ('cert', 'key') pair, or ('cert', 'key', 'key_password').
     :param hooks: (optional) Register functions that should be called at very specific moment in the request lifecycle.
+    :param middlewares: (optional) List of middleware to be used for this
+            request. This will merge with the session middlewares.
     :param retries: (optional) If integer, determine the number of retry in case of a timeout or connection error.
             Otherwise, for fine gained retry, use directly a ``Retry`` instance from urllib3.
 
@@ -733,72 +768,76 @@ async def put(
         stream=stream,  # type: ignore[arg-type]
         cert=cert,
         hooks=hooks,
+        middlewares=middlewares,
         retries=retries,
     )
 
 
 @typing.overload
 async def patch(
-    url: str,
-    data: BodyType | AsyncBodyType | None = ...,
-    *,
-    json: typing.Any | None = ...,
-    params: QueryParameterType | None = ...,
-    headers: HeadersType | None = ...,
-    cookies: CookiesType | None = ...,
-    files: MultiPartFilesType | MultiPartFilesAltType | None = ...,
-    auth: HttpAuthenticationType | AsyncHttpAuthenticationType | None = ...,
-    timeout: TimeoutType | None = ...,
-    allow_redirects: bool = ...,
-    proxies: ProxyType | None = ...,
-    hooks: AsyncHookType[PreparedRequest | Response] | None = ...,
-    verify: TLSVerifyType | None = ...,
-    stream: typing.Literal[False] | typing.Literal[None] = ...,
-    cert: TLSClientCertType | None = ...,
-    retries: RetryType = ...,
+        url: str,
+        data: BodyType | AsyncBodyType | None = ...,
+        *,
+        json: typing.Any | None = ...,
+        params: QueryParameterType | None = ...,
+        headers: HeadersType | None = ...,
+        cookies: CookiesType | None = ...,
+        files: MultiPartFilesType | MultiPartFilesAltType | None = ...,
+        auth: HttpAuthenticationType | AsyncHttpAuthenticationType | None = ...,
+        timeout: TimeoutType | None = ...,
+        allow_redirects: bool = ...,
+        proxies: ProxyType | None = ...,
+        hooks: AsyncHookType[PreparedRequest | Response] | None = ...,
+        middlewares: list[Middleware] | None = None,
+        verify: TLSVerifyType | None = ...,
+        stream: typing.Literal[False] | typing.Literal[None] = ...,
+        cert: TLSClientCertType | None = ...,
+        retries: RetryType = ...,
 ) -> Response: ...
 
 
 @typing.overload
 async def patch(
-    url: str,
-    data: BodyType | AsyncBodyType | None = ...,
-    *,
-    json: typing.Any | None = ...,
-    params: QueryParameterType | None = ...,
-    headers: HeadersType | None = ...,
-    cookies: CookiesType | None = ...,
-    files: MultiPartFilesType | MultiPartFilesAltType | None = ...,
-    auth: HttpAuthenticationType | AsyncHttpAuthenticationType | None = ...,
-    timeout: TimeoutType | None = ...,
-    allow_redirects: bool = ...,
-    proxies: ProxyType | None = ...,
-    hooks: AsyncHookType[PreparedRequest | Response] | None = ...,
-    verify: TLSVerifyType | None = ...,
-    stream: typing.Literal[True],
-    cert: TLSClientCertType | None = ...,
-    retries: RetryType = ...,
+        url: str,
+        data: BodyType | AsyncBodyType | None = ...,
+        *,
+        json: typing.Any | None = ...,
+        params: QueryParameterType | None = ...,
+        headers: HeadersType | None = ...,
+        cookies: CookiesType | None = ...,
+        files: MultiPartFilesType | MultiPartFilesAltType | None = ...,
+        auth: HttpAuthenticationType | AsyncHttpAuthenticationType | None = ...,
+        timeout: TimeoutType | None = ...,
+        allow_redirects: bool = ...,
+        proxies: ProxyType | None = ...,
+        hooks: AsyncHookType[PreparedRequest | Response] | None = ...,
+        middlewares: list[Middleware] | None = None,
+        verify: TLSVerifyType | None = ...,
+        stream: typing.Literal[True],
+        cert: TLSClientCertType | None = ...,
+        retries: RetryType = ...,
 ) -> AsyncResponse: ...
 
 
 async def patch(
-    url: str,
-    data: BodyType | AsyncBodyType | None = None,
-    *,
-    json: typing.Any | None = None,
-    params: QueryParameterType | None = None,
-    headers: HeadersType | None = None,
-    cookies: CookiesType | None = None,
-    files: MultiPartFilesType | MultiPartFilesAltType | None = None,
-    auth: HttpAuthenticationType | AsyncHttpAuthenticationType | None = None,
-    timeout: TimeoutType | None = WRITE_DEFAULT_TIMEOUT,
-    allow_redirects: bool = True,
-    proxies: ProxyType | None = None,
-    hooks: AsyncHookType[PreparedRequest | Response] | None = None,
-    verify: TLSVerifyType | None = None,
-    stream: bool | None = None,
-    cert: TLSClientCertType | None = None,
-    retries: RetryType = DEFAULT_RETRIES,
+        url: str,
+        data: BodyType | AsyncBodyType | None = None,
+        *,
+        json: typing.Any | None = None,
+        params: QueryParameterType | None = None,
+        headers: HeadersType | None = None,
+        cookies: CookiesType | None = None,
+        files: MultiPartFilesType | MultiPartFilesAltType | None = None,
+        auth: HttpAuthenticationType | AsyncHttpAuthenticationType | None = None,
+        timeout: TimeoutType | None = WRITE_DEFAULT_TIMEOUT,
+        allow_redirects: bool = True,
+        proxies: ProxyType | None = None,
+        hooks: AsyncHookType[PreparedRequest | Response] | None = None,
+        middlewares: list[Middleware] | None = None,
+        verify: TLSVerifyType | None = None,
+        stream: bool | None = None,
+        cert: TLSClientCertType | None = None,
+        retries: RetryType = DEFAULT_RETRIES,
 ) -> Response | AsyncResponse:
     r"""Sends a PATCH request. This does not keep the connection alive. Use an :class:`AsyncSession` to reuse the connection.
 
@@ -833,6 +872,8 @@ async def patch(
     :param cert: (optional) if String, path to ssl client cert file (.pem).
             If Tuple, ('cert', 'key') pair, or ('cert', 'key', 'key_password').
     :param hooks: (optional) Register functions that should be called at very specific moment in the request lifecycle.
+    :param middlewares: (optional) List of middleware to be used for this
+            request. This will merge with the session middlewares.
     :param retries: (optional) If integer, determine the number of retry in case of a timeout or connection error.
             Otherwise, for fine gained retry, use directly a ``Retry`` instance from urllib3.
 
@@ -855,66 +896,70 @@ async def patch(
         stream=stream,  # type: ignore[arg-type]
         cert=cert,
         hooks=hooks,
+        middlewares=middlewares,
         retries=retries,
     )
 
 
 @typing.overload
 async def delete(
-    url: str,
-    *,
-    params: QueryParameterType | None = ...,
-    headers: HeadersType | None = ...,
-    cookies: CookiesType | None = ...,
-    auth: HttpAuthenticationType | AsyncHttpAuthenticationType | None = ...,
-    timeout: TimeoutType | None = ...,
-    allow_redirects: bool = ...,
-    proxies: ProxyType | None = ...,
-    hooks: AsyncHookType[PreparedRequest | Response] | None = ...,
-    verify: TLSVerifyType | None = ...,
-    stream: typing.Literal[False] | typing.Literal[None] = ...,
-    cert: TLSClientCertType | None = ...,
-    retries: RetryType = ...,
-    **kwargs: typing.Any,
+        url: str,
+        *,
+        params: QueryParameterType | None = ...,
+        headers: HeadersType | None = ...,
+        cookies: CookiesType | None = ...,
+        auth: HttpAuthenticationType | AsyncHttpAuthenticationType | None = ...,
+        timeout: TimeoutType | None = ...,
+        allow_redirects: bool = ...,
+        proxies: ProxyType | None = ...,
+        hooks: AsyncHookType[PreparedRequest | Response] | None = ...,
+        middlewares: list[Middleware] | None = None,
+        verify: TLSVerifyType | None = ...,
+        stream: typing.Literal[False] | typing.Literal[None] = ...,
+        cert: TLSClientCertType | None = ...,
+        retries: RetryType = ...,
+        **kwargs: typing.Any,
 ) -> Response: ...
 
 
 @typing.overload
 async def delete(
-    url: str,
-    *,
-    params: QueryParameterType | None = ...,
-    headers: HeadersType | None = ...,
-    cookies: CookiesType | None = ...,
-    auth: HttpAuthenticationType | AsyncHttpAuthenticationType | None = ...,
-    timeout: TimeoutType | None = ...,
-    allow_redirects: bool = ...,
-    proxies: ProxyType | None = ...,
-    hooks: AsyncHookType[PreparedRequest | Response] | None = ...,
-    verify: TLSVerifyType | None = ...,
-    stream: typing.Literal[True],
-    cert: TLSClientCertType | None = ...,
-    retries: RetryType = ...,
-    **kwargs: typing.Any,
+        url: str,
+        *,
+        params: QueryParameterType | None = ...,
+        headers: HeadersType | None = ...,
+        cookies: CookiesType | None = ...,
+        auth: HttpAuthenticationType | AsyncHttpAuthenticationType | None = ...,
+        timeout: TimeoutType | None = ...,
+        allow_redirects: bool = ...,
+        proxies: ProxyType | None = ...,
+        hooks: AsyncHookType[PreparedRequest | Response] | None = ...,
+        middlewares: list[Middleware] | None = None,
+        verify: TLSVerifyType | None = ...,
+        stream: typing.Literal[True],
+        cert: TLSClientCertType | None = ...,
+        retries: RetryType = ...,
+        **kwargs: typing.Any,
 ) -> AsyncResponse: ...
 
 
 async def delete(
-    url: str,
-    *,
-    params: QueryParameterType | None = None,
-    headers: HeadersType | None = None,
-    cookies: CookiesType | None = None,
-    auth: HttpAuthenticationType | AsyncHttpAuthenticationType | None = None,
-    timeout: TimeoutType | None = WRITE_DEFAULT_TIMEOUT,
-    allow_redirects: bool = True,
-    proxies: ProxyType | None = None,
-    hooks: AsyncHookType[PreparedRequest | Response] | None = None,
-    verify: TLSVerifyType | None = None,
-    stream: bool | None = None,
-    cert: TLSClientCertType | None = None,
-    retries: RetryType = DEFAULT_RETRIES,
-    **kwargs: typing.Any,
+        url: str,
+        *,
+        params: QueryParameterType | None = None,
+        headers: HeadersType | None = None,
+        cookies: CookiesType | None = None,
+        auth: HttpAuthenticationType | AsyncHttpAuthenticationType | None = None,
+        timeout: TimeoutType | None = WRITE_DEFAULT_TIMEOUT,
+        allow_redirects: bool = True,
+        proxies: ProxyType | None = None,
+        hooks: AsyncHookType[PreparedRequest | Response] | None = None,
+        middlewares: list[Middleware] | None = None,
+        verify: TLSVerifyType | None = None,
+        stream: bool | None = None,
+        cert: TLSClientCertType | None = None,
+        retries: RetryType = DEFAULT_RETRIES,
+        **kwargs: typing.Any,
 ) -> Response | AsyncResponse:
     r"""Sends a DELETE request. This does not keep the connection alive. Use an :class:`AsyncSession` to reuse the connection.
 
@@ -940,6 +985,8 @@ async def delete(
     :param cert: (optional) if String, path to ssl client cert file (.pem).
             If Tuple, ('cert', 'key') pair, or ('cert', 'key', 'key_password').
     :param hooks: (optional) Register functions that should be called at very specific moment in the request lifecycle.
+    :param middlewares: (optional) List of middleware to be used for this
+            request. This will merge with the session middlewares.
     :param retries: (optional) If integer, determine the number of retry in case of a timeout or connection error.
             Otherwise, for fine gained retry, use directly a ``Retry`` instance from urllib3.
 
@@ -959,6 +1006,7 @@ async def delete(
         stream=stream,  # type: ignore[arg-type]
         cert=cert,
         hooks=hooks,
+        middlewares=middlewares,
         retries=retries,
         **kwargs,
     )

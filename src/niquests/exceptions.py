@@ -121,7 +121,7 @@ class ChunkedEncodingError(RequestException):
 
 
 class ContentDecodingError(RequestException, BaseHTTPError):
-    """Failed to decode response content."""
+   """Failed to decode response content."""
 
 
 class StreamConsumedError(RequestException, TypeError):
