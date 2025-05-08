@@ -1,7 +1,7 @@
 .. _migrate:
 
-Migration Guide
-================
+Requests → Niquests Guide
+=========================
 
 If you're reading this, you're probably interested in Niquests. We're thrilled to have
 you onboard.
