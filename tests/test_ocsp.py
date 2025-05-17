@@ -51,15 +51,15 @@ class TestOnlineCertificateRevocationProtocol:
     def test_sync_valid_ensure_cached(self) -> None:
         with Session() as s:
             assert s._ocsp_cache is None
-            s.get("https://httpbingo.org/get", timeout=OCSP_MAX_DELAY_WAIT)
+            s.get("https://raw.githubusercontent.com/jawah/niquests/refs/heads/main/README.md", timeout=OCSP_MAX_DELAY_WAIT)
             assert s._ocsp_cache is not None
             assert hasattr(s._ocsp_cache, "_store")
             assert isinstance(s._ocsp_cache._store, dict)
             assert len(s._ocsp_cache._store) == 1
-            s.get("https://httpbingo.org/get", timeout=OCSP_MAX_DELAY_WAIT)
-            assert len(s._ocsp_cache._store) == 1
-            s.get("https://one.one.one.one", timeout=OCSP_MAX_DELAY_WAIT)
+            s.get("https://pypi.org/pypi/niquests/json", timeout=OCSP_MAX_DELAY_WAIT)
             assert len(s._ocsp_cache._store) == 2
+            s.get("https://one.one.one.one", timeout=OCSP_MAX_DELAY_WAIT)
+            assert len(s._ocsp_cache._store) == 3
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize(
@@ -91,12 +91,14 @@ class TestOnlineCertificateRevocationProtocol:
     async def test_async_valid_ensure_cached(self) -> None:
         async with AsyncSession() as s:
             assert s._ocsp_cache is None
-            await s.get("https://httpbingo.org/get", timeout=OCSP_MAX_DELAY_WAIT)
+            await s.get(
+                "https://raw.githubusercontent.com/jawah/niquests/refs/heads/main/README.md", timeout=OCSP_MAX_DELAY_WAIT
+            )
             assert s._ocsp_cache is not None
             assert hasattr(s._ocsp_cache, "_store")
             assert isinstance(s._ocsp_cache._store, dict)
             assert len(s._ocsp_cache._store) == 1
-            await s.get("https://httpbingo.org/get", timeout=OCSP_MAX_DELAY_WAIT)
-            assert len(s._ocsp_cache._store) == 1
-            await s.get("https://one.one.one.one", timeout=OCSP_MAX_DELAY_WAIT)
+            await s.get("https://pypi.org/pypi/niquests/json", timeout=OCSP_MAX_DELAY_WAIT)
             assert len(s._ocsp_cache._store) == 2
+            await s.get("https://one.one.one.one/", timeout=OCSP_MAX_DELAY_WAIT)
+            assert len(s._ocsp_cache._store) == 3
