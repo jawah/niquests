@@ -57,9 +57,9 @@ class TestOnlineCertificateRevocationProtocol:
             assert isinstance(s._ocsp_cache._store, dict)
             assert len(s._ocsp_cache._store) == 1
             s.get("https://pypi.org/pypi/niquests/json", timeout=OCSP_MAX_DELAY_WAIT)
-            assert len(s._ocsp_cache._store) == 1
-            s.get("https://one.one.one.one", timeout=OCSP_MAX_DELAY_WAIT)
             assert len(s._ocsp_cache._store) == 2
+            s.get("https://one.one.one.one", timeout=OCSP_MAX_DELAY_WAIT)
+            assert len(s._ocsp_cache._store) == 3
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize(
