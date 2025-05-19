@@ -34,6 +34,14 @@ from ._typing import (
 from .models import PreparedRequest, Response
 from .structures import QuicSharedCache
 
+try:
+    from .extensions._ocsp import InMemoryRevocationStatus
+
+    _SHARED_OCSP_CACHE: InMemoryRevocationStatus | None = InMemoryRevocationStatus()
+except ImportError:
+    _SHARED_OCSP_CACHE = None
+
+
 _SHARED_QUIC_CACHE: CacheLayerAltSvcType = QuicSharedCache(max_size=12_288)
 
 
@@ -109,6 +117,7 @@ def request(
     # avoid leaving sockets open which can trigger a ResourceWarning in some
     # cases, and look like a memory leak in others.
     with sessions.Session(quic_cache_layer=_SHARED_QUIC_CACHE, retries=retries) as session:
+        session._ocsp_cache = _SHARED_OCSP_CACHE
         return session.request(
             method=method,
             url=url,

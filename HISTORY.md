@@ -1,6 +1,14 @@
 Release History
 ===============
 
+3.14.1 (2025-04-19)
+-------------------
+
+**Fixed**
+- Prevent accessing lazy attr if it does not exist (e.g. requests_cache mixin) (#243)
+- Session hooks are not fired for the pre_request hook. (#242)
+- OCSP redundant calls made from session-less requests.
+
 3.14.0 (2025-03-30)
 -------------------
 
