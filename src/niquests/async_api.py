@@ -10,6 +10,7 @@ This module implements the Requests API.
 
 from __future__ import annotations
 
+import contextvars
 import typing
 
 from ._constant import DEFAULT_RETRIES, READ_DEFAULT_TIMEOUT, WRITE_DEFAULT_TIMEOUT
@@ -39,7 +40,9 @@ from .structures import AsyncQuicSharedCache
 try:
     from .extensions._async_ocsp import InMemoryRevocationStatus
 
-    _SHARED_OCSP_CACHE: InMemoryRevocationStatus | None = InMemoryRevocationStatus()
+    _SHARED_OCSP_CACHE: contextvars.ContextVar[InMemoryRevocationStatus] | None = contextvars.ContextVar(
+        "ocsp_cache", default=InMemoryRevocationStatus()
+    )
 except ImportError:
     _SHARED_OCSP_CACHE = None
 
@@ -164,7 +167,8 @@ async def request(
     # avoid leaving sockets open which can trigger a ResourceWarning in some
     # cases, and look like a memory leak in others.
     async with AsyncSession(quic_cache_layer=_SHARED_QUIC_CACHE, retries=retries) as session:
-        session._ocsp_cache = _SHARED_OCSP_CACHE
+        if _SHARED_OCSP_CACHE is not None:
+            session._ocsp_cache = _SHARED_OCSP_CACHE.get()
 
         return await session.request(  # type: ignore[misc]
             method,
