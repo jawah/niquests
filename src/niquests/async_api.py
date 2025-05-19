@@ -36,6 +36,13 @@ from .async_session import AsyncSession
 from .models import AsyncResponse, PreparedRequest, Response
 from .structures import AsyncQuicSharedCache
 
+try:
+    from .extensions._async_ocsp import InMemoryRevocationStatus
+
+    _SHARED_OCSP_CACHE: InMemoryRevocationStatus | None = InMemoryRevocationStatus()
+except ImportError:
+    _SHARED_OCSP_CACHE = None
+
 _SHARED_QUIC_CACHE: CacheLayerAltSvcType = AsyncQuicSharedCache(max_size=12_288)
 
 
@@ -157,6 +164,8 @@ async def request(
     # avoid leaving sockets open which can trigger a ResourceWarning in some
     # cases, and look like a memory leak in others.
     async with AsyncSession(quic_cache_layer=_SHARED_QUIC_CACHE, retries=retries) as session:
+        session._ocsp_cache = _SHARED_OCSP_CACHE
+
         return await session.request(  # type: ignore[misc]
             method,
             url,
