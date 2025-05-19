@@ -236,6 +236,45 @@ HTTPX’s ``Client.build_request`` replaces Niquests’ ``Request.prepare()``::
     req = niquests.Request("GET", url)
     prepared = session.prepare_request(req)
 
+HTTP/2
+------
+
+HTTPX disable HTTP/2 by default and requires you to install an extra dependency to make it work.
+Whereas Niquests enable HTTP/2 AND HTTP/3 by default.
+
+.. note:: HTTPX don't support HTTP/3 by any official ways.
+
+To mimic HTTPX default behavior::
+
+    client = httpx.Client(http2=False)  # default value
+
+Do::
+
+    session = niquests.Session(disable_http2=True, disable_http3=True)
+
+With this, Niquests will ever only establish good old HTTP/1.1 requests.
+
+Async
+-----
+
+As HTTPX, Niquests does mirror its sync interfaces to async.
+
+For example::
+
+    session = niquests.Session()
+
+Becomes::
+
+    session = niquests.AsyncSession()
+
+And::
+
+    resp = niquests.get(...)
+
+Transforms to::
+
+    resp = await niquests.aget(...)
+
 Mocking & Testing
 -----------------
 
