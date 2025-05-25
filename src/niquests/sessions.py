@@ -1211,7 +1211,7 @@ class Session:
 
         def on_early_response(early_response) -> None:
             dispatch_hook("early_response", hooks, early_response)
-            [m.early_response(self, early_response) for m in early_response.middlewares]
+            [m.early_response(self, early_response) for m in request.middlewares]
 
         kwargs.setdefault("on_post_connection", on_post_connection)
         kwargs.setdefault("on_upload_body", handle_upload_progress)
@@ -1336,7 +1336,7 @@ class Session:
 
         # Response manipulation hooks
         r = dispatch_hook("response", hooks, r, **kwargs)  # type: ignore[arg-type]
-        [m.response(self, r) for m in r.middlewares]
+        [m.response(self, r) for m in request.middlewares]
 
         # Persist cookies
         if r.history:

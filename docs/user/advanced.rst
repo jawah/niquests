@@ -607,6 +607,119 @@ List of tangible use-cases:
 
 .. note:: In a asynchronous HTTP request, you may pass awaitable functions in addition to the usual synchronous ones.
 
+.. _middleware:
+
+Middleware Feature in Niquests
+---------------------
+
+Middlewares in ``Niquests`` allow interception and modification of HTTP requests and responses at various lifecycle stages. They are ideal for:
+
+- Adding custom headers or authentication tokens.
+- Logging request/response details.
+- Modifying request/response data.
+- Monitoring upload progress.
+- Handling early responses (e.g., HTTP 103 Early Hints).
+
+``Niquests`` supports both synchronous (``Middleware``) and asynchronous (``AsyncMiddleware``) middlewares for ``Session`` and ``AsyncSession`` respectively.
+
+Middleware Lifecycle
+-------------------
+
+Middlewares can hook into the following stages:
+
+1. **pre_request**: Before sending the request (e.g., modify headers).
+2. **pre_send**: After selecting a connection, before sending (inspect connection details).
+3. **on_upload**: During upload to monitor progress (use cautiously).
+4. **early_response**: For early responses (e.g., HTTP 103).
+5. **response**: After receiving the final response.
+
+Each method receives the ``Session`` (or ``AsyncSession``), ``PreparedRequest`` or ``Response``, and additional ``*args``/``**kwargs``.
+
+Defining Middleware
+------------------
+
+Subclass ``Middleware`` or ``AsyncMiddleware`` and override lifecycle methods.
+
+Synchronous Middleware Example
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. code-block:: python
+
+   from niquests import Session, Middleware, PreparedRequest, Response
+
+   class LoggingMiddleware(Middleware):
+       def pre_request(self, session: Session, request: PreparedRequest, *args, **kwargs) -> None:
+           print(f"Sending {request.method} request to {request.url}")
+
+       def response(self, session: Session, response: Response, *args, **kwargs) -> None:
+           print(f"Received response with status {response.status_code}")
+
+   with Session(middlewares=[LoggingMiddleware()]) as s:
+       s.get("https://httpbin.org/get")
+
+Asynchronous Middleware Example
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. code-block:: python
+
+   from niquests import AsyncSession, AsyncMiddleware, PreparedRequest, Response
+
+   class AsyncLoggingMiddleware(AsyncMiddleware):
+       async def pre_request(self, session: AsyncSession, request: PreparedRequest, *args, **kwargs) -> None:
+           print(f"Sending {request.method} request to {request.url}")
+
+       async def response(self, session: AsyncSession, response: Response, *args, **kwargs) -> None:
+           print(f"Received response with status {response.status_code}")
+
+   async def main():
+       async with AsyncSession(middlewares=[AsyncLoggingMiddleware()]) as s:
+           await s.get("https://httpbin.org/get")
+
+   import asyncio
+   asyncio.run(main())
+
+Attaching Middlewares
+--------------------
+
+1. **At Session Creation**:
+
+   .. code-block:: python
+
+      s = Session(middlewares=[LoggingMiddleware()])
+
+2. **Per Request**:
+
+   .. code-block:: python
+
+      s.get("https://httpbin.org/get", middlewares=[LoggingMiddleware()])
+
+Request-level middlewares append to session-level middlewares.
+
+Best Practices
+--------------
+
+- **Performance**: Minimize operations in ``on_upload`` to avoid performance overhead.
+- **Error Handling**: Handle exceptions to prevent breaking the request flow.
+- **Thread Safety**: Ensure ``AsyncSession`` middlewares are thread-safe for concurrent operations.
+- **Immutability**: Modify ``PreparedRequest``/``Response`` carefully to avoid breaking downstream logic.
+
+Advanced Example: Authentication Headers
+---------------------------------------
+
+.. code-block:: python
+
+   from niquests import Session, Middleware, PreparedRequest
+
+   class AuthMiddleware(Middleware):
+       def __init__(self, token: str):
+           self.token = token
+
+       def pre_request(self, session: Session, request: PreparedRequest, *args, **kwargs) -> None:
+           request.headers["Authorization"] = f"Bearer {self.token}"
+
+   with Session(middlewares=[AuthMiddleware("my-token")]) as s:
+       s.get("https://api.example.com/data")
+
 Track upload progress
 ---------------------
 

@@ -38,26 +38,26 @@ class Middleware(ABC):
         """Called when a response is received."""
 
 
-class AsyncMiddleware(ABC):
+class AsyncMiddleware(Middleware):
     """Base class for asynchronous middlewares."""
 
-    async def pre_request(self, session: Session, request: PreparedRequest, *args: Any, **kwargs: Any) -> None:
+    async def pre_request(self, session: Session, request: PreparedRequest, *args: Any, **kwargs: Any) -> None:  # type: ignore[override]
         """Called before the request is sent."""
 
-    async def pre_send(self, session: Session, request: PreparedRequest, *args: Any, **kwargs: Any) -> None:
+    async def pre_send(self, session: Session, request: PreparedRequest, *args: Any, **kwargs: Any) -> None:  # type: ignore[override]
         """The prepared request got his ConnectionInfo injected.
         This event is triggered just after picking a live connection from the pool"""
 
-    async def on_upload(self, session: Session, request: PreparedRequest, *args: Any, **kwargs: Any) -> None:
+    async def on_upload(self, session: Session, request: PreparedRequest, *args: Any, **kwargs: Any) -> None:  # type: ignore[override]
         """Permit to monitor the upload progress of passed body.
         This event is triggered each time a block of data is transmitted to the remote peer.
         Use this hook carefully as it may impact the overall performance."""
 
-    async def early_response(self, session: Session, response: Response, *args: Any, **kwargs: Any) -> None:
+    async def early_response(self, session: Session, response: Response, *args: Any, **kwargs: Any) -> None:  # type: ignore[override]
         """An early response caught before receiving the final Response for a given Request. Like but not limited to 103 Early Hints.
         This event is triggered before the Response is returned to the user."""
 
-    async def response(self, session: Session, response: Response, *args: Any, **kwargs: Any) -> None:
+    async def response(self, session: Session, response: Response, *args: Any, **kwargs: Any) -> None:  # type: ignore[override]
         """Called when a response is received."""
 
 

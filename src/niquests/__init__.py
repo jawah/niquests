@@ -113,7 +113,7 @@ from .exceptions import (
 from .models import AsyncResponse, PreparedRequest, Request, Response
 from .sessions import Session
 from .status_codes import codes
-
+from .middlewares import Middleware, AsyncMiddleware
 logging.getLogger(__name__).addHandler(NullHandler())
 
 __all__ = (
@@ -165,4 +165,6 @@ __all__ = (
     "TimeoutConfiguration",
     "RetryConfiguration",
     "HAS_LEGACY_URLLIB3",
+    "Middleware",
+    "AsyncMiddleware",
 )

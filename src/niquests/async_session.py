@@ -467,7 +467,7 @@ class AsyncSession(Session):
 
         async def on_early_response(early_response: Response) -> None:
             await async_dispatch_hook("early_response", hooks, early_response)  # type: ignore[arg-type]
-            [await m.early_response(self, early_response) if isinstance(m, AsyncMiddleware) else m.early_response(self, early_response) for m in early_response.middlewares]
+            [await m.early_response(self, early_response) if isinstance(m, AsyncMiddleware) else m.early_response(self, early_response) for m in request.middlewares]
 
         kwargs.setdefault("on_post_connection", on_post_connection)
         kwargs.setdefault("on_upload_body", handle_upload_progress)
@@ -581,7 +581,7 @@ class AsyncSession(Session):
 
         # Response manipulation hooks
         r = await async_dispatch_hook("response", hooks, r, **kwargs)  # type: ignore[arg-type]
-        [await m.response(self, r) if isinstance(m, AsyncMiddleware) else m.response(self, r) for m in r.middlewares]
+        [await m.response(self, r) if isinstance(m, AsyncMiddleware) else m.response(self, r) for m in request.middlewares]
 
         # Persist cookies
         if r.history:
@@ -870,6 +870,7 @@ class AsyncSession(Session):
             auth=auth,
             cookies=cookies,
             hooks=hooks,
+            middlewares=middlewares,
             base_url=self.base_url,
         )
 
