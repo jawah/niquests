@@ -10,6 +10,7 @@ from datetime import timedelta
 from http.cookiejar import CookieJar
 from urllib.parse import urljoin, urlparse
 
+from .middlewares import Middleware, AsyncMiddleware
 from .status_codes import codes
 
 if typing.TYPE_CHECKING:
@@ -127,6 +128,7 @@ class AsyncSession(Session):
         keepalive_idle_window: float | int | None = 60.0,
         base_url: str | None = None,
         timeout: TimeoutType | None = None,
+        middlewares: list[Middleware | AsyncMiddleware] | None = None,
     ):
         if [disable_ipv4, disable_ipv6].count(True) == 2:
             raise RuntimeError("Cannot disable both IPv4 and IPv6")
@@ -158,6 +160,9 @@ class AsyncSession(Session):
 
         #: Event-handling hooks.
         self.hooks: AsyncHookType[PreparedRequest | Response | AsyncResponse] = default_hooks()  # type: ignore[assignment]
+
+        #: Middlewares to be used in the Session.
+        self.middlewares: list[Middleware | AsyncMiddleware] = middlewares or []
 
         #: Dictionary of querystring data to attach to each
         #: :class:`Request <Request>`. The dictionary values may be lists for
@@ -438,6 +443,7 @@ class AsyncSession(Session):
             # don't trigger pre_send for redirects
             if ptr_request == request:
                 await async_dispatch_hook("pre_send", hooks, ptr_request)  # type: ignore[arg-type]
+                [await m.pre_send(self, ptr_request) if isinstance(m, AsyncMiddleware) else m.pre_send(self, ptr_request) for m in ptr_request.middlewares]
 
         async def handle_upload_progress(
             total_sent: int,
@@ -457,9 +463,11 @@ class AsyncSession(Session):
             request.upload_progress.any_error = any_error
 
             await async_dispatch_hook("on_upload", hooks, request)  # type: ignore[arg-type]
+            [await m.on_upload(self, request) if isinstance(m, AsyncMiddleware) else m.on_upload(self, request) for m in request.middlewares]
 
         async def on_early_response(early_response: Response) -> None:
             await async_dispatch_hook("early_response", hooks, early_response)  # type: ignore[arg-type]
+            [await m.early_response(self, early_response) if isinstance(m, AsyncMiddleware) else m.early_response(self, early_response) for m in early_response.middlewares]
 
         kwargs.setdefault("on_post_connection", on_post_connection)
         kwargs.setdefault("on_upload_body", handle_upload_progress)
@@ -573,6 +581,7 @@ class AsyncSession(Session):
 
         # Response manipulation hooks
         r = await async_dispatch_hook("response", hooks, r, **kwargs)  # type: ignore[arg-type]
+        [await m.response(self, r) if isinstance(m, AsyncMiddleware) else m.response(self, r) for m in r.middlewares]
 
         # Persist cookies
         if r.history:
@@ -797,6 +806,7 @@ class AsyncSession(Session):
         allow_redirects: bool = ...,
         proxies: ProxyType | None = ...,
         hooks: AsyncHookType[PreparedRequest | Response] | None = ...,
+            middlewares: list[Middleware | AsyncMiddleware] | None = None,
         stream: Literal[False] | None = ...,
         verify: TLSVerifyType | None = ...,
         cert: TLSClientCertType | None = ...,
@@ -818,6 +828,7 @@ class AsyncSession(Session):
         allow_redirects: bool = ...,
         proxies: ProxyType | None = ...,
         hooks: AsyncHookType[PreparedRequest | Response] | None = ...,
+        middlewares: list[Middleware | AsyncMiddleware] | None = None,
         stream: Literal[True] = ...,
         verify: TLSVerifyType | None = ...,
         cert: TLSClientCertType | None = ...,
@@ -838,6 +849,7 @@ class AsyncSession(Session):
         allow_redirects: bool = True,
         proxies: ProxyType | None = None,
         hooks: AsyncHookType[PreparedRequest | Response] | None = None,
+            middlewares: list[Middleware | AsyncMiddleware] | None = None,
         stream: bool | None = None,
         verify: TLSVerifyType | None = None,
         cert: TLSClientCertType | None = None,
@@ -874,6 +886,7 @@ class AsyncSession(Session):
             prep.hooks,  # type: ignore[arg-type]
             prep,
         )
+        [await m.pre_request(self, prep) if isinstance(m, AsyncMiddleware) else m.pre_request(self, prep) for m in prep.middlewares]
 
         assert prep.url is not None
 
@@ -909,6 +922,7 @@ class AsyncSession(Session):
         allow_redirects: bool = ...,
         proxies: ProxyType | None = ...,
         hooks: AsyncHookType[PreparedRequest | Response] | None = ...,
+        middlewares: list[Middleware | AsyncMiddleware] | None = None,
         verify: TLSVerifyType | None = ...,
         stream: Literal[False] | None = ...,
         cert: TLSClientCertType | None = ...,
@@ -928,6 +942,7 @@ class AsyncSession(Session):
         allow_redirects: bool = ...,
         proxies: ProxyType | None = ...,
         hooks: AsyncHookType[PreparedRequest | Response] | None = ...,
+        middlewares: list[Middleware | AsyncMiddleware] | None = None,
         verify: TLSVerifyType | None = ...,
         stream: Literal[True] = ...,
         cert: TLSClientCertType | None = ...,
@@ -946,6 +961,7 @@ class AsyncSession(Session):
         allow_redirects: bool = True,
         proxies: ProxyType | None = None,
         hooks: AsyncHookType[PreparedRequest | Response] | None = None,
+            middlewares: list[Middleware | AsyncMiddleware] | None = None,
         verify: TLSVerifyType | None = None,
         stream: bool | None = None,
         cert: TLSClientCertType | None = None,
@@ -962,6 +978,7 @@ class AsyncSession(Session):
             allow_redirects=allow_redirects,
             proxies=proxies,
             hooks=hooks,
+            middlewares=middlewares,
             verify=verify,
             stream=stream,  # type: ignore[arg-type]
             cert=cert,
@@ -981,6 +998,7 @@ class AsyncSession(Session):
         allow_redirects: bool = ...,
         proxies: ProxyType | None = ...,
         hooks: AsyncHookType[PreparedRequest | Response] | None = ...,
+        middlewares: list[Middleware | AsyncMiddleware] | None = None,
         verify: TLSVerifyType | None = ...,
         stream: Literal[False] | Literal[None] = ...,
         cert: TLSClientCertType | None = ...,
@@ -1000,6 +1018,7 @@ class AsyncSession(Session):
         allow_redirects: bool = ...,
         proxies: ProxyType | None = ...,
         hooks: AsyncHookType[PreparedRequest | Response] | None = ...,
+        middlewares: list[Middleware | AsyncMiddleware] | None = None,
         verify: TLSVerifyType | None = ...,
         stream: Literal[True],
         cert: TLSClientCertType | None = ...,
@@ -1018,6 +1037,7 @@ class AsyncSession(Session):
         allow_redirects: bool = True,
         proxies: ProxyType | None = None,
         hooks: AsyncHookType[PreparedRequest | Response] | None = None,
+        middlewares: list[Middleware | AsyncMiddleware] | None = None,
         verify: TLSVerifyType | None = None,
         stream: bool | None = None,
         cert: TLSClientCertType | None = None,
@@ -1034,6 +1054,7 @@ class AsyncSession(Session):
             allow_redirects=allow_redirects,
             proxies=proxies,
             hooks=hooks,
+            middlewares=middlewares,
             verify=verify,
             stream=stream,  # type: ignore[arg-type]
             cert=cert,
@@ -1053,6 +1074,7 @@ class AsyncSession(Session):
         allow_redirects: bool = ...,
         proxies: ProxyType | None = ...,
         hooks: AsyncHookType[PreparedRequest | Response] | None = ...,
+        middlewares: list[Middleware | AsyncMiddleware] | None = None,
         verify: TLSVerifyType | None = ...,
         stream: Literal[False] | Literal[None] = ...,
         cert: TLSClientCertType | None = ...,
@@ -1072,6 +1094,7 @@ class AsyncSession(Session):
         allow_redirects: bool = ...,
         proxies: ProxyType | None = ...,
         hooks: AsyncHookType[PreparedRequest | Response] | None = ...,
+        middlewares: list[Middleware | AsyncMiddleware] | None = None,
         verify: TLSVerifyType | None = ...,
         stream: Literal[True],
         cert: TLSClientCertType | None = ...,
@@ -1090,6 +1113,7 @@ class AsyncSession(Session):
         allow_redirects: bool = True,
         proxies: ProxyType | None = None,
         hooks: AsyncHookType[PreparedRequest | Response] | None = None,
+            middlewares: list[Middleware | AsyncMiddleware] | None = None,
         verify: TLSVerifyType | None = None,
         stream: bool | None = None,
         cert: TLSClientCertType | None = None,
@@ -1106,6 +1130,7 @@ class AsyncSession(Session):
             allow_redirects=allow_redirects,
             proxies=proxies,
             hooks=hooks,
+            middlewares=middlewares,
             verify=verify,
             stream=stream,  # type: ignore[arg-type]
             cert=cert,
@@ -1128,6 +1153,7 @@ class AsyncSession(Session):
         allow_redirects: bool = ...,
         proxies: ProxyType | None = ...,
         hooks: AsyncHookType[PreparedRequest | Response] | None = ...,
+        middlewares: list[Middleware | AsyncMiddleware] | None = None,
         verify: TLSVerifyType | None = ...,
         stream: Literal[False] | Literal[None] = ...,
         cert: TLSClientCertType | None = ...,
@@ -1149,6 +1175,7 @@ class AsyncSession(Session):
         allow_redirects: bool = ...,
         proxies: ProxyType | None = ...,
         hooks: AsyncHookType[PreparedRequest | Response] | None = ...,
+        middlewares: list[Middleware | AsyncMiddleware] | None = None,
         verify: TLSVerifyType | None = ...,
         stream: Literal[True],
         cert: TLSClientCertType | None = ...,
@@ -1169,6 +1196,7 @@ class AsyncSession(Session):
         allow_redirects: bool = True,
         proxies: ProxyType | None = None,
         hooks: AsyncHookType[PreparedRequest | Response] | None = None,
+            middlewares: list[Middleware | AsyncMiddleware] | None = None,
         verify: TLSVerifyType | None = None,
         stream: bool | None = None,
         cert: TLSClientCertType | None = None,
@@ -1187,6 +1215,7 @@ class AsyncSession(Session):
             allow_redirects=allow_redirects,
             proxies=proxies,
             hooks=hooks,
+            middlewares=middlewares,
             verify=verify,
             stream=stream,  # type: ignore[arg-type]
             cert=cert,
@@ -1208,6 +1237,7 @@ class AsyncSession(Session):
         allow_redirects: bool = ...,
         proxies: ProxyType | None = ...,
         hooks: AsyncHookType[PreparedRequest | Response] | None = ...,
+        middlewares: list[Middleware | AsyncMiddleware] | None = None,
         verify: TLSVerifyType | None = ...,
         stream: Literal[False] | Literal[None] = ...,
         cert: TLSClientCertType | None = ...,
@@ -1229,6 +1259,7 @@ class AsyncSession(Session):
         allow_redirects: bool = ...,
         proxies: ProxyType | None = ...,
         hooks: AsyncHookType[PreparedRequest | Response] | None = ...,
+        middlewares: list[Middleware | AsyncMiddleware] | None = None,
         verify: TLSVerifyType | None = ...,
         stream: Literal[True],
         cert: TLSClientCertType | None = ...,
@@ -1249,6 +1280,7 @@ class AsyncSession(Session):
         allow_redirects: bool = True,
         proxies: ProxyType | None = None,
         hooks: AsyncHookType[PreparedRequest | Response] | None = None,
+        middlewares: list[Middleware | AsyncMiddleware] | None = None,
         verify: TLSVerifyType | None = None,
         stream: bool | None = None,
         cert: TLSClientCertType | None = None,
@@ -1267,6 +1299,7 @@ class AsyncSession(Session):
             allow_redirects=allow_redirects,
             proxies=proxies,
             hooks=hooks,
+            middlewares=middlewares,
             verify=verify,
             stream=stream,  # type: ignore[arg-type]
             cert=cert,
@@ -1288,6 +1321,7 @@ class AsyncSession(Session):
         allow_redirects: bool = ...,
         proxies: ProxyType | None = ...,
         hooks: AsyncHookType[PreparedRequest | Response] | None = ...,
+        middlewares: list[Middleware | AsyncMiddleware] | None = None,
         verify: TLSVerifyType | None = ...,
         stream: Literal[False] | Literal[None] = ...,
         cert: TLSClientCertType | None = ...,
@@ -1309,6 +1343,7 @@ class AsyncSession(Session):
         allow_redirects: bool = ...,
         proxies: ProxyType | None = ...,
         hooks: AsyncHookType[PreparedRequest | Response] | None = ...,
+        middlewares: list[Middleware | AsyncMiddleware] | None = None,
         verify: TLSVerifyType | None = ...,
         stream: Literal[True],
         cert: TLSClientCertType | None = ...,
@@ -1329,6 +1364,7 @@ class AsyncSession(Session):
         allow_redirects: bool = True,
         proxies: ProxyType | None = None,
         hooks: AsyncHookType[PreparedRequest | Response] | None = None,
+        middlewares: list[Middleware | AsyncMiddleware] | None = None,
         verify: TLSVerifyType | None = None,
         stream: bool | None = None,
         cert: TLSClientCertType | None = None,
@@ -1347,6 +1383,7 @@ class AsyncSession(Session):
             allow_redirects=allow_redirects,
             proxies=proxies,
             hooks=hooks,
+            middlewares=middlewares,
             verify=verify,
             stream=stream,  # type: ignore[arg-type]
             cert=cert,
@@ -1365,6 +1402,7 @@ class AsyncSession(Session):
         allow_redirects: bool = ...,
         proxies: ProxyType | None = ...,
         hooks: AsyncHookType[PreparedRequest | Response] | None = ...,
+        middlewares: list[Middleware | AsyncMiddleware] | None = None,
         verify: TLSVerifyType | None = ...,
         stream: Literal[False] | Literal[None] = ...,
         cert: TLSClientCertType | None = ...,
@@ -1384,6 +1422,7 @@ class AsyncSession(Session):
         allow_redirects: bool = ...,
         proxies: ProxyType | None = ...,
         hooks: AsyncHookType[PreparedRequest | Response] | None = ...,
+            middlewares: list[Middleware | AsyncMiddleware] | None = None,
         verify: TLSVerifyType | None = ...,
         stream: Literal[True],
         cert: TLSClientCertType | None = ...,
@@ -1402,6 +1441,7 @@ class AsyncSession(Session):
         allow_redirects: bool = True,
         proxies: ProxyType | None = None,
         hooks: AsyncHookType[PreparedRequest | Response] | None = None,
+            middlewares: list[Middleware | AsyncMiddleware] | None = None,
         verify: TLSVerifyType | None = None,
         stream: bool | None = None,
         cert: TLSClientCertType | None = None,
@@ -1418,6 +1458,7 @@ class AsyncSession(Session):
             allow_redirects=allow_redirects,
             proxies=proxies,
             hooks=hooks,
+            middlewares=middlewares,
             verify=verify,
             stream=stream,  # type: ignore[arg-type]
             cert=cert,
