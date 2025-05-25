@@ -71,6 +71,7 @@ from .exceptions import (
 from .exceptions import JSONDecodeError as RequestsJSONDecodeError
 from .exceptions import SSLError as RequestsSSLError
 from .hooks import default_hooks
+from .middlewares import Middleware
 from .packages.urllib3 import (
     AsyncHTTPResponse as BaseAsyncHTTPResponse,
 )
@@ -135,7 +136,7 @@ ITER_CHUNK_SIZE = -1
 
 
 class TransferProgress:
-    def __init__(self):
+    def __init__(self) -> None:
         self.total: int = 0
         self.content_length: int | None = None
         self.is_completed: bool = False
@@ -193,6 +194,7 @@ class Request:
         auth: HttpAuthenticationType | AsyncHttpAuthenticationType | None = None,
         cookies: CookiesType | None = None,
         hooks: HookType | None = None,
+        middlewares: list[Middleware] | None = None,
         json: typing.Any | None = None,
         base_url: str | None = None,
     ):
@@ -217,6 +219,7 @@ class Request:
         self.auth = auth
         self.cookies = cookies
         self.base_url = base_url
+        self.middlewares = middlewares or []
 
     @property
     def oheaders(self) -> Headers:
@@ -309,6 +312,8 @@ class PreparedRequest:
         self.body: BodyType | AsyncBodyType | None = None
         #: dictionary of callback hooks, for internal usage.
         self.hooks: HookType[Response | PreparedRequest] = default_hooks()
+        # Middlewares to be used in the prepared request.
+        self.middlewares: list[Middleware] = []
         #: integer denoting starting position of a readable file-like body.
         self._body_position: int | object | None = None
         #: valuable intel about the opened connection.
@@ -335,6 +340,7 @@ class PreparedRequest:
         auth: HttpAuthenticationType | AsyncHttpAuthenticationType | None = None,
         cookies: CookiesType | None = None,
         hooks: HookType[Response | PreparedRequest] | None = None,
+        middlewares: list[Middleware] | None = None,
         json: typing.Any | None = None,
         base_url: str | None = None,
     ) -> None:
@@ -352,6 +358,8 @@ class PreparedRequest:
 
         # This MUST go after prepare_auth. Authenticators could add a hook
         self.prepare_hooks(hooks)
+
+        self.prepare_middlewares(middlewares)
 
     def __repr__(self) -> str:
         return f"<PreparedRequest [{self.method}]>"
@@ -674,6 +682,10 @@ class PreparedRequest:
         hooks = hooks or []
         for event in hooks:
             self.register_hook(event, hooks[event])
+
+    def prepare_middlewares(self, middlewares: list[Middleware] | None) -> None:
+        """Prepares the given middlewares."""
+        self.middlewares = middlewares or []
 
     def register_hook(self, event, hook) -> None:
         """Properly register a hook."""
