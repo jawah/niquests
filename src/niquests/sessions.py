@@ -564,7 +564,8 @@ class Session:
             prep.hooks,  # type: ignore[arg-type]
             prep,
         )
-        [m.pre_request(self, prep) for m in prep.middlewares]
+        for m in prep.middlewares:
+            m.pre_request(self, prep)
 
         assert prep.url is not None
 
@@ -1187,8 +1188,8 @@ class Session:
             # don't trigger pre_send for redirects
             if ptr_request == request:
                 dispatch_hook("pre_send", hooks, ptr_request)  # type: ignore[arg-type]
-                [m.pre_send(self, ptr_request) for m in ptr_request.middlewares]
-
+                for m in ptr_request.middlewares:
+                    m.pre_send(self, ptr_request)
         def handle_upload_progress(
             total_sent: int,
             content_length: int | None,
@@ -1207,11 +1208,13 @@ class Session:
             request.upload_progress.any_error = any_error
 
             dispatch_hook("on_upload", hooks, request)  # type: ignore[arg-type]
-            [m.on_upload(self, request) for m in request.middlewares]
+            for m in request.middlewares:
+                m.on_upload(self, request)
 
         def on_early_response(early_response) -> None:
             dispatch_hook("early_response", hooks, early_response)
-            [m.early_response(self, early_response) for m in request.middlewares]
+            for m in request.middlewares:
+                m.early_response(self, early_response)
 
         kwargs.setdefault("on_post_connection", on_post_connection)
         kwargs.setdefault("on_upload_body", handle_upload_progress)
@@ -1336,7 +1339,8 @@ class Session:
 
         # Response manipulation hooks
         r = dispatch_hook("response", hooks, r, **kwargs)  # type: ignore[arg-type]
-        [m.response(self, r) for m in request.middlewares]
+        for m in request.middlewares:
+            m.response(self, r)
 
         # Persist cookies
         if r.history:
