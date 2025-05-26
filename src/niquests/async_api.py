@@ -34,7 +34,7 @@ from ._typing import (
     TLSVerifyType,
 )
 from .async_session import AsyncSession
-from .middlewares import Middleware, AsyncMiddleware
+from .middlewares import AsyncMiddleware, Middleware
 from .models import AsyncResponse, PreparedRequest, Response
 from .structures import AsyncQuicSharedCache
 

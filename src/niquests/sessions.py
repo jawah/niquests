@@ -1190,6 +1190,7 @@ class Session:
                 dispatch_hook("pre_send", hooks, ptr_request)  # type: ignore[arg-type]
                 for m in ptr_request.middlewares:
                     m.pre_send(self, ptr_request)
+
         def handle_upload_progress(
             total_sent: int,
             content_length: int | None,

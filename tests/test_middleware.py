@@ -1,5 +1,9 @@
+from __future__ import annotations
+
 import pytest
-from niquests import Session, AsyncSession, Middleware, AsyncMiddleware, PreparedRequest, Response
+
+from niquests import AsyncMiddleware, AsyncSession, Middleware, PreparedRequest, Response, Session
+
 
 # Synchronous Middleware for Testing
 class LoggingMiddleware(Middleware):
@@ -23,6 +27,7 @@ class LoggingMiddleware(Middleware):
         self.calls.append(("response", response.status_code))
         response.headers["X-Test-Response"] = "response"
 
+
 # Asynchronous Middleware for Testing
 class AsyncLoggingMiddleware(AsyncMiddleware):
     def __init__(self):
@@ -45,6 +50,7 @@ class AsyncLoggingMiddleware(AsyncMiddleware):
         self.calls.append(("response", response.status_code))
         response.headers["X-Test-Response"] = "response"
 
+
 # Synchronous Tests
 def test_middleware_session_level():
     middleware = LoggingMiddleware()
@@ -56,6 +62,7 @@ def test_middleware_session_level():
     assert response.request.headers.get("X-Test") == "pre_request"
     assert response.headers.get("X-Test-Response") == "response"
 
+
 def test_middleware_request_level():
     middleware = LoggingMiddleware()
     with Session() as s:
@@ -65,6 +72,7 @@ def test_middleware_request_level():
     assert ("response", 200) in middleware.calls
     assert response.request.headers.get("X-Test") == "pre_request"
     assert response.headers.get("X-Test-Response") == "response"
+
 
 def test_multiple_middlewares():
     middleware1 = LoggingMiddleware()
@@ -77,6 +85,7 @@ def test_multiple_middlewares():
     assert ("response", 200) in middleware1.calls
     assert ("response", 200) in middleware2.calls
 
+
 def test_middleware_with_post():
     middleware = LoggingMiddleware()
     with Session(middlewares=[middleware]) as s:
@@ -85,6 +94,7 @@ def test_middleware_with_post():
     assert ("pre_request", "POST", "https://httpbin.org/post") in middleware.calls
     assert ("response", 200) in middleware.calls
     assert response.request.headers.get("X-Test") == "pre_request"
+
 
 # Asynchronous Tests
 @pytest.mark.asyncio
@@ -98,6 +108,7 @@ async def test_async_middleware_session_level():
     assert response.request.headers.get("X-Test") == "pre_request"
     assert response.headers.get("X-Test-Response") == "response"
 
+
 @pytest.mark.asyncio
 async def test_async_middleware_request_level():
     middleware = AsyncLoggingMiddleware()
@@ -107,6 +118,7 @@ async def test_async_middleware_request_level():
     assert ("response", 200) in middleware.calls
     assert response.request.headers.get("X-Test") == "pre_request"
     assert response.headers.get("X-Test-Response") == "response"
+
 
 @pytest.mark.asyncio
 async def test_mixed_middlewares():
@@ -119,6 +131,7 @@ async def test_mixed_middlewares():
     assert ("pre_request", "GET", "https://httpbin.org/get") in async_middleware.calls
     assert ("response", 200) in sync_middleware.calls
     assert ("response", 200) in async_middleware.calls
+
 
 @pytest.mark.asyncio
 async def test_async_middleware_with_post():

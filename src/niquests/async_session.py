@@ -10,7 +10,7 @@ from datetime import timedelta
 from http.cookiejar import CookieJar
 from urllib.parse import urljoin, urlparse
 
-from .middlewares import Middleware, AsyncMiddleware
+from .middlewares import AsyncMiddleware, Middleware
 from .status_codes import codes
 
 if typing.TYPE_CHECKING:
@@ -376,7 +376,7 @@ class AsyncSession(Session):
 
     async def send(  # type: ignore[override]
         self, request: PreparedRequest, **kwargs: typing.Any
-) -> Response | AsyncResponse:  # type: ignore[override]
+    ) -> Response | AsyncResponse:  # type: ignore[override]
         """Send a given PreparedRequest."""
 
         # It's possible that users might accidentally send a Request object.
@@ -444,10 +444,7 @@ class AsyncSession(Session):
             if ptr_request == request:
                 await async_dispatch_hook("pre_send", hooks, ptr_request)  # type: ignore[arg-type]
                 for m in ptr_request.middlewares:
-                    await m.pre_send(self, ptr_request) if isinstance(m, AsyncMiddleware) \
-                    else m.pre_send(self, ptr_request)
-
-
+                    await m.pre_send(self, ptr_request) if isinstance(m, AsyncMiddleware) else m.pre_send(self, ptr_request)
 
         async def handle_upload_progress(
             total_sent: int,
@@ -470,12 +467,12 @@ class AsyncSession(Session):
             for m in request.middlewares:
                 await m.on_upload(self, request) if isinstance(m, AsyncMiddleware) else m.on_upload(self, request)
 
-
         async def on_early_response(early_response: Response) -> None:
             await async_dispatch_hook("early_response", hooks, early_response)  # type: ignore[arg-type]
             for m in request.middlewares:
-                await m.early_response(self, early_response) if isinstance(m, AsyncMiddleware) \
-                else m.early_response(self, early_response)
+                await m.early_response(self, early_response) if isinstance(m, AsyncMiddleware) else m.early_response(
+                    self, early_response
+                )
 
         kwargs.setdefault("on_post_connection", on_post_connection)
         kwargs.setdefault("on_upload_body", handle_upload_progress)

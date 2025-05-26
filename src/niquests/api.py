@@ -31,9 +31,9 @@ from ._typing import (
     TLSClientCertType,
     TLSVerifyType,
 )
+from .middlewares import Middleware
 from .models import PreparedRequest, Response
 from .structures import QuicSharedCache
-from .middlewares import Middleware
 
 try:
     from .extensions._ocsp import InMemoryRevocationStatus
@@ -156,7 +156,7 @@ def get(
     stream: bool = False,
     cert: TLSClientCertType | None = None,
     hooks: HookType[PreparedRequest | Response] | None = None,
-        middlewares: list[Middleware] | None = None,
+    middlewares: list[Middleware] | None = None,
     retries: RetryType = DEFAULT_RETRIES,
     **kwargs: typing.Any,
 ) -> Response:
@@ -225,7 +225,7 @@ def options(
     stream: bool = False,
     cert: TLSClientCertType | None = None,
     hooks: HookType[PreparedRequest | Response] | None = None,
-        middlewares: list[Middleware] | None = None,
+    middlewares: list[Middleware] | None = None,
     retries: RetryType = DEFAULT_RETRIES,
     **kwargs: typing.Any,
 ) -> Response:
@@ -293,7 +293,7 @@ def head(
     stream: bool = False,
     cert: TLSClientCertType | None = None,
     hooks: HookType[PreparedRequest | Response] | None = None,
-        middlewares: list[Middleware] | None = None,
+    middlewares: list[Middleware] | None = None,
     retries: RetryType = DEFAULT_RETRIES,
     **kwargs: typing.Any,
 ) -> Response:
@@ -364,7 +364,7 @@ def post(
     stream: bool = False,
     cert: TLSClientCertType | None = None,
     hooks: HookType[PreparedRequest | Response] | None = None,
-        middlewares: list[Middleware] | None = None,
+    middlewares: list[Middleware] | None = None,
     retries: RetryType = DEFAULT_RETRIES,
 ) -> Response:
     r"""Sends a POST request. This does not keep the connection alive. Use a :class:`Session` to reuse the connection.
@@ -445,7 +445,7 @@ def put(
     stream: bool = False,
     cert: TLSClientCertType | None = None,
     hooks: HookType[PreparedRequest | Response] | None = None,
-        middlewares: list[Middleware] | None = None,
+    middlewares: list[Middleware] | None = None,
     retries: RetryType = DEFAULT_RETRIES,
 ) -> Response:
     r"""Sends a PUT request. This does not keep the connection alive. Use a :class:`Session` to reuse the connection.
@@ -526,7 +526,7 @@ def patch(
     stream: bool = False,
     cert: TLSClientCertType | None = None,
     hooks: HookType[PreparedRequest | Response] | None = None,
-        middlewares: list[Middleware] | None = None,
+    middlewares: list[Middleware] | None = None,
     retries: RetryType = DEFAULT_RETRIES,
 ) -> Response:
     r"""Sends a PATCH request. This does not keep the connection alive. Use a :class:`Session` to reuse the connection.
@@ -604,7 +604,7 @@ def delete(
     stream: bool = False,
     cert: TLSClientCertType | None = None,
     hooks: HookType[PreparedRequest | Response] | None = None,
-        middlewares: list[Middleware] | None = None,
+    middlewares: list[Middleware] | None = None,
     retries: RetryType = DEFAULT_RETRIES,
     **kwargs: typing.Any,
 ) -> Response:

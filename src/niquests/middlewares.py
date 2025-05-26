@@ -8,7 +8,6 @@ from __future__ import annotations
 from abc import ABC
 from typing import TYPE_CHECKING, Any
 
-
 if TYPE_CHECKING:
     from .models import PreparedRequest, Response
     from .sessions import Session
@@ -62,5 +61,3 @@ class AsyncMiddleware(Middleware):
 
     async def response(self, session: Session, response: Response, *args: Any, **kwargs: Any) -> None:  # type: ignore[override]
         """Called when a response is received."""
-
-
