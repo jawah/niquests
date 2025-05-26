@@ -1,5 +1,6 @@
 """
-Middlewares implement a way of intercepting requests at different points in the request lifecycle. They allow modifying the request and/or response, and/or trigger events.
+Middlewares implement a way of intercepting requests at different points in the request lifecycle.
+They allow modifying the request and/or response, and/or trigger events.
 """
 
 from __future__ import annotations
@@ -31,7 +32,8 @@ class Middleware(ABC):
         Use this hook carefully as it may impact the overall performance."""
 
     def early_response(self, session: Session, response: Response, *args: Any, **kwargs: Any) -> None:
-        """An early response caught before receiving the final Response for a given Request. Like but not limited to 103 Early Hints.
+        """An early response caught before receiving the final Response for a given Request.
+        Like but not limited to 103 Early Hints.
         This event is triggered before the Response is returned to the user."""
 
     def response(self, session: Session, response: Response, *args: Any, **kwargs: Any) -> None:
@@ -54,7 +56,8 @@ class AsyncMiddleware(Middleware):
         Use this hook carefully as it may impact the overall performance."""
 
     async def early_response(self, session: Session, response: Response, *args: Any, **kwargs: Any) -> None:  # type: ignore[override]
-        """An early response caught before receiving the final Response for a given Request. Like but not limited to 103 Early Hints.
+        """An early response caught before receiving the final Response for a given Request.
+         Like but not limited to 103 Early Hints.
         This event is triggered before the Response is returned to the user."""
 
     async def response(self, session: Session, response: Response, *args: Any, **kwargs: Any) -> None:  # type: ignore[override]

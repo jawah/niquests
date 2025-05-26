@@ -70,7 +70,7 @@ def test_multiple_middlewares():
     middleware1 = LoggingMiddleware()
     middleware2 = LoggingMiddleware()
     with Session(middlewares=[middleware1]) as s:
-        response = s.get("https://httpbin.org/get", middlewares=[middleware2])
+        s.get("https://httpbin.org/get", middlewares=[middleware2])
 
     assert ("pre_request", "GET", "https://httpbin.org/get") in middleware1.calls
     assert ("pre_request", "GET", "https://httpbin.org/get") in middleware2.calls
@@ -113,7 +113,7 @@ async def test_mixed_middlewares():
     sync_middleware = LoggingMiddleware()
     async_middleware = AsyncLoggingMiddleware()
     async with AsyncSession(middlewares=[sync_middleware, async_middleware]) as s:
-        response = await s.get("https://httpbin.org/get")
+        await s.get("https://httpbin.org/get")
 
     assert ("pre_request", "GET", "https://httpbin.org/get") in sync_middleware.calls
     assert ("pre_request", "GET", "https://httpbin.org/get") in async_middleware.calls
