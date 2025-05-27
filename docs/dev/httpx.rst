@@ -162,6 +162,18 @@ Both HTTPX and Niquests have sensible defaults.
 In Niquests, read operation (GET, HEAD, OPTIONS) default to 30s timeout otherwise (POST, DELETE, PUT, ...) 120s.
 Those are very conservative default that you should override any time it suit your needs.
 
+Previously you wrote this to set a global timeout::
+
+    with httpx.Client(timeout=httpx.Timeout(connect=10, total=60)):
+        ...
+
+You may now achieve the same using::
+
+    with niquests.Session(timeout=niquests.TimeoutConfiguration(connect=10, total=60)) as s:
+        ...
+
+.. note:: Instead of a ``TimeoutConfiguration`` you may pass a simple integer or float instead.
+
 Proxies / Mounts
 ----------------
 
