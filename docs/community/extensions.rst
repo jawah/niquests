@@ -74,6 +74,7 @@ have to extend the bellow code with the following::
     # make 'responses' mock both sync and async
     # 'Requests' ever only supported sync
     # Fortunately interfaces are mirrored in 'Niquests'
+    from unittest import mock as std_mock  # noqa: E402
     import responses  # noqa: E402
 
 
