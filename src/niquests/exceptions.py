@@ -34,6 +34,14 @@ class RequestException(IOError):
         super().__init__(*args, **kwargs)
 
 
+class RetryStrategyException(RequestException):
+    """Custom retries logic failed"""
+
+    def __init__(self, exceptions: list[Exception]) -> None:
+        self.exceptions = exceptions
+        super().__init__("Retry strategy ended without a successful response.")
+
+
 class InvalidJSONError(RequestException):
     """A JSON error occurred."""
 

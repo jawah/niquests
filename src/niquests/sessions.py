@@ -58,6 +58,7 @@ from .exceptions import (
     ContentDecodingError,
     HTTPError,
     InvalidSchema,
+    RetryStrategyException,
     TooManyRedirects,
 )
 from .hooks import HOOKS, default_hooks, dispatch_hook
@@ -247,6 +248,7 @@ class Session:
         base_url: str | None = None,
         timeout: TimeoutType | None = None,
         middlewares: list[Middleware] | None = None,
+        retry_strategy: typing.Iterable[float] | None = None,
     ):
         """
         :param resolver: Specify a DNS resolver that should be used within this Session.
@@ -271,6 +273,7 @@ class Session:
             being completely idle. This only applies to HTTP/2 onward.
         :param base_url: Automatically set a URL prefix (or base url) on every request emitted if applicable.
         :param timeout: Default timeout configuration to be used if no timeout is provided in exposed methods.
+        :param retry_strategy: Each iteration should return the time to wait in seconds before retrying.
         """
         if [disable_ipv4, disable_ipv6].count(True) == 2:
             raise RuntimeError("Cannot disable both IPv4 and IPv6")
@@ -342,6 +345,8 @@ class Session:
 
         self._keepalive_delay = keepalive_delay
         self._keepalive_idle_window = keepalive_idle_window
+
+        self._retry_strategy = retry_strategy or [0]
 
         #: SSL Verification default.
         #: Defaults to `True`, requiring requests to verify the TLS certificate at the
@@ -1124,6 +1129,17 @@ class Session:
         )
 
     def send(self, request: PreparedRequest, **kwargs: typing.Any) -> Response:
+        exceptions: list[Exception] = []
+        for i in self._retry_strategy:
+            try:
+                return self._send_without_retry(request, **kwargs)
+            except Exception as e:
+                exceptions.append(e)
+            finally:
+                time.sleep(i)
+        raise RetryStrategyException(exceptions)
+
+    def _send_without_retry(self, request: PreparedRequest, **kwargs: typing.Any) -> Response:
         """Send a given PreparedRequest."""
         # It's possible that users might accidentally send a Request object.
         # Guard against that specific failure case.
@@ -1719,7 +1735,7 @@ class Session:
                 if yield_requests_trail:
                     yield req
 
-                resp = self.send(
+                resp = self._send_without_retry(
                     req,
                     stream=stream,
                     timeout=timeout,

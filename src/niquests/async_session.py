@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import os
 import sys
 import time
@@ -54,6 +55,7 @@ from .exceptions import (
     ChunkedEncodingError,
     ContentDecodingError,
     InvalidSchema,
+    RetryStrategyException,
     TooManyRedirects,
 )
 from .hooks import async_dispatch_hook, default_hooks
@@ -129,6 +131,7 @@ class AsyncSession(Session):
         base_url: str | None = None,
         timeout: TimeoutType | None = None,
         middlewares: list[Middleware | AsyncMiddleware] | None = None,
+        retry_strategy: typing.Iterable[float] | None = None,
     ):
         if [disable_ipv4, disable_ipv6].count(True) == 2:
             raise RuntimeError("Cannot disable both IPv4 and IPv6")
@@ -201,6 +204,7 @@ class AsyncSession(Session):
         self._keepalive_delay = keepalive_delay
         self._keepalive_idle_window = keepalive_idle_window
 
+        self._retry_strategy = retry_strategy or [0]
         #: SSL Verification default.
         #: Defaults to `True`, requiring requests to verify the TLS certificate at the
         #: remote end.
@@ -374,7 +378,18 @@ class AsyncSession(Session):
         # Nothing matches :-/
         raise InvalidSchema(f"No connection adapters were found for {url!r}{additional_hint}")
 
-    async def send(  # type: ignore[override]
+    async def send(self, request: PreparedRequest, **kwargs: typing.Any) -> Response | AsyncResponse:  # type: ignore[override]
+        exceptions: list[Exception] = []
+        for i in self._retry_strategy:
+            try:
+                return await self._send_without_retry(request, **kwargs)
+            except Exception as e:
+                exceptions.append(e)
+            finally:
+                await asyncio.sleep(i)
+        raise RetryStrategyException(exceptions)
+
+    async def _send_without_retry(  # type: ignore[override]
         self, request: PreparedRequest, **kwargs: typing.Any
     ) -> Response | AsyncResponse:  # type: ignore[override]
         """Send a given PreparedRequest."""
@@ -774,7 +789,7 @@ class AsyncSession(Session):
                 if yield_requests_trail:
                     yield req
 
-                resp = await self.send(  # type: ignore[assignment]
+                resp = await self._send_without_retry(  # type: ignore[assignment]
                     req,
                     stream=stream,
                     timeout=timeout,
