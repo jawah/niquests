@@ -38,6 +38,12 @@ class Middleware(ABC):
     def response(self, session: Session, response: Response, *args: Any, **kwargs: Any) -> None:
         """Called when a response is received."""
 
+    def on_exception(self, session: Session, request: PreparedRequest, exception: Exception, *args: Any, **kwargs: Any) -> bool:
+        """Return True to confirm the exception was successfully handled, preventing it from propagating further.
+        Note: All registered middlewares for this event will be called regardless of this method’s return value,
+        but if any middleware returns True, the exception will be suppressed."""
+        return False
+
 
 class AsyncMiddleware(Middleware):
     """Base class for asynchronous middlewares."""
@@ -61,3 +67,9 @@ class AsyncMiddleware(Middleware):
 
     async def response(self, session: Session, response: Response, *args: Any, **kwargs: Any) -> None:  # type: ignore[override]
         """Called when a response is received."""
+
+    async def on_exception(self, session: Session, request: PreparedRequest, exception: Exception, *args: Any, **kwargs: Any) -> bool:  # type: ignore[override]
+        """Return True to confirm the exception was successfully handled, preventing it from propagating further.
+        Note: All registered middlewares for this event will be called regardless of this method’s return value,
+        but if any middleware returns True, the exception will be suppressed."""
+        return False

@@ -1135,7 +1135,11 @@ class Session:
                 return self._send_without_retry(request, **kwargs)
             except Exception as e:
                 exceptions.append(e)
-            finally:
+                handler_result = []
+                for m in request.middlewares:
+                    handler_result.append(m.on_exception(self, request, e))
+                if not any(handler_result):
+                    raise
                 time.sleep(i)
         raise RetryStrategyException(exceptions)
 
