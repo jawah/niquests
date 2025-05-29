@@ -1087,7 +1087,7 @@ class AsyncSession(Session):
         cookies: CookiesType | None = None,
         auth: HttpAuthenticationType | AsyncHttpAuthenticationType | None = None,
         timeout: TimeoutType | None = None,
-        allow_redirects: bool = True,
+        allow_redirects: bool = False,
         proxies: ProxyType | None = None,
         hooks: AsyncHookType[PreparedRequest | Response] | None = None,
         verify: TLSVerifyType | None = None,
