@@ -724,7 +724,7 @@ class Session:
         cookies: CookiesType | None = None,
         auth: HttpAuthenticationType | None = None,
         timeout: TimeoutType | None = None,
-        allow_redirects: bool = True,
+        allow_redirects: bool = False,
         proxies: ProxyType | None = None,
         hooks: HookType[PreparedRequest | Response] | None = None,
         verify: TLSVerifyType | None = None,
