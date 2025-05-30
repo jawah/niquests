@@ -110,6 +110,7 @@ from .exceptions import (
     TooManyRedirects,
     URLRequired,
 )
+from .middlewares import AsyncMiddleware, Middleware
 from .models import AsyncResponse, PreparedRequest, Request, Response
 from .sessions import Session
 from .status_codes import codes
@@ -165,4 +166,6 @@ __all__ = (
     "TimeoutConfiguration",
     "RetryConfiguration",
     "HAS_LEGACY_URLLIB3",
+    "Middleware",
+    "AsyncMiddleware",
 )
