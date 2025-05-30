@@ -63,6 +63,7 @@ from .exceptions import (
 )
 from .hooks import HOOKS, default_hooks, dispatch_hook
 from .middlewares import Middleware
+from .model_adapter import ModelAdapter
 
 # formerly defined here, reexposed here for backward compatibility
 from .models import (  # noqa: F401
@@ -249,6 +250,7 @@ class Session:
         timeout: TimeoutType | None = None,
         middlewares: list[Middleware] | None = None,
         retry_strategy: typing.Iterable[float] | None = None,
+            model_adapter: ModelAdapter | None = None,
     ):
         """
         :param resolver: Specify a DNS resolver that should be used within this Session.
@@ -375,6 +377,9 @@ class Session:
         #: Automatically set a URL prefix to every emitted request.
         self.base_url: str | None = base_url
 
+        # Model adapter used to convert request model and response data to/from model types.
+        self.model_adapter: ModelAdapter | None = model_adapter
+
         #: A CookieJar containing all currently outstanding cookies set on this
         #: session. By default it is a
         #: :class:`RequestsCookieJar <requests.cookies.RequestsCookieJar>`, but
@@ -477,6 +482,8 @@ class Session:
             middlewares=self.middlewares
             + request.middlewares,  # Simply merge the middlewares of the request with the session middlewares.
             base_url=self.base_url,
+            model=request.model,
+            model_adapter=request.model_adapter or self.model_adapter
         )
         return p
 

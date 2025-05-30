@@ -12,6 +12,7 @@ from http.cookiejar import CookieJar
 from urllib.parse import urljoin, urlparse
 
 from .middlewares import AsyncMiddleware, Middleware
+from .model_adapter import ModelAdapter
 from .status_codes import codes
 
 if typing.TYPE_CHECKING:
@@ -132,6 +133,7 @@ class AsyncSession(Session):
         timeout: TimeoutType | None = None,
         middlewares: list[Middleware | AsyncMiddleware] | None = None,
         retry_strategy: typing.Iterable[float] | None = None,
+            model_adapter: ModelAdapter | None = None,
     ):
         if [disable_ipv4, disable_ipv6].count(True) == 2:
             raise RuntimeError("Cannot disable both IPv4 and IPv6")
@@ -224,6 +226,9 @@ class AsyncSession(Session):
         #: This defaults to requests.models.DEFAULT_REDIRECT_LIMIT, which is
         #: 30.
         self.max_redirects: int = DEFAULT_REDIRECT_LIMIT
+
+        # Model adapter used to convert request model and response data to/from model types.
+        self.model_adapter: ModelAdapter | None = model_adapter
 
         #: Trust environment settings for proxy configuration, default
         #: authentication and similar.

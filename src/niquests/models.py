@@ -17,6 +17,8 @@ import datetime
 import encodings.idna  # noqa: F401
 import warnings
 
+from .model_adapter import ModelAdapter
+
 try:
     import orjson as _json  # type: ignore[import]
 except ImportError:
@@ -196,7 +198,9 @@ class Request:
         hooks: HookType | None = None,
         middlewares: list[Middleware] | None = None,
         json: typing.Any | None = None,
+        model: typing.Any | None = None,
         base_url: str | None = None,
+        model_adapter: ModelAdapter | None = None,
     ):
         # Default empty dicts for dict params.
         data = [] if data is None else data
@@ -220,6 +224,8 @@ class Request:
         self.cookies = cookies
         self.base_url = base_url
         self.middlewares = middlewares or []
+        self.model = model
+        self.model_adapter = model_adapter
 
     @property
     def oheaders(self) -> Headers:
@@ -324,6 +330,8 @@ class PreparedRequest:
         self.upload_progress: TransferProgress | None = None
         #: internal usage only. warn us that we should re-compute content-length and await auth() outside of PreparedRequest.
         self._asynchronous_auth: bool = False
+        self.model: typing.Any | None = (None,)
+        self.model_adapter: ModelAdapter | None = None
 
     @property
     def oheaders(self) -> Headers:
@@ -343,6 +351,8 @@ class PreparedRequest:
         middlewares: list[Middleware] | None = None,
         json: typing.Any | None = None,
         base_url: str | None = None,
+        model: typing.Any | None = None,
+        model_adapter: ModelAdapter | None = None,
     ) -> None:
         """Prepares the entire request with the given parameters."""
 
@@ -352,6 +362,9 @@ class PreparedRequest:
         self.prepare_cookies(cookies)
         self.prepare_body(data, files, json)
         self.prepare_auth(auth)
+
+        self.model = model
+        self.model_adapter = model_adapter
 
         # Note that prepare_auth must be last to enable authentication schemes
         # such as OAuth to work on a fully prepared request.
@@ -492,6 +505,9 @@ class PreparedRequest:
         body: BodyType | AsyncBodyType | None = None
         content_type: str | None = None
         enforce_form_data = False
+
+        if self.model is not None and self.model_adapter is not None:
+            body = self.model_adapter.to_data(self.model)
 
         if not data and json is not None:
             # urllib3 requires a bytes-like body. Python 2's json.dumps
@@ -889,7 +905,7 @@ class PreparedRequest:
 
         return body, content_type
 
-
+T = typing.TypeVar("T")
 class Response:
     """The :class:`Response <Response>` object, which contains a
     server's response to an HTTP request.
@@ -1545,6 +1561,10 @@ class Response:
             # This aliases json.JSONDecodeError and simplejson.JSONDecodeError
             raise RequestsJSONDecodeError(e.msg, e.doc, e.pos)
 
+
+    def model(self, model_type: type[T]) -> T:
+        return self.model_adapter.from_data(self.content, model_type)
+
     @property
     def links(self):
         """Returns the parsed header links of the response, if any."""
@@ -1990,6 +2010,9 @@ class AsyncResponse(Response):
             # Catch JSON-related errors and raise as requests.JSONDecodeError
             # This aliases json.JSONDecodeError and simplejson.JSONDecodeError
             raise RequestsJSONDecodeError(e.msg, e.doc, e.pos)
+
+    async def model(self, model_type: type[T]) -> T: # type: ignore[override]
+        return self.model_adapter.from_data(await self.content, model_type)
 
     async def close(self) -> None:  # type: ignore[override]
         if self.lazy:
