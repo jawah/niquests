@@ -355,16 +355,16 @@ class PreparedRequest:
         model_adapter: ModelAdapter | None = None,
     ) -> None:
         """Prepares the entire request with the given parameters."""
-
+        self.model_adapter = model_adapter
         self.prepare_method(method)
         self.prepare_url(url, params, base_url=base_url)
         self.prepare_headers(headers)
         self.prepare_cookies(cookies)
-        self.prepare_body(data, files, json)
+        self.prepare_body(data, files, json, model)
         self.prepare_auth(auth)
 
-        self.model = model
-        self.model_adapter = model_adapter
+
+
 
         # Note that prepare_auth must be last to enable authentication schemes
         # such as OAuth to work on a fully prepared request.
@@ -493,6 +493,7 @@ class PreparedRequest:
         data: BodyType | AsyncBodyType | None,
         files: MultiPartFilesType | MultiPartFilesAltType | None,
         json: typing.Any | None = None,
+        model: typing.Any | None = None,
     ) -> None:
         """Prepares the given HTTP body data."""
 
@@ -506,8 +507,8 @@ class PreparedRequest:
         content_type: str | None = None
         enforce_form_data = False
 
-        if self.model is not None and self.model_adapter is not None:
-            body = self.model_adapter.to_data(self.model)
+        if model is not None and self.model_adapter is not None:
+            body, content_type = self.model_adapter.to_data(self.model)
 
         if not data and json is not None:
             # urllib3 requires a bytes-like body. Python 2's json.dumps
