@@ -1564,7 +1564,7 @@ class Response:
 
 
     def model(self, model_type: type[T]) -> T:
-        return self.model_adapter.from_data(self.content, model_type)
+        return self.request.model_adapter.from_data(self.content, model_type)
 
     @property
     def links(self):
