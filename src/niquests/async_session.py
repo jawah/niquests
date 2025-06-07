@@ -913,15 +913,7 @@ class AsyncSession(Session):
             prep.prepare_content_length(prep.body)
             del prep._pending_async_auth
 
-        prep = await async_dispatch_hook(
-            "pre_request",
-            prep.hooks,  # type: ignore[arg-type]
-            prep,
-        )
-        for m in prep.middlewares:
-            await m.pre_request(self, prep) if isinstance(m, AsyncMiddleware) else m.pre_request(self, prep)
 
-        assert prep.url is not None
 
         proxies = proxies or {}
 
@@ -939,6 +931,16 @@ class AsyncSession(Session):
             send_kwargs["timeout"] = (
                 WRITE_DEFAULT_TIMEOUT if method in {"POST", "PUT", "DELETE", "PATCH"} else READ_DEFAULT_TIMEOUT
             )
+
+        prep = await async_dispatch_hook(
+            "pre_request",
+            prep.hooks,  # type: ignore[arg-type]
+            prep,
+        )
+        for m in prep.middlewares:
+            await m.pre_request(self, prep, request_kwargs=send_kwargs) if isinstance(m, AsyncMiddleware) else m.pre_request(self, prep)
+
+        assert prep.url is not None
 
         return await self.send(prep, **send_kwargs)
 

@@ -6,7 +6,7 @@ They allow modifying the request and/or response, and/or trigger events.
 from __future__ import annotations
 
 from abc import ABC
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Dict
 
 if TYPE_CHECKING:
     from .models import PreparedRequest, Response
@@ -16,7 +16,9 @@ if TYPE_CHECKING:
 class Middleware(ABC):
     """Base class for synchronous middlewares."""
 
-    def pre_request(self, session: Session, request: PreparedRequest, *args: Any, **kwargs: Any) -> None:
+    def pre_request(
+        self, session: Session, request: PreparedRequest, request_kwargs: Dict[str, Any], *args: Any, **kwargs: Any
+    ) -> None:
         """Called before the request is sent."""
 
     def pre_send(self, session: Session, request: PreparedRequest, *args: Any, **kwargs: Any) -> None:
@@ -48,7 +50,9 @@ class Middleware(ABC):
 class AsyncMiddleware(Middleware):
     """Base class for asynchronous middlewares."""
 
-    async def pre_request(self, session: Session, request: PreparedRequest, *args: Any, **kwargs: Any) -> None:  # type: ignore[override]
+    async def pre_request(
+        self, session: Session, request: PreparedRequest, request_kwargs: Dict[str, Any], *args: Any, **kwargs: Any
+    ) -> None:  # type: ignore[override]
         """Called before the request is sent."""
 
     async def pre_send(self, session: Session, request: PreparedRequest, *args: Any, **kwargs: Any) -> None:  # type: ignore[override]
@@ -68,7 +72,9 @@ class AsyncMiddleware(Middleware):
     async def response(self, session: Session, response: Response, *args: Any, **kwargs: Any) -> None:  # type: ignore[override]
         """Called when a response is received."""
 
-    async def on_exception(self, session: Session, request: PreparedRequest, exception: Exception, *args: Any, **kwargs: Any) -> bool:  # type: ignore[override]
+    async def on_exception(
+        self, session: Session, request: PreparedRequest, exception: Exception, *args: Any, **kwargs: Any
+    ) -> bool:  # type: ignore[override]
         """Return True to confirm the exception was successfully handled, preventing it from propagating further.
         Note: All registered middlewares for this event will be called regardless of this method’s return value,
         but if any middleware returns True, the exception will be suppressed."""

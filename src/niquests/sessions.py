@@ -571,15 +571,7 @@ class Session:
 
         prep: PreparedRequest = self.prepare_request(req)
 
-        prep = dispatch_hook(
-            "pre_request",
-            prep.hooks,  # type: ignore[arg-type]
-            prep,
-        )
-        for m in prep.middlewares:
-            m.pre_request(self, prep)
 
-        assert prep.url is not None
 
         proxies = proxies or {}
 
@@ -596,6 +588,16 @@ class Session:
             send_kwargs["timeout"] = (
                 WRITE_DEFAULT_TIMEOUT if method in {"POST", "PUT", "DELETE", "PATCH"} else READ_DEFAULT_TIMEOUT
             )
+
+        prep = dispatch_hook(
+            "pre_request",
+            prep.hooks,  # type: ignore[arg-type]
+            prep,
+        )
+        for m in prep.middlewares:
+            m.pre_request(self, prep, request_kwargs=send_kwargs)
+
+        assert prep.url is not None
 
         resp = self.send(prep, **send_kwargs)
 
