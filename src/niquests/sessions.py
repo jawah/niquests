@@ -250,7 +250,7 @@ class Session:
         timeout: TimeoutType | None = None,
         middlewares: list[Middleware] | None = None,
         retry_strategy: typing.Iterable[float] | None = None,
-            model_adapter: ModelAdapter | None = None,
+        model_adapter: ModelAdapter | None = None,
     ):
         """
         :param resolver: Specify a DNS resolver that should be used within this Session.
@@ -483,7 +483,7 @@ class Session:
             + request.middlewares,  # Simply merge the middlewares of the request with the session middlewares.
             base_url=self.base_url,
             model=request.model,
-            model_adapter=request.model_adapter or self.model_adapter
+            model_adapter=request.model_adapter or self.model_adapter,
         )
         return p
 
@@ -571,8 +571,6 @@ class Session:
 
         prep: PreparedRequest = self.prepare_request(req)
 
-
-
         proxies = proxies or {}
 
         settings = self.merge_environment_settings(prep.url, proxies, stream, verify, cert)
@@ -588,16 +586,6 @@ class Session:
             send_kwargs["timeout"] = (
                 WRITE_DEFAULT_TIMEOUT if method in {"POST", "PUT", "DELETE", "PATCH"} else READ_DEFAULT_TIMEOUT
             )
-
-        prep = dispatch_hook(
-            "pre_request",
-            prep.hooks,  # type: ignore[arg-type]
-            prep,
-        )
-        for m in prep.middlewares:
-            m.pre_request(self, prep, request_kwargs=send_kwargs)
-
-        assert prep.url is not None
 
         resp = self.send(prep, **send_kwargs)
 
@@ -1138,6 +1126,16 @@ class Session:
         )
 
     def send(self, request: PreparedRequest, **kwargs: typing.Any) -> Response:
+        prep = dispatch_hook(
+            "pre_request",
+            request.hooks,  # type: ignore[arg-type]
+            request,
+        )
+        for m in prep.middlewares:
+            m.pre_request(self, prep, request_kwargs=kwargs)
+
+        assert prep.url is not None
+
         exceptions: list[Exception] = []
         for i in self._retry_strategy:
             try:

@@ -133,7 +133,7 @@ class AsyncSession(Session):
         timeout: TimeoutType | None = None,
         middlewares: list[Middleware | AsyncMiddleware] | None = None,
         retry_strategy: typing.Iterable[float] | None = None,
-            model_adapter: ModelAdapter | None = None,
+        model_adapter: ModelAdapter | None = None,
     ):
         if [disable_ipv4, disable_ipv6].count(True) == 2:
             raise RuntimeError("Cannot disable both IPv4 and IPv6")
@@ -384,6 +384,17 @@ class AsyncSession(Session):
         raise InvalidSchema(f"No connection adapters were found for {url!r}{additional_hint}")
 
     async def send(self, request: PreparedRequest, **kwargs: typing.Any) -> Response | AsyncResponse:  # type: ignore[override]
+        prep = await async_dispatch_hook(
+            "pre_request",
+            request.hooks,  # type: ignore[arg-type]
+            request,
+        )
+        for m in prep.middlewares:
+            await m.pre_request(self, prep, request_kwargs=kwargs) if isinstance(m, AsyncMiddleware) else m.pre_request(
+                self, prep, kwargs
+            )
+
+        assert prep.url is not None
         exceptions: list[Exception] = []
         for i in self._retry_strategy:
             try:
@@ -392,8 +403,11 @@ class AsyncSession(Session):
                 exceptions.append(e)
                 handler_result = []
                 for m in request.middlewares:
-                    handler_result.append(await m.on_exception(self, request, e) if
-                                          isinstance(m, AsyncMiddleware) else m.on_exception(self, request, e))
+                    handler_result.append(
+                        await m.on_exception(self, request, e)
+                        if isinstance(m, AsyncMiddleware)
+                        else m.on_exception(self, request, e)
+                    )
                 if not any(handler_result):
                     raise
                 await asyncio.sleep(i)
@@ -913,8 +927,6 @@ class AsyncSession(Session):
             prep.prepare_content_length(prep.body)
             del prep._pending_async_auth
 
-
-
         proxies = proxies or {}
 
         settings = self.merge_environment_settings(prep.url, proxies, stream, verify, cert)
@@ -931,16 +943,6 @@ class AsyncSession(Session):
             send_kwargs["timeout"] = (
                 WRITE_DEFAULT_TIMEOUT if method in {"POST", "PUT", "DELETE", "PATCH"} else READ_DEFAULT_TIMEOUT
             )
-
-        prep = await async_dispatch_hook(
-            "pre_request",
-            prep.hooks,  # type: ignore[arg-type]
-            prep,
-        )
-        for m in prep.middlewares:
-            await m.pre_request(self, prep, request_kwargs=send_kwargs) if isinstance(m, AsyncMiddleware) else m.pre_request(self, prep)
-
-        assert prep.url is not None
 
         return await self.send(prep, **send_kwargs)
 
