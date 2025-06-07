@@ -330,7 +330,6 @@ class PreparedRequest:
         self.upload_progress: TransferProgress | None = None
         #: internal usage only. warn us that we should re-compute content-length and await auth() outside of PreparedRequest.
         self._asynchronous_auth: bool = False
-        self.model: typing.Any | None = (None,)
         self.model_adapter: ModelAdapter | None = None
 
     @property
@@ -508,7 +507,7 @@ class PreparedRequest:
         enforce_form_data = False
 
         if model is not None and self.model_adapter is not None:
-            body, content_type = self.model_adapter.to_data(self.model)
+            body, content_type = self.model_adapter.to_data(model)
 
         if not data and json is not None:
             # urllib3 requires a bytes-like body. Python 2's json.dumps
