@@ -1126,15 +1126,15 @@ class Session:
         )
 
     def send(self, request: PreparedRequest, **kwargs: typing.Any) -> Response:
-        prep = dispatch_hook(
+        request = dispatch_hook(
             "pre_request",
             request.hooks,  # type: ignore[arg-type]
             request,
         )
-        for m in prep.middlewares:
-            m.pre_request(self, prep, request_kwargs=kwargs)
+        for m in request.middlewares:
+            m.pre_request(self, request, request_kwargs=kwargs)
 
-        assert prep.url is not None
+        assert request.url is not None
 
         exceptions: list[Exception] = []
         for i in self._retry_strategy:
