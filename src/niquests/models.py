@@ -1657,7 +1657,7 @@ class Response(typing.Generic[T]):
             release_conn()
 
 
-class AsyncResponse(Response, typing.Generic[T]):
+class AsyncResponse(Response):
     raw: BaseAsyncHTTPResponse | None
     _resolve_redirect: typing.Callable[  # type: ignore[assignment]
         [Response, PreparedRequest], typing.Awaitable[PreparedRequest | None]
