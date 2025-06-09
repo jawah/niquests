@@ -906,7 +906,7 @@ class PreparedRequest:
         return body, content_type
 
 T = typing.TypeVar("T")
-class Response:
+class Response(typing.Generic[T]):
     """The :class:`Response <Response>` object, which contains a
     server's response to an HTTP request.
     """
@@ -1657,7 +1657,7 @@ class Response:
             release_conn()
 
 
-class AsyncResponse(Response):
+class AsyncResponse(Response, typing.Generic[T]):
     raw: BaseAsyncHTTPResponse | None
     _resolve_redirect: typing.Callable[  # type: ignore[assignment]
         [Response, PreparedRequest], typing.Awaitable[PreparedRequest | None]
