@@ -2012,7 +2012,7 @@ class AsyncResponse(Response):
             raise RequestsJSONDecodeError(e.msg, e.doc, e.pos)
 
     async def model(self, model_type: type[T]) -> T: # type: ignore[override]
-        return self.model_adapter.from_data(await self.content, model_type)
+        return self.request.model_adapter.from_data(await self.content, model_type)
 
     async def close(self) -> None:  # type: ignore[override]
         if self.lazy:
