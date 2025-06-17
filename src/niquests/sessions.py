@@ -1128,7 +1128,7 @@ class Session:
             **kwargs,
         )
 
-    def send(self, request: PreparedRequest, **kwargs: typing.Any) -> Response:
+    def send(self, request: PreparedRequest[T], **kwargs: typing.Any) -> Response[T]:
         request = dispatch_hook(
             "pre_request",
             request.hooks,  # type: ignore[arg-type]

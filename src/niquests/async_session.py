@@ -90,6 +90,7 @@ if sys.platform == "win32":
     preferred_clock = time.perf_counter
 else:
     preferred_clock = time.time
+T = typing.TypeVar("T")
 
 
 class AsyncSession(Session):
@@ -383,7 +384,7 @@ class AsyncSession(Session):
         # Nothing matches :-/
         raise InvalidSchema(f"No connection adapters were found for {url!r}{additional_hint}")
 
-    async def send(self, request: PreparedRequest, **kwargs: typing.Any) -> Response | AsyncResponse:  # type: ignore[override]
+    async def send(self, request: PreparedRequest[T], **kwargs: typing.Any) -> Response[T] | AsyncResponse[T]:  # type: ignore[override]
         request = await async_dispatch_hook(
             "pre_request",
             request.hooks,  # type: ignore[arg-type]
