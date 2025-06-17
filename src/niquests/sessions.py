@@ -95,6 +95,8 @@ from .utils import (  # noqa: F401
     to_key_val_list,
 )
 
+T = typing.TypeVar("T")
+
 # Preferred clock, based on which one is more accurate on a given system.
 if sys.platform == "win32":
     preferred_clock = time.perf_counter
@@ -442,7 +444,7 @@ class Session:
     def __exit__(self, *args) -> None:
         self.close()
 
-    def prepare_request(self, request: Request) -> PreparedRequest:
+    def prepare_request(self, request: Request[T]) -> PreparedRequest[T]:
         """Constructs a :class:`PreparedRequest <PreparedRequest>` for
         transmission and returns it. The :class:`PreparedRequest` has settings
         merged from the :class:`Request <Request>` instance and those of the
