@@ -1568,8 +1568,8 @@ class Response(typing.Generic[T]):
             # This aliases json.JSONDecodeError and simplejson.JSONDecodeError
             raise RequestsJSONDecodeError(e.msg, e.doc, e.pos)
 
-    def model(self, model_type: type[T] | None = None) -> T:
-        model_type = model_type or self.request.response_model_type
+    def model(self, model_type: type | None = None) -> T:
+        model_type: type[T] | None = model_type or self.request.response_model_type
         if not model_type:
             raise ValueError("No model type provided")
         return self.request.model_adapter.from_data(self.content, model_type)
@@ -2020,8 +2020,9 @@ class AsyncResponse(Response):
             # This aliases json.JSONDecodeError and simplejson.JSONDecodeError
             raise RequestsJSONDecodeError(e.msg, e.doc, e.pos)
 
-    async def model(self, model_type: type[T]) -> T: # type: ignore[override]
-        model_type = model_type or self.request.response_model_type
+
+    async def model(self, model_type: type) -> T:
+        model_type: type[T] | None = model_type or self.request.response_model_type
         if not model_type:
             raise ValueError("No model type provided")
         return self.request.model_adapter.from_data(await self.content, model_type)
