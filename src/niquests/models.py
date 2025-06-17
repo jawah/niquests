@@ -136,6 +136,8 @@ DEFAULT_REDIRECT_LIMIT = 30
 CONTENT_CHUNK_SIZE = 10 * 1024
 ITER_CHUNK_SIZE = -1
 
+T = typing.TypeVar("T")
+
 
 class TransferProgress:
     def __init__(self) -> None:
@@ -157,7 +159,7 @@ class TransferProgress:
         return f"<Progress {self.total} bytes sent ({'in progress' if self.is_completed is False else 'completed'})>"
 
 
-class Request:
+class Request(typing.Generic[T]):
     """A user-created :class:`Request <Request>` object.
 
     Used to prepare a :class:`PreparedRequest <PreparedRequest>`, which is sent to the server.
@@ -285,7 +287,7 @@ class Request:
         return p
 
 
-class PreparedRequest:
+class PreparedRequest(typing.Generic[T]):
     """The fully mutable :class:`PreparedRequest <PreparedRequest>` object,
     containing the exact bytes that will be sent to the server.
 
@@ -908,9 +910,6 @@ class PreparedRequest:
         body, content_type = encode_multipart_formdata(new_fields)
 
         return body, content_type
-
-
-T = typing.TypeVar("T")
 
 
 class Response(typing.Generic[T]):
