@@ -484,6 +484,7 @@ class Session:
             base_url=self.base_url,
             model=request.model,
             model_adapter=request.model_adapter or self.model_adapter,
+            response_model_type=request.response_model_type
         )
         return p
 

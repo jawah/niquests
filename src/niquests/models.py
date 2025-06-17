@@ -201,6 +201,7 @@ class Request:
         model: typing.Any | None = None,
         base_url: str | None = None,
         model_adapter: ModelAdapter | None = None,
+        response_model_type: type[T] | None = None,
     ):
         # Default empty dicts for dict params.
         data = [] if data is None else data
@@ -226,6 +227,7 @@ class Request:
         self.middlewares = middlewares or []
         self.model = model
         self.model_adapter = model_adapter
+        self.response_model_type: type[T] | None = response_model_type
 
     @property
     def oheaders(self) -> Headers:
@@ -276,6 +278,8 @@ class Request:
             cookies=self.cookies,
             hooks=self.hooks,
             base_url=self.base_url,
+            model_adapter=self.model_adapter,
+            response_model_type=self.response_model_type,
         )
 
         return p
@@ -331,6 +335,7 @@ class PreparedRequest:
         #: internal usage only. warn us that we should re-compute content-length and await auth() outside of PreparedRequest.
         self._asynchronous_auth: bool = False
         self.model_adapter: ModelAdapter | None = None
+        self.response_model_type: type[T] | None = None
 
     @property
     def oheaders(self) -> Headers:
@@ -352,18 +357,17 @@ class PreparedRequest:
         base_url: str | None = None,
         model: typing.Any | None = None,
         model_adapter: ModelAdapter | None = None,
+        response_model_type: type[T] | None = None,
     ) -> None:
         """Prepares the entire request with the given parameters."""
         self.model_adapter = model_adapter
+        self.response_model_type = response_model_type
         self.prepare_method(method)
         self.prepare_url(url, params, base_url=base_url)
         self.prepare_headers(headers)
         self.prepare_cookies(cookies)
         self.prepare_body(data, files, json, model)
         self.prepare_auth(auth)
-
-
-
 
         # Note that prepare_auth must be last to enable authentication schemes
         # such as OAuth to work on a fully prepared request.
@@ -905,7 +909,10 @@ class PreparedRequest:
 
         return body, content_type
 
+
 T = typing.TypeVar("T")
+
+
 class Response(typing.Generic[T]):
     """The :class:`Response <Response>` object, which contains a
     server's response to an HTTP request.
@@ -1561,8 +1568,10 @@ class Response(typing.Generic[T]):
             # This aliases json.JSONDecodeError and simplejson.JSONDecodeError
             raise RequestsJSONDecodeError(e.msg, e.doc, e.pos)
 
-
-    def model(self, model_type: type[T]) -> T:
+    def model(self, model_type: type[T] | None = None) -> T:
+        model_type = model_type or self.request.response_model_type
+        if not model_type:
+            raise ValueError("No model type provided")
         return self.request.model_adapter.from_data(self.content, model_type)
 
     @property
@@ -2012,6 +2021,9 @@ class AsyncResponse(Response):
             raise RequestsJSONDecodeError(e.msg, e.doc, e.pos)
 
     async def model(self, model_type: type[T]) -> T: # type: ignore[override]
+        model_type = model_type or self.request.response_model_type
+        if not model_type:
+            raise ValueError("No model type provided")
         return self.request.model_adapter.from_data(await self.content, model_type)
 
     async def close(self) -> None:  # type: ignore[override]
