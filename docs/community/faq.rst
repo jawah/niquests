@@ -22,7 +22,7 @@ Custom User-Agents?
 -------------------
 
 Niquests allows you to easily override User-Agent strings, along with
-any other HTTP Header. See `documentation about headers <https://niquests.readthedocs.io/en/latest/user/quickstart/#custom-headers>`_.
+any other HTTP Header. See `documentation about headers <https://niquests.readthedocs.io/en/latest/user/quickstart.html#custom-headers>`_.
 
 
 What are "hostname doesn't match" errors?
