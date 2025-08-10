@@ -25,12 +25,14 @@ class InMemoryRevocationList:
         self._max_size: int = max_size
         self._store: dict[str, CertificateRevocationList] = {}
         self._issuers_map: dict[str, Certificate] = {}
+        self._failure_count: int = 0
 
     def __getstate__(self) -> dict[str, typing.Any]:
         return {
             "_max_size": self._max_size,
             "_store": {k: v.serialize() for k, v in self._store.items()},
             "_issuers_map": {k: v.serialize() for k, v in self._issuers_map.items()},
+            "_failure_count": self._failure_count,
         }
 
     def __setstate__(self, state: dict[str, typing.Any]) -> None:
@@ -38,6 +40,7 @@ class InMemoryRevocationList:
             raise OSError("unrecoverable state for InMemoryRevocationStatus")
 
         self._max_size = state["_max_size"]
+        self._failure_count = state["_failure_count"] if "_failure_count" in state else 0
 
         self._store = {}
 
@@ -59,6 +62,13 @@ class InMemoryRevocationList:
 
     def __len__(self) -> int:
         return len(self._store)
+
+    def incr_failure(self) -> None:
+        self._failure_count += 1
+
+    @property
+    def failure_count(self) -> int:
+        return self._failure_count
 
     def check(self, leaf: Certificate) -> CertificateRevocationList | None:
         fingerprint: str = _str_fingerprint_of(leaf)
@@ -103,6 +113,7 @@ class InMemoryRevocationList:
 
         self._store[peer_fingerprint] = crl
         self._issuers_map[peer_fingerprint] = issuer
+        self._failure_count = 0
 
 
 async def verify(
@@ -133,6 +144,10 @@ async def verify(
 
     if cache is None:
         cache = InMemoryRevocationList()
+
+    if not strict:
+        if cache.failure_count >= 4:
+            return
 
     peer_certificate: Certificate = _parse_x509_der_cached(conn_info.certificate_der)
 
@@ -204,6 +219,8 @@ async def verify(
 
             # Well! We're out of luck. No further should we go.
             if issuer_certificate is None:
+                # aia fetching should be counted as general ocsp failure too.
+                cache.incr_failure()
                 if strict:
                     warnings.warn(
                         (
@@ -225,6 +242,8 @@ async def verify(
                 timeout=timeout,
             )
         except RequestException as e:
+            # aia fetching should be counted as general ocsp failure too.
+            cache.incr_failure()
             if strict:
                 warnings.warn(
                     (
@@ -263,7 +282,15 @@ async def verify(
                         "You could be targeted by a MITM attack."
                     )
             except ValueError:
-                pass
+                if strict:
+                    warnings.warn(
+                        (
+                            f"Unable to insure that the remote peer ({r.url}) has a currently valid certificate via CRL. "
+                            "You are seeing this warning due to enabling strict mode for OCSP / Revocation check. "
+                            "Reason: The X509 CRL is signed using an unsupported algorithm."
+                        ),
+                        SecurityWarning,
+                    )
 
             cache.save(peer_certificate, issuer_certificate, crl)
 

@@ -36,6 +36,7 @@ class InMemoryRevocationStatus:
         self._semaphores: dict[str, asyncio.Semaphore] = {}
         self._issuers_map: dict[str, Certificate] = {}
         self._timings: list[datetime.datetime] = []
+        self._failure_count: int = 0
         self.hold: bool = False
 
     @staticmethod
@@ -48,6 +49,7 @@ class InMemoryRevocationStatus:
             "_max_size": self._max_size,
             "_store": {k: v.serialize() for k, v in self._store.items()},
             "_issuers_map": {k: v.serialize() for k, v in self._issuers_map.items()},
+            "_failure_count": self._failure_count,
         }
 
     def __setstate__(self, state: dict[str, typing.Any]) -> None:
@@ -58,6 +60,7 @@ class InMemoryRevocationStatus:
         self._timings = []
 
         self._max_size = state["_max_size"]
+        self._failure_count = state["_failure_count"] if "_failure_count" in state else 0
 
         self._store = {}
         self._semaphores = {}
@@ -81,6 +84,13 @@ class InMemoryRevocationStatus:
 
     def __len__(self) -> int:
         return len(self._store)
+
+    def incr_failure(self) -> None:
+        self._failure_count += 1
+
+    @property
+    def failure_count(self) -> int:
+        return self._failure_count
 
     @asynccontextmanager
     async def lock(self, peer_certificate: Certificate) -> typing.AsyncGenerator[None, None]:
@@ -161,6 +171,7 @@ class InMemoryRevocationStatus:
 
         self._store[peer_fingerprint] = ocsp_response
         self._issuers_map[peer_fingerprint] = issuer_certificate
+        self._failure_count = 0
 
         self._timings.append(datetime.datetime.now())
 
@@ -202,6 +213,9 @@ async def verify(
     async with cache.lock(peer_certificate):
         # this feature, by default, is reserved for a reasonable usage.
         if not strict:
+            if cache.failure_count >= 4:
+                return
+
             mean_rate_sec = cache.rate()
             cache_count = len(cache)
 
@@ -288,6 +302,7 @@ async def verify(
 
                 # Well! We're out of luck. No further should we go.
                 if issuer_certificate is None:
+                    cache.incr_failure()
                     if strict:
                         warnings.warn(
                             (
@@ -325,6 +340,7 @@ async def verify(
                     timeout=timeout,
                 )
             except RequestException as e:
+                cache.incr_failure()
                 if strict:
                     warnings.warn(
                         (
@@ -363,7 +379,15 @@ async def verify(
                             "You could be targeted by a MITM attack."
                         )
                 except ValueError:
-                    pass
+                    if strict:
+                        warnings.warn(
+                            (
+                                f"Unable to insure that the remote peer ({r.url}) has a currently valid certificate via OCSP. "
+                                "You are seeing this warning due to enabling strict mode for OCSP / Revocation check. "
+                                "Reason: The X509 OCSP response is signed using an unsupported algorithm."
+                            ),
+                            SecurityWarning,
+                        )
 
                 cache.save(peer_certificate, issuer_certificate, ocsp_resp)
 

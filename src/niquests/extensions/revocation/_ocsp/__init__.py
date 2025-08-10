@@ -50,6 +50,7 @@ class InMemoryRevocationStatus:
         self._store: dict[str, OCSPResponse] = {}
         self._issuers_map: dict[str, Certificate] = {}
         self._timings: list[datetime.datetime] = []
+        self._failure_count: int = 0
         self._access_lock = threading.RLock()
         self.hold: bool = False
 
@@ -63,6 +64,7 @@ class InMemoryRevocationStatus:
             "_max_size": self._max_size,
             "_store": {k: v.serialize() for k, v in self._store.items()},
             "_issuers_map": {k: v.serialize() for k, v in self._issuers_map.items()},
+            "_failure_count": self._failure_count,
         }
 
     def __setstate__(self, state: dict[str, typing.Any]) -> None:
@@ -74,6 +76,7 @@ class InMemoryRevocationStatus:
         self._timings = []
 
         self._max_size = state["_max_size"]
+        self._failure_count = state["_failure_count"] if "_failure_count" in state else 0
 
         self._store = {}
 
@@ -97,6 +100,14 @@ class InMemoryRevocationStatus:
     def __len__(self) -> int:
         with self._access_lock:
             return len(self._store)
+
+    def incr_failure(self) -> None:
+        with self._access_lock:
+            self._failure_count += 1
+
+    @property
+    def failure_count(self) -> int:
+        return self._failure_count
 
     def rate(self):
         with self._access_lock:
@@ -166,6 +177,7 @@ class InMemoryRevocationStatus:
 
             self._store[peer_fingerprint] = ocsp_response
             self._issuers_map[peer_fingerprint] = issuer_certificate
+            self._failure_count = 0
 
             self._timings.append(datetime.datetime.now())
 
@@ -204,6 +216,9 @@ def verify(
 
     # this feature, by default, is reserved for a reasonable usage.
     if not strict:
+        if cache.failure_count >= 4:
+            return
+
         mean_rate_sec = cache.rate()
         cache_count = len(cache)
 
@@ -290,6 +305,8 @@ def verify(
 
             # Well! We're out of luck. No further should we go.
             if issuer_certificate is None:
+                # aia fetching should be counted as general ocsp failure too.
+                cache.incr_failure()
                 if strict:
                     warnings.warn(
                         (
@@ -327,6 +344,9 @@ def verify(
                 timeout=timeout,
             )
         except RequestException as e:
+            # we want to monitor failures related to the responder.
+            # we don't want to ruin the http experience in normal circumstances.
+            cache.incr_failure()
             if strict:
                 warnings.warn(
                     (
@@ -365,7 +385,15 @@ def verify(
                         "You could be targeted by a MITM attack."
                     )
             except ValueError:  # Defensive: unsupported signature case
-                pass
+                if strict:
+                    warnings.warn(
+                        (
+                            f"Unable to insure that the remote peer ({r.url}) has a currently valid certificate via OCSP. "
+                            "You are seeing this warning due to enabling strict mode for OCSP / Revocation check. "
+                            "Reason: The X509 OCSP response is signed using an unsupported algorithm."
+                        ),
+                        SecurityWarning,
+                    )
 
             cache.save(peer_certificate, issuer_certificate, ocsp_resp)
 
