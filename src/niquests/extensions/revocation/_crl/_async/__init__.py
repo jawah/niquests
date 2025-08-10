@@ -25,6 +25,7 @@ class InMemoryRevocationList:
         self._max_size: int = max_size
         self._store: dict[str, CertificateRevocationList] = {}
         self._issuers_map: dict[str, Certificate] = {}
+        self._crl_endpoints: dict[str, str] = {}
         self._failure_count: int = 0
 
     def __getstate__(self) -> dict[str, typing.Any]:
@@ -33,14 +34,16 @@ class InMemoryRevocationList:
             "_store": {k: v.serialize() for k, v in self._store.items()},
             "_issuers_map": {k: v.serialize() for k, v in self._issuers_map.items()},
             "_failure_count": self._failure_count,
+            "_crl_endpoints": self._crl_endpoints,
         }
 
     def __setstate__(self, state: dict[str, typing.Any]) -> None:
-        if "_store" not in state or "_issuers_map" not in state or "_max_size" not in state:
+        if "_store" not in state or "_issuers_map" not in state or "_max_size" not in state or "_crl_endpoints" not in state:
             raise OSError("unrecoverable state for InMemoryRevocationStatus")
 
         self._max_size = state["_max_size"]
         self._failure_count = state["_failure_count"] if "_failure_count" in state else 0
+        self._crl_endpoints = state["_crl_endpoints"]
 
         self._store = {}
 
@@ -70,25 +73,32 @@ class InMemoryRevocationList:
     def failure_count(self) -> int:
         return self._failure_count
 
-    def check(self, leaf: Certificate) -> CertificateRevocationList | None:
-        fingerprint: str = _str_fingerprint_of(leaf)
-
-        if fingerprint not in self._store:
+    def check(self, crl_distribution_point: str) -> CertificateRevocationList | None:
+        if crl_distribution_point not in self._store:
             return None
 
-        cached_response = self._store[fingerprint]
+        cached_response = self._store[crl_distribution_point]
 
         if cached_response.next_update_at and datetime.datetime.now().timestamp() >= cached_response.next_update_at:
-            del self._store[fingerprint]
+            del self._store[crl_distribution_point]
             return None
 
         return cached_response
+
+    def get_previous_crl_endpoint(self, leaf: Certificate) -> str | None:
+        fingerprint = _str_fingerprint_of(leaf)
+
+        if fingerprint in self._crl_endpoints:
+            return self._crl_endpoints[fingerprint]
+
+        return None
 
     def save(
         self,
         leaf: Certificate,
         issuer: Certificate,
         crl: CertificateRevocationList,
+        crl_distribution_point: str,
     ) -> None:
         if len(self._store) >= self._max_size:
             tbd_key: str | None = None
@@ -111,7 +121,8 @@ class InMemoryRevocationList:
 
         peer_fingerprint: str = _str_fingerprint_of(leaf)
 
-        self._store[peer_fingerprint] = crl
+        self._store[crl_distribution_point] = crl
+        self._crl_endpoints[peer_fingerprint] = crl_distribution_point
         self._issuers_map[peer_fingerprint] = issuer
         self._failure_count = 0
 
@@ -151,7 +162,9 @@ async def verify(
 
     peer_certificate: Certificate = _parse_x509_der_cached(conn_info.certificate_der)
 
-    cached_revocation_list = cache.check(peer_certificate)
+    crl_distribution_point: str = cache.get_previous_crl_endpoint(peer_certificate) or endpoints[randint(0, len(endpoints) - 1)]
+
+    cached_revocation_list = cache.check(crl_distribution_point)
 
     if cached_revocation_list is not None:
         issuer_certificate = cache.get_issuer_of(peer_certificate)
@@ -238,7 +251,7 @@ async def verify(
 
         try:
             crl_http_response = await session.get(
-                endpoints[randint(0, len(endpoints) - 1)],
+                crl_distribution_point,
                 timeout=timeout,
             )
         except RequestException as e:
@@ -292,7 +305,7 @@ async def verify(
                         SecurityWarning,
                     )
 
-            cache.save(peer_certificate, issuer_certificate, crl)
+            cache.save(peer_certificate, issuer_certificate, crl, crl_distribution_point)
 
             revocation_status = crl.is_revoked(peer_certificate.serial_number)
 
