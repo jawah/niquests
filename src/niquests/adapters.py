@@ -349,6 +349,9 @@ class HTTPAdapter(BaseAdapter):
         self._max_in_flight_multiplexed = max_in_flight_multiplexed
         self._promise_lock = RLock()
 
+        self._ocsp_cache: typing.Any | None = None
+        self._crl_cache: typing.Any | None = None
+
         disabled_svn = set()
 
         if disable_http1:
@@ -1028,6 +1031,7 @@ class HTTPAdapter(BaseAdapter):
                                     kwargs["proxies"],
                                     self._resolver if isinstance(self._resolver, BaseResolver) else None,
                                     self._happy_eyeballs,
+                                    cache=self._ocsp_cache,
                                 )
                         elif is_crl_capable(conn_info):
                             try:
@@ -1042,6 +1046,7 @@ class HTTPAdapter(BaseAdapter):
                                     kwargs["proxies"],
                                     self._resolver if isinstance(self._resolver, BaseResolver) else None,
                                     self._happy_eyeballs,
+                                    cache=self._crl_cache,
                                 )
 
                 kwargs["on_post_connection"] = on_post_connection
@@ -1415,6 +1420,9 @@ class AsyncHTTPAdapter(AsyncBaseAdapter):
         self._promises: dict[str, Response | AsyncResponse] = {}
         self._orphaned: list[BaseAsyncHTTPResponse] = []
         self._max_in_flight_multiplexed = max_in_flight_multiplexed
+
+        self._ocsp_cache: typing.Any | None = None
+        self._crl_cache: typing.Any | None = None
 
         disabled_svn = set()
 
@@ -2102,6 +2110,7 @@ class AsyncHTTPAdapter(AsyncBaseAdapter):
                                     kwargs["proxies"],
                                     self._resolver if isinstance(self._resolver, AsyncBaseResolver) else None,
                                     self._happy_eyeballs,
+                                    cache=self._ocsp_cache,
                                 )
                         elif is_crl_capable(conn_info):
                             try:
@@ -2118,6 +2127,7 @@ class AsyncHTTPAdapter(AsyncBaseAdapter):
                                     kwargs["proxies"],
                                     self._resolver if isinstance(self._resolver, AsyncBaseResolver) else None,
                                     self._happy_eyeballs,
+                                    cache=self._crl_cache,
                                 )
 
                 kwargs["on_post_connection"] = on_post_connection

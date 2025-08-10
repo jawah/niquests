@@ -6,7 +6,6 @@ import ssl
 import typing
 import warnings
 from contextlib import asynccontextmanager
-
 from random import randint
 
 from qh3._hazmat import (
@@ -23,7 +22,6 @@ from .....models import PreparedRequest
 from .....packages.urllib3 import ConnectionInfo
 from .....packages.urllib3.contrib.resolver._async import AsyncBaseResolver
 from .....packages.urllib3.exceptions import SecurityWarning
-
 from .. import (
     _parse_x509_der_cached,
     _str_fingerprint_of,

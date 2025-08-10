@@ -18,7 +18,6 @@ from ....models import PreparedRequest
 from ....packages.urllib3 import ConnectionInfo
 from ....packages.urllib3.contrib.resolver import BaseResolver
 from ....packages.urllib3.exceptions import SecurityWarning
-
 from .._ocsp import _parse_x509_der_cached, _str_fingerprint_of, readable_revocation_reason
 
 
@@ -226,7 +225,6 @@ def verify(
             conn_info.issuer_certificate_der = issuer_certificate.public_bytes()
         else:
             issuer_certificate = Certificate(conn_info.issuer_certificate_der)
-
 
         try:
             crl_http_response = session.get(

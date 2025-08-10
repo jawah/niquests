@@ -1149,6 +1149,10 @@ class Session:
                     else:
                         if self._ocsp_cache is None:
                             self._ocsp_cache = InMemoryRevocationStatus()
+
+                            for adapter in self.adapters.values():
+                                if hasattr(adapter, "_ocsp_cache"):
+                                    adapter._ocsp_cache = self._ocsp_cache
                         ocsp_verify(
                             ptr_request,
                             strict_ocsp_enabled,
@@ -1171,6 +1175,10 @@ class Session:
                     else:
                         if self._crl_cache is None:
                             self._crl_cache = InMemoryRevocationList()
+
+                            for adapter in self.adapters.values():
+                                if hasattr(adapter, "_crl_cache"):
+                                    adapter._crl_cache = self._crl_cache
                         crl_verify(
                             ptr_request,
                             strict_ocsp_enabled,
