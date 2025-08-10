@@ -356,7 +356,7 @@ async def verify(
 
                 # Verify the signature of the OCSP response with issuer public key
                 try:
-                    if not ocsp_resp.verify(issuer_certificate.public_bytes()):  # type: ignore[attr-defined]
+                    if not ocsp_resp.authenticate_for(issuer_certificate.public_bytes()):  # type: ignore[attr-defined]
                         raise SSLError(
                             f"Unable to establish a secure connection to {r.url} "
                             "because the OCSP response received has been tampered. "
