@@ -1156,6 +1156,24 @@ def is_ocsp_capable(conn_info: ConnectionInfo | None) -> bool:
     return True
 
 
+def is_crl_capable(conn_info: ConnectionInfo | None) -> bool:
+    if conn_info is None or conn_info.certificate_der is None or conn_info.certificate_dict is None:
+        return False
+
+    endpoints: list[str] = [  # type: ignore
+        # exclude non-HTTP endpoint. like ldap.
+        ep  # type: ignore
+        for ep in list(conn_info.certificate_dict.get("crlDistributionPoints", []))  # type: ignore
+        if ep.startswith("http://")  # type: ignore
+    ]
+
+    # well... not all issued certificate have a CRL distribution endpoint
+    if not endpoints:
+        return False
+
+    return True
+
+
 def wrap_extension_for_http(
     extension: type[ExtensionFromHTTP],
 ) -> type[ExtensionFromHTTP]:

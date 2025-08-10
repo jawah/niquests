@@ -413,10 +413,10 @@ class AsyncSession(Session):
                 strict_ocsp_enabled: bool = os.environ.get("NIQUESTS_STRICT_OCSP", "0") != "0"
 
                 try:
-                    from .extensions._async_ocsp import (
+                    from .extensions.revocation._ocsp._async import (
                         InMemoryRevocationStatus,
                     )
-                    from .extensions._async_ocsp import (
+                    from .extensions.revocation._ocsp._async import (
                         verify as ocsp_verify,
                     )
                 except ImportError:

@@ -1,8 +1,6 @@
 from __future__ import annotations
 
 import datetime
-import hmac
-import socket
 import ssl
 import threading
 import typing
@@ -20,29 +18,12 @@ from qh3._hazmat import (
     ReasonFlags,
 )
 
-from .._typing import ProxyType
-from ..exceptions import RequestException, SSLError
-from ..models import PreparedRequest
-from ..packages.urllib3 import ConnectionInfo
-from ..packages.urllib3.contrib.resolver import BaseResolver
-from ..packages.urllib3.exceptions import SecurityWarning
-from ..packages.urllib3.util.url import parse_url
-from ._picotls import (
-    ALERT,
-    CHANGE_CIPHER,
-    HANDSHAKE,
-    PicoTLSException,
-    derive_secret,
-    gen_client_hello,
-    handle_encrypted_extensions,
-    handle_server_cert,
-    handle_server_hello,
-    multiply_num_on_ec_point,
-    num_to_bytes,
-    recv_tls,
-    recv_tls_and_decrypt,
-    send_tls,
-)
+from ...._typing import ProxyType
+from ....exceptions import RequestException, SSLError
+from ....models import PreparedRequest
+from ....packages.urllib3 import ConnectionInfo
+from ....packages.urllib3.contrib.resolver import BaseResolver
+from ....packages.urllib3.exceptions import SecurityWarning
 
 
 @lru_cache(maxsize=64)
@@ -61,116 +42,6 @@ def _str_fingerprint_of(certificate: Certificate) -> str:
 
 def readable_revocation_reason(flag: ReasonFlags | None) -> str | None:
     return str(flag).split(".")[-1].lower() if flag is not None else None
-
-
-def _ask_nicely_for_issuer(hostname: str, dst_address: tuple[str, int], timeout: int | float = 0.2) -> Certificate | None:
-    """When encountering a problem in development, one should always say that there is many solutions.
-    From dirtiest to the cleanest, not always known but with progressive effort, we'll eventually land at the cleanest.
-
-    This function do a manual TLS 1.2+ handshake till we extract certificates from the remote peer. Does not
-    need to be secure, we just have to retrieve the issuer cert if any."""
-    if dst_address[0].count(".") == 3:
-        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    else:
-        sock = socket.socket(socket.AF_INET6, socket.SOCK_STREAM)
-
-    sock.settimeout(timeout)
-    try:
-        sock.connect(dst_address)
-    except (OSError, socket.timeout, TimeoutError, ConnectionError) as e:
-        raise PicoTLSException from e
-
-    SECP256R1_P = 0xFFFFFFFF00000001000000000000000000000000FFFFFFFFFFFFFFFFFFFFFFFF
-    SECP256R1_A = 0xFFFFFFFF00000001000000000000000000000000FFFFFFFFFFFFFFFFFFFFFFFC
-    SECP256R1_G = (
-        0x6B17D1F2E12C4247F8BCE6E563A440F277037D812DEB33A0F4A13945D898C296,
-        0x4FE342E2FE1A7F9B8EE7EB4A7C0F9E162BCE33576B315ECECBB6406837BF51F5,
-    )
-
-    randelem = [b"\xac", b"\xdc", b"\xfa", b"\xaf"]
-    client_random = b"".join([randelem[randint(0, 3)] for e in range(32)])
-    our_ecdh_privkey = randint(42, 98)
-    our_ecdh_pubkey_x, our_ecdh_pubkey_y = multiply_num_on_ec_point(
-        our_ecdh_privkey, SECP256R1_G[0], SECP256R1_G[1], SECP256R1_A, SECP256R1_P
-    )
-
-    client_hello = gen_client_hello(hostname, client_random, our_ecdh_pubkey_x, our_ecdh_pubkey_y)
-
-    send_tls(sock, HANDSHAKE, client_hello)
-
-    rec_type, server_hello = recv_tls(sock)
-
-    if not rec_type == HANDSHAKE:
-        sock.close()
-        return None
-
-    (
-        server_random,
-        session_id,
-        server_ecdh_pubkey_x,
-        server_ecdh_pubkey_y,
-    ) = handle_server_hello(server_hello)
-
-    rec_type, server_change_cipher = recv_tls(sock)
-
-    if not rec_type == CHANGE_CIPHER:
-        sock.close()
-        return None
-
-    our_secret_point_x = multiply_num_on_ec_point(
-        our_ecdh_privkey,
-        server_ecdh_pubkey_x,
-        server_ecdh_pubkey_y,
-        SECP256R1_A,
-        SECP256R1_P,
-    )[0]
-    our_secret = num_to_bytes(our_secret_point_x, 32)
-
-    early_secret = hmac.new(b"", b"\x00" * 32, sha256).digest()
-    preextractsec = derive_secret(b"derived", key=early_secret, data=sha256(b"").digest(), hash_len=32)
-    handshake_secret = hmac.new(preextractsec, our_secret, sha256).digest()
-    hello_hash = sha256(client_hello + server_hello).digest()
-    server_hs_secret = derive_secret(b"s hs traffic", key=handshake_secret, data=hello_hash, hash_len=32)
-    server_write_key = derive_secret(b"key", key=server_hs_secret, data=b"", hash_len=16)
-    server_write_iv = derive_secret(b"iv", key=server_hs_secret, data=b"", hash_len=12)
-
-    server_seq_num = 0
-
-    rec_type, encrypted_extensions = recv_tls_and_decrypt(sock, server_write_key, server_write_iv, server_seq_num)
-
-    if not rec_type == HANDSHAKE:
-        sock.close()
-        return None
-
-    server_seq_num += 1
-
-    remaining_bytes = handle_encrypted_extensions(encrypted_extensions)
-
-    if not remaining_bytes:
-        rec_type, server_cert = recv_tls_and_decrypt(sock, server_write_key, server_write_iv, server_seq_num)
-    else:
-        rec_type, server_cert = rec_type, remaining_bytes
-
-    if not rec_type == HANDSHAKE:
-        sock.close()
-        return None
-
-    server_seq_num += 1
-
-    der_certificates = handle_server_cert(server_cert)
-    certificates = []
-
-    for der in der_certificates:
-        certificates.append(Certificate(der))
-
-    send_tls(sock, ALERT, b"\x01\x00")
-    sock.close()
-
-    if len(certificates) <= 1:
-        return None
-
-    # kept in order, the immediate issuer come just after the leaf one.
-    return certificates[1]
 
 
 class InMemoryRevocationStatus:
@@ -376,7 +247,7 @@ def verify(
 
         return
 
-    from ..sessions import Session
+    from ....sessions import Session
 
     with Session(resolver=resolver, happy_eyeballs=happy_eyeballs) as session:
         session.trust_env = False
@@ -393,47 +264,13 @@ def verify(
             # It could be a root (self-signed) certificate. Or a previously seen issuer.
             issuer_certificate = cache.get_issuer_of(peer_certificate)
 
-            # If not, try to ask nicely the remote to give us the certificate chain, and extract
-            # from it the immediate issuer.
-            if issuer_certificate is None:
-                try:
-                    if r.url is None:
-                        raise ValueError
-
-                    url_parsed = parse_url(r.url)
-
-                    if url_parsed.hostname is None or conn_info.destination_address is None:
-                        raise ValueError
-
-                    if not proxies:
-                        try:
-                            issuer_certificate = _ask_nicely_for_issuer(
-                                url_parsed.hostname,
-                                conn_info.destination_address,
-                                timeout,
-                            )
-                        except PicoTLSException:
-                            issuer_certificate = None
-                    else:
-                        issuer_certificate = None
-
-                except (
-                    socket.gaierror,
-                    socket.timeout,
-                    TimeoutError,
-                    ConnectionError,
-                    AttributeError,
-                ):
-                    pass
-                except ValueError:
-                    issuer_certificate = None
-
             hint_ca_issuers: list[str] = [
                 ep  # type: ignore
                 for ep in list(conn_info.certificate_dict.get("caIssuers", []))  # type: ignore
                 if ep.startswith("http://")  # type: ignore
             ]
 
+            # try to do AIA fetching of intermediate certificate (issuer)
             if issuer_certificate is None and hint_ca_issuers:
                 try:
                     raw_intermediary_response = session.get(hint_ca_issuers[0])
@@ -518,6 +355,17 @@ def verify(
                         SecurityWarning,
                     )
                 return
+
+            # Verify the signature of the OCSP response with issuer public key
+            try:
+                if not ocsp_resp.verify(issuer_certificate.public_bytes()):  # type: ignore[attr-defined]
+                    raise SSLError(
+                        f"Unable to establish a secure connection to {r.url} "
+                        "because the OCSP response received has been tampered. "
+                        "You could be targeted by a MITM attack."
+                    )
+            except ValueError:  # Defensive: unsupported signature case
+                pass
 
             cache.save(peer_certificate, issuer_certificate, ocsp_resp)
 

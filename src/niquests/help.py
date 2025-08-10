@@ -52,7 +52,7 @@ except ImportError:
     certifi = None  # type: ignore
 
 try:
-    from .extensions._ocsp import verify as ocsp_verify
+    from .extensions.revocation._ocsp import verify as ocsp_verify
 except ImportError:
     ocsp_verify = None  # type: ignore
 
