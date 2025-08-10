@@ -1326,6 +1326,8 @@ Verify the availability by running ``python -m niquests.help``.
 
 .. warning:: You may be interested in caching and restoring the OCSP/CRL validator state in between runs for performance concerns. To achieve that you are invited to pickle and restore your ``niquests.Session`` object.
 
+.. warning:: In order to avoid spoil the overall HTTP experience, we currently silently disable OCSP / CRL checks if 4 failures occurred in a row.
+
 Specify HTTP/3 capable endpoint preemptively
 --------------------------------------------
 
