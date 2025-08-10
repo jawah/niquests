@@ -8,7 +8,7 @@ description = "Niquests is a simple, yet elegant, HTTP library. It is a drop-in 
 readme = "README.md"
 license-files = { paths = ["LICENSE"] }
 license = "Apache-2.0"
-keywords = ["requests", "http2", "http3", "QUIC", "http", "https", "http client", "http/1.1", "ocsp", "revocation", "tls", "multiplexed", "dns-over-quic", "doq", "dns-over-tls", "dot", "dns-over-https", "doh", "dnssec", "websocket", "sse"]
+keywords = ["requests", "http2", "http3", "QUIC", "http", "https", "http client", "http/1.1", "ocsp", "crl", "revocation", "tls", "multiplexed", "dns-over-quic", "doq", "dns-over-tls", "dot", "dns-over-https", "doh", "dnssec", "websocket", "sse"]
 authors = [
   {name = "Kenneth Reitz", email = "me@kennethreitz.org"}
 ]
