@@ -1292,7 +1292,7 @@ can be both valid and revoked due its immutability, the revocation status must
 be taken from an outside source, most of the revocation are linked to a hack/security violation.
 
 Niquests try to protect you from the evoked problem by doing a post-handshake verification
-using the OCSP protocols via plain HTTP.
+using the OCSP protocols via plain HTTP. If OCSP isn't set we fallback on a CRL.
 
 Unfortunately, at this moment, no bullet proof solution has emerged against revoked certificate.
 We are aware of this. But still, it is better than nothing!
@@ -1301,7 +1301,7 @@ By default, Niquests operate a soft-fail verification, or non-strict if you pref
 
 This feature is broadly available and is enabled by default when ``verify=True``.
 We decided to follow what browsers do by default, so Niquests follows by being non-strict.
-OCSP responses are expected to arrive in less than 200ms, otherwise ignored (e.g. OCSP is dropped).
+OCSP/CRL responses are expected to arrive in less than 200ms, otherwise ignored (e.g. OCSP/CRL is dropped).
 Niquests keeps in-memory the results until the size exceed 2,048 entries, then an algorithm choose an entry
 to be deleted (oldest request or the first one that ended in error).
 
@@ -1309,7 +1309,9 @@ You can at your own discretion enable strict OCSP checks by passing the environm
 with anything inside but ``0``. In strict mode the maximum delay for response passes from 200ms to 1,000ms and
 raises an error or explicit warning.
 
-In non-strict mode, this security measure will be deactivated automatically if your usage is unreasonable.
+.. note:: ``NIQUESTS_STRICT_OCSP`` applies to CRL checks too.
+
+In non-strict mode, this security measure will be deactivated automatically (not applicable to CRL) if your usage is unreasonable.
 e.g. Making a hundred of requests to a hundred of domains, thus consuming resources that should have been
 allocated to browser users. This was made available for users with a limited target of domains to get
 a complementary security measure.
@@ -1322,7 +1324,7 @@ Verify the availability by running ``python -m niquests.help``.
 
 .. note:: Access property ``ocsp_verified`` in both ``PreparedRequest``, and ``Response`` to have information about this post handshake verification.
 
-.. warning:: You may be interested in caching and restoring the OCSP validator state in between runs for performance concerns. To achieve that you are invited to pickle and restore your ``niquests.Session`` object.
+.. warning:: You may be interested in caching and restoring the OCSP/CRL validator state in between runs for performance concerns. To achieve that you are invited to pickle and restore your ``niquests.Session`` object.
 
 Specify HTTP/3 capable endpoint preemptively
 --------------------------------------------
