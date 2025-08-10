@@ -23,4 +23,4 @@ repos:
   -   id: mypy
       args: [--check-untyped-defs]
       exclude: 'tests/|noxfile.py'
-      additional_dependencies: ['charset_normalizer', 'urllib3.future>=2.12.900', 'wassima>=1.0.1', 'qh3>=1.4', '.']
+      additional_dependencies: ['charset_normalizer', 'urllib3.future>=2.13.902', 'wassima>=2', 'qh3>=1.5', '.']
