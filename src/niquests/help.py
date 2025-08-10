@@ -157,8 +157,6 @@ def info():
             "h11": h11.__version__,
         },
         "wassima": {
-            "enabled": wassima.RUSTLS_LOADED,
-            "certifi_fallback": wassima.RUSTLS_LOADED is False and certifi is not None,
             "version": wassima.__version__,
         },
         "ocsp": {"enabled": ocsp_verify is not None},
