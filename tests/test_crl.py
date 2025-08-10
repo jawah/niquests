@@ -40,9 +40,7 @@ class TestCertificateRevocationList:
         async with AsyncSession() as s:
             assert s._ocsp_cache is None
             assert s._crl_cache is None
-            await s.get(
-                "https://httpbingo.org/get", timeout=OCSP_MAX_DELAY_WAIT
-            )
+            await s.get("https://httpbingo.org/get", timeout=OCSP_MAX_DELAY_WAIT)
             assert s._ocsp_cache is None
             assert s._crl_cache is not None
             assert hasattr(s._crl_cache, "_store")
