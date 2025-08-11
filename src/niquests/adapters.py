@@ -120,6 +120,7 @@ from .utils import (
     async_wrap_extension_for_http,
     get_auth_from_url,
     get_encoding_from_headers,
+    is_crl_capable,
     is_ocsp_capable,
     parse_scheme,
     prepend_scheme_if_needed,
@@ -347,6 +348,9 @@ class HTTPAdapter(BaseAdapter):
         self._orphaned: list[BaseHTTPResponse] = []
         self._max_in_flight_multiplexed = max_in_flight_multiplexed
         self._promise_lock = RLock()
+
+        self._ocsp_cache: typing.Any | None = None
+        self._crl_cache: typing.Any | None = None
 
         disabled_svn = set()
 
@@ -1011,27 +1015,39 @@ class HTTPAdapter(BaseAdapter):
                     assert next_request is not None
                     next_request.conn_info = conn_info
 
-                    if (
-                        next_request.url
-                        and next_request.url.startswith("https://")
-                        and kwargs["verify"]
-                        and is_ocsp_capable(conn_info)
-                    ):
+                    if next_request.url and next_request.url.startswith("https://") and kwargs["verify"]:
                         strict_ocsp_enabled: bool = os.environ.get("NIQUESTS_STRICT_OCSP", "0") != "0"
 
-                        try:
-                            from .extensions._ocsp import verify as ocsp_verify
-                        except ImportError:
-                            pass
-                        else:
-                            ocsp_verify(
-                                next_request,
-                                strict_ocsp_enabled,
-                                0.2 if not strict_ocsp_enabled else 1.0,
-                                kwargs["proxies"],
-                                self._resolver if isinstance(self._resolver, BaseResolver) else None,
-                                self._happy_eyeballs,
-                            )
+                        if is_ocsp_capable(conn_info):
+                            try:
+                                from .extensions.revocation._ocsp import verify as ocsp_verify
+                            except ImportError:
+                                pass
+                            else:
+                                ocsp_verify(
+                                    next_request,
+                                    strict_ocsp_enabled,
+                                    0.2 if not strict_ocsp_enabled else 1.0,
+                                    kwargs["proxies"],
+                                    self._resolver if isinstance(self._resolver, BaseResolver) else None,
+                                    self._happy_eyeballs,
+                                    cache=self._ocsp_cache,
+                                )
+                        elif is_crl_capable(conn_info):
+                            try:
+                                from .extensions.revocation._crl import verify as crl_verify
+                            except ImportError:
+                                pass
+                            else:
+                                crl_verify(
+                                    next_request,
+                                    strict_ocsp_enabled,
+                                    0.2 if not strict_ocsp_enabled else 1.0,
+                                    kwargs["proxies"],
+                                    self._resolver if isinstance(self._resolver, BaseResolver) else None,
+                                    self._happy_eyeballs,
+                                    cache=self._crl_cache,
+                                )
 
                 kwargs["on_post_connection"] = on_post_connection
 
@@ -1404,6 +1420,9 @@ class AsyncHTTPAdapter(AsyncBaseAdapter):
         self._promises: dict[str, Response | AsyncResponse] = {}
         self._orphaned: list[BaseAsyncHTTPResponse] = []
         self._max_in_flight_multiplexed = max_in_flight_multiplexed
+
+        self._ocsp_cache: typing.Any | None = None
+        self._crl_cache: typing.Any | None = None
 
         disabled_svn = set()
 
@@ -2073,29 +2092,43 @@ class AsyncHTTPAdapter(AsyncBaseAdapter):
                     assert next_request is not None
                     next_request.conn_info = conn_info
 
-                    if (
-                        next_request.url
-                        and next_request.url.startswith("https://")
-                        and kwargs["verify"]
-                        and is_ocsp_capable(conn_info)
-                    ):
-                        try:
-                            from .extensions._async_ocsp import (
-                                verify as async_ocsp_verify,
-                            )
-                        except ImportError:
-                            pass
-                        else:
-                            strict_ocsp_enabled: bool = os.environ.get("NIQUESTS_STRICT_OCSP", "0") != "0"
+                    if next_request.url and next_request.url.startswith("https://") and kwargs["verify"]:
+                        strict_ocsp_enabled: bool = os.environ.get("NIQUESTS_STRICT_OCSP", "0") != "0"
 
-                            await async_ocsp_verify(
-                                next_request,
-                                strict_ocsp_enabled,
-                                0.2 if not strict_ocsp_enabled else 1.0,
-                                kwargs["proxies"],
-                                self._resolver if isinstance(self._resolver, AsyncBaseResolver) else None,
-                                self._happy_eyeballs,
-                            )
+                        if is_ocsp_capable(conn_info):
+                            try:
+                                from .extensions.revocation._ocsp._async import (
+                                    verify as async_ocsp_verify,
+                                )
+                            except ImportError:
+                                pass
+                            else:
+                                await async_ocsp_verify(
+                                    next_request,
+                                    strict_ocsp_enabled,
+                                    0.2 if not strict_ocsp_enabled else 1.0,
+                                    kwargs["proxies"],
+                                    self._resolver if isinstance(self._resolver, AsyncBaseResolver) else None,
+                                    self._happy_eyeballs,
+                                    cache=self._ocsp_cache,
+                                )
+                        elif is_crl_capable(conn_info):
+                            try:
+                                from .extensions.revocation._crl._async import (
+                                    verify as async_crl_verify,
+                                )
+                            except ImportError:
+                                pass
+                            else:
+                                await async_crl_verify(
+                                    next_request,
+                                    strict_ocsp_enabled,
+                                    0.2 if not strict_ocsp_enabled else 1.0,
+                                    kwargs["proxies"],
+                                    self._resolver if isinstance(self._resolver, AsyncBaseResolver) else None,
+                                    self._happy_eyeballs,
+                                    cache=self._crl_cache,
+                                )
 
                 kwargs["on_post_connection"] = on_post_connection
 

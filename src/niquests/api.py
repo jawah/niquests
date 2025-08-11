@@ -35,11 +35,19 @@ from .models import PreparedRequest, Response
 from .structures import QuicSharedCache
 
 try:
-    from .extensions._ocsp import InMemoryRevocationStatus
+    from .extensions.revocation._ocsp import InMemoryRevocationStatus
 
     _SHARED_OCSP_CACHE: InMemoryRevocationStatus | None = InMemoryRevocationStatus()
 except ImportError:
     _SHARED_OCSP_CACHE = None
+
+
+try:
+    from .extensions.revocation._crl import InMemoryRevocationList
+
+    _SHARED_CRL_CACHE: InMemoryRevocationList | None = InMemoryRevocationList()
+except ImportError:
+    _SHARED_CRL_CACHE = None
 
 
 _SHARED_QUIC_CACHE: CacheLayerAltSvcType = QuicSharedCache(max_size=12_288)
@@ -118,6 +126,7 @@ def request(
     # cases, and look like a memory leak in others.
     with sessions.Session(quic_cache_layer=_SHARED_QUIC_CACHE, retries=retries) as session:
         session._ocsp_cache = _SHARED_OCSP_CACHE
+        session._crl_cache = _SHARED_CRL_CACHE
         return session.request(
             method=method,
             url=url,

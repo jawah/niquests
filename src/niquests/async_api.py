@@ -38,13 +38,22 @@ from .models import AsyncResponse, PreparedRequest, Response
 from .structures import AsyncQuicSharedCache
 
 try:
-    from .extensions._async_ocsp import InMemoryRevocationStatus
+    from .extensions.revocation._ocsp._async import InMemoryRevocationStatus
 
     _SHARED_OCSP_CACHE: contextvars.ContextVar[InMemoryRevocationStatus] | None = contextvars.ContextVar(
         "ocsp_cache", default=InMemoryRevocationStatus()
     )
 except ImportError:
     _SHARED_OCSP_CACHE = None
+
+try:
+    from .extensions.revocation._crl._async import InMemoryRevocationList
+
+    _SHARED_CRL_CACHE: contextvars.ContextVar[InMemoryRevocationList] | None = contextvars.ContextVar(
+        "crl_cache", default=InMemoryRevocationList()
+    )
+except ImportError:
+    _SHARED_CRL_CACHE = None
 
 _SHARED_QUIC_CACHE: CacheLayerAltSvcType = AsyncQuicSharedCache(max_size=12_288)
 
@@ -169,6 +178,9 @@ async def request(
     async with AsyncSession(quic_cache_layer=_SHARED_QUIC_CACHE, retries=retries) as session:
         if _SHARED_OCSP_CACHE is not None:
             session._ocsp_cache = _SHARED_OCSP_CACHE.get()
+
+        if _SHARED_CRL_CACHE is not None:
+            session._crl_cache = _SHARED_CRL_CACHE.get()
 
         return await session.request(  # type: ignore[misc]
             method,

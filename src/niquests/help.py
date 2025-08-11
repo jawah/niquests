@@ -52,7 +52,7 @@ except ImportError:
     certifi = None  # type: ignore
 
 try:
-    from .extensions._ocsp import verify as ocsp_verify
+    from .extensions.revocation._ocsp import verify as ocsp_verify
 except ImportError:
     ocsp_verify = None  # type: ignore
 
@@ -157,8 +157,6 @@ def info():
             "h11": h11.__version__,
         },
         "wassima": {
-            "enabled": wassima.RUSTLS_LOADED,
-            "certifi_fallback": wassima.RUSTLS_LOADED is False and certifi is not None,
             "version": wassima.__version__,
         },
         "ocsp": {"enabled": ocsp_verify is not None},

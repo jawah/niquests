@@ -122,7 +122,7 @@ asyncio.run(main())
 
 Niquests allows you to send HTTP requests extremely easily. There’s no need to manually add query strings to your URLs, or to form-encode your `PUT` & `POST` data — just use the `json` method!
 
-[![Downloads](https://img.shields.io/pypi/dm/niquests.svg)](https://pypistats.org/packages/niquests)
+[![PyPI Downloads](https://static.pepy.tech/badge/niquests/month)](https://pepy.tech/projects/niquests?timeRange=threeMonths&category=version&includeCIDownloads=true&granularity=daily&viewType=line&versions=3.*)
 [![Supported Versions](https://img.shields.io/pypi/pyversions/niquests.svg)](https://pypi.org/project/niquests)
 [![OpenSSF Best Practices](https://www.bestpractices.dev/projects/9950/badge)](https://www.bestpractices.dev/projects/9950)
 
@@ -149,6 +149,7 @@ Niquests is ready for the demands of building scalable, robust and reliable HTTP
 - Advanced connection timings inspection
 - In-memory certificates (CAs, and mTLS)
 - Browser-style TLS/SSL Verification
+- Certificate Revocation List (CRL)
 - Sessions with Cookie Persistence
 - Keep-Alive & Connection Pooling
 - International Domains and URLs

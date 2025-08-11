@@ -74,6 +74,7 @@ from .utils import (
     _swap_context,
     create_async_resolver,
     default_headers,
+    is_crl_capable,
     is_ocsp_capable,
     parse_scheme,
     requote_uri,
@@ -238,6 +239,11 @@ class AsyncSession(Session):
         #: It cannot be pickled and accessing this object may cause
         #: unattended errors.
         self._ocsp_cache: typing.Any | None = None
+
+        #: Don't try to manipulate this object.
+        #: It cannot be pickled and accessing this object may cause
+        #: unattended errors.
+        self._crl_cache: typing.Any | None = None
 
         # Default connection adapters.
         self.adapters: OrderedDict[str, AsyncBaseAdapter] = OrderedDict()  # type: ignore[assignment]
@@ -409,31 +415,63 @@ class AsyncSession(Session):
             nonlocal ptr_request, request, kwargs
             ptr_request.conn_info = conn_info
 
-            if ptr_request.url and ptr_request.url.startswith("https://") and kwargs["verify"] and is_ocsp_capable(conn_info):
+            if ptr_request.url and ptr_request.url.startswith("https://") and kwargs["verify"]:
                 strict_ocsp_enabled: bool = os.environ.get("NIQUESTS_STRICT_OCSP", "0") != "0"
 
-                try:
-                    from .extensions._async_ocsp import (
-                        InMemoryRevocationStatus,
-                    )
-                    from .extensions._async_ocsp import (
-                        verify as ocsp_verify,
-                    )
-                except ImportError:
-                    pass
-                else:
-                    if self._ocsp_cache is None:
-                        self._ocsp_cache = InMemoryRevocationStatus()
+                if is_ocsp_capable(conn_info):
+                    try:
+                        from .extensions.revocation._ocsp._async import (
+                            InMemoryRevocationStatus,
+                        )
+                        from .extensions.revocation._ocsp._async import (
+                            verify as ocsp_verify,
+                        )
+                    except ImportError:
+                        pass
+                    else:
+                        if self._ocsp_cache is None:
+                            self._ocsp_cache = InMemoryRevocationStatus()
 
-                    await ocsp_verify(
-                        ptr_request,
-                        strict_ocsp_enabled,
-                        0.2 if not strict_ocsp_enabled else 1.0,
-                        kwargs["proxies"],
-                        resolver=self.resolver,
-                        happy_eyeballs=self._happy_eyeballs,
-                        cache=self._ocsp_cache,
-                    )
+                            for adapter in self.adapters.values():
+                                if hasattr(adapter, "_ocsp_cache"):
+                                    adapter._ocsp_cache = self._ocsp_cache
+
+                        await ocsp_verify(
+                            ptr_request,
+                            strict_ocsp_enabled,
+                            0.2 if not strict_ocsp_enabled else 1.0,
+                            kwargs["proxies"],
+                            resolver=self.resolver,
+                            happy_eyeballs=self._happy_eyeballs,
+                            cache=self._ocsp_cache,
+                        )
+                elif is_crl_capable(conn_info):
+                    try:
+                        from .extensions.revocation._crl._async import (
+                            InMemoryRevocationList,
+                        )
+                        from .extensions.revocation._crl._async import (
+                            verify as crl_verify,
+                        )
+                    except ImportError:
+                        pass
+                    else:
+                        if self._crl_cache is None:
+                            self._crl_cache = InMemoryRevocationList()
+
+                            for adapter in self.adapters.values():
+                                if hasattr(adapter, "_crl_cache"):
+                                    adapter._crl_cache = self._crl_cache
+
+                        await crl_verify(
+                            ptr_request,
+                            strict_ocsp_enabled,
+                            0.2 if not strict_ocsp_enabled else 1.0,
+                            kwargs["proxies"],
+                            resolver=self.resolver,
+                            happy_eyeballs=self._happy_eyeballs,
+                            cache=self._crl_cache,
+                        )
 
             # don't trigger pre_send for redirects
             if ptr_request == request:

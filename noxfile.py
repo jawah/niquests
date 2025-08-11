@@ -50,7 +50,7 @@ def tests_impl(
     )
 
 
-@nox.session(python=["3.7", "3.8", "3.9", "3.10", "3.11", "3.12", "3.13", "pypy"])
+@nox.session(python=["3.7", "3.8", "3.9", "3.10", "3.11", "3.12", "3.13", "3.14", "pypy"])
 def test(session: nox.Session) -> None:
     tests_impl(session)
 
