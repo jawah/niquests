@@ -137,4 +137,8 @@ filterwarnings = [
     '''ignore:Parsed a negative serial number:cryptography.utils.CryptographyDeprecationWarning''',
     '''ignore:A plugin raised an exception during an old-style hookwrapper teardown''',
     '''ignore:.*:pytest.PytestUnraisableExceptionWarning''',
+    '''ignore:.*iscoroutinefunction.*:DeprecationWarning''',
+    '''ignore:.*get_event_loop.*:DeprecationWarning''',
+    '''ignore:.*set_event_loop.*:DeprecationWarning''',
+    '''ignore:.*EventLoopPolicy.*:DeprecationWarning''',
 ]
