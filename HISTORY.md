@@ -13,6 +13,7 @@ Release History
   It acts as a fallback method to check for the revocation status. This comes _(in response to)_ shortly after the removal
   of Let's Encrypt OCSP responder. We are investigating if we should implement a boolean toggle to let the user
   prefer CRL instead of OCSP by default in a next version. Give us your ideas and feedbacks before!
+- Explicit support for Python 3.14
 
 **Changed**
 - `wassima` upperbound to version 2 that includes various QoL improvements and stopped relying on Rust.
