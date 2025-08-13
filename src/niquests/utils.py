@@ -8,6 +8,7 @@ that are also useful for external consumption.
 
 from __future__ import annotations
 
+import asyncio
 import codecs
 import contextlib
 import io
@@ -1358,3 +1359,14 @@ def async_wrap_extension_for_http(
                     raise
 
     return _AsyncWrappedExtensionFromHTTP
+
+
+def is_cancelled_error_root_cause(exc: BaseException) -> bool:
+    seen = set()
+    cur: BaseException | None = exc
+    while cur and cur not in seen:
+        if isinstance(cur, asyncio.CancelledError):
+            return True
+        seen.add(cur)
+        cur = cur.__cause__ or cur.__context__
+    return False

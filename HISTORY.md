@@ -1,6 +1,17 @@
 Release History
 ===============
 
+3.15.1 (2025-08-13)
+-------------------
+
+**Changed**
+- Disabled OCSP and CRL signature check when **either** the target site is located in a private network **OR** at least one proxy is used.
+  See #274 for the rationale behind it.
+
+**Fixed**
+- Using Happy Eyeballs algorithm in async could trigger a warning about OCSP/CRL check in strict mode while no error really occurred.
+  This was due to async cancellation propagated to tasks that did not finish through after getting a valid connection usable.
+
 3.15.0 (2025-08-11)
 -------------------
 

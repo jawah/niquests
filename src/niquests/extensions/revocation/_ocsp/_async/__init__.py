@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import datetime
+import ipaddress
 import ssl
 import typing
 import warnings
@@ -22,6 +23,7 @@ from .....models import PreparedRequest
 from .....packages.urllib3 import ConnectionInfo
 from .....packages.urllib3.contrib.resolver._async import AsyncBaseResolver
 from .....packages.urllib3.exceptions import SecurityWarning
+from .....utils import is_cancelled_error_root_cause
 from .. import (
     _parse_x509_der_cached,
     _str_fingerprint_of,
@@ -225,6 +227,14 @@ async def verify(
             if cache.hold:
                 return
 
+        # some corporate environment
+        # have invalid OCSP implementation
+        # they use a cert that IS NOT in the chain
+        # to sign the response. It's weird but true.
+        # see https://github.com/jawah/niquests/issues/274
+        ignore_signature_without_strict = ipaddress.ip_address(conn_info.destination_address[0]).is_private or bool(proxies)
+        verify_signature = strict is True or ignore_signature_without_strict is False
+
         cached_response = cache.check(peer_certificate)
 
         if cached_response is not None:
@@ -284,8 +294,11 @@ async def verify(
                 if issuer_certificate is None and hint_ca_issuers:
                     try:
                         raw_intermediary_response = await session.get(hint_ca_issuers[0])
-                    except RequestException:
-                        pass
+                    except RequestException as e:
+                        if is_cancelled_error_root_cause(e):
+                            return
+                    except asyncio.CancelledError:  # don't raise any error or warnings!
+                        return
                     else:
                         if raw_intermediary_response.status_code and 300 > raw_intermediary_response.status_code >= 200:
                             raw_intermediary_content = raw_intermediary_response.content
@@ -340,6 +353,8 @@ async def verify(
                     timeout=timeout,
                 )
             except RequestException as e:
+                if is_cancelled_error_root_cause(e):
+                    return
                 cache.incr_failure()
                 if strict:
                     warnings.warn(
@@ -350,6 +365,8 @@ async def verify(
                         ),
                         SecurityWarning,
                     )
+                return
+            except asyncio.CancelledError:  # don't raise any error or warnings!
                 return
 
             if ocsp_http_response.status_code and 300 > ocsp_http_response.status_code >= 200:
@@ -370,24 +387,26 @@ async def verify(
                         )
                     return
 
-                # Verify the signature of the OCSP response with issuer public key
-                try:
-                    if not ocsp_resp.authenticate_for(issuer_certificate.public_bytes()):  # type: ignore[attr-defined]
-                        raise SSLError(
-                            f"Unable to establish a secure connection to {r.url} "
-                            "because the OCSP response received has been tampered. "
-                            "You could be targeted by a MITM attack."
-                        )
-                except ValueError:
-                    if strict:
-                        warnings.warn(
-                            (
-                                f"Unable to insure that the remote peer ({r.url}) has a currently valid certificate via OCSP. "
-                                "You are seeing this warning due to enabling strict mode for OCSP / Revocation check. "
-                                "Reason: The X509 OCSP response is signed using an unsupported algorithm."
-                            ),
-                            SecurityWarning,
-                        )
+                if verify_signature:
+                    # Verify the signature of the OCSP response with issuer public key
+                    try:
+                        if not ocsp_resp.authenticate_for(issuer_certificate.public_bytes()):  # type: ignore[attr-defined]
+                            raise SSLError(
+                                f"Unable to establish a secure connection to {r.url} "
+                                "because the OCSP response received has been tampered. "
+                                "You could be targeted by a MITM attack."
+                            )
+                    except ValueError:
+                        if strict:
+                            warnings.warn(
+                                (
+                                    f"Unable to insure that the remote peer ({r.url}) has a currently "
+                                    "valid certificate via OCSP. You are seeing this warning due to "
+                                    "enabling strict mode for OCSP / Revocation check. "
+                                    "Reason: The X509 OCSP response is signed using an unsupported algorithm."
+                                ),
+                                SecurityWarning,
+                            )
 
                 cache.save(peer_certificate, issuer_certificate, ocsp_resp)
 
