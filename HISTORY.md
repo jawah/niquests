@@ -1,6 +1,13 @@
 Release History
 ===============
 
+3.15.1 (2025-08-13)
+-------------------
+
+**Changed**
+- Disabled OCSP and CRL signature check when **either** the target site is located in a private network **OR** at least one proxy is used.
+  See #274 for the rationale behind it.
+
 3.15.0 (2025-08-11)
 -------------------
 

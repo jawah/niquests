@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import datetime
+import ipaddress
 import ssl
 import threading
 import typing
@@ -168,6 +169,14 @@ def verify(
         if cache.failure_count >= 4:
             return
 
+    # some corporate environment
+    # have invalid OCSP implementation
+    # they use a cert that IS NOT in the chain
+    # to sign the response. It's weird but true.
+    # see https://github.com/jawah/niquests/issues/274
+    ignore_signature_without_strict = ipaddress.ip_address(conn_info.destination_address[0]).is_private or bool(proxies)
+    verify_signature = strict is True or ignore_signature_without_strict is False
+
     peer_certificate: Certificate = _parse_x509_der_cached(conn_info.certificate_der)
 
     crl_distribution_point: str = cache.get_previous_crl_endpoint(peer_certificate) or endpoints[randint(0, len(endpoints) - 1)]
@@ -290,24 +299,25 @@ def verify(
                     )
                 return
 
-            # Verify the signature of the OCSP response with issuer public key
-            try:
-                if not crl.authenticate_for(issuer_certificate.public_bytes()):
-                    raise SSLError(
-                        f"Unable to establish a secure connection to {r.url} "
-                        "because the CRL response received has been tampered. "
-                        "You could be targeted by a MITM attack."
-                    )
-            except ValueError:
-                if strict:
-                    warnings.warn(
-                        (
-                            f"Unable to insure that the remote peer ({r.url}) has a currently valid certificate via CRL. "
-                            "You are seeing this warning due to enabling strict mode for OCSP / Revocation check. "
-                            "Reason: The X509 CRL is signed using an unsupported algorithm."
-                        ),
-                        SecurityWarning,
-                    )
+            if verify_signature:
+                # Verify the signature of the OCSP response with issuer public key
+                try:
+                    if not crl.authenticate_for(issuer_certificate.public_bytes()):
+                        raise SSLError(
+                            f"Unable to establish a secure connection to {r.url} "
+                            "because the CRL response received has been tampered. "
+                            "You could be targeted by a MITM attack."
+                        )
+                except ValueError:
+                    if strict:
+                        warnings.warn(
+                            (
+                                f"Unable to insure that the remote peer ({r.url}) has a currently valid certificate via CRL. "
+                                "You are seeing this warning due to enabling strict mode for OCSP / Revocation check. "
+                                "Reason: The X509 CRL is signed using an unsupported algorithm."
+                            ),
+                            SecurityWarning,
+                        )
 
             cache.save(peer_certificate, issuer_certificate, crl, crl_distribution_point)
 
