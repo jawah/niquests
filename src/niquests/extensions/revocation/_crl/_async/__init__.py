@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import datetime
 import ipaddress
 import ssl
@@ -18,6 +19,7 @@ from .....models import PreparedRequest
 from .....packages.urllib3 import ConnectionInfo
 from .....packages.urllib3.contrib.resolver._async import AsyncBaseResolver
 from .....packages.urllib3.exceptions import SecurityWarning
+from .....utils import is_cancelled_error_root_cause
 from ..._ocsp import _parse_x509_der_cached, _str_fingerprint_of, readable_revocation_reason
 
 
@@ -225,8 +227,11 @@ async def verify(
             if issuer_certificate is None and hint_ca_issuers:
                 try:
                     raw_intermediary_response = await session.get(hint_ca_issuers[0])
-                except RequestException:
-                    pass
+                except RequestException as e:
+                    if is_cancelled_error_root_cause(e):
+                        return
+                except asyncio.CancelledError:  # don't raise any error or warnings!
+                    return
                 else:
                     if raw_intermediary_response.status_code and 300 > raw_intermediary_response.status_code >= 200:
                         raw_intermediary_content = raw_intermediary_response.content
@@ -264,6 +269,8 @@ async def verify(
                 timeout=timeout,
             )
         except RequestException as e:
+            if is_cancelled_error_root_cause(e):
+                return
             # aia fetching should be counted as general ocsp failure too.
             cache.incr_failure()
             if strict:
@@ -275,6 +282,8 @@ async def verify(
                     ),
                     SecurityWarning,
                 )
+            return
+        except asyncio.CancelledError:  # don't raise any error or warnings!
             return
 
         if crl_http_response.status_code and 300 > crl_http_response.status_code >= 200:
