@@ -59,11 +59,15 @@ class TestCaseInsensitiveDict:
         o.add("Hello", "1")
         o.add("Hello", "2")
         o.add("Hello", "3")
+        o.add("FooBar", "Baz")
 
         u = CaseInsensitiveDict(o)
 
         assert u["Hello"] == "1, 2, 3"
         assert "1, 2, 3" in repr(u)
+
+        for item in u.items():
+            assert isinstance(item, tuple)
 
 
 class TestLookupDict:

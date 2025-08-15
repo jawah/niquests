@@ -1,6 +1,12 @@
 Release History
 ===============
 
+3.15.2 (2025-08-??)
+-------------------
+
+**Fixed**
+- The return type of `CaseInsensitiveDict.items()` could be a `list` instead of an expected `tuple`. (#276)
+
 3.15.1 (2025-08-13)
 -------------------
 
