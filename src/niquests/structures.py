@@ -128,7 +128,7 @@ class CaseInsensitiveDict(MutableMapping):
         for k in self._store:
             t = self._store[k]
             if len(t) == 2:
-                yield t
+                yield tuple(t)
             else:  # this case happen due to copying "_container" from HTTPHeaderDict!
                 try:
                     yield t[0], ", ".join(t[1:])  # type: ignore[arg-type]
