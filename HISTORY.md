@@ -1,12 +1,13 @@
 Release History
 ===============
 
-3.15.2 (2025-08-??)
+3.15.2 (2025-08-16)
 -------------------
 
 **Fixed**
 - The return type of `CaseInsensitiveDict.items()` could be a `list` instead of an expected `tuple`. (#276)
-- Fixed omitting hooks (keys) in `Session.hooks` dict causing an error at merge with request specific hooks.
+- Omitting hooks (keys) in `Session.hooks` dict causing an error at merge with request specific hooks.
+- CRL cache not persisted when pickling `Session`.
 
 3.15.1 (2025-08-13)
 -------------------
