@@ -1487,8 +1487,12 @@ class Session:
         state = {attr: getattr(self, attr, None) for attr in self.__attrs__}
         if self._ocsp_cache is not None:
             state["_ocsp_cache"] = self._ocsp_cache
+        else:
+            state["_ocsp_cache"] = None
         if self._crl_cache is not None:
             state["_crl_cache"] = self._crl_cache
+        else:
+            state["_crl_cache"] = None
         return state
 
     def __setstate__(self, state):
