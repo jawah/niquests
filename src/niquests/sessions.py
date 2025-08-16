@@ -1485,12 +1485,10 @@ class Session:
 
     def __getstate__(self):
         state = {attr: getattr(self, attr, None) for attr in self.__attrs__}
-        if (
-            self._ocsp_cache is not None
-            and hasattr(self._ocsp_cache, "support_pickle")
-            and self._ocsp_cache.support_pickle() is True
-        ):
+        if self._ocsp_cache is not None:
             state["_ocsp_cache"] = self._ocsp_cache
+        if self._crl_cache is not None:
+            state["_crl_cache"] = self._crl_cache
         return state
 
     def __setstate__(self, state):
@@ -1538,6 +1536,11 @@ class Session:
                 keepalive_idle_window=self._keepalive_idle_window,
             ),
         )
+        for adapter in self.adapters.values():
+            if hasattr(adapter, "_ocsp_cache"):
+                adapter._ocsp_cache = self._ocsp_cache
+            if hasattr(adapter, "_crl_cache"):
+                adapter._crl_cache = self._crl_cache
 
     def get_redirect_target(self, resp: Response) -> str | None:
         """Receives a Response. Returns a redirect URI or ``None``"""

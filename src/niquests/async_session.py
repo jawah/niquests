@@ -339,6 +339,11 @@ class AsyncSession(Session):
                 keepalive_idle_window=self._keepalive_idle_window,
             ),
         )
+        for adapter in self.adapters.values():
+            if hasattr(adapter, "_ocsp_cache"):
+                adapter._ocsp_cache = self._ocsp_cache
+            if hasattr(adapter, "_crl_cache"):
+                adapter._crl_cache = self._crl_cache
 
     def mount(self, prefix: str, adapter: AsyncBaseAdapter) -> None:  # type: ignore[override]
         super().mount(prefix, adapter)  # type: ignore[arg-type]
