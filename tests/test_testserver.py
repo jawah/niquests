@@ -74,6 +74,25 @@ class TestTestServer:
             assert r.text == "roflol"
             assert r.headers["Content-Length"] == "6"
 
+            early_r = None
+
+        server = Server.text_response_server("HTTP/1.1 100 CONTINUE\r\n\r\nHTTP/1.1 200 OK\r\nContent-Length: 6\r\n\r\nroflol")
+
+        with server as (host, port):
+            with niquests.Session() as s:
+                s.hooks = {"early_response": [catch_early_response]}
+
+                r = s.get(
+                    f"http://{host}:{port}",
+                )
+
+                assert early_r is not None
+                assert early_r.status_code == 100
+
+                assert r.status_code == 200
+                assert r.text == "roflol"
+                assert r.headers["Content-Length"] == "6"
+
     def test_trailer_header_caught(self):
         server = Server.text_response_server(
             "HTTP/1.1 200 OK\r\n"

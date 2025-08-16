@@ -6,6 +6,7 @@ Release History
 
 **Fixed**
 - The return type of `CaseInsensitiveDict.items()` could be a `list` instead of an expected `tuple`. (#276)
+- Fixed omitting hooks (keys) in `Session.hooks` dict causing an error at merge with request specific hooks.
 
 3.15.1 (2025-08-13)
 -------------------

@@ -165,7 +165,7 @@ def merge_hooks(
     for hook_type in HOOKS:
         if len(request_hooks[hook_type]):
             tmp_request_hooks[hook_type] = request_hooks[hook_type]
-        if len(session_hooks[hook_type]):
+        if hook_type in session_hooks and len(session_hooks[hook_type]):
             tmp_session_hooks[hook_type] = session_hooks[hook_type]
 
     merged_hooks: HookType = merge_setting(tmp_request_hooks, tmp_session_hooks, dict_class)
