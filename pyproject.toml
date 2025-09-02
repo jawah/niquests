@@ -120,6 +120,8 @@ required-imports = ["from __future__ import annotations"]
 [[tool.mypy.overrides]]
 module = ["niquests.packages.*"]
 ignore_missing_imports = true
+strict = true
+
 
 [tool.pytest.ini_options]
 addopts = "--doctest-modules"
