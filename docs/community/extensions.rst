@@ -346,10 +346,17 @@ You will need to create a fixture to override the default bind to Requests in ``
                     raise TypeError('Unexpected Arguments: %s' % ', '.join(kwargs))
 
             def request(self, *args, **kwargs):
-                if "headers" not in kwargs:
-                    kwargs["headers"] = {}
-                if "json" in kwargs and kwargs["json"] is not None:
-                    kwargs["headers"]["Content-Type"] = "application/json"
+                if "response_list" not in kwargs:
+                    if "headers" not in kwargs:
+                        kwargs["headers"] = {}
+                    if "json" in kwargs and kwargs["json"] is not None:
+                        kwargs["headers"]["Content-Type"] = "application/json"
+                else:
+                    for resp in kwargs["response_list"]:
+                        if "headers" not in resp:
+                            resp["headers"] = {}
+                        if "json" in resp and resp["json"] is not None:
+                            resp["headers"]["Content-Type"] = "application/json"
                 return self.register_uri(*args, **kwargs)
 
         with _WrappedMocker() as m:
