@@ -34,6 +34,7 @@ from ._typing import (
     TLSVerifyType,
 )
 from .async_session import AsyncSession
+from .middlewares import AsyncMiddleware, Middleware
 from .models import AsyncResponse, PreparedRequest, Response
 from .structures import AsyncQuicSharedCache
 
@@ -73,6 +74,7 @@ async def request(
     allow_redirects: bool = ...,
     proxies: ProxyType | None = ...,
     hooks: AsyncHookType[PreparedRequest | Response] | None = ...,
+    middlewares: list[Middleware | AsyncMiddleware] | None = None,
     stream: typing.Literal[False] | None = ...,
     verify: TLSVerifyType | None = ...,
     cert: TLSClientCertType | None = ...,
@@ -96,6 +98,7 @@ async def request(
     allow_redirects: bool = ...,
     proxies: ProxyType | None = ...,
     hooks: AsyncHookType[PreparedRequest | Response] | None = ...,
+    middlewares: list[Middleware | AsyncMiddleware] | None = None,
     stream: typing.Literal[True] = ...,
     verify: TLSVerifyType | None = ...,
     cert: TLSClientCertType | None = ...,
@@ -118,6 +121,7 @@ async def request(
     allow_redirects: bool = True,
     proxies: ProxyType | None = None,
     hooks: AsyncHookType[PreparedRequest | Response] | None = None,
+    middlewares: list[Middleware | AsyncMiddleware] | None = None,
     stream: bool | None = None,
     verify: TLSVerifyType | None = None,
     cert: TLSClientCertType | None = None,
@@ -160,6 +164,7 @@ async def request(
     :param cert: (optional) if String, path to ssl client cert file (.pem).
             If Tuple, ('cert', 'key') pair, or ('cert', 'key', 'key_password').
     :param hooks: (optional) Register functions that should be called at very specific moment in the request lifecycle.
+    :param middlewares: list of middlewares to be used.
     :param retries: (optional) If integer, determine the number of retry in case of a timeout or connection error.
             Otherwise, for fine gained retry, use directly a ``Retry`` instance from urllib3.
     :return: :class:`Response <Response>` object if stream=None or False. Otherwise :class:`AsyncResponse <AsyncResponse>`
@@ -195,6 +200,7 @@ async def request(
             allow_redirects,
             proxies,
             hooks,
+            middlewares,
             stream,  # type: ignore[arg-type]
             verify,
             cert,
@@ -214,6 +220,7 @@ async def get(
     allow_redirects: bool = ...,
     proxies: ProxyType | None = ...,
     hooks: AsyncHookType[PreparedRequest | Response] | None = ...,
+    middlewares: list[Middleware | AsyncMiddleware] | None = None,
     verify: TLSVerifyType | None = ...,
     stream: typing.Literal[False] | None = ...,
     cert: TLSClientCertType | None = ...,
@@ -234,6 +241,7 @@ async def get(
     allow_redirects: bool = ...,
     proxies: ProxyType | None = ...,
     hooks: AsyncHookType[PreparedRequest | Response] | None = ...,
+    middlewares: list[Middleware | AsyncMiddleware] | None = None,
     verify: TLSVerifyType | None = ...,
     stream: typing.Literal[True] = ...,
     cert: TLSClientCertType | None = ...,
@@ -253,6 +261,7 @@ async def get(
     allow_redirects: bool = True,
     proxies: ProxyType | None = None,
     hooks: AsyncHookType[PreparedRequest | Response] | None = None,
+    middlewares: list[Middleware | AsyncMiddleware] | None = None,
     verify: TLSVerifyType | None = None,
     stream: bool | None = None,
     cert: TLSClientCertType | None = None,
@@ -285,6 +294,7 @@ async def get(
     :param cert: (optional) if String, path to ssl client cert file (.pem).
             If Tuple, ('cert', 'key') pair, or ('cert', 'key', 'key_password').
     :param hooks: (optional) Register functions that should be called at very specific moment in the request lifecycle.
+    :param middlewares: list of middlewares to be used.
     :param retries: (optional) If integer, determine the number of retry in case of a timeout or connection error.
             Otherwise, for fine gained retry, use directly a ``Retry`` instance from urllib3.
     :return: :class:`Response <Response>` object if stream=None or False. Otherwise :class:`AsyncResponse <AsyncResponse>`
@@ -303,6 +313,7 @@ async def get(
         stream=stream,  # type: ignore[arg-type]
         cert=cert,
         hooks=hooks,
+        middlewares=middlewares,
         retries=retries,
         **kwargs,
     )
@@ -320,6 +331,7 @@ async def options(
     allow_redirects: bool = ...,
     proxies: ProxyType | None = ...,
     hooks: AsyncHookType[PreparedRequest | Response] | None = ...,
+    middlewares: list[Middleware | AsyncMiddleware] | None = None,
     verify: TLSVerifyType | None = ...,
     stream: typing.Literal[False] | typing.Literal[None] = ...,
     cert: TLSClientCertType | None = ...,
@@ -340,6 +352,7 @@ async def options(
     allow_redirects: bool = ...,
     proxies: ProxyType | None = ...,
     hooks: AsyncHookType[PreparedRequest | Response] | None = ...,
+    middlewares: list[Middleware | AsyncMiddleware] | None = None,
     verify: TLSVerifyType | None = ...,
     stream: typing.Literal[True],
     cert: TLSClientCertType | None = ...,
@@ -359,6 +372,7 @@ async def options(
     allow_redirects: bool = True,
     proxies: ProxyType | None = None,
     hooks: AsyncHookType[PreparedRequest | Response] | None = None,
+    middlewares: list[Middleware | AsyncMiddleware] | None = None,
     verify: TLSVerifyType | None = None,
     stream: bool | None = None,
     cert: TLSClientCertType | None = None,
@@ -389,6 +403,7 @@ async def options(
     :param cert: (optional) if String, path to ssl client cert file (.pem).
             If Tuple, ('cert', 'key') pair, or ('cert', 'key', 'key_password').
     :param hooks: (optional) Register functions that should be called at very specific moment in the request lifecycle.
+    :param middlewares: list of middlewares to be used.
     :param retries: (optional) If integer, determine the number of retry in case of a timeout or connection error.
             Otherwise, for fine gained retry, use directly a ``Retry`` instance from urllib3.
 
@@ -408,6 +423,7 @@ async def options(
         stream=stream,  # type: ignore[arg-type]
         cert=cert,
         hooks=hooks,
+        middlewares=middlewares,
         retries=retries,
         **kwargs,
     )
@@ -425,6 +441,7 @@ async def head(
     allow_redirects: bool = ...,
     proxies: ProxyType | None = ...,
     hooks: AsyncHookType[PreparedRequest | Response] | None = ...,
+    middlewares: list[Middleware | AsyncMiddleware] | None = None,
     verify: TLSVerifyType | None = ...,
     stream: typing.Literal[False] | typing.Literal[None] = ...,
     cert: TLSClientCertType | None = ...,
@@ -445,6 +462,7 @@ async def head(
     allow_redirects: bool = ...,
     proxies: ProxyType | None = ...,
     hooks: AsyncHookType[PreparedRequest | Response] | None = ...,
+    middlewares: list[Middleware | AsyncMiddleware] | None = None,
     verify: TLSVerifyType | None = ...,
     stream: typing.Literal[True],
     cert: TLSClientCertType | None = ...,
@@ -464,6 +482,7 @@ async def head(
     allow_redirects: bool = False,
     proxies: ProxyType | None = None,
     hooks: AsyncHookType[PreparedRequest | Response] | None = None,
+    middlewares: list[Middleware | AsyncMiddleware] | None = None,
     verify: TLSVerifyType | None = None,
     stream: bool | None = None,
     cert: TLSClientCertType | None = None,
@@ -494,6 +513,7 @@ async def head(
     :param cert: (optional) if String, path to ssl client cert file (.pem).
             If Tuple, ('cert', 'key') pair, or ('cert', 'key', 'key_password').
     :param hooks: (optional) Register functions that should be called at very specific moment in the request lifecycle.
+    :param middlewares: list of middlewares to be used.
     :param retries: (optional) If integer, determine the number of retry in case of a timeout or connection error.
             Otherwise, for fine gained retry, use directly a ``Retry`` instance from urllib3.
 
@@ -513,6 +533,7 @@ async def head(
         stream=stream,  # type: ignore[arg-type]
         cert=cert,
         hooks=hooks,
+        middlewares=middlewares,
         retries=retries,
         **kwargs,
     )
@@ -533,6 +554,7 @@ async def post(
     allow_redirects: bool = ...,
     proxies: ProxyType | None = ...,
     hooks: AsyncHookType[PreparedRequest | Response] | None = ...,
+    middlewares: list[Middleware | AsyncMiddleware] | None = None,
     verify: TLSVerifyType | None = ...,
     stream: typing.Literal[False] | typing.Literal[None] = ...,
     cert: TLSClientCertType | None = ...,
@@ -555,6 +577,7 @@ async def post(
     allow_redirects: bool = ...,
     proxies: ProxyType | None = ...,
     hooks: AsyncHookType[PreparedRequest | Response] | None = ...,
+    middlewares: list[Middleware | AsyncMiddleware] | None = None,
     verify: TLSVerifyType | None = ...,
     stream: typing.Literal[True],
     cert: TLSClientCertType | None = ...,
@@ -576,6 +599,7 @@ async def post(
     allow_redirects: bool = True,
     proxies: ProxyType | None = None,
     hooks: AsyncHookType[PreparedRequest | Response] | None = None,
+    middlewares: list[Middleware | AsyncMiddleware] | None = None,
     verify: TLSVerifyType | None = None,
     stream: bool | None = None,
     cert: TLSClientCertType | None = None,
@@ -614,6 +638,7 @@ async def post(
     :param cert: (optional) if String, path to ssl client cert file (.pem).
             If Tuple, ('cert', 'key') pair, or ('cert', 'key', 'key_password').
     :param hooks: (optional) Register functions that should be called at very specific moment in the request lifecycle.
+    :param middlewares: list of middlewares to be used.
     :param retries: (optional) If integer, determine the number of retry in case of a timeout or connection error.
             Otherwise, for fine gained retry, use directly a ``Retry`` instance from urllib3.
 
@@ -636,6 +661,7 @@ async def post(
         stream=stream,  # type: ignore[arg-type]
         cert=cert,
         hooks=hooks,
+        middlewares=middlewares,
         retries=retries,
     )
 
@@ -655,6 +681,7 @@ async def put(
     allow_redirects: bool = ...,
     proxies: ProxyType | None = ...,
     hooks: AsyncHookType[PreparedRequest | Response] | None = ...,
+    middlewares: list[Middleware | AsyncMiddleware] | None = None,
     verify: TLSVerifyType | None = ...,
     stream: typing.Literal[False] | typing.Literal[None] = ...,
     cert: TLSClientCertType | None = ...,
@@ -677,6 +704,7 @@ async def put(
     allow_redirects: bool = ...,
     proxies: ProxyType | None = ...,
     hooks: AsyncHookType[PreparedRequest | Response] | None = ...,
+    middlewares: list[Middleware | AsyncMiddleware] | None = None,
     verify: TLSVerifyType | None = ...,
     stream: typing.Literal[True],
     cert: TLSClientCertType | None = ...,
@@ -698,6 +726,7 @@ async def put(
     allow_redirects: bool = True,
     proxies: ProxyType | None = None,
     hooks: AsyncHookType[PreparedRequest | Response] | None = None,
+    middlewares: list[Middleware | AsyncMiddleware] | None = None,
     verify: TLSVerifyType | None = None,
     stream: bool | None = None,
     cert: TLSClientCertType | None = None,
@@ -736,6 +765,7 @@ async def put(
     :param cert: (optional) if String, path to ssl client cert file (.pem).
             If Tuple, ('cert', 'key') pair, or ('cert', 'key', 'key_password').
     :param hooks: (optional) Register functions that should be called at very specific moment in the request lifecycle.
+    :param middlewares: list of middlewares to be used.
     :param retries: (optional) If integer, determine the number of retry in case of a timeout or connection error.
             Otherwise, for fine gained retry, use directly a ``Retry`` instance from urllib3.
 
@@ -758,6 +788,7 @@ async def put(
         stream=stream,  # type: ignore[arg-type]
         cert=cert,
         hooks=hooks,
+        middlewares=middlewares,
         retries=retries,
     )
 
@@ -777,6 +808,7 @@ async def patch(
     allow_redirects: bool = ...,
     proxies: ProxyType | None = ...,
     hooks: AsyncHookType[PreparedRequest | Response] | None = ...,
+    middlewares: list[Middleware | AsyncMiddleware] | None = None,
     verify: TLSVerifyType | None = ...,
     stream: typing.Literal[False] | typing.Literal[None] = ...,
     cert: TLSClientCertType | None = ...,
@@ -799,6 +831,7 @@ async def patch(
     allow_redirects: bool = ...,
     proxies: ProxyType | None = ...,
     hooks: AsyncHookType[PreparedRequest | Response] | None = ...,
+    middlewares: list[Middleware | AsyncMiddleware] | None = None,
     verify: TLSVerifyType | None = ...,
     stream: typing.Literal[True],
     cert: TLSClientCertType | None = ...,
@@ -820,6 +853,7 @@ async def patch(
     allow_redirects: bool = True,
     proxies: ProxyType | None = None,
     hooks: AsyncHookType[PreparedRequest | Response] | None = None,
+    middlewares: list[Middleware | AsyncMiddleware] | None = None,
     verify: TLSVerifyType | None = None,
     stream: bool | None = None,
     cert: TLSClientCertType | None = None,
@@ -858,6 +892,7 @@ async def patch(
     :param cert: (optional) if String, path to ssl client cert file (.pem).
             If Tuple, ('cert', 'key') pair, or ('cert', 'key', 'key_password').
     :param hooks: (optional) Register functions that should be called at very specific moment in the request lifecycle.
+    :param middlewares: list of middlewares to be used.
     :param retries: (optional) If integer, determine the number of retry in case of a timeout or connection error.
             Otherwise, for fine gained retry, use directly a ``Retry`` instance from urllib3.
 
@@ -880,6 +915,7 @@ async def patch(
         stream=stream,  # type: ignore[arg-type]
         cert=cert,
         hooks=hooks,
+        middlewares=middlewares,
         retries=retries,
     )
 
@@ -896,6 +932,7 @@ async def delete(
     allow_redirects: bool = ...,
     proxies: ProxyType | None = ...,
     hooks: AsyncHookType[PreparedRequest | Response] | None = ...,
+    middlewares: list[Middleware | AsyncMiddleware] | None = None,
     verify: TLSVerifyType | None = ...,
     stream: typing.Literal[False] | typing.Literal[None] = ...,
     cert: TLSClientCertType | None = ...,
@@ -916,6 +953,7 @@ async def delete(
     allow_redirects: bool = ...,
     proxies: ProxyType | None = ...,
     hooks: AsyncHookType[PreparedRequest | Response] | None = ...,
+    middlewares: list[Middleware | AsyncMiddleware] | None = None,
     verify: TLSVerifyType | None = ...,
     stream: typing.Literal[True],
     cert: TLSClientCertType | None = ...,
@@ -935,6 +973,7 @@ async def delete(
     allow_redirects: bool = True,
     proxies: ProxyType | None = None,
     hooks: AsyncHookType[PreparedRequest | Response] | None = None,
+    middlewares: list[Middleware | AsyncMiddleware] | None = None,
     verify: TLSVerifyType | None = None,
     stream: bool | None = None,
     cert: TLSClientCertType | None = None,
@@ -965,6 +1004,7 @@ async def delete(
     :param cert: (optional) if String, path to ssl client cert file (.pem).
             If Tuple, ('cert', 'key') pair, or ('cert', 'key', 'key_password').
     :param hooks: (optional) Register functions that should be called at very specific moment in the request lifecycle.
+    :param middlewares: list of middlewares to be used.
     :param retries: (optional) If integer, determine the number of retry in case of a timeout or connection error.
             Otherwise, for fine gained retry, use directly a ``Retry`` instance from urllib3.
 
@@ -984,6 +1024,7 @@ async def delete(
         stream=stream,  # type: ignore[arg-type]
         cert=cert,
         hooks=hooks,
+        middlewares=middlewares,
         retries=retries,
         **kwargs,
     )
