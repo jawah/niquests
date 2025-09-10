@@ -61,6 +61,7 @@ from .exceptions import (
     TooManyRedirects,
 )
 from .hooks import HOOKS, default_hooks, dispatch_hook
+from .middlewares import Middleware
 
 # formerly defined here, reexposed here for backward compatibility
 from .models import (  # noqa: F401
@@ -246,6 +247,7 @@ class Session:
         keepalive_idle_window: float | int | None = 60.0,
         base_url: str | None = None,
         timeout: TimeoutType | None = None,
+        middlewares: list[Middleware] | None = None,
     ):
         """
         :param resolver: Specify a DNS resolver that should be used within this Session.
@@ -301,6 +303,9 @@ class Session:
 
         #: Event-handling hooks.
         self.hooks: HookType[PreparedRequest | Response] = default_hooks()
+
+        #: Middlewares to be used in the Session.
+        self.middlewares: list[Middleware] = middlewares or []
 
         #: Dictionary of querystring data to attach to each
         #: :class:`Request <Request>`. The dictionary values may be lists for
@@ -470,6 +475,8 @@ class Session:
             auth=merge_setting(auth, self.auth),
             cookies=merged_cookies,
             hooks=merge_hooks(request.hooks, self.hooks),
+            middlewares=self.middlewares
+            + request.middlewares,  # Simply merge the middlewares of the request with the session middlewares.
             base_url=self.base_url,
         )
         return p
@@ -488,6 +495,7 @@ class Session:
         allow_redirects: bool = True,
         proxies: ProxyType | None = None,
         hooks: HookType[PreparedRequest | Response] | None = None,
+        middlewares: list[Middleware] | None = None,
         stream: bool | None = None,
         verify: TLSVerifyType | None = None,
         cert: TLSClientCertType | None = None,
@@ -520,6 +528,7 @@ class Session:
             hostname to the URL of the proxy.
         :param hooks: (optional) Dictionary mapping hook name to one event or
             list of events, event must be callable.
+        :param middlewares: (optional) List of middlewares to be used for the request.
         :param stream: (optional) whether to immediately download the response
             content. Defaults to ``False``.
         :param verify: (optional) Either a boolean, in which case it controls whether we verify
@@ -550,6 +559,7 @@ class Session:
             auth=auth,
             cookies=cookies,
             hooks=hooks,
+            middlewares=middlewares,
             base_url=self.base_url,
         )
 
@@ -560,6 +570,8 @@ class Session:
             prep.hooks,  # type: ignore[arg-type]
             prep,
         )
+        for m in prep.middlewares:
+            m.pre_request(self, prep)
 
         assert prep.url is not None
 
@@ -595,6 +607,7 @@ class Session:
         allow_redirects: bool = True,
         proxies: ProxyType | None = None,
         hooks: HookType[PreparedRequest | Response] | None = None,
+        middlewares: list[Middleware] | None = None,
         verify: TLSVerifyType | None = None,
         stream: bool | None = None,
         cert: TLSClientCertType | None = None,
@@ -619,6 +632,7 @@ class Session:
             hostname to the URL of the proxy.
         :param hooks: (optional) Dictionary mapping hook name to one event or
             list of events, event must be callable.
+        :param middlewares: (optional) List of middlewares to be used for the request.
         :param stream: (optional) whether to immediately download the response
             content. Defaults to ``False``.
         :param verify: (optional) Either a boolean, in which case it controls whether we verify
@@ -646,6 +660,7 @@ class Session:
             allow_redirects=allow_redirects,
             proxies=proxies,
             hooks=hooks,
+            middlewares=middlewares,
             verify=verify,
             stream=stream,
             cert=cert,
@@ -664,6 +679,7 @@ class Session:
         allow_redirects: bool = True,
         proxies: ProxyType | None = None,
         hooks: HookType[PreparedRequest | Response] | None = None,
+        middlewares: list[Middleware] | None = None,
         verify: TLSVerifyType | None = None,
         stream: bool | None = None,
         cert: TLSClientCertType | None = None,
@@ -688,6 +704,7 @@ class Session:
             hostname to the URL of the proxy.
         :param hooks: (optional) Dictionary mapping hook name to one event or
             list of events, event must be callable.
+        :param middlewares: (optional) List of middlewares to be used for the request.
         :param stream: (optional) whether to immediately download the response
             content. Defaults to ``False``.
         :param verify: (optional) Either a boolean, in which case it controls whether we verify
@@ -715,6 +732,7 @@ class Session:
             allow_redirects=allow_redirects,
             proxies=proxies,
             hooks=hooks,
+            middlewares=middlewares,
             verify=verify,
             stream=stream,
             cert=cert,
@@ -733,6 +751,7 @@ class Session:
         allow_redirects: bool = False,
         proxies: ProxyType | None = None,
         hooks: HookType[PreparedRequest | Response] | None = None,
+        middlewares: list[Middleware] | None = None,
         verify: TLSVerifyType | None = None,
         stream: bool | None = None,
         cert: TLSClientCertType | None = None,
@@ -757,6 +776,7 @@ class Session:
             hostname to the URL of the proxy.
         :param hooks: (optional) Dictionary mapping hook name to one event or
             list of events, event must be callable.
+        :param middlewares: (optional) List of middlewares to be used for the request.
         :param stream: (optional) whether to immediately download the response
             content. Defaults to ``False``.
         :param verify: (optional) Either a boolean, in which case it controls whether we verify
@@ -784,6 +804,7 @@ class Session:
             allow_redirects=allow_redirects,
             proxies=proxies,
             hooks=hooks,
+            middlewares=middlewares,
             verify=verify,
             stream=stream,
             cert=cert,
@@ -805,6 +826,7 @@ class Session:
         allow_redirects: bool = True,
         proxies: ProxyType | None = None,
         hooks: HookType[PreparedRequest | Response] | None = None,
+        middlewares: list[Middleware] | None = None,
         verify: TLSVerifyType | None = None,
         stream: bool | None = None,
         cert: TLSClientCertType | None = None,
@@ -834,6 +856,7 @@ class Session:
             hostname to the URL of the proxy.
         :param hooks: (optional) Dictionary mapping hook name to one event or
             list of events, event must be callable.
+        :param middlewares: (optional) List of middlewares to be used for the request.
         :param stream: (optional) whether to immediately download the response
             content. Defaults to ``False``.
         :param verify: (optional) Either a boolean, in which case it controls whether we verify
@@ -864,6 +887,7 @@ class Session:
             allow_redirects=allow_redirects,
             proxies=proxies,
             hooks=hooks,
+            middlewares=middlewares,
             verify=verify,
             stream=stream,
             cert=cert,
@@ -884,6 +908,7 @@ class Session:
         allow_redirects: bool = True,
         proxies: ProxyType | None = None,
         hooks: HookType[PreparedRequest | Response] | None = None,
+        middlewares: list[Middleware] | None = None,
         verify: TLSVerifyType | None = None,
         stream: bool | None = None,
         cert: TLSClientCertType | None = None,
@@ -913,6 +938,7 @@ class Session:
             hostname to the URL of the proxy.
         :param hooks: (optional) Dictionary mapping hook name to one event or
             list of events, event must be callable.
+        :param middlewares: (optional) List of middlewares to be used for the request.
         :param stream: (optional) whether to immediately download the response
             content. Defaults to ``False``.
         :param verify: (optional) Either a boolean, in which case it controls whether we verify
@@ -943,6 +969,7 @@ class Session:
             allow_redirects=allow_redirects,
             proxies=proxies,
             hooks=hooks,
+            middlewares=middlewares,
             verify=verify,
             stream=stream,
             cert=cert,
@@ -963,6 +990,7 @@ class Session:
         allow_redirects: bool = True,
         proxies: ProxyType | None = None,
         hooks: HookType[PreparedRequest | Response] | None = None,
+        middlewares: list[Middleware] | None = None,
         verify: TLSVerifyType | None = None,
         stream: bool | None = None,
         cert: TLSClientCertType | None = None,
@@ -992,6 +1020,7 @@ class Session:
             hostname to the URL of the proxy.
         :param hooks: (optional) Dictionary mapping hook name to one event or
             list of events, event must be callable.
+        :param middlewares: (optional) List of middlewares to be used for the request.
         :param stream: (optional) whether to immediately download the response
             content. Defaults to ``False``.
         :param verify: (optional) Either a boolean, in which case it controls whether we verify
@@ -1022,6 +1051,7 @@ class Session:
             allow_redirects=allow_redirects,
             proxies=proxies,
             hooks=hooks,
+            middlewares=middlewares,
             verify=verify,
             stream=stream,
             cert=cert,
@@ -1039,6 +1069,7 @@ class Session:
         allow_redirects: bool = True,
         proxies: ProxyType | None = None,
         hooks: HookType[PreparedRequest | Response] | None = None,
+        middlewares: list[Middleware] | None = None,
         verify: TLSVerifyType | None = None,
         stream: bool | None = None,
         cert: TLSClientCertType | None = None,
@@ -1063,6 +1094,7 @@ class Session:
             hostname to the URL of the proxy.
         :param hooks: (optional) Dictionary mapping hook name to one event or
             list of events, event must be callable.
+        :param middlewares: (optional) List of middlewares to be used for the request.
         :param stream: (optional) whether to immediately download the response
             content. Defaults to ``False``.
         :param verify: (optional) Either a boolean, in which case it controls whether we verify
@@ -1090,6 +1122,7 @@ class Session:
             allow_redirects=allow_redirects,
             proxies=proxies,
             hooks=hooks,
+            middlewares=middlewares,
             verify=verify,
             stream=stream,
             cert=cert,
@@ -1192,6 +1225,8 @@ class Session:
             # don't trigger pre_send for redirects
             if ptr_request == request:
                 dispatch_hook("pre_send", hooks, ptr_request)  # type: ignore[arg-type]
+                for m in ptr_request.middlewares:
+                    m.pre_send(self, ptr_request)
 
         def handle_upload_progress(
             total_sent: int,
@@ -1211,9 +1246,13 @@ class Session:
             request.upload_progress.any_error = any_error
 
             dispatch_hook("on_upload", hooks, request)  # type: ignore[arg-type]
+            for m in request.middlewares:
+                m.on_upload(self, request)
 
         def on_early_response(early_response) -> None:
             dispatch_hook("early_response", hooks, early_response)
+            for m in request.middlewares:
+                m.early_response(self, early_response)
 
         kwargs.setdefault("on_post_connection", on_post_connection)
         kwargs.setdefault("on_upload_body", handle_upload_progress)
@@ -1338,6 +1377,8 @@ class Session:
 
         # Response manipulation hooks
         r = dispatch_hook("response", hooks, r, **kwargs)  # type: ignore[arg-type]
+        for m in request.middlewares:
+            m.response(self, r)
 
         # Persist cookies
         if r.history:
