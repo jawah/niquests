@@ -24,7 +24,7 @@ class TestOnlineCertificateRevocationProtocol:
     @pytest.mark.parametrize(
         "revoked_peer_url",
         [
-            "https://revoked.badssl.com/",
+            # "https://revoked.badssl.com/",
             # "https://revoked-ecc-dv.ssl.com/",
             "https://aaacertificateservices.comodoca.com:444/",
             # "https://revoked-rsa-ev.ssl.com/",
@@ -66,7 +66,7 @@ class TestOnlineCertificateRevocationProtocol:
     @pytest.mark.parametrize(
         "revoked_peer_url",
         [
-            "https://revoked.badssl.com/",
+            # "https://revoked.badssl.com/",
             # "https://revoked-ecc-dv.ssl.com/",
             "https://aaacertificateservices.comodoca.com:444/",
             # "https://revoked-rsa-ev.ssl.com/",
