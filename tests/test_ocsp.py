@@ -28,7 +28,7 @@ class TestOnlineCertificateRevocationProtocol:
             # "https://revoked-ecc-dv.ssl.com/",
             "https://aaacertificateservices.comodoca.com:444/",
             # "https://revoked-rsa-ev.ssl.com/",
-            "https://digicert-tls-rsa4096-root-g5-revoked.chain-demos.digicert.com/",
+            "https://digicert-tls-ecc-p384-root-g5-revoked.chain-demos.digicert.com/",
         ],
     )
     def test_sync_revoked_certificate(self, revoked_peer_url: str) -> None:
@@ -70,7 +70,7 @@ class TestOnlineCertificateRevocationProtocol:
             # "https://revoked-ecc-dv.ssl.com/",
             "https://aaacertificateservices.comodoca.com:444/",
             # "https://revoked-rsa-ev.ssl.com/",
-            "https://digicert-tls-rsa4096-root-g5-revoked.chain-demos.digicert.com/",
+            "https://digicert-tls-ecc-p384-root-g5-revoked.chain-demos.digicert.com/",
         ],
     )
     async def test_async_revoked_certificate(self, revoked_peer_url: str) -> None:
