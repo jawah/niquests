@@ -31,6 +31,7 @@ from ._typing import (
     TLSClientCertType,
     TLSVerifyType,
 )
+from .middlewares import Middleware
 from .models import PreparedRequest, Response
 from .structures import QuicSharedCache
 
@@ -71,6 +72,7 @@ def request(
     stream: bool = False,
     cert: TLSClientCertType | None = None,
     hooks: HookType[PreparedRequest | Response] | None = None,
+    middlewares: list[Middleware] | None = None,
     retries: RetryType = DEFAULT_RETRIES,
 ) -> Response:
     """Constructs and sends a :class:`Request <Request>`.
@@ -109,6 +111,7 @@ def request(
     :param cert: (optional) if String, path to ssl client cert file (.pem).
             If Tuple, ('cert', 'key') pair, or ('cert', 'key', 'key_password').
     :param hooks: (optional) Register functions that should be called at very specific moment in the request lifecycle.
+    :param middlewares: list of middlewares to be used.
     :param retries: (optional) If integer, determine the number of retry in case of a timeout or connection error.
             Otherwise, for fine gained retry, use directly a ``Retry`` instance from urllib3.
     :return: :class:`Response <Response>` object
@@ -140,6 +143,7 @@ def request(
             allow_redirects=allow_redirects,
             proxies=proxies,
             hooks=hooks,
+            middlewares=middlewares,
             stream=stream,
             verify=verify,
             cert=cert,
@@ -161,6 +165,7 @@ def get(
     stream: bool = False,
     cert: TLSClientCertType | None = None,
     hooks: HookType[PreparedRequest | Response] | None = None,
+    middlewares: list[Middleware] | None = None,
     retries: RetryType = DEFAULT_RETRIES,
     **kwargs: typing.Any,
 ) -> Response:
@@ -189,6 +194,7 @@ def get(
     :param cert: (optional) if String, path to ssl client cert file (.pem).
             If Tuple, ('cert', 'key') pair, or ('cert', 'key', 'key_password').
     :param hooks: (optional) Register functions that should be called at very specific moment in the request lifecycle.
+    :param middlewares: list of middlewares to be used.
     :param retries: (optional) If integer, determine the number of retry in case of a timeout or connection error.
             Otherwise, for fine gained retry, use directly a ``Retry`` instance from urllib3.
     :return: :class:`Response <Response>` object
@@ -208,6 +214,7 @@ def get(
         stream=stream,
         cert=cert,
         hooks=hooks,
+        middlewares=middlewares,
         retries=retries,
         **kwargs,
     )
@@ -227,6 +234,7 @@ def options(
     stream: bool = False,
     cert: TLSClientCertType | None = None,
     hooks: HookType[PreparedRequest | Response] | None = None,
+    middlewares: list[Middleware] | None = None,
     retries: RetryType = DEFAULT_RETRIES,
     **kwargs: typing.Any,
 ) -> Response:
@@ -253,6 +261,7 @@ def options(
     :param cert: (optional) if String, path to ssl client cert file (.pem).
             If Tuple, ('cert', 'key') pair, or ('cert', 'key', 'key_password').
     :param hooks: (optional) Register functions that should be called at very specific moment in the request lifecycle.
+    :param middlewares: list of middlewares to be used.
     :param retries: (optional) If integer, determine the number of retry in case of a timeout or connection error.
             Otherwise, for fine gained retry, use directly a ``Retry`` instance from urllib3.
 
@@ -273,6 +282,7 @@ def options(
         stream=stream,
         cert=cert,
         hooks=hooks,
+        middlewares=middlewares,
         retries=retries,
         **kwargs,
     )
@@ -292,6 +302,7 @@ def head(
     stream: bool = False,
     cert: TLSClientCertType | None = None,
     hooks: HookType[PreparedRequest | Response] | None = None,
+    middlewares: list[Middleware] | None = None,
     retries: RetryType = DEFAULT_RETRIES,
     **kwargs: typing.Any,
 ) -> Response:
@@ -318,6 +329,7 @@ def head(
     :param cert: (optional) if String, path to ssl client cert file (.pem).
             If Tuple, ('cert', 'key') pair, or ('cert', 'key', 'key_password').
     :param hooks: (optional) Register functions that should be called at very specific moment in the request lifecycle.
+    :param middlewares: list of middlewares to be used.
     :param retries: (optional) If integer, determine the number of retry in case of a timeout or connection error.
             Otherwise, for fine gained retry, use directly a ``Retry`` instance from urllib3.
 
@@ -339,6 +351,7 @@ def head(
         cert=cert,
         hooks=hooks,
         retries=retries,
+        middlewares=middlewares,
         **kwargs,
     )
 
@@ -360,6 +373,7 @@ def post(
     stream: bool = False,
     cert: TLSClientCertType | None = None,
     hooks: HookType[PreparedRequest | Response] | None = None,
+    middlewares: list[Middleware] | None = None,
     retries: RetryType = DEFAULT_RETRIES,
 ) -> Response:
     r"""Sends a POST request. This does not keep the connection alive. Use a :class:`Session` to reuse the connection.
@@ -394,6 +408,7 @@ def post(
     :param cert: (optional) if String, path to ssl client cert file (.pem).
             If Tuple, ('cert', 'key') pair, or ('cert', 'key', 'key_password').
     :param hooks: (optional) Register functions that should be called at very specific moment in the request lifecycle.
+    :param middlewares: list of middlewares to be used.
     :param retries: (optional) If integer, determine the number of retry in case of a timeout or connection error.
             Otherwise, for fine gained retry, use directly a ``Retry`` instance from urllib3.
 
@@ -417,6 +432,7 @@ def post(
         stream=stream,
         cert=cert,
         hooks=hooks,
+        middlewares=middlewares,
         retries=retries,
     )
 
@@ -438,6 +454,7 @@ def put(
     stream: bool = False,
     cert: TLSClientCertType | None = None,
     hooks: HookType[PreparedRequest | Response] | None = None,
+    middlewares: list[Middleware] | None = None,
     retries: RetryType = DEFAULT_RETRIES,
 ) -> Response:
     r"""Sends a PUT request. This does not keep the connection alive. Use a :class:`Session` to reuse the connection.
@@ -472,6 +489,7 @@ def put(
     :param cert: (optional) if String, path to ssl client cert file (.pem).
             If Tuple, ('cert', 'key') pair, or ('cert', 'key', 'key_password').
     :param hooks: (optional) Register functions that should be called at very specific moment in the request lifecycle.
+    :param middlewares: list of middlewares to be used.
     :param retries: (optional) If integer, determine the number of retry in case of a timeout or connection error.
             Otherwise, for fine gained retry, use directly a ``Retry`` instance from urllib3.
 
@@ -495,6 +513,7 @@ def put(
         stream=stream,
         cert=cert,
         hooks=hooks,
+        middlewares=middlewares,
         retries=retries,
     )
 
@@ -516,6 +535,7 @@ def patch(
     stream: bool = False,
     cert: TLSClientCertType | None = None,
     hooks: HookType[PreparedRequest | Response] | None = None,
+    middlewares: list[Middleware] | None = None,
     retries: RetryType = DEFAULT_RETRIES,
 ) -> Response:
     r"""Sends a PATCH request. This does not keep the connection alive. Use a :class:`Session` to reuse the connection.
@@ -550,6 +570,7 @@ def patch(
     :param cert: (optional) if String, path to ssl client cert file (.pem).
             If Tuple, ('cert', 'key') pair, or ('cert', 'key', 'key_password').
     :param hooks: (optional) Register functions that should be called at very specific moment in the request lifecycle.
+    :param middlewares: list of middlewares to be used.
     :param retries: (optional) If integer, determine the number of retry in case of a timeout or connection error.
             Otherwise, for fine gained retry, use directly a ``Retry`` instance from urllib3.
 
@@ -573,6 +594,7 @@ def patch(
         stream=stream,
         cert=cert,
         hooks=hooks,
+        middlewares=middlewares,
         retries=retries,
     )
 
@@ -591,6 +613,7 @@ def delete(
     stream: bool = False,
     cert: TLSClientCertType | None = None,
     hooks: HookType[PreparedRequest | Response] | None = None,
+    middlewares: list[Middleware] | None = None,
     retries: RetryType = DEFAULT_RETRIES,
     **kwargs: typing.Any,
 ) -> Response:
@@ -617,6 +640,7 @@ def delete(
     :param cert: (optional) if String, path to ssl client cert file (.pem).
             If Tuple, ('cert', 'key') pair, or ('cert', 'key', 'key_password').
     :param hooks: (optional) Register functions that should be called at very specific moment in the request lifecycle.
+    :param middlewares: list of middlewares to be used.
     :param retries: (optional) If integer, determine the number of retry in case of a timeout or connection error.
             Otherwise, for fine gained retry, use directly a ``Retry`` instance from urllib3.
 
@@ -637,6 +661,7 @@ def delete(
         stream=stream,
         cert=cert,
         hooks=hooks,
+        middlewares=middlewares,
         retries=retries,
         **kwargs,
     )
