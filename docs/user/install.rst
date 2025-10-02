@@ -49,7 +49,7 @@ Niquests has currently 3 mandatory dependencies.
     e.g. this is why doing ``pip install niquests`` on a riscv linux distro will NOT bring **qh3**. but will for arm64, i686 or x86_64.
 
 .. warning::
-    Depending on your environment and installation order you could be surprised that ``urllib3-future`` replaces
+    You could be surprised that ``urllib3-future`` replaces
     ``urllib3`` in your environment. Fear not, as this package was perfectly designed to allows the best
     backward-compatibility possible for end-users.
     Installing Niquests affect other packages, as they will use ``urllib3-future`` instead of ``urllib3``.
@@ -59,8 +59,9 @@ Niquests has currently 3 mandatory dependencies.
     at https://github.com/jawah/urllib3.future with the utmost priority. Find deeper rational in the exposed repository.
 
 .. note::
-    Doing a ``pip install --force-reinstall urllib3`` will restore the legacy urllib3 in a flash if needed.
-    At the cost of loosing the perfect backward compatibility with third party plugins (using Niquests).
+    You still have the choice of keeping the original ``urllib3`` in addition to ``urllib3-future``.
+    For example: ``URLLIB3_NO_OVERRIDE=1 pip install niquests --no-binary urllib3-future`` will keep both.
+    Find the way for other package manager in the frequently asked questions, section "Cohabitation".
 
 Extras
 ~~~~~~

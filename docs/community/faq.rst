@@ -44,28 +44,6 @@ Python 3 already includes native support for SNI in their SSL modules.
 .. _`Server-Name-Indication`: https://en.wikipedia.org/wiki/Server_Name_Indication
 .. _`virtual hosting`: https://en.wikipedia.org/wiki/Virtual_hosting
 
-
-What are "OverwhelmedTraffic" errors?
--------------------------------------
-
-You may witness: " Cannot select a disposable connection to ease the charge ".
-
-Basically, it means that your pool of connections is saturated and we were unable to open a new connection.
-If you wanted to run 32 threads sharing the same ``Session`` objects, you want to allow
-up to 32 connections per host.
-
-Do as follow::
-
-    import niquests
-
-    with niquests.Session(pool_maxsize=32) as s:
-        ...
-
-
-.. note:: Previously Requests and urllib3 was non-strict and allowed infinite growth of the pool by default. This is undesirable.
-    Upon exceeding the maximum pool capacity, urllib3 starts to create "disposable" connections that are killed as soon as possible.
-    This behavior masked an issue and users were misinformed about it.
-
 What is "urllib3.future"?
 -------------------------
 
@@ -84,7 +62,8 @@ So doing::
 
     import urllib3
 
-May actually import either urllib3 or urllib3.future.
+By default, it will be ``urllib3-future`` sitting there.
+
 But fear not, if your script was compatible with urllib3, it will most certainly work
 out-of-the-box with urllib3.future.
 
@@ -95,13 +74,75 @@ Instead of importing ``urllib3`` do::
 
     from niquests.packages import urllib3
 
-The package internally make sure you get it right everytime!
+It's best to do that and will allow smoother upgrade in the future when we make important changes.
+
+.. note:: The default behavior (ie. name shadowing) is not mandatory. You can circumvent it by a simple command. See bellow (Cohabitation).
 
 Cohabitation
 ~~~~~~~~~~~~
 
 You may have both urllib3 and urllib3.future installed if wished.
 Niquests will use the secondary entrypoint for urllib3.future internally.
+
+.. tab:: pip
+
+    .. code-block::
+
+        $ URLLIB3_NO_OVERRIDE=1 pip install niquests --no-binary urllib3-future
+
+.. tab:: Poetry
+
+    Option 1)
+
+    .. code-block::
+
+        $ export URLLIB3_NO_OVERRIDE=1
+        $ poetry config --local installer.no-binary urllib3-future
+        $ poetry add niquests
+
+    Option 2)
+
+    .. code-block::
+
+        $ URLLIB3_NO_OVERRIDE=1 POETRY_INSTALLER_NO_BINARY=urllib3-future poetry add niquests
+
+.. tab:: PDM
+
+    Option 1)
+
+    .. code-block::
+
+        $ URLLIB3_NO_OVERRIDE=1 PDM_NO_BINARY=urllib3-future pdm add niquests
+
+    Option 2) Add to your pyproject.toml metadata
+
+    .. code-block:: toml
+
+        [tool.pdm.resolution]
+        no-binary = "urllib3-future"
+
+    Then:
+
+    .. code-block::
+
+        $ export URLLIB3_NO_OVERRIDE=1
+        $ pdm add niquests
+
+.. tab:: UV
+
+    Add to your pyproject.toml metadata
+
+    .. code-block:: toml
+
+        [tool.uv]
+        no-binary-package = ["urllib3-future"]
+
+    Then:
+
+    .. code-block::
+
+        $ export URLLIB3_NO_OVERRIDE=1
+        $ uv add niquests
 
 It does not change anything for you. You may still pass ``urllib3.Retry`` and
 ``urllib3.Timeout`` regardless of the cohabitation, Niquests will do
