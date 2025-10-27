@@ -1328,6 +1328,8 @@ Verify the availability by running ``python -m niquests.help``.
 
 .. warning:: In order to avoid spoil the overall HTTP experience, we currently silently disable OCSP / CRL checks if 4 failures occurred in a row.
 
+You can disable OCSP/CRL checks by setting the ``NIQUESTS_OCSP`` and ``NIQUESTS_CRL`` environment variables to ``0`` respectively.
+
 Specify HTTP/3 capable endpoint preemptively
 --------------------------------------------
 
