@@ -1135,8 +1135,9 @@ class Session:
 
             if ptr_request.url and parse_scheme(ptr_request.url) == "https" and kwargs["verify"]:
                 strict_ocsp_enabled: bool = os.environ.get("NIQUESTS_STRICT_OCSP", "0") != "0"
-
-                if is_ocsp_capable(conn_info):
+                ocsp_verification_enabled: bool = os.environ.get("NIQUESTS_OCSP", "1") != "1"
+                crl_verification_enabled: bool = os.environ.get("NIQUESTS_CRL", "1") != "1"
+                if is_ocsp_capable(conn_info) and ocsp_verification_enabled:
                     try:
                         from .extensions.revocation._ocsp import (
                             InMemoryRevocationStatus,
@@ -1162,7 +1163,7 @@ class Session:
                             happy_eyeballs=self._happy_eyeballs,
                             cache=self._ocsp_cache,
                         )
-                elif is_crl_capable(conn_info):
+                elif is_crl_capable(conn_info) and crl_verification_enabled:
                     try:
                         from .extensions.revocation._crl import (
                             InMemoryRevocationList,

@@ -1017,8 +1017,9 @@ class HTTPAdapter(BaseAdapter):
 
                     if next_request.url and next_request.url.startswith("https://") and kwargs["verify"]:
                         strict_ocsp_enabled: bool = os.environ.get("NIQUESTS_STRICT_OCSP", "0") != "0"
-
-                        if is_ocsp_capable(conn_info):
+                        ocsp_verification_enabled: bool = os.environ.get("NIQUESTS_OCSP", "1") == "1"
+                        crl_verification_enabled: bool = os.environ.get("NIQUESTS_CRL", "1") == "1"
+                        if is_ocsp_capable(conn_info) and ocsp_verification_enabled:
                             try:
                                 from .extensions.revocation._ocsp import verify as ocsp_verify
                             except ImportError:
@@ -1033,7 +1034,7 @@ class HTTPAdapter(BaseAdapter):
                                     self._happy_eyeballs,
                                     cache=self._ocsp_cache,
                                 )
-                        elif is_crl_capable(conn_info):
+                        elif is_crl_capable(conn_info) and crl_verification_enabled:
                             try:
                                 from .extensions.revocation._crl import verify as crl_verify
                             except ImportError:
@@ -2094,8 +2095,9 @@ class AsyncHTTPAdapter(AsyncBaseAdapter):
 
                     if next_request.url and next_request.url.startswith("https://") and kwargs["verify"]:
                         strict_ocsp_enabled: bool = os.environ.get("NIQUESTS_STRICT_OCSP", "0") != "0"
-
-                        if is_ocsp_capable(conn_info):
+                        ocsp_verification_enabled: bool = os.environ.get("NIQUESTS_OCSP", "1") != "1"
+                        crl_verification_enabled: bool = os.environ.get("NIQUESTS_CRL","1") != "1"
+                        if is_ocsp_capable(conn_info) and ocsp_verification_enabled:
                             try:
                                 from .extensions.revocation._ocsp._async import (
                                     verify as async_ocsp_verify,
@@ -2112,7 +2114,7 @@ class AsyncHTTPAdapter(AsyncBaseAdapter):
                                     self._happy_eyeballs,
                                     cache=self._ocsp_cache,
                                 )
-                        elif is_crl_capable(conn_info):
+                        elif is_crl_capable(conn_info) and crl_verification_enabled:
                             try:
                                 from .extensions.revocation._crl._async import (
                                     verify as async_crl_verify,
