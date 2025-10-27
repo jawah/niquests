@@ -55,7 +55,7 @@ jobs:
       run: |
         nox -s "test-${{ startsWith(matrix.python-version, 'pypy') && 'pypy' || matrix.python-version }}"
     - name: "Upload artifact"
-      uses: "actions/upload-artifact@4cec3d8aa04e39d1a68397de0c4cd6fb9dce8ec1"
+      uses: "actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4"
       with:
         name: coverage-data-${{ matrix.os }}-${{ matrix.nox-session }}-${{ matrix.python-version }}-${{ matrix.traefik-server }}
         path: ".coverage.*"
@@ -93,7 +93,7 @@ jobs:
           python -m coverage report --ignore-errors --show-missing --fail-under=73
 
       - name: "Upload report"
-        uses: actions/upload-artifact@4cec3d8aa04e39d1a68397de0c4cd6fb9dce8ec1
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4
         with:
           name: coverage-report
           path: htmlcov
