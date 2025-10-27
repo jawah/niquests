@@ -1135,8 +1135,8 @@ class Session:
 
             if ptr_request.url and parse_scheme(ptr_request.url) == "https" and kwargs["verify"]:
                 strict_ocsp_enabled: bool = os.environ.get("NIQUESTS_STRICT_OCSP", "0") != "0"
-                ocsp_verification_enabled: bool = os.environ.get("NIQUESTS_OCSP", "1") != "1"
-                crl_verification_enabled: bool = os.environ.get("NIQUESTS_CRL", "1") != "1"
+                ocsp_verification_enabled: bool = os.environ.get("NIQUESTS_OCSP", "1") != "0"
+                crl_verification_enabled: bool = os.environ.get("NIQUESTS_CRL", "1") != "0"
                 if is_ocsp_capable(conn_info) and ocsp_verification_enabled:
                     try:
                         from .extensions.revocation._ocsp import (
