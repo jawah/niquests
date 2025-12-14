@@ -237,17 +237,58 @@ class HTTPDigestAuth(AuthBase):
         if r.is_redirect:
             self._thread_local.num_401_calls = 1
 
-    def _prepare_digest_request(self, r):
+    async def async_handle_401(self, r, **kwargs):
         """
-        Prepare the digest auth request. Returns prepared request or None.
+        Takes the given response and tries digest-auth, if needed (async version).
 
-        This is the common logic shared between sync and async handlers.
+        :rtype: requests.Response
         """
         # If response is not 4xx, do not auth
         # See https://github.com/psf/requests/issues/3772
         if not 400 <= r.status_code < 500:
             self._thread_local.num_401_calls = 1
-            return None
+            return r
+
+        if self._thread_local.pos is not None:
+            # Rewind the file position indicator of the body to where
+            # it was to resend the request.
+            r.request.body.seek(self._thread_local.pos)
+        s_auth = r.headers.get("www-authenticate", "")
+
+        if "digest" in s_auth.lower() and self._thread_local.num_401_calls < 2:
+            self._thread_local.num_401_calls += 1
+            pat = re.compile(r"digest ", flags=re.IGNORECASE)
+            self._thread_local.chal = parse_dict_header(pat.sub("", s_auth, count=1))
+
+            # Consume content and release the original connection
+            # to allow our new request to reuse the same one.
+            await r.content
+            await r.close()
+            prep = r.request.copy()
+            extract_cookies_to_jar(prep._cookies, r.request, r.raw)
+            prep.prepare_cookies(prep._cookies)
+
+            prep.headers["Authorization"] = self.build_digest_header(prep.method, prep.url)
+            _r = await r.connection.send(prep, **kwargs)
+            _r.history.append(r)
+            _r.request = prep
+
+            return _r
+
+        self._thread_local.num_401_calls = 1
+        return r
+
+    def handle_401(self, r, **kwargs):
+        """
+        Takes the given response and tries digest-auth, if needed.
+
+        :rtype: requests.Response
+        """
+        # If response is not 4xx, do not auth
+        # See https://github.com/psf/requests/issues/3772
+        if not 400 <= r.status_code < 500:
+            self._thread_local.num_401_calls = 1
+            return r
 
         if self._thread_local.pos is not None:
             # Rewind the file position indicator of the body to where
@@ -269,41 +310,14 @@ class HTTPDigestAuth(AuthBase):
             prep.prepare_cookies(prep._cookies)
 
             prep.headers["Authorization"] = self.build_digest_header(prep.method, prep.url)
-            return prep
+            _r = r.connection.send(prep, **kwargs)
+            _r.history.append(r)
+            _r.request = prep
+
+            return _r
 
         self._thread_local.num_401_calls = 1
-        return None
-
-    async def async_handle_401(self, r, **kwargs):
-        """
-        Takes the given response and tries digest-auth, if needed (async version).
-
-        :rtype: requests.Response
-        """
-        prep = self._prepare_digest_request(r)
-        if prep is None:
-            return r
-
-        # Await the coroutine in async context
-        _r = await r.connection.send(prep, **kwargs)
-        _r.history.append(r)
-        _r.request = prep
-        return _r
-
-    def handle_401(self, r, **kwargs):
-        """
-        Takes the given response and tries digest-auth, if needed.
-
-        :rtype: requests.Response
-        """
-        prep = self._prepare_digest_request(r)
-        if prep is None:
-            return r
-
-        _r = r.connection.send(prep, **kwargs)
-        _r.history.append(r)
-        _r.request = prep
-        return _r
+        return r
 
     def __call__(self, r):
         # Initialize per-thread state, if needed
@@ -319,8 +333,7 @@ class HTTPDigestAuth(AuthBase):
             # file position of the previous body. Ensure it's set to
             # None.
             self._thread_local.pos = None
-        # Register both sync and async versions - the hook dispatcher will call the appropriate one
-        r.register_hook("response", self.async_handle_401)
+        # Register sync hooks only - use AsyncHTTPDigestAuth for async sessions
         r.register_hook("response", self.handle_401)
         r.register_hook("response", self.handle_redirect)
         self._thread_local.num_401_calls = 1
@@ -337,3 +350,41 @@ class HTTPDigestAuth(AuthBase):
 
     def __ne__(self, other) -> bool:
         return not self == other
+
+
+class AsyncHTTPDigestAuth(HTTPDigestAuth, AsyncAuthBase):
+    """Async version of HTTPDigestAuth for use with AsyncSession.
+
+    Attaches HTTP Digest Authentication to the given Request object and handles
+    401 responses asynchronously.
+
+    Example usage::
+
+        >>> import niquests
+        >>> auth = niquests.auth.AsyncHTTPDigestAuth('user', 'pass')
+        >>> async with niquests.AsyncSession() as session:
+        ...     r = await session.get('https://httpbin.org/digest-auth/auth/user/pass', auth=auth)
+        ...     print(r.status_code)
+        200
+    """
+
+    async def __call__(self, r):
+        # Initialize per-thread state, if needed
+        self.init_per_thread_state()
+        # If we have a saved nonce, skip the 401
+        if self._thread_local.last_nonce:
+            r.headers["Authorization"] = self.build_digest_header(r.method, r.url)
+        try:
+            self._thread_local.pos = r.body.tell()
+        except AttributeError:
+            # In the case of AsyncHTTPDigestAuth being reused and the body of
+            # the previous request was a file-like object, pos has the
+            # file position of the previous body. Ensure it's set to
+            # None.
+            self._thread_local.pos = None
+        # Register async hooks only
+        r.register_hook("response", self.async_handle_401)
+        r.register_hook("response", self.handle_redirect)
+        self._thread_local.num_401_calls = 1
+
+        return r
