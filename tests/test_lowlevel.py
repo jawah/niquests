@@ -343,7 +343,7 @@ async def test_sync_digestauth_fails_with_async_session():
         # because connection.send() returns a coroutine that isn't awaited
         with pytest.raises(AttributeError, match="'coroutine' object has no attribute 'history'"):
             async with niquests.AsyncSession() as session:
-                r = await session.get(url, auth=auth)
+                await session.get(url, auth=auth)
         close_server.set()
 
 
