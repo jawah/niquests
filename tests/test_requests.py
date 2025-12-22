@@ -508,7 +508,7 @@ class TestRequests:
         "init_headers, expected_headers",
         [
             (None, default_headers()),
-            (CaseInsensitiveDict({"X-Custom": "value"}), CaseInsensitiveDict({"X-Custom": "value"}))
+            ({"X-Custom": "value"}, CaseInsensitiveDict({"X-Custom": "value"}))
         ],
     )
     def test_session_init_headers(self, init_headers, expected_headers):
