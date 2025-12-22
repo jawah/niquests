@@ -55,6 +55,7 @@ from niquests.exceptions import (
 from niquests.exceptions import SSLError as RequestsSSLError
 from niquests.hooks import default_hooks
 from niquests.models import PreparedRequest, urlencode
+from niquests.utils import default_headers
 from niquests.sessions import Session
 from niquests.structures import CaseInsensitiveDict
 
@@ -502,6 +503,18 @@ class TestRequests:
         assert items[3] == ("Third", "3")
         assert items[4] == ("Fourth", "4")
         assert items[5] == ("Fifth", "5")
+
+    @pytest.mark.parametrize(
+        "init_headers, expected_headers",
+        [
+            (None, default_headers()),
+            (CaseInsensitiveDict({"X-Custom": "value"}), CaseInsensitiveDict({"X-Custom": "value"}))
+        ],
+    )
+    def test_session_init_headers(self, init_headers, expected_headers):
+        """Session accepts custom headers at initialization."""
+        s = niquests.Session(headers=init_headers)
+        assert s.headers == expected_headers
 
     @pytest.mark.parametrize("key", ("User-agent", "user-agent"))
     def test_user_agent_transfers(self, httpbin, key):

@@ -246,6 +246,7 @@ class Session:
         keepalive_idle_window: float | int | None = 60.0,
         base_url: str | None = None,
         timeout: TimeoutType | None = None,
+        headers: CaseInsensitiveDict | None = None,
     ):
         """
         :param resolver: Specify a DNS resolver that should be used within this Session.
@@ -288,7 +289,7 @@ class Session:
         #: A case-insensitive dictionary of headers to be sent on each
         #: :class:`Request <Request>` sent from this
         #: :class:`Session <Session>`.
-        self.headers = default_headers()
+        self.headers = headers if headers is not None else default_headers()
 
         #: Default Authentication tuple or object to attach to
         #: :class:`Request <Request>`.
