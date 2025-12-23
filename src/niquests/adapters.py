@@ -55,6 +55,7 @@ from .exceptions import (
     SSLError,
     TooManyRedirects,
 )
+from .extensions.revocation import DEFAULT_STRATEGY, RevocationConfiguration
 from .hooks import async_dispatch_hook, dispatch_hook
 from .models import AsyncResponse, PreparedRequest, Response
 from .packages.urllib3 import (
@@ -120,12 +121,12 @@ from .utils import (
     async_wrap_extension_for_http,
     get_auth_from_url,
     get_encoding_from_headers,
-    is_crl_capable,
-    is_ocsp_capable,
     parse_scheme,
     prepend_scheme_if_needed,
     resolve_socket_family,
     select_proxy,
+    should_check_crl,
+    should_check_ocsp,
     urldefragauth,
     wrap_extension_for_http,
 )
@@ -290,6 +291,7 @@ class HTTPAdapter(BaseAdapter):
         "_happy_eyeballs",
         "_keepalive_delay",
         "_keepalive_idle_window",
+        "_revocation_configuration",
     ]
 
     def __init__(
@@ -311,6 +313,7 @@ class HTTPAdapter(BaseAdapter):
         happy_eyeballs: bool | int = False,
         keepalive_delay: float | int | None = 3600.0,
         keepalive_idle_window: float | int | None = 60.0,
+        revocation_configuration: RevocationConfiguration | None = DEFAULT_STRATEGY,
     ):
         if isinstance(max_retries, bool):
             self.max_retries: RetryType = False
@@ -351,6 +354,8 @@ class HTTPAdapter(BaseAdapter):
 
         self._ocsp_cache: typing.Any | None = None
         self._crl_cache: typing.Any | None = None
+
+        self._revocation_configuration: RevocationConfiguration | None = revocation_configuration
 
         disabled_svn = set()
 
@@ -1018,7 +1023,10 @@ class HTTPAdapter(BaseAdapter):
                     if next_request.url and next_request.url.startswith("https://") and kwargs["verify"]:
                         strict_ocsp_enabled: bool = os.environ.get("NIQUESTS_STRICT_OCSP", "0") != "0"
 
-                        if is_ocsp_capable(conn_info):
+                        if not strict_ocsp_enabled and self._revocation_configuration is not None:
+                            strict_ocsp_enabled = self._revocation_configuration.strict_mode
+
+                        if should_check_ocsp(conn_info, self._revocation_configuration):
                             try:
                                 from .extensions.revocation._ocsp import verify as ocsp_verify
                             except ImportError:
@@ -1033,7 +1041,8 @@ class HTTPAdapter(BaseAdapter):
                                     self._happy_eyeballs,
                                     cache=self._ocsp_cache,
                                 )
-                        elif is_crl_capable(conn_info):
+
+                        if should_check_crl(conn_info, self._revocation_configuration):
                             try:
                                 from .extensions.revocation._crl import verify as crl_verify
                             except ImportError:
@@ -1362,6 +1371,7 @@ class AsyncHTTPAdapter(AsyncBaseAdapter):
         "_happy_eyeballs",
         "_keepalive_delay",
         "_keepalive_idle_window",
+        "_revocation_configuration",
     ]
 
     def __init__(
@@ -1383,6 +1393,7 @@ class AsyncHTTPAdapter(AsyncBaseAdapter):
         happy_eyeballs: bool | int = False,
         keepalive_delay: float | int | None = 3600.0,
         keepalive_idle_window: float | int | None = 60.0,
+        revocation_configuration: RevocationConfiguration | None = DEFAULT_STRATEGY,
     ):
         if isinstance(max_retries, bool):
             self.max_retries: RetryType = False
@@ -1423,6 +1434,8 @@ class AsyncHTTPAdapter(AsyncBaseAdapter):
 
         self._ocsp_cache: typing.Any | None = None
         self._crl_cache: typing.Any | None = None
+
+        self._revocation_configuration: RevocationConfiguration | None = revocation_configuration
 
         disabled_svn = set()
 
@@ -2095,7 +2108,10 @@ class AsyncHTTPAdapter(AsyncBaseAdapter):
                     if next_request.url and next_request.url.startswith("https://") and kwargs["verify"]:
                         strict_ocsp_enabled: bool = os.environ.get("NIQUESTS_STRICT_OCSP", "0") != "0"
 
-                        if is_ocsp_capable(conn_info):
+                        if not strict_ocsp_enabled and self._revocation_configuration is not None:
+                            strict_ocsp_enabled = self._revocation_configuration.strict_mode
+
+                        if should_check_ocsp(conn_info, self._revocation_configuration):
                             try:
                                 from .extensions.revocation._ocsp._async import (
                                     verify as async_ocsp_verify,
@@ -2112,7 +2128,8 @@ class AsyncHTTPAdapter(AsyncBaseAdapter):
                                     self._happy_eyeballs,
                                     cache=self._ocsp_cache,
                                 )
-                        elif is_crl_capable(conn_info):
+
+                        if should_check_crl(conn_info, self._revocation_configuration):
                             try:
                                 from .extensions.revocation._crl._async import (
                                     verify as async_crl_verify,
@@ -2217,7 +2234,7 @@ class AsyncHTTPAdapter(AsyncBaseAdapter):
 
         if not stream:
             if response.extension is None:
-                await response.content
+                await response.content  # type: ignore[misc]
             _swap_context(response)
 
         del self._promises[response_promise.uid]

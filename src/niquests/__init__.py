@@ -46,6 +46,7 @@ import warnings
 from logging import NullHandler
 
 from ._compat import HAS_LEGACY_URLLIB3
+from .extensions.revocation import RevocationConfiguration, RevocationStrategy
 from .packages.urllib3 import (
     Retry as RetryConfiguration,
 )
@@ -169,5 +170,7 @@ __all__ = (
     "HAS_LEGACY_URLLIB3",
     "AsyncLifeCycleHook",
     "LifeCycleHook",
+    "RevocationConfiguration",
+    "RevocationStrategy",
     "ServerSentEvent",
 )

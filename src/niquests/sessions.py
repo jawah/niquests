@@ -60,6 +60,7 @@ from .exceptions import (
     InvalidSchema,
     TooManyRedirects,
 )
+from .extensions.revocation import DEFAULT_STRATEGY, RevocationConfiguration
 from .hooks import HOOKS, default_hooks, dispatch_hook
 
 # formerly defined here, reexposed here for backward compatibility
@@ -83,13 +84,13 @@ from .utils import (  # noqa: F401
     get_auth_from_url,
     get_environ_proxies,
     get_netrc_auth,
-    is_crl_capable,
-    is_ocsp_capable,
     parse_scheme,
     requote_uri,
     resolve_proxies,
     rewind_body,
     should_bypass_proxies,
+    should_check_crl,
+    should_check_ocsp,
     to_key_val_list,
 )
 
@@ -224,6 +225,7 @@ class Session:
         "base_url",
         "quic_cache_layer",
         "timeout",
+        "_revocation_configuration",
     ]
 
     def __init__(
@@ -246,6 +248,7 @@ class Session:
         keepalive_idle_window: float | int | None = 60.0,
         base_url: str | None = None,
         timeout: TimeoutType | None = None,
+        revocation_configuration: RevocationConfiguration | None = DEFAULT_STRATEGY,
     ):
         """
         :param resolver: Specify a DNS resolver that should be used within this Session.
@@ -270,6 +273,8 @@ class Session:
             being completely idle. This only applies to HTTP/2 onward.
         :param base_url: Automatically set a URL prefix (or base url) on every request emitted if applicable.
         :param timeout: Default timeout configuration to be used if no timeout is provided in exposed methods.
+        :param revocation_configuration: How should that session do the certificate revocation check. Set it as None to disable
+            this additional security measure.
         """
         if [disable_ipv4, disable_ipv6].count(True) == 2:
             raise RuntimeError("Cannot disable both IPv4 and IPv6")
@@ -387,6 +392,9 @@ class Session:
         #: unattended errors.
         self._crl_cache: typing.Any | None = None
 
+        #: How we should handle the revocation check for TLS newly acquired connection.
+        self._revocation_configuration: RevocationConfiguration | None = revocation_configuration
+
         # Default connection adapters.
         self.adapters: OrderedDict[str, BaseAdapter] = OrderedDict()
         self.mount(
@@ -406,6 +414,7 @@ class Session:
                 happy_eyeballs=happy_eyeballs,
                 keepalive_delay=keepalive_delay,
                 keepalive_idle_window=keepalive_idle_window,
+                revocation_configuration=revocation_configuration,
             ),
         )
         self.mount(
@@ -424,6 +433,7 @@ class Session:
                 happy_eyeballs=happy_eyeballs,
                 keepalive_delay=keepalive_delay,
                 keepalive_idle_window=keepalive_idle_window,
+                revocation_configuration=revocation_configuration,
             ),
         )
 
@@ -1136,7 +1146,10 @@ class Session:
             if ptr_request.url and parse_scheme(ptr_request.url) == "https" and kwargs["verify"]:
                 strict_ocsp_enabled: bool = os.environ.get("NIQUESTS_STRICT_OCSP", "0") != "0"
 
-                if is_ocsp_capable(conn_info):
+                if not strict_ocsp_enabled and self._revocation_configuration is not None:
+                    strict_ocsp_enabled = self._revocation_configuration.strict_mode
+
+                if should_check_ocsp(conn_info, self._revocation_configuration):
                     try:
                         from .extensions.revocation._ocsp import (
                             InMemoryRevocationStatus,
@@ -1162,7 +1175,8 @@ class Session:
                             happy_eyeballs=self._happy_eyeballs,
                             cache=self._ocsp_cache,
                         )
-                elif is_crl_capable(conn_info):
+
+                if should_check_crl(conn_info, self._revocation_configuration):
                     try:
                         from .extensions.revocation._crl import (
                             InMemoryRevocationList,
@@ -1249,6 +1263,7 @@ class Session:
                     happy_eyeballs=self._happy_eyeballs,
                     keepalive_delay=self._keepalive_delay,
                     keepalive_idle_window=self._keepalive_idle_window,
+                    revocation_configuration=self._revocation_configuration,
                 ),
             )
             self.mount(
@@ -1267,6 +1282,7 @@ class Session:
                     happy_eyeballs=self._happy_eyeballs,
                     keepalive_delay=self._keepalive_delay,
                     keepalive_idle_window=self._keepalive_idle_window,
+                    revocation_configuration=self._revocation_configuration,
                 ),
             )
 
@@ -1520,6 +1536,7 @@ class Session:
                 happy_eyeballs=self._happy_eyeballs,
                 keepalive_delay=self._keepalive_delay,
                 keepalive_idle_window=self._keepalive_idle_window,
+                revocation_configuration=self._revocation_configuration,
             ),
         )
         self.mount(
@@ -1538,6 +1555,7 @@ class Session:
                 happy_eyeballs=self._happy_eyeballs,
                 keepalive_delay=self._keepalive_delay,
                 keepalive_idle_window=self._keepalive_idle_window,
+                revocation_configuration=self._revocation_configuration,
             ),
         )
         for adapter in self.adapters.values():

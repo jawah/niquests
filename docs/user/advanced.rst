@@ -1681,3 +1681,47 @@ To catch response like those::
 Isn't it easy and pleasant to write ?
 
 .. warning:: Some servers choose to enable it in HTTP/2, and HTTP/3 but not in HTTP/1.1 for security concerns. But rest assured that Niquests support this no matter the protocol.
+
+Revocation Configuration
+------------------------
+
+.. versionadded:: 3.16.0
+
+When Niquests acquire a new HTTPS connection, it defend you against revoked TLS certificate the best it can.
+Sometimes, the default behavior does not suit your environment. (e.g. corporate environment with very particular restrictions)
+
+You can alter the configuration by passing an extra parameter to your ``Session`` or ``AsyncSession`` constructor.
+
+.. code-block:: python
+
+    import asyncio
+
+    from niquests import RevocationConfiguration, RevocationStrategy, AsyncSession
+
+    async def main():
+
+        async with AsyncSession(
+            revocation_configuration=RevocationConfiguration(
+                strategy=RevocationStrategy.PREFER_CRL,
+                strict_mode=True,
+            )
+        ) as s:
+            r0 = await s.get("https://one.one.one.one")
+            print(r0)
+
+    if __name__ == "__main__":
+        asyncio.run(main())
+
+.. warning:::: Passing ``revocation_configuration=None`` simply disable altogether the revocation checks if you want to. But that is extremely unwise.
+
+You have three revocation strategies:
+
+- RevocationStrategy.PREFER_OCSP
+- RevocationStrategy.PREFER_CRL
+- RevocationStrategy.CHECK_ALL
+
+.. note:: As hinted/prefixed, ``PREFER_`` means to attempt A first, then if not available fallback to B. It does not disable B.
+
+.. warning:: CHECK_ALL can induce an important slowdown upon new connection acquire. That security measure is excessive and should not be used unless your security environment mandate you to.
+
+By default, Niquests uses ``PREFER_OCSP``, but we may change that in a future version.
