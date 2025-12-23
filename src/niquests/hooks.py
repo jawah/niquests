@@ -98,7 +98,9 @@ async def async_dispatch_hook(key: str, hooks: AsyncHookType[_HV] | None, hook_d
     return hook_data
 
 
-class _BaseLifeCycleHook(MutableMapping[str, list[typing.Union[HookCallableType, AsyncHookCallableType]]], typing.Generic[_HV]):
+class _BaseLifeCycleHook(
+    typing.MutableMapping[str, typing.List[typing.Union[HookCallableType, AsyncHookCallableType]]], typing.Generic[_HV]
+):
     def __init__(self) -> None:
         self._store: MutableMapping[str, list[HookCallableType[_HV] | AsyncHookCallableType[_HV]]] = {
             "pre_request": [],
