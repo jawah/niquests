@@ -12,8 +12,23 @@ def tests_impl(
     cohabitation: bool | None = False,
 ) -> None:
     # Install deps and the package itself.
-    session.install("-r", "requirements-dev.txt")
-    session.install(f".[{extras}]", silent=False)
+    if cohabitation is True or cohabitation is None:
+        install_env = {"URLLIB3_NO_OVERRIDE": "1"}
+
+        session.install(
+            f".[{extras}]",
+            "--no-binary",
+            "urllib3-future",
+            silent=False,
+            env=install_env,
+        )
+        session.install("-r", "requirements-dev.txt")
+    else:
+        session.install("-r", "requirements-dev.txt")
+        session.install(
+            f".[{extras}]",
+            silent=False,
+        )
 
     # Show the pip version.
     session.run("pip", "--version")
@@ -23,8 +38,6 @@ def tests_impl(
         session.run("pip", "install", "urllib3")
         session.run("python", "-m", "niquests.help")
     elif cohabitation is None:
-        session.run("pip", "install", "urllib3")
-        session.run("pip", "uninstall", "-y", "urllib3")
         session.run("python", "-m", "niquests.help")
 
     session.run(

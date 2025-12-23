@@ -1586,7 +1586,7 @@ Here is a really basic example of how to proceed.
             print(r)  # output: <Response HTTP/2 [200]>
 
             while r.extension.closed is False:
-                print(r.extension.next_payload())  # ServerSentEvent(event='ping', data='{"id":0,"timestamp":1732857000473}')
+                event: niquests.ServerSentEvent = r.extension.next_payload()  # ServerSentEvent(event='ping', data='{"id":0,"timestamp":1732857000473}')
 
 .. tab:: 🔀 Async
 
