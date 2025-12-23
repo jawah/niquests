@@ -70,7 +70,7 @@ def test(session: nox.Session) -> None:
 
 @nox.session(
     python=[
-        "3.13",
+        "3.11",
     ]
 )
 def test_cohabitation(session: nox.Session) -> None:
