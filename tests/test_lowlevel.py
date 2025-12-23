@@ -251,6 +251,7 @@ def test_digestauth_401_only_sent_once():
         close_server.set()
 
 
+@pytest.mark.skipif(sys.platform == "win32" and sys.version_info < (3, 8), reason="Skipped on Windows with Python 3.7")
 @pytest.mark.asyncio
 async def test_async_digestauth_401_basic():
     """Test that AsyncHTTPDigestAuth works with AsyncSession.
@@ -303,6 +304,7 @@ async def test_async_digestauth_401_basic():
         close_server.set()
 
 
+@pytest.mark.skipif(sys.platform == "win32" and sys.version_info < (3, 8), reason="Skipped on Windows with Python 3.7")
 def test_sync_digestauth_works_with_sync_session():
     """Test that HTTPDigestAuth (sync) still works with regular Session.
 
