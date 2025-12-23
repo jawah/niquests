@@ -251,6 +251,104 @@ def test_digestauth_401_only_sent_once():
         close_server.set()
 
 
+@pytest.mark.skipif(sys.platform == "win32" and sys.version_info < (3, 8), reason="Skipped on Windows with Python 3.7")
+@pytest.mark.asyncio
+async def test_async_digestauth_401_basic():
+    """Test that AsyncHTTPDigestAuth works with AsyncSession.
+
+    This test verifies that digest authentication properly handles 401 challenges
+    in async context by using the AsyncHTTPDigestAuth class which awaits the
+    coroutine returned by connection.send().
+    """
+    text_401 = (
+        b"HTTP/1.1 401 UNAUTHORIZED\r\n"
+        b"Content-Length: 0\r\n"
+        b'WWW-Authenticate: Digest nonce="6bf5d6e4da1ce66918800195d6b9130d"'
+        b', opaque="372825293d1c26955496c80ed6426e9e", '
+        b'realm="me@kennethreitz.com", qop=auth\r\n\r\n'
+    )
+
+    text_200 = b"HTTP/1.1 200 OK\r\nContent-Length: 0\r\n\r\n"
+
+    expected_digest = (
+        b'Authorization: Digest username="user", realm="me@kennethreitz.com", nonce="6bf5d6e4da1ce66918800195d6b9130d", uri="/"'
+    )
+
+    auth = niquests.auth.AsyncHTTPDigestAuth("user", "pass")
+
+    def digest_response_handler(sock):
+        # Respond to initial GET with a challenge.
+        request_content = consume_socket_content(sock, timeout=0.5)
+        assert request_content.startswith(b"GET / HTTP/1.1")
+        sock.send(text_401)
+
+        # Verify we receive an Authorization header in response.
+        request_content = consume_socket_content(sock, timeout=0.5)
+        assert expected_digest in request_content
+        sock.send(text_200)
+
+        return request_content
+
+    close_server = threading.Event()
+    server = Server(digest_response_handler, wait_to_close_event=close_server)
+
+    with server as (host, port):
+        url = f"http://{host}:{port}/"
+        async with niquests.AsyncSession() as session:
+            r = await session.get(url, auth=auth)
+        # Verify server succeeded in authenticating.
+        assert r.status_code == 200
+        # Verify Authorization was sent in final request.
+        assert "Authorization" in r.request.headers
+        assert r.request.headers["Authorization"].startswith("Digest ")
+        close_server.set()
+
+
+@pytest.mark.skipif(sys.platform == "win32" and sys.version_info < (3, 8), reason="Skipped on Windows with Python 3.7")
+def test_sync_digestauth_works_with_sync_session():
+    """Test that HTTPDigestAuth (sync) still works with regular Session.
+
+    This is a regression test to ensure the sync auth class still works
+    correctly in sync contexts after adding async support.
+    """
+    text_401 = (
+        b"HTTP/1.1 401 UNAUTHORIZED\r\n"
+        b"Content-Length: 0\r\n"
+        b'WWW-Authenticate: Digest nonce="6bf5d6e4da1ce66918800195d6b9130d"'
+        b', opaque="372825293d1c26955496c80ed6426e9e", '
+        b'realm="me@kennethreitz.com", qop=auth\r\n\r\n'
+    )
+
+    text_200 = b"HTTP/1.1 200 OK\r\nContent-Length: 0\r\n\r\n"
+
+    expected_digest = b'Authorization: Digest username="user", realm="me@kennethreitz.com"'
+
+    auth = niquests.auth.HTTPDigestAuth("user", "pass")
+
+    def digest_response_handler(sock):
+        # First request without auth
+        request_content = consume_socket_content(sock, timeout=0.5)
+        assert request_content.startswith(b"GET / HTTP/1.1")
+        sock.send(text_401)
+
+        # Second request with auth
+        request_content = consume_socket_content(sock, timeout=0.5)
+        assert expected_digest in request_content
+        sock.send(text_200)
+
+    close_server = threading.Event()
+    server = Server(digest_response_handler, wait_to_close_event=close_server)
+
+    with server as (host, port):
+        url = f"http://{host}:{port}/"
+        with niquests.Session() as session:
+            r = session.get(url, auth=auth)
+        assert r.status_code == 200
+        assert "Authorization" in r.request.headers
+        assert r.request.headers["Authorization"].startswith("Digest ")
+        close_server.set()
+
+
 def test_digestauth_only_on_4xx():
     """Ensure we only send digestauth on 4xx challenges.
 

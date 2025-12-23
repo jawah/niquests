@@ -7,13 +7,14 @@ This module contains the authentication handlers for Requests.
 
 from __future__ import annotations
 
+import contextvars
 import hashlib
 import os
 import re
-import threading
 import time
 import typing
 from base64 import b64encode
+from dataclasses import dataclass, field
 from urllib.parse import urlparse
 
 from .cookies import extract_cookies_to_jar
@@ -108,6 +109,18 @@ class HTTPProxyAuth(HTTPBasicAuth):
         return r
 
 
+@dataclass
+class DigestAuthState:
+    """Container for digest auth state per task/thread"""
+
+    init: bool = False
+    last_nonce: str = ""
+    nonce_count: int = 0
+    chal: typing.Mapping[str, str | None] = field(default_factory=dict)
+    pos: int | None = None
+    num_401_calls: int | None = None
+
+
 class HTTPDigestAuth(AuthBase):
     """Attaches HTTP Digest Authentication to the given Request object."""
 
@@ -115,24 +128,26 @@ class HTTPDigestAuth(AuthBase):
         self.username = username
         self.password = password
         # Keep state in per-thread local storage
-        self._thread_local = threading.local()
+        self._thread_local: contextvars.ContextVar[DigestAuthState] = contextvars.ContextVar("digest_auth_state")
 
     def init_per_thread_state(self) -> None:
         # Ensure state is initialized just once per-thread
-        if not hasattr(self._thread_local, "init"):
-            self._thread_local.init = True
-            self._thread_local.last_nonce = ""
-            self._thread_local.nonce_count = 0
-            self._thread_local.chal = {}
-            self._thread_local.pos = None
-            self._thread_local.num_401_calls = None
+        state = self._thread_local.get(None)
+
+        if state is None or not state.init:
+            self._thread_local.set(DigestAuthState(init=True))
 
     def build_digest_header(self, method: str, url: str) -> str | None:
-        realm = self._thread_local.chal["realm"]
-        nonce = self._thread_local.chal["nonce"]
-        qop = self._thread_local.chal.get("qop")
-        algorithm = self._thread_local.chal.get("algorithm")
-        opaque = self._thread_local.chal.get("opaque")
+        state = self._thread_local.get(None)
+
+        assert state is not None
+
+        realm = state.chal["realm"]
+        nonce = state.chal["nonce"]
+        qop = state.chal.get("qop")
+        algorithm = state.chal.get("algorithm")
+        opaque = state.chal.get("opaque")
+
         hash_utf8: typing.Callable[[str | bytes], str] | None = None
 
         if algorithm is None:
@@ -194,12 +209,15 @@ class HTTPDigestAuth(AuthBase):
         HA1 = hash_utf8(A1)
         HA2 = hash_utf8(A2)
 
-        if nonce == self._thread_local.last_nonce:
-            self._thread_local.nonce_count += 1
+        if nonce == state.last_nonce:
+            state.nonce_count += 1
         else:
-            self._thread_local.nonce_count = 1
-        ncvalue = f"{self._thread_local.nonce_count:08x}"
-        s = str(self._thread_local.nonce_count).encode("utf-8")
+            state.nonce_count = 1
+        ncvalue = f"{state.nonce_count:08x}"
+        s = str(state.nonce_count).encode("utf-8")
+
+        assert nonce is not None
+
         s += nonce.encode("utf-8")
         s += time.ctime().encode("utf-8")
         s += os.urandom(8)
@@ -217,7 +235,7 @@ class HTTPDigestAuth(AuthBase):
             # XXX handle auth-int.
             return None
 
-        self._thread_local.last_nonce = nonce
+        state.last_nonce = nonce
 
         # XXX should the partial digests be encoded too?
         base = f'username="{self.username}", realm="{realm}", nonce="{nonce}", uri="{path}", response="{respdig}"'
@@ -234,8 +252,57 @@ class HTTPDigestAuth(AuthBase):
 
     def handle_redirect(self, r, **kwargs) -> None:
         """Reset num_401_calls counter on redirects."""
+        state = self._thread_local.get(None)
+
+        assert state is not None
+
         if r.is_redirect:
-            self._thread_local.num_401_calls = 1
+            state.num_401_calls = 1
+
+    async def async_handle_401(self, r, **kwargs):
+        """
+        Takes the given response and tries digest-auth, if needed (async version).
+
+        :rtype: requests.Response
+        """
+        state = self._thread_local.get(None)
+
+        assert state is not None
+
+        # If response is not 4xx, do not auth
+        # See https://github.com/psf/requests/issues/3772
+        if not 400 <= r.status_code < 500:
+            state.num_401_calls = 1
+            return r
+
+        if state.pos is not None:
+            # Rewind the file position indicator of the body to where
+            # it was to resend the request.
+            r.request.body.seek(state.pos)
+        s_auth = r.headers.get("www-authenticate", "")
+
+        if "digest" in s_auth.lower() and state.num_401_calls < 2:  # type: ignore[operator]
+            state.num_401_calls += 1  # type: ignore[operator]
+            pat = re.compile(r"digest ", flags=re.IGNORECASE)
+            state.chal = parse_dict_header(pat.sub("", s_auth, count=1))
+
+            # Consume content and release the original connection
+            # to allow our new request to reuse the same one.
+            await r.content
+            await r.close()
+            prep = r.request.copy()
+            extract_cookies_to_jar(prep._cookies, r.request, r.raw)
+            prep.prepare_cookies(prep._cookies)
+
+            prep.headers["Authorization"] = self.build_digest_header(prep.method, prep.url)
+            _r = await r.connection.send(prep, **kwargs)
+            _r.history.append(r)
+            _r.request = prep
+
+            return _r
+
+        state.num_401_calls = 1
+        return r
 
     def handle_401(self, r, **kwargs):
         """
@@ -243,23 +310,26 @@ class HTTPDigestAuth(AuthBase):
 
         :rtype: requests.Response
         """
+        state = self._thread_local.get(None)
+
+        assert state is not None
 
         # If response is not 4xx, do not auth
         # See https://github.com/psf/requests/issues/3772
         if not 400 <= r.status_code < 500:
-            self._thread_local.num_401_calls = 1
+            state.num_401_calls = 1
             return r
 
-        if self._thread_local.pos is not None:
+        if state.pos is not None:
             # Rewind the file position indicator of the body to where
             # it was to resend the request.
-            r.request.body.seek(self._thread_local.pos)
+            r.request.body.seek(state.pos)
         s_auth = r.headers.get("www-authenticate", "")
 
-        if "digest" in s_auth.lower() and self._thread_local.num_401_calls < 2:
-            self._thread_local.num_401_calls += 1
+        if "digest" in s_auth.lower() and state.num_401_calls < 2:  # type: ignore[operator]
+            state.num_401_calls += 1  # type: ignore[operator]
             pat = re.compile(r"digest ", flags=re.IGNORECASE)
-            self._thread_local.chal = parse_dict_header(pat.sub("", s_auth, count=1))
+            state.chal = parse_dict_header(pat.sub("", s_auth, count=1))
 
             # Consume content and release the original connection
             # to allow our new request to reuse the same one.
@@ -276,26 +346,29 @@ class HTTPDigestAuth(AuthBase):
 
             return _r
 
-        self._thread_local.num_401_calls = 1
+        state.num_401_calls = 1
         return r
 
     def __call__(self, r):
         # Initialize per-thread state, if needed
         self.init_per_thread_state()
+        state = self._thread_local.get(None)
+        assert state is not None
         # If we have a saved nonce, skip the 401
-        if self._thread_local.last_nonce:
+        if state.last_nonce:
             r.headers["Authorization"] = self.build_digest_header(r.method, r.url)
         try:
-            self._thread_local.pos = r.body.tell()
+            state.pos = r.body.tell()
         except AttributeError:
             # In the case of HTTPDigestAuth being reused and the body of
             # the previous request was a file-like object, pos has the
             # file position of the previous body. Ensure it's set to
             # None.
-            self._thread_local.pos = None
+            state.pos = None
+        # Register sync hooks only - use AsyncHTTPDigestAuth for async sessions
         r.register_hook("response", self.handle_401)
         r.register_hook("response", self.handle_redirect)
-        self._thread_local.num_401_calls = 1
+        state.num_401_calls = 1
 
         return r
 
@@ -309,3 +382,43 @@ class HTTPDigestAuth(AuthBase):
 
     def __ne__(self, other) -> bool:
         return not self == other
+
+
+class AsyncHTTPDigestAuth(HTTPDigestAuth, AsyncAuthBase):
+    """Async version of HTTPDigestAuth for use with AsyncSession.
+
+    Attaches HTTP Digest Authentication to the given Request object and handles
+    401 responses asynchronously.
+
+    Example usage::
+
+        >>> import niquests
+        >>> auth = niquests.auth.AsyncHTTPDigestAuth('user', 'pass')
+        >>> async with niquests.AsyncSession() as session:
+        ...     r = await session.get('https://httpbin.org/digest-auth/auth/user/pass', auth=auth)
+        ...     print(r.status_code)
+        200
+    """
+
+    async def __call__(self, r):
+        # Initialize per-thread state, if needed
+        self.init_per_thread_state()
+        state = self._thread_local.get(None)
+        assert state is not None
+        # If we have a saved nonce, skip the 401
+        if state.last_nonce:
+            r.headers["Authorization"] = self.build_digest_header(r.method, r.url)
+        try:
+            state.pos = r.body.tell()
+        except AttributeError:
+            # In the case of AsyncHTTPDigestAuth being reused and the body of
+            # the previous request was a file-like object, pos has the
+            # file position of the previous body. Ensure it's set to
+            # None.
+            state.pos = None
+        # Register async hooks only
+        r.register_hook("response", self.async_handle_401)
+        r.register_hook("response", self.handle_redirect)
+        state.num_401_calls = 1
+
+        return r
