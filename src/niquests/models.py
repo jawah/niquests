@@ -37,6 +37,7 @@ from charset_normalizer import from_bytes
 
 from ._typing import (
     AsyncBodyType,
+    AsyncHookType,
     AsyncHttpAuthenticationType,
     BodyFormType,
     BodyType,
@@ -192,7 +193,7 @@ class Request:
         params: QueryParameterType | None = None,
         auth: HttpAuthenticationType | AsyncHttpAuthenticationType | None = None,
         cookies: CookiesType | None = None,
-        hooks: HookType | None = None,
+        hooks: HookType | AsyncHookType | None = None,
         json: typing.Any | None = None,
         base_url: str | None = None,
     ):

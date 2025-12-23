@@ -607,6 +607,82 @@ List of tangible use-cases:
 
 .. note:: In a asynchronous HTTP request, you may pass awaitable functions in addition to the usual synchronous ones.
 
+Class-Based Hooks
+-----------------
+
+.. versionadded:: 3.16.0
+
+In addition to dictionary-based hooks, Niquests supports class-based hooks via :class:`~niquests.hooks.LifeCycleHook` and :class:`~niquests.hooks.AsyncLifeCycleHook`. This approach allows for stateful middleware, better organization of logic, and easy composition of multiple hooks.
+
+.. note:: They behave like the regular hooks you are accustomed to, and in addition to that, they can have a persistent (shared) state and easier proper typing annotation.
+
+.. autoclass:: niquests.hooks.LifeCycleHook
+    :members: pre_request, pre_send, on_upload, early_response, response
+
+.. autoclass:: niquests.hooks.AsyncLifeCycleHook
+    :members: pre_request, pre_send, on_upload, early_response, response
+
+Single Middleware
+~~~~~~~~~~~~~~~~~
+
+You can define a custom middleware by subclassing ``AsyncLifeCycleHook`` (or ``LifeCycleHook`` for synchronous contexts) and overriding the specific event methods you need.
+
+.. code-block:: python
+
+    import asyncio
+    from niquests import AsyncSession, AsyncLifeCycleHook
+
+    class ConnectionLogger(AsyncLifeCycleHook):
+        async def pre_send(self, prepared_request, **kwargs) -> None:
+            # Inspect the connection info before the request is sent
+            print(f"Connected to: {prepared_request.conn_info}")
+
+    async def main():
+        async with AsyncSession() as s:
+            # Pass an instance of your hook class
+            await s.get("https://one.one.one.one", hooks=ConnectionLogger())
+
+    if __name__ == "__main__":
+        asyncio.run(main())
+
+Combining Middleware
+~~~~~~~~~~~~~~~~~~~~
+
+Middleware classes can be combined using the ``+`` operator. This allows you to chain multiple hooks together, mixing synchronous and asynchronous logic. They are executed in the order they are added.
+
+.. code-block:: python
+
+    import asyncio
+    import typing
+    from niquests import AsyncSession, AsyncLifeCycleHook, LifeCycleHook, Response
+
+    class RequestTracer(AsyncLifeCycleHook):
+        async def pre_send(self, prepared_request, **kwargs) -> None:
+            print(f"[Trace] Sending request to {prepared_request.url}")
+
+    class ResponseModifier(AsyncLifeCycleHook):
+        async def response(self, response: Response, **kwargs: typing.Any) -> Response | None:
+            print(f"[Mod] Received response with status {response.status_code}")
+            return response
+
+    class SyncAuditLog(LifeCycleHook):
+        def pre_send(self, prepared_request, **kwargs) -> None:
+            print("[Audit] Sync check triggered", prepared_request.conn_info)
+
+    async def main():
+        # Combine: Tracer -> Modifier -> Audit
+        # The hooks will be executed in this sequence for every event they implement.
+        middleware_chain = RequestTracer() + ResponseModifier() + SyncAuditLog()
+
+        async with AsyncSession() as s:
+            await s.get("https://one.one.one.one", hooks=middleware_chain)
+
+    if __name__ == "__main__":
+        asyncio.run(main())
+
+
+.. danger:: In synchronous multi-threaded mode, using ``LifeCycleHook`` must be safe to use, you are responsible to ensure safety via proper locking if you intend to share properties/states between threads.
+
 Track upload progress
 ---------------------
 

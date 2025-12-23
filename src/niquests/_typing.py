@@ -13,6 +13,7 @@ from .packages.urllib3.fields import RequestField
 from .structures import CaseInsensitiveDict
 
 if typing.TYPE_CHECKING:
+    from .hooks import AsyncLifeCycleHook, LifeCycleHook
     from .models import PreparedRequest
 
 #: (Restricted) list of http verb that we natively support and understand.
@@ -138,14 +139,20 @@ HookCallableType: typing.TypeAlias = typing.Callable[
     typing.Optional[_HV],
 ]
 
-HookType: typing.TypeAlias = typing.Dict[str, typing.List[HookCallableType[_HV]]]
+HookType: typing.TypeAlias = typing.Union[
+    typing.Dict[str, typing.List[HookCallableType[_HV]]],
+    "LifeCycleHook[_HV]",
+]
 
 AsyncHookCallableType: typing.TypeAlias = typing.Callable[
     [_HV],
     typing.Awaitable[typing.Optional[_HV]],
 ]
 
-AsyncHookType: typing.TypeAlias = typing.Dict[str, typing.List[typing.Union[HookCallableType[_HV], AsyncHookCallableType[_HV]]]]
+AsyncHookType: typing.TypeAlias = typing.Union[
+    typing.Dict[str, typing.List[typing.Union[HookCallableType[_HV], AsyncHookCallableType[_HV]]]],
+    "AsyncLifeCycleHook[_HV]",
+]
 
 CacheLayerAltSvcType: typing.TypeAlias = typing.MutableMapping[typing.Tuple[str, int], typing.Optional[typing.Tuple[str, int]]]
 
