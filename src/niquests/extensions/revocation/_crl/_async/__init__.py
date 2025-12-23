@@ -6,6 +6,7 @@ import ipaddress
 import ssl
 import typing
 import warnings
+from contextlib import asynccontextmanager
 from random import randint
 
 from qh3._hazmat import (
@@ -27,6 +28,7 @@ class InMemoryRevocationList:
     def __init__(self, max_size: int = 256):
         self._max_size: int = max_size
         self._store: dict[str, CertificateRevocationList] = {}
+        self._semaphores: dict[str, asyncio.Semaphore] = {}
         self._issuers_map: dict[str, Certificate] = {}
         self._crl_endpoints: dict[str, str] = {}
         self._failure_count: int = 0
@@ -47,6 +49,7 @@ class InMemoryRevocationList:
         self._max_size = state["_max_size"]
         self._failure_count = state["_failure_count"] if "_failure_count" in state else 0
         self._crl_endpoints = state["_crl_endpoints"]
+        self._semaphores = {}
 
         self._store = {}
 
@@ -57,6 +60,20 @@ class InMemoryRevocationList:
 
         for k, v in state["_issuers_map"].items():
             self._issuers_map[k] = Certificate.deserialize(v)
+
+    @asynccontextmanager
+    async def lock(self, peer_certificate: Certificate) -> typing.AsyncGenerator[None, None]:
+        fingerprint: str = _str_fingerprint_of(peer_certificate)
+
+        if fingerprint not in self._semaphores:
+            self._semaphores[fingerprint] = asyncio.Semaphore()
+
+        await self._semaphores[fingerprint].acquire()
+
+        try:
+            yield
+        finally:
+            self._semaphores[fingerprint].release()
 
     def get_issuer_of(self, peer_certificate: Certificate) -> Certificate | None:
         fingerprint: str = _str_fingerprint_of(peer_certificate)
@@ -173,182 +190,188 @@ async def verify(
 
     peer_certificate: Certificate = _parse_x509_der_cached(conn_info.certificate_der)
 
-    crl_distribution_point: str = cache.get_previous_crl_endpoint(peer_certificate) or endpoints[randint(0, len(endpoints) - 1)]
+    async with cache.lock(peer_certificate):
+        crl_distribution_point: str = (
+            cache.get_previous_crl_endpoint(peer_certificate) or endpoints[randint(0, len(endpoints) - 1)]
+        )
 
-    cached_revocation_list = cache.check(crl_distribution_point)
+        cached_revocation_list = cache.check(crl_distribution_point)
 
-    if cached_revocation_list is not None:
-        issuer_certificate = cache.get_issuer_of(peer_certificate)
-
-        if issuer_certificate is not None:
-            conn_info.issuer_certificate_der = issuer_certificate.public_bytes()
-
-        revocation_status = cached_revocation_list.is_revoked(peer_certificate.serial_number)
-
-        if revocation_status is not None:
-            r.ocsp_verified = False
-            raise SSLError(
-                (
-                    f"Unable to establish a secure connection to {r.url} because the certificate has been revoked "
-                    f"by issuer ({readable_revocation_reason(revocation_status.reason)}). "
-                    "You should avoid trying to request anything from it as the remote has been compromised. ",
-                    "See https://niquests.readthedocs.io/en/latest/user/advanced.html#ocsp-or-certificate-revocation "
-                    "for more information.",
-                )
-            )
-        else:
-            r.ocsp_verified = True
-
-        return
-
-    from .....async_session import AsyncSession
-
-    async with AsyncSession(resolver=resolver, happy_eyeballs=happy_eyeballs) as session:
-        session.trust_env = False
-        if proxies:
-            session.proxies = proxies
-
-        # When using Python native capabilities, you won't have the issuerCA DER by default.
-        # Unfortunately! But no worries, we can circumvent it!
-        # Three ways are valid to fetch it (in order of preference, safest to riskiest):
-        #   - The issuer can be (but unlikely) a root CA.
-        #   - Retrieve it by asking it from the TLS layer.
-        #   - Downloading it using specified caIssuers from the peer certificate.
-        if conn_info.issuer_certificate_der is None:
-            # It could be a root (self-signed) certificate. Or a previously seen issuer.
+        if cached_revocation_list is not None:
             issuer_certificate = cache.get_issuer_of(peer_certificate)
 
-            hint_ca_issuers: list[str] = [
-                ep  # type: ignore
-                for ep in list(conn_info.certificate_dict.get("caIssuers", []))  # type: ignore
-                if ep.startswith("http://")  # type: ignore
-            ]
+            if issuer_certificate is not None:
+                conn_info.issuer_certificate_der = issuer_certificate.public_bytes()
 
-            if issuer_certificate is None and hint_ca_issuers:
-                try:
-                    raw_intermediary_response = await session.get(hint_ca_issuers[0])
-                except RequestException as e:
-                    if is_cancelled_error_root_cause(e):
+            revocation_status = cached_revocation_list.is_revoked(peer_certificate.serial_number)
+
+            if revocation_status is not None:
+                r.ocsp_verified = False
+                raise SSLError(
+                    (
+                        f"Unable to establish a secure connection to {r.url} because the certificate has been revoked "
+                        f"by issuer ({readable_revocation_reason(revocation_status.reason)}). "
+                        "You should avoid trying to request anything from it as the remote has been compromised. ",
+                        "See https://niquests.readthedocs.io/en/latest/user/advanced.html#ocsp-or-certificate-revocation "
+                        "for more information.",
+                    )
+                )
+            else:
+                r.ocsp_verified = True
+
+            return
+
+        from .....async_session import AsyncSession
+
+        async with AsyncSession(resolver=resolver, happy_eyeballs=happy_eyeballs) as session:
+            session.trust_env = False
+            if proxies:
+                session.proxies = proxies
+
+            # When using Python native capabilities, you won't have the issuerCA DER by default.
+            # Unfortunately! But no worries, we can circumvent it!
+            # Three ways are valid to fetch it (in order of preference, safest to riskiest):
+            #   - The issuer can be (but unlikely) a root CA.
+            #   - Retrieve it by asking it from the TLS layer.
+            #   - Downloading it using specified caIssuers from the peer certificate.
+            if conn_info.issuer_certificate_der is None:
+                # It could be a root (self-signed) certificate. Or a previously seen issuer.
+                issuer_certificate = cache.get_issuer_of(peer_certificate)
+
+                hint_ca_issuers: list[str] = [
+                    ep  # type: ignore
+                    for ep in list(conn_info.certificate_dict.get("caIssuers", []))  # type: ignore
+                    if ep.startswith("http://")  # type: ignore
+                ]
+
+                if issuer_certificate is None and hint_ca_issuers:
+                    try:
+                        raw_intermediary_response = await session.get(hint_ca_issuers[0])
+                    except RequestException as e:
+                        if is_cancelled_error_root_cause(e):
+                            return
+                    except asyncio.CancelledError:  # don't raise any error or warnings!
                         return
-                except asyncio.CancelledError:  # don't raise any error or warnings!
+                    else:
+                        if raw_intermediary_response.status_code and 300 > raw_intermediary_response.status_code >= 200:
+                            raw_intermediary_content = raw_intermediary_response.content
+
+                            if raw_intermediary_content is not None:
+                                # binary DER
+                                if b"-----BEGIN CERTIFICATE-----" not in raw_intermediary_content:
+                                    issuer_certificate = Certificate(raw_intermediary_content)
+                                # b64 PEM
+                                elif b"-----BEGIN CERTIFICATE-----" in raw_intermediary_content:
+                                    issuer_certificate = Certificate(
+                                        ssl.PEM_cert_to_DER_cert(raw_intermediary_content.decode())
+                                    )
+
+                # Well! We're out of luck. No further should we go.
+                if issuer_certificate is None:
+                    # aia fetching should be counted as general ocsp failure too.
+                    cache.incr_failure()
+                    if strict:
+                        warnings.warn(
+                            (
+                                f"Unable to insure that the remote peer ({r.url}) has a currently valid certificate "
+                                "via CRL. You are seeing this warning due to enabling strict mode for OCSP / "
+                                "Revocation check. Reason: Remote did not provide any intermediary certificate."
+                            ),
+                            SecurityWarning,
+                        )
                     return
-                else:
-                    if raw_intermediary_response.status_code and 300 > raw_intermediary_response.status_code >= 200:
-                        raw_intermediary_content = raw_intermediary_response.content
 
-                        if raw_intermediary_content is not None:
-                            # binary DER
-                            if b"-----BEGIN CERTIFICATE-----" not in raw_intermediary_content:
-                                issuer_certificate = Certificate(raw_intermediary_content)
-                            # b64 PEM
-                            elif b"-----BEGIN CERTIFICATE-----" in raw_intermediary_content:
-                                issuer_certificate = Certificate(ssl.PEM_cert_to_DER_cert(raw_intermediary_content.decode()))
+                conn_info.issuer_certificate_der = issuer_certificate.public_bytes()
+            else:
+                issuer_certificate = Certificate(conn_info.issuer_certificate_der)
 
-            # Well! We're out of luck. No further should we go.
-            if issuer_certificate is None:
+            try:
+                crl_http_response = await session.get(
+                    crl_distribution_point,
+                    timeout=timeout,
+                )
+            except RequestException as e:
+                if is_cancelled_error_root_cause(e):
+                    return
                 # aia fetching should be counted as general ocsp failure too.
                 cache.incr_failure()
                 if strict:
                     warnings.warn(
                         (
-                            f"Unable to insure that the remote peer ({r.url}) has a currently valid certificate "
-                            "via CRL. You are seeing this warning due to enabling strict mode for OCSP / "
-                            "Revocation check. Reason: Remote did not provide any intermediary certificate."
-                        ),
-                        SecurityWarning,
-                    )
-                return
-
-            conn_info.issuer_certificate_der = issuer_certificate.public_bytes()
-        else:
-            issuer_certificate = Certificate(conn_info.issuer_certificate_der)
-
-        try:
-            crl_http_response = await session.get(
-                crl_distribution_point,
-                timeout=timeout,
-            )
-        except RequestException as e:
-            if is_cancelled_error_root_cause(e):
-                return
-            # aia fetching should be counted as general ocsp failure too.
-            cache.incr_failure()
-            if strict:
-                warnings.warn(
-                    (
-                        f"Unable to insure that the remote peer ({r.url}) has a currently valid certificate via CRL. "
-                        "You are seeing this warning due to enabling strict mode for OCSP / Revocation check. "
-                        f"Reason: {e}"
-                    ),
-                    SecurityWarning,
-                )
-            return
-        except asyncio.CancelledError:  # don't raise any error or warnings!
-            return
-
-        if crl_http_response.status_code and 300 > crl_http_response.status_code >= 200:
-            if crl_http_response.content is None:
-                return
-
-            try:
-                crl = CertificateRevocationList(crl_http_response.content)
-            except ValueError:
-                if strict:
-                    warnings.warn(
-                        (
                             f"Unable to insure that the remote peer ({r.url}) has a currently valid certificate via CRL. "
                             "You are seeing this warning due to enabling strict mode for OCSP / Revocation check. "
-                            "Reason: The X509 CRL parser failed to read the response"
+                            f"Reason: {e}"
                         ),
                         SecurityWarning,
                     )
                 return
+            except asyncio.CancelledError:  # don't raise any error or warnings!
+                return
 
-            if verify_signature:
-                # Verify the signature of the OCSP response with issuer public key
+            if crl_http_response.status_code and 300 > crl_http_response.status_code >= 200:
+                if crl_http_response.content is None:
+                    return
+
                 try:
-                    if not crl.authenticate_for(issuer_certificate.public_bytes()):
-                        raise SSLError(
-                            f"Unable to establish a secure connection to {r.url} "
-                            "because the CRL response received has been tampered. "
-                            "You could be targeted by a MITM attack."
-                        )
+                    crl = CertificateRevocationList(crl_http_response.content)
                 except ValueError:
                     if strict:
                         warnings.warn(
                             (
                                 f"Unable to insure that the remote peer ({r.url}) has a currently valid certificate via CRL. "
                                 "You are seeing this warning due to enabling strict mode for OCSP / Revocation check. "
-                                "Reason: The X509 CRL is signed using an unsupported algorithm."
+                                "Reason: The X509 CRL parser failed to read the response"
                             ),
                             SecurityWarning,
                         )
+                    return
 
-            cache.save(peer_certificate, issuer_certificate, crl, crl_distribution_point)
+                if verify_signature:
+                    # Verify the signature of the OCSP response with issuer public key
+                    try:
+                        if not crl.authenticate_for(issuer_certificate.public_bytes()):
+                            raise SSLError(
+                                f"Unable to establish a secure connection to {r.url} "
+                                "because the CRL response received has been tampered. "
+                                "You could be targeted by a MITM attack."
+                            )
+                    except ValueError:
+                        if strict:
+                            warnings.warn(
+                                (
+                                    f"Unable to insure that the remote peer ({r.url}) has a currently valid "
+                                    "certificate via CRL. You are seeing this warning due to enabling strict "
+                                    "mode for OCSP / Revocation check. "
+                                    "Reason: The X509 CRL is signed using an unsupported algorithm."
+                                ),
+                                SecurityWarning,
+                            )
 
-            revocation_status = crl.is_revoked(peer_certificate.serial_number)
+                cache.save(peer_certificate, issuer_certificate, crl, crl_distribution_point)
 
-            if revocation_status is not None:
-                r.ocsp_verified = False
-                raise SSLError(
-                    f"Unable to establish a secure connection to {r.url} because the certificate has been revoked "
-                    f"by issuer ({readable_revocation_reason(revocation_status.reason)}). "
-                    "You should avoid trying to request anything from it as the remote has been compromised. "
-                    "See https://niquests.readthedocs.io/en/latest/user/advanced.html#ocsp-or-certificate-revocation "
-                    "for more information."
-                )
+                revocation_status = crl.is_revoked(peer_certificate.serial_number)
+
+                if revocation_status is not None:
+                    r.ocsp_verified = False
+                    raise SSLError(
+                        f"Unable to establish a secure connection to {r.url} because the certificate has been revoked "
+                        f"by issuer ({readable_revocation_reason(revocation_status.reason)}). "
+                        "You should avoid trying to request anything from it as the remote has been compromised. "
+                        "See https://niquests.readthedocs.io/en/latest/user/advanced.html#ocsp-or-certificate-revocation "
+                        "for more information."
+                    )
+                else:
+                    r.ocsp_verified = True
             else:
-                r.ocsp_verified = True
-        else:
-            if strict:
-                warnings.warn(
-                    (
-                        f"Unable to insure that the remote peer ({r.url}) has a currently valid certificate via CRL. "
-                        "You are seeing this warning due to enabling strict mode for OCSP / Revocation check. "
-                        f"CRL endpoint: {str(crl_http_response)}"
-                    ),
-                    SecurityWarning,
-                )
+                if strict:
+                    warnings.warn(
+                        (
+                            f"Unable to insure that the remote peer ({r.url}) has a currently valid certificate via CRL. "
+                            "You are seeing this warning due to enabling strict mode for OCSP / Revocation check. "
+                            f"CRL endpoint: {str(crl_http_response)}"
+                        ),
+                        SecurityWarning,
+                    )
 
 
 __all__ = ("verify",)
