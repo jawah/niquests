@@ -36,6 +36,7 @@ import wassima
 
 from .__version__ import __version__
 from .exceptions import InvalidURL, MissingSchema, UnrewindableBodyError
+from .extensions.revocation import RevocationConfiguration, RevocationStrategy
 from .packages.urllib3 import ConnectionInfo
 from .packages.urllib3.contrib.resolver import (
     BaseResolver,
@@ -1173,6 +1174,38 @@ def is_crl_capable(conn_info: ConnectionInfo | None) -> bool:
         return False
 
     return True
+
+
+def should_check_crl(conn_info: ConnectionInfo | None, revocation_configuration: RevocationConfiguration | None) -> bool:
+    if not is_crl_capable(conn_info):
+        return False
+
+    if revocation_configuration is None:
+        return False
+
+    if revocation_configuration.strategy in {RevocationStrategy.PREFER_CRL, RevocationStrategy.CHECK_ALL}:
+        return True
+
+    if not is_ocsp_capable(conn_info):
+        return True
+
+    return False
+
+
+def should_check_ocsp(conn_info: ConnectionInfo | None, revocation_configuration: RevocationConfiguration | None) -> bool:
+    if not is_ocsp_capable(conn_info):
+        return False
+
+    if revocation_configuration is None:
+        return False
+
+    if revocation_configuration.strategy in {RevocationStrategy.PREFER_OCSP, RevocationStrategy.CHECK_ALL}:
+        return True
+
+    if not is_crl_capable(conn_info):
+        return True
+
+    return False
 
 
 def wrap_extension_for_http(

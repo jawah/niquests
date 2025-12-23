@@ -26,8 +26,8 @@ class TestOnlineCertificateRevocationProtocol:
         [
             # "https://revoked.badssl.com/",
             # "https://revoked-ecc-dv.ssl.com/",
-            "https://aaacertificateservices.comodoca.com:444/",
-            # "https://revoked-rsa-ev.ssl.com/",
+            # "https://aaacertificateservices.comodoca.com:444/",
+            "https://revoked-rsa-ev.ssl.com/",
             # "https://digicert-tls-ecc-p384-root-g5-revoked.chain-demos.digicert.com/",
         ],
     )
@@ -68,8 +68,8 @@ class TestOnlineCertificateRevocationProtocol:
         [
             # "https://revoked.badssl.com/",
             # "https://revoked-ecc-dv.ssl.com/",
-            "https://aaacertificateservices.comodoca.com:444/",
-            # "https://revoked-rsa-ev.ssl.com/",
+            # "https://aaacertificateservices.comodoca.com:444/",
+            "https://revoked-rsa-ev.ssl.com/",
             # "https://digicert-tls-ecc-p384-root-g5-revoked.chain-demos.digicert.com/",
         ],
     )

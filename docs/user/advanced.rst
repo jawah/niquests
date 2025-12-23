@@ -607,6 +607,82 @@ List of tangible use-cases:
 
 .. note:: In a asynchronous HTTP request, you may pass awaitable functions in addition to the usual synchronous ones.
 
+Class-Based Hooks
+-----------------
+
+.. versionadded:: 3.16.0
+
+In addition to dictionary-based hooks, Niquests supports class-based hooks via :class:`~niquests.hooks.LifeCycleHook` and :class:`~niquests.hooks.AsyncLifeCycleHook`. This approach allows for stateful middleware, better organization of logic, and easy composition of multiple hooks.
+
+.. note:: They behave like the regular hooks you are accustomed to, and in addition to that, they can have a persistent (shared) state and easier proper typing annotation.
+
+.. autoclass:: niquests.hooks.LifeCycleHook
+    :members: pre_request, pre_send, on_upload, early_response, response
+
+.. autoclass:: niquests.hooks.AsyncLifeCycleHook
+    :members: pre_request, pre_send, on_upload, early_response, response
+
+Single Middleware
+~~~~~~~~~~~~~~~~~
+
+You can define a custom middleware by subclassing ``AsyncLifeCycleHook`` (or ``LifeCycleHook`` for synchronous contexts) and overriding the specific event methods you need.
+
+.. code-block:: python
+
+    import asyncio
+    from niquests import AsyncSession, AsyncLifeCycleHook
+
+    class ConnectionLogger(AsyncLifeCycleHook):
+        async def pre_send(self, prepared_request, **kwargs) -> None:
+            # Inspect the connection info before the request is sent
+            print(f"Connected to: {prepared_request.conn_info}")
+
+    async def main():
+        async with AsyncSession() as s:
+            # Pass an instance of your hook class
+            await s.get("https://one.one.one.one", hooks=ConnectionLogger())
+
+    if __name__ == "__main__":
+        asyncio.run(main())
+
+Combining Middleware
+~~~~~~~~~~~~~~~~~~~~
+
+Middleware classes can be combined using the ``+`` operator. This allows you to chain multiple hooks together, mixing synchronous and asynchronous logic. They are executed in the order they are added.
+
+.. code-block:: python
+
+    import asyncio
+    import typing
+    from niquests import AsyncSession, AsyncLifeCycleHook, LifeCycleHook, Response
+
+    class RequestTracer(AsyncLifeCycleHook):
+        async def pre_send(self, prepared_request, **kwargs) -> None:
+            print(f"[Trace] Sending request to {prepared_request.url}")
+
+    class ResponseModifier(AsyncLifeCycleHook):
+        async def response(self, response: Response, **kwargs: typing.Any) -> Response | None:
+            print(f"[Mod] Received response with status {response.status_code}")
+            return response
+
+    class SyncAuditLog(LifeCycleHook):
+        def pre_send(self, prepared_request, **kwargs) -> None:
+            print("[Audit] Sync check triggered", prepared_request.conn_info)
+
+    async def main():
+        # Combine: Tracer -> Modifier -> Audit
+        # The hooks will be executed in this sequence for every event they implement.
+        middleware_chain = RequestTracer() + ResponseModifier() + SyncAuditLog()
+
+        async with AsyncSession() as s:
+            await s.get("https://one.one.one.one", hooks=middleware_chain)
+
+    if __name__ == "__main__":
+        asyncio.run(main())
+
+
+.. danger:: In synchronous multi-threaded mode, using ``LifeCycleHook`` must be safe to use, you are responsible to ensure safety via proper locking if you intend to share properties/states between threads.
+
 Track upload progress
 ---------------------
 
@@ -1605,3 +1681,81 @@ To catch response like those::
 Isn't it easy and pleasant to write ?
 
 .. warning:: Some servers choose to enable it in HTTP/2, and HTTP/3 but not in HTTP/1.1 for security concerns. But rest assured that Niquests support this no matter the protocol.
+
+Revocation Configuration
+------------------------
+
+.. versionadded:: 3.16.0
+
+When Niquests acquire a new HTTPS connection, it defend you against revoked TLS certificate the best it can.
+Sometimes, the default behavior does not suit your environment. (e.g. corporate environment with very particular restrictions)
+
+You can alter the configuration by passing an extra parameter to your ``Session`` or ``AsyncSession`` constructor.
+
+.. code-block:: python
+
+    import asyncio
+
+    from niquests import RevocationConfiguration, RevocationStrategy, AsyncSession
+
+    async def main():
+
+        async with AsyncSession(
+            revocation_configuration=RevocationConfiguration(
+                strategy=RevocationStrategy.PREFER_CRL,
+                strict_mode=True,
+            )
+        ) as s:
+            r0 = await s.get("https://one.one.one.one")
+            print(r0)
+
+    if __name__ == "__main__":
+        asyncio.run(main())
+
+.. warning:::: Passing ``revocation_configuration=None`` simply disable altogether the revocation checks if you want to. But that is extremely unwise.
+
+You have three revocation strategies:
+
+- RevocationStrategy.PREFER_OCSP
+- RevocationStrategy.PREFER_CRL
+- RevocationStrategy.CHECK_ALL
+
+.. note:: As hinted/prefixed, ``PREFER_`` means to attempt A first, then if not available fallback to B. It does not disable B.
+
+.. warning:: CHECK_ALL can induce an important slowdown upon new connection acquire. That security measure is excessive and should not be used unless your security environment mandate you to.
+
+By default, Niquests uses ``PREFER_OCSP``, but we may change that in a future version.
+
+
+Inspecting Pooling State or Connections
+---------------------------------------
+
+.. versionadded:: 3.16.0
+
+In tough situation, you may want to be able to see what's really inside of ``Session`` or ``AsyncSession``
+to answer the typical questions:
+
+- How many connection do I have open?
+- Did I connect to xyz.tld?
+- I am 100% over HTTPS?
+
+You can simply do a ``repr(my_session)`` to get those answers!
+
+.. code-block:: python
+
+    import asyncio
+
+    from niquests import AsyncSession
+
+    async def main():
+
+        async with AsyncSession(
+        ) as s:
+            r0 = await s.get("https://one.one.one.one")
+            print(s) # <AsyncSession {'https://': <AsyncHTTPAdapter <AsyncPoolManager <AsyncHTTPSConnection one.one.one.one:443 <AsyncTrafficPolice 1/10 (Idle)>> <AsyncTrafficPolice 1/10 (Idle)>>>, 'http://': <AsyncHTTPAdapter <AsyncPoolManager <AsyncTrafficPolice 0/10 (Idle)>>>}>
+
+    if __name__ == "__main__":
+        asyncio.run(main())
+
+
+.. warning:: Do not abuse that joker, it's looking deep inside your pool state and may hurt performance badly.

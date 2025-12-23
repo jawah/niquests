@@ -46,12 +46,14 @@ import warnings
 from logging import NullHandler
 
 from ._compat import HAS_LEGACY_URLLIB3
+from .extensions.revocation import RevocationConfiguration, RevocationStrategy
 from .packages.urllib3 import (
     Retry as RetryConfiguration,
 )
 from .packages.urllib3 import (
     Timeout as TimeoutConfiguration,
 )
+from .packages.urllib3.contrib.webextensions.sse import ServerSentEvent
 from .packages.urllib3.exceptions import DependencyWarning
 
 # urllib3's DependencyWarnings should be silenced.
@@ -110,6 +112,7 @@ from .exceptions import (
     TooManyRedirects,
     URLRequired,
 )
+from .hooks import AsyncLifeCycleHook, LifeCycleHook
 from .models import AsyncResponse, PreparedRequest, Request, Response
 from .sessions import Session
 from .status_codes import codes
@@ -165,4 +168,9 @@ __all__ = (
     "TimeoutConfiguration",
     "RetryConfiguration",
     "HAS_LEGACY_URLLIB3",
+    "AsyncLifeCycleHook",
+    "LifeCycleHook",
+    "RevocationConfiguration",
+    "RevocationStrategy",
+    "ServerSentEvent",
 )

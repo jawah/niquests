@@ -1,6 +1,20 @@
 Release History
 ===============
 
+3.16.0 (2025-12-23)
+-------------------
+
+**Added**
+- Custom strategies for TLS revocation check per `Session` or `AsyncSession` via the new `revocation_configuration` parameter
+  that takes a `RevocationConfiguration` object.
+- Hook can now be created via a custom class. You may now inherit from `niquests.LifecycleHook` or `niquests.AsyncLifecycleHook` depending on your use case.
+  This should considerably ease the scenario where you need to create complex hooks.
+- Session underlying pooling state inspecting through `repr(my_session)` for debugging purposes.
+- Exposed `ServerSentEvent` in top level package imports to ease SSE related developments.
+
+**Fixed**
+- In high concurrency scenarii the revocation check may run for multiple newly acquired connection causing a performance slowdown at warmup.
+
 3.15.2 (2025-08-16)
 -------------------
 
