@@ -89,6 +89,8 @@ and Niquests supports this out of the box as well::
     <Response HTTP/2 [200]>
 
 
+.. warning:: In asyncio, you MUST use ``AsyncHTTPDigestAuth`` instead.
+
 OAuth 1 Authentication
 ----------------------
 
