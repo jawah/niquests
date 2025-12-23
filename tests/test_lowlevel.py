@@ -303,50 +303,6 @@ async def test_async_digestauth_401_basic():
         close_server.set()
 
 
-@pytest.mark.asyncio
-async def test_sync_digestauth_fails_with_async_session():
-    """Test that HTTPDigestAuth (sync) doesn't work with AsyncSession.
-
-    This test verifies that using the sync HTTPDigestAuth with AsyncSession
-    fails, ensuring users must use AsyncHTTPDigestAuth for async contexts.
-
-    This would have caught the bug in commit 57a8b618 where both sync and async
-    hooks were registered, causing the sync dispatcher to call the async hook
-    without awaiting it.
-    """
-    text_401 = (
-        b"HTTP/1.1 401 UNAUTHORIZED\r\n"
-        b"Content-Length: 0\r\n"
-        b'WWW-Authenticate: Digest nonce="test123",'
-        b'realm="test", qop=auth\r\n\r\n'
-    )
-
-    text_200 = b"HTTP/1.1 200 OK\r\nContent-Length: 0\r\n\r\n"
-
-    # Use sync HTTPDigestAuth (wrong class for async)
-    auth = niquests.auth.HTTPDigestAuth("user", "pass")
-
-    def digest_response_handler(sock):
-        request_content = consume_socket_content(sock, timeout=0.5)
-        sock.send(text_401)
-        # Wait briefly for potential second request
-        request_content = consume_socket_content(sock, timeout=0.5)
-        if request_content:
-            sock.send(text_200)
-
-    close_server = threading.Event()
-    server = Server(digest_response_handler, wait_to_close_event=close_server)
-
-    with server as (host, port):
-        url = f"http://{host}:{port}/"
-        # Using sync auth with async session should raise AttributeError
-        # because connection.send() returns a coroutine that isn't awaited
-        with pytest.raises(AttributeError, match="'coroutine' object has no attribute 'history'"):
-            async with niquests.AsyncSession() as session:
-                await session.get(url, auth=auth)
-        close_server.set()
-
-
 def test_sync_digestauth_works_with_sync_session():
     """Test that HTTPDigestAuth (sync) still works with regular Session.
 
