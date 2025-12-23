@@ -12,6 +12,7 @@ Release History
 - Session underlying pooling state inspecting through `repr(my_session)` for debugging purposes.
 - Exposed `ServerSentEvent` in top level package imports to ease SSE related developments.
 - `AsyncHTTPDigestAuth` counterpart of `HTTPDigestAuth` for async usage.
+- Shortcut to pass default headers via `Session` or `AsyncSession` construction.
 
 **Fixed**
 - In high concurrency scenarii the revocation check may run for multiple newly acquired connection causing a performance slowdown at warmup.
