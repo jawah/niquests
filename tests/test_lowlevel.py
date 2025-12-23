@@ -363,9 +363,7 @@ def test_sync_digestauth_works_with_sync_session():
 
     text_200 = b"HTTP/1.1 200 OK\r\nContent-Length: 0\r\n\r\n"
 
-    expected_digest = (
-        b'Authorization: Digest username="user", realm="me@kennethreitz.com"'
-    )
+    expected_digest = b'Authorization: Digest username="user", realm="me@kennethreitz.com"'
 
     auth = niquests.auth.HTTPDigestAuth("user", "pass")
 
