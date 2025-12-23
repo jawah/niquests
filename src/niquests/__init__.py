@@ -52,6 +52,7 @@ from .packages.urllib3 import (
 from .packages.urllib3 import (
     Timeout as TimeoutConfiguration,
 )
+from .packages.urllib3.contrib.webextensions.sse import ServerSentEvent
 from .packages.urllib3.exceptions import DependencyWarning
 
 # urllib3's DependencyWarnings should be silenced.
@@ -168,4 +169,5 @@ __all__ = (
     "HAS_LEGACY_URLLIB3",
     "AsyncLifeCycleHook",
     "LifeCycleHook",
+    "ServerSentEvent",
 )
