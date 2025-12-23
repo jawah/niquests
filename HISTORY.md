@@ -1,6 +1,12 @@
 Release History
 ===============
 
+3.16.1 (2025-12-23)
+-------------------
+
+**Fixed**
+- Accidental deadlock on a specific case within the revocation checks in sync mode (threads).
+
 3.16.0 (2025-12-23)
 -------------------
 
