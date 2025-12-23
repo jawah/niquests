@@ -437,6 +437,9 @@ class Session:
             ),
         )
 
+    def __repr__(self) -> str:
+        return f"<Session {repr(self.adapters).replace('OrderedDict(', '')[:-1]}>"
+
     def __enter__(self) -> Session:
         return self
 

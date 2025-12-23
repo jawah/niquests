@@ -292,6 +292,9 @@ class AsyncSession(Session):
             ),
         )
 
+    def __repr__(self) -> str:
+        return f"<AsyncSession {repr(self.adapters).replace('OrderedDict(', '')[:-1]}>"
+
     def __enter__(self) -> typing.NoReturn:
         raise SyntaxError('You probably meant "async with". Did you forget to prepend the "async" keyword?')
 
