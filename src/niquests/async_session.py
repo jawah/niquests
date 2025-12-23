@@ -69,7 +69,7 @@ from .packages.urllib3 import ConnectionInfo
 from .packages.urllib3.contrib.resolver._async import AsyncBaseResolver
 from .packages.urllib3.contrib.webextensions._async import load_extension
 from .sessions import Session
-from .structures import AsyncQuicSharedCache
+from .structures import AsyncQuicSharedCache, CaseInsensitiveDict
 from .utils import (
     _deepcopy_ci,
     _swap_context,
@@ -129,6 +129,7 @@ class AsyncSession(Session):
         keepalive_idle_window: float | int | None = 60.0,
         base_url: str | None = None,
         timeout: TimeoutType | None = None,
+        headers: HeadersType | None = None,
         revocation_configuration: RevocationConfiguration | None = DEFAULT_STRATEGY,
     ):
         if [disable_ipv4, disable_ipv6].count(True) == 2:
@@ -148,7 +149,7 @@ class AsyncSession(Session):
         #: A case-insensitive dictionary of headers to be sent on each
         #: :class:`Request <Request>` sent from this
         #: :class:`Session <Session>`.
-        self.headers = default_headers()
+        self.headers = CaseInsensitiveDict(headers) if headers is not None else default_headers()
 
         #: Default Authentication tuple or object to attach to
         #: :class:`Request <Request>`.
