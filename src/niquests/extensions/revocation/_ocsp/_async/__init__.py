@@ -212,6 +212,39 @@ async def verify(
 
     peer_certificate = _parse_x509_der_cached(conn_info.certificate_der)
 
+    cached_response = cache.check(peer_certificate)
+
+    if cached_response is not None:
+        issuer_certificate = cache.get_issuer_of(peer_certificate)
+
+        if issuer_certificate:
+            conn_info.issuer_certificate_der = issuer_certificate.public_bytes()
+
+        if cached_response.response_status == OCSPResponseStatus.SUCCESSFUL:
+            if cached_response.certificate_status == OCSPCertStatus.REVOKED:
+                r.ocsp_verified = False
+                raise SSLError(
+                    (
+                        f"Unable to establish a secure connection to {r.url} because the certificate has been revoked "
+                        f"by issuer ({readable_revocation_reason(cached_response.revocation_reason) or 'unspecified'}). "
+                        "You should avoid trying to request anything from it as the remote has been compromised. ",
+                        "See https://niquests.readthedocs.io/en/latest/user/advanced.html#ocsp-or-certificate-revocation "
+                        "for more information.",
+                    )
+                )
+            elif cached_response.certificate_status == OCSPCertStatus.UNKNOWN:
+                r.ocsp_verified = False
+                if strict is True:
+                    raise SSLError(
+                        f"Unable to establish a secure connection to {r.url} because the issuer does not know "
+                        "whether certificate is valid or not. This error occurred because you enabled strict mode "
+                        "for the OCSP / Revocation check."
+                    )
+            else:
+                r.ocsp_verified = True
+
+        return
+
     async with cache.lock(peer_certificate):
         # this feature, by default, is reserved for a reasonable usage.
         if not strict:
@@ -235,6 +268,10 @@ async def verify(
         ignore_signature_without_strict = ipaddress.ip_address(conn_info.destination_address[0]).is_private or bool(proxies)
         verify_signature = strict is True or ignore_signature_without_strict is False
 
+        # why are we doing this twice?
+        # because using Semaphore to prevent concurrent
+        # revocation check have a heavy toll!
+        # todo: respect DRY
         cached_response = cache.check(peer_certificate)
 
         if cached_response is not None:

@@ -190,11 +190,39 @@ async def verify(
 
     peer_certificate: Certificate = _parse_x509_der_cached(conn_info.certificate_der)
 
-    async with cache.lock(peer_certificate):
-        crl_distribution_point: str = (
-            cache.get_previous_crl_endpoint(peer_certificate) or endpoints[randint(0, len(endpoints) - 1)]
-        )
+    crl_distribution_point: str = cache.get_previous_crl_endpoint(peer_certificate) or endpoints[randint(0, len(endpoints) - 1)]
 
+    cached_revocation_list = cache.check(crl_distribution_point)
+
+    if cached_revocation_list is not None:
+        issuer_certificate = cache.get_issuer_of(peer_certificate)
+
+        if issuer_certificate is not None:
+            conn_info.issuer_certificate_der = issuer_certificate.public_bytes()
+
+        revocation_status = cached_revocation_list.is_revoked(peer_certificate.serial_number)
+
+        if revocation_status is not None:
+            r.ocsp_verified = False
+            raise SSLError(
+                (
+                    f"Unable to establish a secure connection to {r.url} because the certificate has been revoked "
+                    f"by issuer ({readable_revocation_reason(revocation_status.reason)}). "
+                    "You should avoid trying to request anything from it as the remote has been compromised. ",
+                    "See https://niquests.readthedocs.io/en/latest/user/advanced.html#ocsp-or-certificate-revocation "
+                    "for more information.",
+                )
+            )
+        else:
+            r.ocsp_verified = True
+
+        return
+
+    async with cache.lock(peer_certificate):
+        # why are we doing this twice?
+        # because using Semaphore to prevent concurrent
+        # revocation check have a heavy toll!
+        # todo: respect DRY
         cached_revocation_list = cache.check(crl_distribution_point)
 
         if cached_revocation_list is not None:
