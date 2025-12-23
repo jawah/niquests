@@ -1725,3 +1725,37 @@ You have three revocation strategies:
 .. warning:: CHECK_ALL can induce an important slowdown upon new connection acquire. That security measure is excessive and should not be used unless your security environment mandate you to.
 
 By default, Niquests uses ``PREFER_OCSP``, but we may change that in a future version.
+
+
+Inspecting Pooling State or Connections
+---------------------------------------
+
+.. versionadded:: 3.16.0
+
+In tough situation, you may want to be able to see what's really inside of ``Session`` or ``AsyncSession``
+to answer the typical questions:
+
+- How many connection do I have open?
+- Did I connect to xyz.tld?
+- I am 100% over HTTPS?
+
+You can simply do a ``repr(my_session)`` to get those answers!
+
+.. code-block:: python
+
+    import asyncio
+
+    from niquests import AsyncSession
+
+    async def main():
+
+        async with AsyncSession(
+        ) as s:
+            r0 = await s.get("https://one.one.one.one")
+            print(s) # <AsyncSession {'https://': <AsyncHTTPAdapter <AsyncPoolManager <AsyncHTTPSConnection one.one.one.one:443 <AsyncTrafficPolice 1/10 (Idle)>> <AsyncTrafficPolice 1/10 (Idle)>>>, 'http://': <AsyncHTTPAdapter <AsyncPoolManager <AsyncTrafficPolice 0/10 (Idle)>>>}>
+
+    if __name__ == "__main__":
+        asyncio.run(main())
+
+
+.. warning:: Do not abuse that joker, it's looking deep inside your pool state and may hurt performance badly.
