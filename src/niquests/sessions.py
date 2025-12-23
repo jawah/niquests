@@ -248,6 +248,7 @@ class Session:
         keepalive_idle_window: float | int | None = 60.0,
         base_url: str | None = None,
         timeout: TimeoutType | None = None,
+        headers: HeadersType | None = None,
         revocation_configuration: RevocationConfiguration | None = DEFAULT_STRATEGY,
     ):
         """
@@ -273,6 +274,7 @@ class Session:
             being completely idle. This only applies to HTTP/2 onward.
         :param base_url: Automatically set a URL prefix (or base url) on every request emitted if applicable.
         :param timeout: Default timeout configuration to be used if no timeout is provided in exposed methods.
+        :param headers: Default headers to be used on every request emitted.
         :param revocation_configuration: How should that session do the certificate revocation check. Set it as None to disable
             this additional security measure.
         """
@@ -293,7 +295,7 @@ class Session:
         #: A case-insensitive dictionary of headers to be sent on each
         #: :class:`Request <Request>` sent from this
         #: :class:`Session <Session>`.
-        self.headers = default_headers()
+        self.headers = CaseInsensitiveDict(headers) if headers is not None else default_headers()
 
         #: Default Authentication tuple or object to attach to
         #: :class:`Request <Request>`.
