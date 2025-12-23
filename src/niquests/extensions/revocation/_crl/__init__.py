@@ -35,15 +35,15 @@ class InMemoryRevocationList:
 
     @contextlib.contextmanager
     def lock_for(self, peer_certificate: Certificate) -> typing.Generator[None]:
-        with self._access_lock:
-            fingerprint: str = _str_fingerprint_of(peer_certificate)
+        fingerprint: str = _str_fingerprint_of(peer_certificate)
 
+        with self._access_lock:
             if fingerprint not in self._second_level_locks:
                 self._second_level_locks[fingerprint] = threading.RLock()
 
             lock = self._second_level_locks[fingerprint]
 
-            lock.acquire()
+        lock.acquire()
 
         try:
             yield
