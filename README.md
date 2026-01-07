@@ -2,13 +2,25 @@
     <img src="https://user-images.githubusercontent.com/9326700/282852138-160f32e9-e6cf-495f-b39d-99891602acf9.png" alt="Niquests Logo"/>
 </div>
 
-**Niquests** is a simple, yet elegant, HTTP library. It is a drop-in replacement for **Requests**, which is under feature freeze.
+**Niquests** is a simple, yet elegant, HTTP library. It is a drop-in replacement for **Requests**, which is under feature freeze. ✨ **Were you used to betamax, requests-mock, responses, ...?** [See how they still work! We got you covered.](https://niquests.readthedocs.io/en/latest/community/extensions.html)
 
 Niquests, is the “**Safest**, **Fastest[^10]**, **Easiest**, and **Most advanced**” Python HTTP Client. Production Ready!
 
-✔️ **Try before you switch:** [See Multiplexed in Action](https://replit.com/@ahmedtahri4/Python#main.py)<br>
-📖 **See why you should switch:** [Read about 10 reasons why](https://medium.com/@ahmed.tahri/10-reasons-you-should-quit-your-http-client-98fd4c94bef3), and ["_Revived the promise made six years ago for Requests 3_"](https://medium.com/@ahmed.tahri/revived-the-promise-made-six-years-ago-for-requests-3-37b440e6a064)<br>
-✨ **You were used to betamax, requests-mock, responses, ...?** [See how they still work! We got you covered.](https://niquests.readthedocs.io/en/latest/community/extensions.html)
+<div align="center">
+    <table>
+        <tr>
+            <td valign="middle">
+                <h3>Live Benchmark</h3>
+                <b>Target:</b> <code>https://httpbingo.org/get</code><br/>
+                <b>Conditions:</b> <i>All default parameters, one shared session, everything simultaneously.</i><br/>
+                <b>HTTP/2</b> when supported.
+            </td>
+            <td>
+                <img src="https://i.postimg.cc/CLxGykJL/niquests.gif" width="500" alt="Niquests Benchmark"/>
+            </td>
+        </tr>
+    </table>
+</div>
 
 <details>
   <summary>👆 <b>Look at the feature table comparison</b> against <i>requests, httpx and aiohttp</i>!</summary>
