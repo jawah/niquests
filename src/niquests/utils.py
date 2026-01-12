@@ -33,6 +33,7 @@ from urllib.request import (  # type: ignore[attr-defined]  # type: ignore[attr-
 from urllib.request import parse_http_list as _parse_list_header
 
 import wassima
+from charset_normalizer import from_bytes
 
 from .__version__ import __version__
 from .exceptions import InvalidURL, MissingSchema, UnrewindableBodyError
@@ -1403,3 +1404,24 @@ def is_cancelled_error_root_cause(exc: BaseException) -> bool:
         seen.add(cur)
         cur = cur.__cause__ or cur.__context__
     return False
+
+
+def guess_json_utf(data: bytes) -> str:
+    encoding_guess = from_bytes(
+        data,
+        cp_isolation=[
+            "ascii",
+            "utf-8",
+            "utf-16",
+            "utf-32",
+            "utf-16-le",
+            "utf-16-be",
+            "utf-32-le",
+            "utf-32-be",
+        ],
+    ).best()
+
+    if encoding_guess is not None:
+        return encoding_guess.encoding
+
+    return "utf-8"
