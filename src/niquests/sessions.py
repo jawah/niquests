@@ -44,6 +44,7 @@ from ._typing import (
     TimeoutType,
     TLSClientCertType,
     TLSVerifyType,
+    WSGIApp,
 )
 from .adapters import BaseAdapter, HTTPAdapter
 from .auth import _basic_auth_str
@@ -61,6 +62,7 @@ from .exceptions import (
     TooManyRedirects,
 )
 from .extensions.revocation import DEFAULT_STRATEGY, RevocationConfiguration
+from .extensions.sgi import WebServerGatewayInterface
 from .extensions.unixsocket import UnixAdapter
 from .hooks import HOOKS, default_hooks, dispatch_hook
 
@@ -251,6 +253,7 @@ class Session:
         timeout: TimeoutType | None = None,
         headers: HeadersType | None = None,
         revocation_configuration: RevocationConfiguration | None = DEFAULT_STRATEGY,
+        app: WSGIApp | None = None,
     ):
         """
         :param resolver: Specify a DNS resolver that should be used within this Session.
@@ -440,7 +443,7 @@ class Session:
             ),
         )
         self.mount(
-            "unix+http",
+            "unix+http://",
             UnixAdapter(
                 max_retries=retries,
                 resolver=resolver,
@@ -458,6 +461,15 @@ class Session:
                 revocation_configuration=revocation_configuration,
             ),
         )
+        if app is not None:
+            self.mount(
+                "wsgi://default",
+                WebServerGatewayInterface(
+                    app=app,
+                ),
+            )
+            if self.base_url is None:
+                self.base_url = "wsgi://default"
 
     def __repr__(self) -> str:
         return f"<Session {repr(self.adapters).replace('OrderedDict(', '')[:-1]}>"

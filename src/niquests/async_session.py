@@ -23,6 +23,7 @@ from ._constant import (
     WRITE_DEFAULT_TIMEOUT,
 )
 from ._typing import (
+    ASGIApp,
     AsyncBodyType,
     AsyncHookType,
     AsyncHttpAuthenticationType,
@@ -56,6 +57,7 @@ from .exceptions import (
     TooManyRedirects,
 )
 from .extensions.revocation import DEFAULT_STRATEGY, RevocationConfiguration
+from .extensions.sgi._async import AsyncServerGatewayInterface
 from .extensions.unixsocket._async import AsyncUnixAdapter
 from .hooks import async_dispatch_hook, default_hooks
 from .models import (
@@ -132,6 +134,7 @@ class AsyncSession(Session):
         timeout: TimeoutType | None = None,
         headers: HeadersType | None = None,
         revocation_configuration: RevocationConfiguration | None = DEFAULT_STRATEGY,
+        app: ASGIApp | None = None,
     ):
         if [disable_ipv4, disable_ipv6].count(True) == 2:
             raise RuntimeError("Cannot disable both IPv4 and IPv6")
@@ -312,6 +315,15 @@ class AsyncSession(Session):
                 revocation_configuration=revocation_configuration,
             ),
         )
+        if app is not None:
+            self.mount(
+                "asgi://default",
+                AsyncServerGatewayInterface(
+                    app=app,
+                ),
+            )
+            if self.base_url is None:
+                self.base_url = "asgi://default"
 
     def __repr__(self) -> str:
         return f"<AsyncSession {repr(self.adapters).replace('OrderedDict(', '')[:-1]}>"

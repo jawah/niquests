@@ -1791,6 +1791,105 @@ Unix sockets support multiple concurrent connections, just like TCP sockets:
 
 .. note:: You can also leverage a thread pool executor in a sync context as you always did with http.
 
+WSGI/ASGI Application Testing
+-----------------------------
+
+.. versionadded:: 3.17.0
+
+Niquests provides built-in adapters for testing WSGI and ASGI applications directly without starting a server. This is particularly useful for integration testing.
+
+ASGI Applications (Async)
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Test your FastAPI, Starlette, or other ASGI applications directly:
+
+.. code:: python
+
+    from fastapi import FastAPI, Request
+
+    app = FastAPI()
+
+    @app.get("/hello")
+    async def hello(request: Request):
+        return {"message": "hello from asgi"}
+
+    @app.api_route("/echo", methods=["GET", "POST"])
+    async def echo(request: Request):
+        body = await request.body()
+        return {"body": body.decode()}
+
+**Basic usage:**
+
+.. code:: python
+
+    import asyncio
+    from niquests import AsyncSession
+
+    async def main():
+        async with AsyncSession(app=app) as s:
+            resp = await s.get("/hello?foo=bar")
+            print(resp.status_code)  # 200
+            print(resp.json())  # {"message": "hello from asgi"}
+
+    asyncio.run(main())
+
+**Streaming responses:**
+
+.. code:: python
+
+    async def main():
+        async with AsyncSession(app=app) as s:
+            resp = await s.post("/echo", data=b"foobar", stream=True)
+
+            body = b""
+            async for chunk in await resp.iter_content(6):
+                body += chunk
+
+            print(body)
+
+    asyncio.run(main())
+
+WSGI Applications (Sync)
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+Test your Flask, Django, or other WSGI applications:
+
+.. code:: python
+
+    from flask import Flask, request, jsonify
+
+    app = Flask(__name__)
+
+    @app.route("/hello")
+    def hello():
+        return jsonify({"message": "hello from wsgi"})
+
+    @app.route("/echo", methods=["GET", "POST"])
+    def echo():
+        return jsonify({"body": request.get_data(as_text=True)})
+
+**Basic usage:**
+
+.. code:: python
+
+    from niquests import Session
+
+    with Session(app=app) as s:
+        resp = s.get("/hello?foo=bar")
+        print(resp.status_code)  # 200
+        print(resp.json())  # {"message": "hello from wsgi"}
+
+**Streaming responses:**
+
+.. code:: python
+
+    with Session(app=app) as s:
+        resp = s.post("/echo", data=b"foobar", stream=True)
+        print(resp.json())
+
+        for chunk in resp.iter_content(6):
+            ...
+
 -----------------------
 
 Ready for more? Check out the :ref:`advanced <advanced>` section.
