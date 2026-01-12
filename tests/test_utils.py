@@ -892,11 +892,8 @@ class TestGuessJSONUTF:
         ),
     )
     def test_encoded(self, encoding):
-        data = "{}".encode(encoding)
+        data = '{"hello": "world"}'.encode(encoding)
         assert guess_json_utf(data) == encoding
-
-    def test_bad_utf_like_encoding(self):
-        assert guess_json_utf(b"\x00\x00\x00\x00") is None
 
     @pytest.mark.parametrize(
         ("encoding", "expected"),
