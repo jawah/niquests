@@ -112,7 +112,13 @@ from .exceptions import (
     TooManyRedirects,
     URLRequired,
 )
-from .hooks import AsyncLifeCycleHook, LifeCycleHook
+from .hooks import (
+    AsyncLifeCycleHook,
+    LeakyBucketLimiter,
+    LifeCycleHook,
+    RateLimitCallback,
+    TokenBucketLimiter,
+)
 from .models import AsyncResponse, PreparedRequest, Request, Response
 from .sessions import Session
 from .status_codes import codes
@@ -170,6 +176,9 @@ __all__ = (
     "HAS_LEGACY_URLLIB3",
     "AsyncLifeCycleHook",
     "LifeCycleHook",
+    "LeakyBucketLimiter",
+    "TokenBucketLimiter",
+    "RateLimitCallback",
     "RevocationConfiguration",
     "RevocationStrategy",
     "ServerSentEvent",

@@ -249,6 +249,7 @@ class Session:
         base_url: str | None = None,
         timeout: TimeoutType | None = None,
         headers: HeadersType | None = None,
+        hooks: HookType[PreparedRequest | Response] | None = None,
         revocation_configuration: RevocationConfiguration | None = DEFAULT_STRATEGY,
     ):
         """
@@ -275,6 +276,8 @@ class Session:
         :param base_url: Automatically set a URL prefix (or base url) on every request emitted if applicable.
         :param timeout: Default timeout configuration to be used if no timeout is provided in exposed methods.
         :param headers: Default headers to be used on every request emitted.
+        :param hooks: Default hooks to be used on every request emitted. Can be a dictionary mapping hook names to
+            lists of callables, or a LifeCycleHook instance.
         :param revocation_configuration: How should that session do the certificate revocation check. Set it as None to disable
             this additional security measure.
         """
@@ -307,7 +310,9 @@ class Session:
         self.proxies: ProxyType = {}
 
         #: Event-handling hooks.
-        self.hooks: HookType[PreparedRequest | Response] = default_hooks()
+        self.hooks: HookType[PreparedRequest | Response] = (
+            merge_hooks(default_hooks(), hooks) if hooks is not None else default_hooks()
+        )
 
         #: Dictionary of querystring data to attach to each
         #: :class:`Request <Request>`. The dictionary values may be lists for

@@ -68,7 +68,7 @@ from .models import (
 from .packages.urllib3 import ConnectionInfo
 from .packages.urllib3.contrib.resolver._async import AsyncBaseResolver
 from .packages.urllib3.contrib.webextensions._async import load_extension
-from .sessions import Session
+from .sessions import Session, merge_hooks
 from .structures import AsyncQuicSharedCache, CaseInsensitiveDict
 from .utils import (
     _deepcopy_ci,
@@ -130,6 +130,7 @@ class AsyncSession(Session):
         base_url: str | None = None,
         timeout: TimeoutType | None = None,
         headers: HeadersType | None = None,
+        hooks: AsyncHookType[PreparedRequest | Response | AsyncResponse] | None = None,
         revocation_configuration: RevocationConfiguration | None = DEFAULT_STRATEGY,
     ):
         if [disable_ipv4, disable_ipv6].count(True) == 2:
@@ -161,7 +162,9 @@ class AsyncSession(Session):
         self.proxies: ProxyType = {}
 
         #: Event-handling hooks.
-        self.hooks: AsyncHookType[PreparedRequest | Response | AsyncResponse] = default_hooks()  # type: ignore[assignment]
+        self.hooks: AsyncHookType[PreparedRequest | Response | AsyncResponse] = (  # type: ignore[assignment]
+            merge_hooks(default_hooks(), hooks) if hooks is not None else default_hooks()
+        )
 
         #: Dictionary of querystring data to attach to each
         #: :class:`Request <Request>`. The dictionary values may be lists for
