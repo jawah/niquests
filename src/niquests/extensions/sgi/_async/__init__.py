@@ -7,6 +7,7 @@ import typing
 from ....adapters import AsyncBaseAdapter
 from ....exceptions import ConnectTimeout, ReadTimeout
 from ....models import AsyncResponse, PreparedRequest, Response
+from ....packages.urllib3.contrib.ssa._timeout import timeout as asyncio_timeout
 from ....packages.urllib3.response import BytesQueueBuffer
 from ....structures import CaseInsensitiveDict
 from ....utils import _swap_context
@@ -57,7 +58,7 @@ class _ASGIRawIO:
 
     async def _get_next_chunk(self) -> bytes | None:
         try:
-            async with asyncio.timeout(self._timeout):
+            async with asyncio_timeout(self._timeout):
                 message = await self._response_queue.get()
             if message is None:
                 return None
@@ -73,7 +74,7 @@ class _ASGIRawIO:
     async def _async_iter_chunks(self) -> typing.AsyncGenerator[bytes]:
         while True:
             try:
-                async with asyncio.timeout(self._timeout):
+                async with asyncio_timeout(self._timeout):
                     message = await self._response_queue.get()
             except asyncio.TimeoutError:
                 await self._cancel_task()
@@ -199,7 +200,7 @@ class AsyncServerGatewayInterface(AsyncBaseAdapter):
 
         try:
             # Wait for http.response.start with timeout
-            async with asyncio.timeout(timeout):
+            async with asyncio_timeout(timeout):
                 while True:
                     message = await response_queue.get()
                     if message is None:
@@ -256,7 +257,7 @@ class AsyncServerGatewayInterface(AsyncBaseAdapter):
         task = asyncio.create_task(run_app())  # type: ignore[var-annotated,arg-type]
 
         try:
-            async with asyncio.timeout(timeout):
+            async with asyncio_timeout(timeout):
                 while True:
                     message = await response_queue.get()
                     if message is None:
