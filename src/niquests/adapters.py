@@ -870,7 +870,7 @@ class HTTPAdapter(BaseAdapter):
         scheme = parse_scheme(request.url)
         extension = None
 
-        if scheme is not None and scheme not in ("http", "https"):
+        if scheme is not None and scheme not in ("http", "https", "unix+http"):
             if "+" in scheme:
                 scheme, implementation = tuple(scheme.split("+", maxsplit=1))
             else:
@@ -1950,7 +1950,7 @@ class AsyncHTTPAdapter(AsyncBaseAdapter):
         scheme = parse_scheme(request.url)
         extension = None
 
-        if scheme is not None and scheme not in ("http", "https"):
+        if scheme is not None and scheme not in ("http", "https", "unix+http"):
             if "+" in scheme:
                 scheme, implementation = tuple(scheme.split("+", maxsplit=1))
             else:

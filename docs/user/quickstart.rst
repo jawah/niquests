@@ -321,7 +321,7 @@ streamed to a file:
             async for chunk in await r.iter_content(chunk_size=128):
                 fd.write(chunk)
 
-    .. warning:: It is recommended to use ``aiofile`` or similar to handle file I/O in async mode.
+    .. warning:: It is recommended to use ``aiofiles`` or similar to handle file I/O in async mode.
 
 Using ``Response.iter_content`` will handle a lot of what you would otherwise
 have to handle when using ``Response.raw`` directly. When streaming a
@@ -1710,6 +1710,86 @@ Notes
 
 SSE can be reached from HTTP/1, HTTP/2 or HTTP/3 at will. Niquests makes this very easy.
 Moreover every features like proxies, happy-eyeballs, hooks, etc.. can be used as you always did.
+
+Unix Socket
+-----------
+
+.. versionadded:: 3.17.0
+.. warning:: Only on Linux/Unix systems. Unix sockets can only implement HTTP/1, and HTTP/2 (h2c).
+
+Niquests natively supports connecting to services via Unix domain sockets. This is particularly useful for communicating with local services like Docker, databases, or any application exposing a Unix socket API (docker don't).
+
+Basic Usage
+~~~~~~~~~~~
+
+To connect via a Unix socket, use the ``unix+http://`` scheme with the URL-encoded socket path:
+
+.. tab:: 🔂 Sync
+
+    .. code:: python
+
+        from niquests import Session
+
+        with Session() as s:
+            # %2F is the URL-encoded forward slash
+            response = s.get("unix+http://%2Fvar%2Frun%2Fdocker.sock/version")
+            print(response.json())
+
+.. tab:: 🔀 Async
+
+    .. code:: python
+
+        from niquests import AsyncSession
+
+        async with AsyncSession() as s:
+            response = await s.get("unix+http://%2Fvar%2Frun%2Fdocker.sock/version")
+            print(response.json())
+
+.. tip:: You can also use the ``base_url`` parameter in Session to avoid writing ``unix+http://%2Fvar%2Frun%2Fdocker.sock/`` over and over again.
+
+.. warning:: To speak with a h2c (HTTP/2 over cleartext) unix socket you will have to disable HTTP/1 first via ``Session(disable_http1=True)``. Not many services support that.
+
+URL Format
+~~~~~~~~~~
+
+The Unix socket URL follows this pattern::
+
+    unix+http://<url-encoded-socket-path>/<api-path>
+
+For example, to access ``/var/run/docker.sock`` with path ``/version``:
+
+- Socket path: ``/var/run/docker.sock``
+- URL-encoded: ``%2Fvar%2Frun%2Fdocker.sock``
+- Full URL: ``unix+http://%2Fvar%2Frun%2Fdocker.sock/version``
+
+.. tip:: Use ``urllib.parse.quote(path, safe='')`` to URL-encode socket paths programmatically.
+
+Concurrent Connections
+~~~~~~~~~~~~~~~~~~~~~~
+
+Unix sockets support multiple concurrent connections, just like TCP sockets:
+
+.. code:: python
+
+    import asyncio
+    from niquests import AsyncSession
+
+    async def main():
+        async with AsyncSession() as s:
+            endpoints = ["/containers/json", "/images/json", "/version", "/info"]
+
+            tasks = [
+                s.get(f"unix+http://%2Fvar%2Frun%2Fdocker.sock{ep}")
+                for ep in endpoints
+            ]
+
+            responses = await asyncio.gather(*tasks)
+
+            print(responses)
+
+    asyncio.run(main())
+
+.. note:: You can also leverage a thread pool executor in a sync context as you always did with http.
 
 -----------------------
 
