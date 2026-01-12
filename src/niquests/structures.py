@@ -48,6 +48,9 @@ def _ensure_str_or_bytes(key: typing.Any, value: typing.Any) -> tuple[bytes | st
     return key, value
 
 
+_T = typing.TypeVar("_T")
+
+
 class CaseInsensitiveDict(MutableMapping):
     """A case-insensitive ``dict``-like object.
 
@@ -109,6 +112,18 @@ class CaseInsensitiveDict(MutableMapping):
             return ", ".join(e[1:]) if isinstance(e[1], str) else b", ".join(e[1:])  # type: ignore[arg-type]
         except TypeError:  # worst case scenario...
             return ", ".join(v.decode() if isinstance(v, bytes) else v for v in e[1:])
+
+    @typing.overload  # type: ignore[override]
+    def get(self, key: str | bytes) -> str | bytes | None: ...
+
+    @typing.overload
+    def get(self, key: str | bytes, default: str | bytes) -> str | bytes: ...
+
+    @typing.overload
+    def get(self, key: str | bytes, default: _T) -> str | bytes | _T: ...
+
+    def get(self, key: str | bytes, default: str | bytes | _T | None = None) -> str | bytes | _T | None:
+        return super().get(key, default=default)
 
     def __delitem__(self, key) -> None:
         del self._store[_lower_wrapper(key)]

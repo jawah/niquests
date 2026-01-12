@@ -220,7 +220,7 @@ class AsyncServerGatewayInterface(AsyncBaseAdapter):
             response.headers = CaseInsensitiveDict(headers_dict)
             response.request = request
             response.url = request.url
-            response.encoding = response.headers.get("content-type", "utf-8")
+            response.encoding = response.headers.get("content-type", "utf-8")  # type: ignore[assignment]
             response.raw = raw_io  # type: ignore
             response._content = False
             response._content_consumed = False
@@ -293,7 +293,7 @@ class AsyncServerGatewayInterface(AsyncBaseAdapter):
         response.headers = CaseInsensitiveDict(headers_dict)
         response.request = request
         response.url = request.url
-        response.encoding = response.headers.get("content-type", "utf-8")
+        response.encoding = response.headers.get("content-type", "utf-8")  # type: ignore[assignment]
         response._content = b"".join(body_chunks)
         response.raw = _ASGIRawIO(response_queue, response_complete, timeout)  # type: ignore
         response.raw.headers = headers_dict

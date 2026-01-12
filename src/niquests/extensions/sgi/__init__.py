@@ -115,7 +115,7 @@ class WebServerGatewayInterface(BaseAdapter):
         response.headers = CaseInsensitiveDict(response_headers)
         response.request = request
         response.url = request.url
-        response.encoding = response.headers.get("content-type", "utf-8")
+        response.encoding = response.headers.get("content-type", "utf-8")  # type: ignore[assignment]
 
         # Wrap the WSGI iterator for streaming
         def generate():
