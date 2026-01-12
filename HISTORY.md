@@ -5,11 +5,14 @@ Release History
 -------------------
 
 **Added**
-- Native support for `unix+http` connections without 3rd party support in both sync and async context. (#)
-- ASGI (e.g. fastapi)  app direct usage within `AsyncSession` and WSGI (e.g. Flask) app direct usage within `Session`.
+- Native support for `unix+http` connections without 3rd party support in both sync and async context. (#315)
+- ASGI (e.g. fastapi)  app direct usage within `AsyncSession` and WSGI (e.g. Flask) app direct usage within `Session`. (#316)
 
 **Fixed**
-- Method `get` of `CaseInsensitiveDict` ambiguous return type.
+- Method `get` of `CaseInsensitiveDict` ambiguous return type. (#288)
+
+**Misc**
+- Restore function `utils.guess_json_utf` from Requests era. (#313)
 
 3.16.1 (2025-12-23)
 -------------------
