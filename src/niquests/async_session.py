@@ -162,8 +162,10 @@ class AsyncSession(Session):
         self.proxies: ProxyType = {}
 
         #: Event-handling hooks.
-        self.hooks: AsyncHookType[PreparedRequest | Response | AsyncResponse] = (  # type: ignore[assignment]
-            merge_hooks(default_hooks(), hooks) if hooks is not None else default_hooks()
+        self.hooks: AsyncHookType[PreparedRequest | Response | AsyncResponse] = (
+            merge_hooks(default_hooks(), hooks)  # type: ignore[assignment]
+            if hooks is not None
+            else default_hooks()
         )
 
         #: Dictionary of querystring data to attach to each
