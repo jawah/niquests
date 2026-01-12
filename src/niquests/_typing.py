@@ -174,18 +174,18 @@ AsyncResolverType: typing.TypeAlias = typing.Union[
     typing.List[AsyncResolverDescription],
 ]
 
-ASGIScope: typing.TypeAlias = dict[str, typing.Any]
-ASGIMessage: typing.TypeAlias = dict[str, typing.Any]
+ASGIScope: typing.TypeAlias = typing.Dict[str, typing.Any]
+ASGIMessage: typing.TypeAlias = typing.Dict[str, typing.Any]
 ASGIReceive: typing.TypeAlias = typing.Callable[[], typing.Awaitable[ASGIMessage]]
 ASGISend: typing.TypeAlias = typing.Callable[[ASGIMessage], typing.Awaitable[None]]
 
 ASGIApp: typing.TypeAlias = typing.Callable[[ASGIScope, ASGIReceive, ASGISend], typing.Awaitable[None]]
 
 WSGIStartResponse: typing.TypeAlias = typing.Callable[
-    [str, list[tuple[str, str]], typing.Any | None],
+    [str, typing.List[typing.Tuple[str, str]], typing.Optional[typing.Any]],
     typing.Callable[[bytes], None],
 ]
 WSGIApp: typing.TypeAlias = typing.Callable[
-    [dict[str, typing.Any], WSGIStartResponse],
+    [typing.Dict[str, typing.Any], WSGIStartResponse],
     typing.Iterable[bytes],
 ]
