@@ -16,6 +16,7 @@ async def hello(request: Request):
         "method": request.method,
         "path": request.url.path,
         "query": str(request.query_params),
+        "param": str(request.path_params),
         "message": "hello from asgi",
     }
 
@@ -23,10 +24,12 @@ async def hello(request: Request):
 @app.api_route("/echo", methods=["GET", "POST", "PUT", "DELETE"])
 async def echo(request: Request):
     body = await request.json() if request.headers.get("content-type") == "application/json" else await request.body()
+
     return {
         "method": request.method,
         "path": request.url.path,
         "query": str(request.query_params),
+        "param": str(request.path_params),
         "body": body,
         "headers": dict(request.headers),
     }
@@ -35,9 +38,10 @@ async def echo(request: Request):
 @pytest.mark.asyncio
 async def test_asgi_basic():
     async with AsyncSession(app=app) as s:
-        resp = await s.get("/hello?foo=bar")
+        resp = await s.get("/hello", params={"foo": "bar", "channels": [0, 3]})
         assert resp.status_code == 200
         assert resp.json()["path"] == "/hello"
+        assert resp.json()["query"] == "foo=bar&channels=0&channels=3"
 
 
 @pytest.mark.asyncio
