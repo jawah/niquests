@@ -443,7 +443,7 @@ class Session:
             ),
         )
         self.mount(
-            "unix+http://",
+            "http+unix://",
             UnixAdapter(
                 max_retries=retries,
                 resolver=resolver,
@@ -1323,7 +1323,7 @@ class Session:
                 ),
             )
             self.mount(
-                "unix+http://",
+                "http+unix://",
                 UnixAdapter(
                     max_retries=self.retries,
                     disable_http1=self._disable_http1,
@@ -1615,7 +1615,7 @@ class Session:
             ),
         )
         self.mount(
-            "unix+http://",
+            "http+unix://",
             UnixAdapter(
                 max_retries=self.retries,
                 disable_http1=self._disable_http1,

@@ -297,7 +297,7 @@ class AsyncSession(Session):
             ),
         )
         self.mount(
-            "unix+http://",
+            "http+unix://",
             AsyncUnixAdapter(
                 max_retries=retries,
                 disable_http1=disable_http1,
@@ -385,7 +385,7 @@ class AsyncSession(Session):
             ),
         )
         self.mount(
-            "unix+http://",
+            "http+unix://",
             AsyncUnixAdapter(
                 max_retries=self.retries,
                 disable_http1=self._disable_http1,
@@ -629,7 +629,7 @@ class AsyncSession(Session):
                 ),
             )
             self.mount(
-                "unix+http://",
+                "http+unix://",
                 AsyncUnixAdapter(
                     max_retries=self.retries,
                     disable_http1=self._disable_http1,

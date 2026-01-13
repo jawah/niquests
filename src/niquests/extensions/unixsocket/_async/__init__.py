@@ -53,9 +53,9 @@ class AsyncUnixAdapter(AsyncHTTPAdapter):
             preemptive_quic_cache=quic_cache_layer,
             **pool_kwargs,
         )
-        self.poolmanager.key_fn_by_scheme["unix+http"] = self.poolmanager.key_fn_by_scheme["http"]
+        self.poolmanager.key_fn_by_scheme["http+unix"] = self.poolmanager.key_fn_by_scheme["http"]
         self.poolmanager.pool_classes_by_scheme = {
-            "unix+http": AsyncUnixHTTPConnectionPool,
+            "http+unix": AsyncUnixHTTPConnectionPool,
         }
 
     def get_connection(self, url, proxies=None):
