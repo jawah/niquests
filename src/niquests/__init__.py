@@ -116,7 +116,6 @@ from .hooks import (
     AsyncLifeCycleHook,
     LeakyBucketLimiter,
     LifeCycleHook,
-    RateLimitCallback,
     TokenBucketLimiter,
 )
 from .models import AsyncResponse, PreparedRequest, Request, Response
@@ -178,7 +177,6 @@ __all__ = (
     "LifeCycleHook",
     "LeakyBucketLimiter",
     "TokenBucketLimiter",
-    "RateLimitCallback",
     "RevocationConfiguration",
     "RevocationStrategy",
     "ServerSentEvent",

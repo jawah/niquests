@@ -233,24 +233,11 @@ class AsyncLifeCycleHook(_BaseLifeCycleHook[_HV]):
         return None
 
 
-class RateLimitCallback(typing.Protocol):
-    """Protocol for 429 rate limit callback functions."""
-
-    def __call__(self, retry_after: float) -> None:
-        """Called when a 429 response is received.
-
-        Args:
-            retry_after: The time in seconds to wait before retrying
-        """
-        ...
-
-
 class LeakyBucketLimiter(AsyncLifeCycleHook):
-    """Rate limiter using the leaky bucket algorithm with 429 handling.
+    """Rate limiter using the leaky bucket algorithm.
 
     Requests "leak" out at a constant rate. When a request arrives, it waits
     until enough time has passed since the last request to maintain the rate.
-    If a 429 response is received, respects the Retry-After header.
 
     Usage::
 
@@ -259,39 +246,22 @@ class LeakyBucketLimiter(AsyncLifeCycleHook):
             ...
     """
 
-    def __init__(
-        self,
-        rate: float = 10.0,
-        default_retry_after: float = 1.0,
-        on_rate_limit: RateLimitCallback | None = None,
-    ) -> None:
+    def __init__(self, rate: float = 10.0) -> None:
         """Initialize the leaky bucket limiter.
 
         Args:
             rate: Maximum requests per second
-            default_retry_after: Default wait time in seconds when 429 has no Retry-After header
-            on_rate_limit: Optional callback called when a 429 response is received
         """
         super().__init__()
         self.rate = rate
         self.interval = 1.0 / rate
-        self.default_retry_after = default_retry_after
-        self.on_rate_limit = on_rate_limit
         self.last_request: float | None = None
-        self._retry_after: float = 0.0
         self._lock = asyncio.Lock()
 
     async def pre_request(self, prepared_request: PreparedRequest, **kwargs: typing.Any) -> PreparedRequest | None:
         """Wait if needed to maintain the rate limit."""
         async with self._lock:
             now = time.monotonic()
-
-            # Wait for retry-after if set from 429 response
-            if self._retry_after > 0:
-                await asyncio.sleep(self._retry_after)
-                self._retry_after = 0.0
-                now = time.monotonic()
-
             if self.last_request is not None:
                 elapsed = now - self.last_request
                 wait_time = self.interval - elapsed
@@ -301,28 +271,12 @@ class LeakyBucketLimiter(AsyncLifeCycleHook):
             self.last_request = now
         return None
 
-    async def response(self, response: Response, **kwargs: typing.Any) -> Response | None:
-        """Handle 429 responses by setting retry delay."""
-        if response.status_code == 429:
-            retry_after = response.headers.get("Retry-After")
-            if retry_after:
-                try:
-                    self._retry_after = float(retry_after)
-                except ValueError:
-                    self._retry_after = self.default_retry_after
-            else:
-                self._retry_after = self.default_retry_after
-            if self.on_rate_limit:
-                self.on_rate_limit(self._retry_after)
-        return None
-
 
 class TokenBucketLimiter(AsyncLifeCycleHook):
-    """Rate limiter using the token bucket algorithm with 429 handling.
+    """Rate limiter using the token bucket algorithm.
 
     Tokens are added to a bucket at a constant rate up to a maximum capacity.
     Each request consumes one token. Allows bursts up to the bucket capacity.
-    If a 429 response is received, respects the Retry-After header.
 
     Usage::
 
@@ -331,41 +285,24 @@ class TokenBucketLimiter(AsyncLifeCycleHook):
             ...
     """
 
-    def __init__(
-        self,
-        rate: float = 10.0,
-        capacity: float | None = None,
-        default_retry_after: float = 1.0,
-        on_rate_limit: RateLimitCallback | None = None,
-    ) -> None:
+    def __init__(self, rate: float = 10.0, capacity: float | None = None) -> None:
         """Initialize the token bucket limiter.
 
         Args:
             rate: Token replenishment rate (tokens per second)
             capacity: Maximum bucket capacity (defaults to rate, allowing 1 second burst)
-            default_retry_after: Default wait time in seconds when 429 has no Retry-After header
-            on_rate_limit: Optional callback called when a 429 response is received
         """
         super().__init__()
         self.rate = rate
         self.capacity = capacity if capacity is not None else rate
-        self.default_retry_after = default_retry_after
-        self.on_rate_limit = on_rate_limit
         self.tokens = self.capacity
         self.last_update = time.monotonic()
-        self._retry_after: float = 0.0
         self._lock = asyncio.Lock()
 
     async def pre_request(self, prepared_request: PreparedRequest, **kwargs: typing.Any) -> PreparedRequest | None:
         """Wait until a token is available, then consume it."""
         async with self._lock:
             now = time.monotonic()
-
-            # Wait for retry-after if set from 429 response
-            if self._retry_after > 0:
-                await asyncio.sleep(self._retry_after)
-                self._retry_after = 0.0
-                now = time.monotonic()
 
             # Replenish tokens based on elapsed time
             elapsed = now - self.last_update
@@ -380,21 +317,4 @@ class TokenBucketLimiter(AsyncLifeCycleHook):
                 self.last_update = time.monotonic()
             else:
                 self.tokens -= 1.0
-        return None
-
-    async def response(self, response: Response, **kwargs: typing.Any) -> Response | None:
-        """Handle 429 responses by setting retry delay and draining tokens."""
-        if response.status_code == 429:
-            retry_after = response.headers.get("Retry-After")
-            if retry_after:
-                try:
-                    self._retry_after = float(retry_after)
-                except ValueError:
-                    self._retry_after = self.default_retry_after
-            else:
-                self._retry_after = self.default_retry_after
-            # Drain tokens to prevent burst after rate limit hit
-            self.tokens = 0.0
-            if self.on_rate_limit:
-                self.on_rate_limit(self._retry_after)
         return None
