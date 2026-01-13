@@ -82,13 +82,19 @@ exited, even if unhandled exceptions occurred.
 All values that are contained within a session are directly available to you.
 See the :ref:`Session API Docs <sessionapi>` to learn more.
 
-The ``Session`` class takes two (optional) named arguments for your convenience.
+The ``Session`` class takes several (optional) named arguments for your convenience.
 
 - `quic_cache_layer`
   Specify a `MutableMapping` that can memorize Alt-Svc capabilities (when a server is HTTP/3 compatible).
 
 - `retries`
-  Determine the retry strategy across the ``Session`` lifetime.
+  Determine the retry strategy across the ``Session`` lifetime. See :class:`~niquests.RetryConfiguration`.
+
+- `headers`
+  Specify default headers to be sent on every request made with this session.
+
+- `hooks`
+  Specify default hooks to be applied to all requests made with this session. Can be a dictionary of hook names to callables, or a :class:`~niquests.hooks.LifeCycleHook` instance (or :class:`~niquests.hooks.AsyncLifeCycleHook` for ``AsyncSession``).
 
 .. _request-and-response-objects:
 
@@ -682,6 +688,117 @@ Middleware classes can be combined using the ``+`` operator. This allows you to 
 
 
 .. danger:: In synchronous multi-threaded mode, using ``LifeCycleHook`` must be safe to use, you are responsible to ensure safety via proper locking if you intend to share properties/states between threads.
+
+Rate Limiting
+~~~~~~~~~~~~~
+
+Niquests provides built-in rate limiters based on common algorithms. These are implemented as lifecycle hooks and can be passed directly to your session.
+
+**Leaky Bucket Limiter**
+
+Requests "leak" out at a constant rate. When a request arrives, it waits until enough time has passed since the last request to maintain the rate. This provides smooth, evenly-spaced requests.
+
+.. code-block:: python
+
+    import niquests
+
+    # Synchronous usage
+    limiter = niquests.LeakyBucketLimiter(rate=10.0)  # 10 requests per second
+    with niquests.Session(hooks=limiter) as session:
+        for i in range(20):
+            session.get("https://httpbingo.org/get")  # Requests are evenly spaced
+
+.. code-block:: python
+
+    import asyncio
+    import niquests
+
+    # Asynchronous usage
+    async def main():
+        limiter = niquests.AsyncLeakyBucketLimiter(rate=10.0)
+        async with niquests.AsyncSession(hooks=limiter) as session:
+            for i in range(20):
+                await session.get("https://httpbingo.org/get")
+
+    asyncio.run(main())
+
+.. note:: These rate limiters are proactive - they throttle requests before they are sent. If the API still returns a 429 (Too Many Requests), consider using :class:`~niquests.RetryConfiguration` with ``status_forcelist=[429]`` and ``respect_retry_after_header=True`` for reactive retry handling.
+
+**Token Bucket Limiter**
+
+Tokens are added to a bucket at a constant rate up to a maximum capacity. Each request consumes one token. This allows bursts up to the bucket capacity while maintaining a long-term rate limit.
+
+.. code-block:: python
+
+    import niquests
+
+    # Synchronous usage - allows bursts of up to 50 requests, refills at 10/s
+    limiter = niquests.TokenBucketLimiter(rate=10.0, capacity=50.0)
+    with niquests.Session(hooks=limiter) as session:
+        # First 50 requests can be immediate (burst)
+        # After that, limited to 10 requests per second
+        for i in range(100):
+            session.get("https://httpbingo.org/get")
+
+.. code-block:: python
+
+    import asyncio
+    import niquests
+
+    # Asynchronous usage
+    async def main():
+        limiter = niquests.AsyncTokenBucketLimiter(rate=10.0, capacity=50.0)
+        async with niquests.AsyncSession(hooks=limiter) as session:
+            tasks = [session.get("https://httpbingo.org/get") for _ in range(100)]
+            await asyncio.gather(*tasks)
+
+    asyncio.run(main())
+
+**Choosing Between Algorithms**
+
+- Use **LeakyBucketLimiter** when you need smooth, evenly-spaced requests (e.g., polling an API).
+- Use **TokenBucketLimiter** when you want to allow bursts while respecting a long-term rate (e.g., batch operations with quiet periods).
+
+**Combining with Retry**
+
+Rate limiters are proactive (throttle before sending), while :class:`~niquests.RetryConfiguration` is reactive (retry after failure). You can combine both for robust rate limit handling:
+
+.. code-block:: python
+
+    import niquests
+
+    # Proactive: limit to 10 requests/second
+    limiter = niquests.LeakyBucketLimiter(rate=10.0)
+
+    # Reactive: retry on 429 with Retry-After header
+    retry = niquests.RetryConfiguration(
+        total=3,
+        status_forcelist=[429],
+        respect_retry_after_header=True,
+    )
+
+    with niquests.Session(hooks=limiter, retries=retry) as session:
+        for i in range(100):
+            session.get("https://api.example.com/data")
+
+.. code-block:: python
+
+    import asyncio
+    import niquests
+
+    async def main():
+        limiter = niquests.AsyncLeakyBucketLimiter(rate=10.0)
+        retry = niquests.RetryConfiguration(
+            total=3,
+            status_forcelist=[429],
+            respect_retry_after_header=True,
+        )
+
+        async with niquests.AsyncSession(hooks=limiter, retries=retry) as session:
+            for i in range(100):
+                await session.get("https://api.example.com/data")
+
+    asyncio.run(main())
 
 Track upload progress
 ---------------------

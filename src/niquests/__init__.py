@@ -113,7 +113,9 @@ from .exceptions import (
     URLRequired,
 )
 from .hooks import (
+    AsyncLeakyBucketLimiter,
     AsyncLifeCycleHook,
+    AsyncTokenBucketLimiter,
     LeakyBucketLimiter,
     LifeCycleHook,
     TokenBucketLimiter,
@@ -174,6 +176,8 @@ __all__ = (
     "RetryConfiguration",
     "HAS_LEGACY_URLLIB3",
     "AsyncLifeCycleHook",
+    "AsyncLeakyBucketLimiter",
+    "AsyncTokenBucketLimiter",
     "LifeCycleHook",
     "LeakyBucketLimiter",
     "TokenBucketLimiter",

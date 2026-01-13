@@ -1,0 +1,28 @@
+[run]
+source =
+    niquests
+disable_warnings = no-sysmon
+
+[paths]
+source =
+    src/niquests
+    */niquests
+    *\niquests
+
+[report]
+omit =
+    src/niquests/help.py
+    src/niquests/_vendor/*
+
+exclude_lines =
+    except ModuleNotFoundError:
+    except ImportError:
+    pass
+    import
+    raise NotImplementedError
+    .* # Platform-specific.*
+    .*:.* # Python \d.*
+    .* # Abstract
+    .* # Defensive:
+    if (?:typing.)?TYPE_CHECKING:
+    ^\s*?\.\.\.\s*$
