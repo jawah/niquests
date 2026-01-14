@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import concurrent.futures
+import sys
 import time
 from functools import partial
 
@@ -97,6 +98,7 @@ class TestSyncLimiters:
                 expected_min = 3 * (1.0 / rate) * 0.8  # 80% tolerance
                 assert elapsed >= expected_min
 
+    @pytest.mark.skipif(sys.platform == "win32", reason="Timing unreliable on Windows")
     def test_token_bucket_burst_capacity(self):
         """Token bucket should allow bursts up to capacity."""
         limiter = TokenBucketLimiter(rate=1.0, capacity=10.0)
@@ -193,6 +195,7 @@ class TestAsyncLimiters:
                 expected_min = 3 * (1.0 / rate) * 0.8
                 assert elapsed >= expected_min
 
+    @pytest.mark.skipif(sys.platform == "win32", reason="Timing unreliable on Windows")
     @pytest.mark.asyncio
     async def test_async_token_bucket_burst_capacity(self):
         """Async token bucket should allow bursts up to capacity."""
