@@ -13,6 +13,13 @@ from .packages.urllib3.fields import RequestField
 from .structures import CaseInsensitiveDict
 
 if typing.TYPE_CHECKING:
+    # tool like pyright in strict mode can't infer what is ".packages.urllib3"
+    # so we circumvent it there[...]
+    from urllib3 import AsyncResolverDescription, ResolverDescription, Retry, Timeout  # type: ignore[no-redef]
+    from urllib3.contrib.resolver import BaseResolver  # type: ignore[no-redef]
+    from urllib3.contrib.resolver._async import AsyncBaseResolver  # type: ignore[no-redef]
+    from urllib3.fields import RequestField  # type: ignore[no-redef]
+
     from .hooks import AsyncLifeCycleHook, LifeCycleHook
     from .models import PreparedRequest
 
