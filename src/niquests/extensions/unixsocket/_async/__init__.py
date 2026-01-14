@@ -18,12 +18,14 @@ from ....utils import select_proxy
 class AsyncUnixHTTPConnection(AsyncHTTPConnection):
     def __init__(self, host, **kwargs):
         super().__init__(host, **kwargs)
+        self.host: str = unquote(self.host)
+        self.socket_path = self.host
+        self.host = self.socket_path.split("/")[-1]
 
     async def connect(self):
         sock = AsyncSocket(socket.AF_UNIX, socket.SOCK_STREAM)
         sock.settimeout(self.timeout)
-        socket_path = unquote(self.host)
-        await sock.connect(socket_path)
+        await sock.connect(self.socket_path)
         self.sock = sock
         await self._post_conn()
 

@@ -17,13 +17,14 @@ from ...utils import select_proxy
 class UnixHTTPConnection(HTTPConnection):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.sock = None
+        self.host: str = unquote(self.host)
+        self.socket_path = self.host
+        self.host = self.socket_path.split("/")[-1]
 
     def connect(self):
         sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
         sock.settimeout(self.timeout)
-        socket_path = unquote(self.host)
-        sock.connect(socket_path)
+        sock.connect(self.socket_path)
         self.sock = sock
         self._post_conn()
 
