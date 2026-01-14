@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import asyncio
 import json
+import typing
 
 import pytest
 from fastapi import FastAPI, Request
@@ -42,6 +44,20 @@ async def test_asgi_basic():
         assert resp.status_code == 200
         assert resp.json()["path"] == "/hello"
         assert resp.json()["query"] == "foo=bar&channels=0&channels=3"
+
+
+@pytest.mark.asyncio
+async def test_asgi_aiter():
+    async def fake_aiter() -> typing.AsyncIterator[bytes]:
+        for _ in range(32):
+            yield b"foobar"
+            await asyncio.sleep(0)
+
+    async with AsyncSession(app=app) as s:
+        resp = await s.post("/echo", data=fake_aiter())
+        assert resp.status_code == 200
+        assert resp.json()["path"] == "/echo"
+        assert resp.json()["body"] == "foobar" * 32
 
 
 @pytest.mark.asyncio

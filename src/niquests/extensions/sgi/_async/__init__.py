@@ -145,7 +145,13 @@ class AsyncServerGatewayInterface(AsyncBaseAdapter):
         scope = self._create_scope(request)
 
         body = request.body or b""
-        if isinstance(body, str):
+        body_iter: typing.AsyncIterator[bytes] | typing.AsyncIterator[str] | None = None
+
+        # Check if body is an async iterable
+        if hasattr(body, "__aiter__"):
+            body_iter = body.__aiter__()
+            body = b""  # Will be streamed
+        elif isinstance(body, str):
             body = body.encode("utf-8")
 
         request_complete = False
@@ -158,8 +164,21 @@ class AsyncServerGatewayInterface(AsyncBaseAdapter):
             if request_complete:
                 await response_complete.wait()
                 return {"type": "http.disconnect"}
-            request_complete = True
-            return {"type": "http.request", "body": body, "more_body": False}
+
+            if body_iter is not None:
+                # Stream chunks from async iterable
+                try:
+                    chunk = await body_iter.__anext__()
+                    if isinstance(chunk, str):
+                        chunk = chunk.encode("utf-8")
+                    return {"type": "http.request", "body": chunk, "more_body": True}
+                except StopAsyncIteration:
+                    request_complete = True
+                    return {"type": "http.request", "body": b"", "more_body": False}
+            else:
+                # Single body chunk
+                request_complete = True
+                return {"type": "http.request", "body": body, "more_body": False}
 
         async def send_func(message: dict) -> None:
             await response_queue.put(message)
