@@ -10,6 +10,7 @@ Release History
 
 **Fixed**
 - Method `get` of `CaseInsensitiveDict` ambiguous return type. (#288)
+- More precise type definitions for PathLike, and IO. (#290)
 
 **Misc**
 - Restore function `utils.guess_json_utf` from Requests era. (#313)
