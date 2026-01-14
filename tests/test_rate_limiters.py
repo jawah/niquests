@@ -81,6 +81,7 @@ class TestSyncLimiters:
         assert all(status == 200 for status in results)
         assert len(results) == 10
 
+
 class TestSyncLimitersUnit:
     """Unit tests for sync rate limiters without network calls."""
 
@@ -151,6 +152,7 @@ class TestSyncLimitersUnit:
 
         assert limiter.tokens <= limiter.capacity
 
+
 class TestAsyncLimiters:
     """Tests for async rate limiters."""
 
@@ -212,6 +214,7 @@ class TestAsyncLimiters:
 
             assert all(status == 200 for status in results)
             assert len(results) == 10
+
 
 class TestAsyncLimitersUnit:
     """Unit tests for async rate limiters without network calls."""
@@ -283,4 +286,3 @@ class TestAsyncLimitersUnit:
             limiter._acquire_token()
 
         assert limiter.tokens <= limiter.capacity
-
