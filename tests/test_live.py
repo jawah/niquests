@@ -50,6 +50,8 @@ class TestLiveStandardCase:
             assert r.conn_info.http_version is not None
             assert r.conn_info.http_version == HttpVersion.h2
             assert r.url == "https://httpbingo.org/get"
+            r = s.get("")
+            assert r.url == "https://httpbingo.org"  # guard against trailing slash...
 
     @pytest.mark.skipif(qh3 is None, reason="qh3 unavailable")
     def test_ensure_http3_default(self) -> None:

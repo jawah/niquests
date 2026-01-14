@@ -386,7 +386,7 @@ class PreparedRequest:
             if parse_scheme(url, default="") == "":
                 if base_url.endswith("/"):
                     base_url = base_url[:-1]
-                if not url.startswith("/"):
+                if url and not url.startswith("/"):
                     url = f"/{url}"
                 url = base_url + url
 
@@ -406,7 +406,11 @@ class PreparedRequest:
         # Don't do any URL preparation for non-HTTP schemes like `mailto`,
         # `data` etc to work around exceptions from `url_parse`, which
         # handles RFC 3986 only.
-        if not parse_scheme(url).startswith("http"):
+        parsed_scheme = parse_scheme(url)
+        if "http" not in parsed_scheme and parsed_scheme not in {
+            "asgi",
+            "wsgi",
+        }:
             self.url = url
             return
 

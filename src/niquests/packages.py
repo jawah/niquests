@@ -7,16 +7,12 @@ from ._compat import HAS_LEGACY_URLLIB3
 
 # just to enable smooth type-completion!
 if typing.TYPE_CHECKING:
-    if HAS_LEGACY_URLLIB3:
-        import urllib3_future as urllib3  # noqa
-    else:
-        import urllib3  # type: ignore[no-redef]  # noqa
+    import charset_normalizer as chardet
+    import urllib3
 
-    import charset_normalizer as chardet  # noqa
+    charset_normalizer = chardet
 
-    charset_normalizer = chardet  # noqa
-
-    import idna  # type: ignore[import-not-found]  # noqa
+    import idna  # type: ignore[import-not-found]
 
 # This code exists for backwards compatibility reasons.
 # I don't like it either. Just look the other way. :)
@@ -53,3 +49,11 @@ for package in (
                 sys.modules[f"niquests.packages.{inner_mod}"] = sys.modules[mod]
             except KeyError:
                 continue
+
+
+__all__ = (
+    "urllib3",
+    "chardet",
+    "charset_normalizer",
+    "idna",
+)

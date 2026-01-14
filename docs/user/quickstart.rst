@@ -1722,7 +1722,7 @@ Niquests natively supports connecting to services via Unix domain sockets. This 
 Basic Usage
 ~~~~~~~~~~~
 
-To connect via a Unix socket, use the ``unix+http://`` scheme with the URL-encoded socket path:
+To connect via a Unix socket, use the ``http+unix://`` scheme with the URL-encoded socket path:
 
 .. tab:: 🔂 Sync
 
@@ -1732,7 +1732,7 @@ To connect via a Unix socket, use the ``unix+http://`` scheme with the URL-encod
 
         with Session() as s:
             # %2F is the URL-encoded forward slash
-            response = s.get("unix+http://%2Fvar%2Frun%2Fdocker.sock/version")
+            response = s.get("http+unix://%2Fvar%2Frun%2Fdocker.sock/version")
             print(response.json())
 
 .. tab:: 🔀 Async
@@ -1742,10 +1742,10 @@ To connect via a Unix socket, use the ``unix+http://`` scheme with the URL-encod
         from niquests import AsyncSession
 
         async with AsyncSession() as s:
-            response = await s.get("unix+http://%2Fvar%2Frun%2Fdocker.sock/version")
+            response = await s.get("http+unix://%2Fvar%2Frun%2Fdocker.sock/version")
             print(response.json())
 
-.. tip:: You can also use the ``base_url`` parameter in Session to avoid writing ``unix+http://%2Fvar%2Frun%2Fdocker.sock/`` over and over again.
+.. tip:: You can also use the ``base_url`` parameter in Session to avoid writing ``http+unix://%2Fvar%2Frun%2Fdocker.sock/`` over and over again.
 
 .. warning:: To speak with a h2c (HTTP/2 over cleartext) unix socket you will have to disable HTTP/1 first via ``Session(disable_http1=True)``. Not many services support that.
 
@@ -1754,13 +1754,13 @@ URL Format
 
 The Unix socket URL follows this pattern::
 
-    unix+http://<url-encoded-socket-path>/<api-path>
+    http+unix://<url-encoded-socket-path>/<api-path>
 
 For example, to access ``/var/run/docker.sock`` with path ``/version``:
 
 - Socket path: ``/var/run/docker.sock``
 - URL-encoded: ``%2Fvar%2Frun%2Fdocker.sock``
-- Full URL: ``unix+http://%2Fvar%2Frun%2Fdocker.sock/version``
+- Full URL: ``http+unix://%2Fvar%2Frun%2Fdocker.sock/version``
 
 .. tip:: Use ``urllib.parse.quote(path, safe='')`` to URL-encode socket paths programmatically.
 
@@ -1779,7 +1779,7 @@ Unix sockets support multiple concurrent connections, just like TCP sockets:
             endpoints = ["/containers/json", "/images/json", "/version", "/info"]
 
             tasks = [
-                s.get(f"unix+http://%2Fvar%2Frun%2Fdocker.sock{ep}")
+                s.get(f"http+unix://%2Fvar%2Frun%2Fdocker.sock{ep}")
                 for ep in endpoints
             ]
 

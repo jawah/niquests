@@ -15,7 +15,7 @@ class TestUnixSocketSync:
         """Fetch Docker version info via Unix socket."""
 
         with Session() as session:
-            response = session.get("unix+http://%2Fvar%2Frun%2Fdocker.sock/version")
+            response = session.get("http+unix://%2Fvar%2Frun%2Fdocker.sock/version")
 
             assert response.status_code == 200
             data = response.json()
@@ -26,7 +26,7 @@ class TestUnixSocketSync:
         """Request unknown Docker API path returns 404."""
 
         with Session() as session:
-            response = session.get("unix+http://%2Fvar%2Frun%2Fdocker.sock/nonexistent/path")
+            response = session.get("http+unix://%2Fvar%2Frun%2Fdocker.sock/nonexistent/path")
 
             assert response.status_code == 404
 
@@ -40,7 +40,7 @@ class TestUnixSocketAsync:
         """Fetch Docker version info via Unix socket asynchronously."""
 
         async with AsyncSession() as session:
-            response = await session.get("unix+http://%2Fvar%2Frun%2Fdocker.sock/version")
+            response = await session.get("http+unix://%2Fvar%2Frun%2Fdocker.sock/version")
 
             assert response.status_code == 200
             data = response.json()
@@ -52,6 +52,6 @@ class TestUnixSocketAsync:
         """Request unknown Docker API path returns 404 asynchronously."""
 
         async with AsyncSession() as session:
-            response = await session.get("unix+http://%2Fvar%2Frun%2Fdocker.sock/nonexistent/path")
+            response = await session.get("http+unix://%2Fvar%2Frun%2Fdocker.sock/nonexistent/path")
 
             assert response.status_code == 404

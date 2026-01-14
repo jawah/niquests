@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import asyncio
 import json
+import typing
 
 import pytest
 from fastapi import FastAPI, Request
@@ -16,6 +18,7 @@ async def hello(request: Request):
         "method": request.method,
         "path": request.url.path,
         "query": str(request.query_params),
+        "param": str(request.path_params),
         "message": "hello from asgi",
     }
 
@@ -23,10 +26,12 @@ async def hello(request: Request):
 @app.api_route("/echo", methods=["GET", "POST", "PUT", "DELETE"])
 async def echo(request: Request):
     body = await request.json() if request.headers.get("content-type") == "application/json" else await request.body()
+
     return {
         "method": request.method,
         "path": request.url.path,
         "query": str(request.query_params),
+        "param": str(request.path_params),
         "body": body,
         "headers": dict(request.headers),
     }
@@ -35,9 +40,24 @@ async def echo(request: Request):
 @pytest.mark.asyncio
 async def test_asgi_basic():
     async with AsyncSession(app=app) as s:
-        resp = await s.get("/hello?foo=bar")
+        resp = await s.get("/hello", params={"foo": "bar", "channels": [0, 3]})
         assert resp.status_code == 200
         assert resp.json()["path"] == "/hello"
+        assert resp.json()["query"] == "foo=bar&channels=0&channels=3"
+
+
+@pytest.mark.asyncio
+async def test_asgi_aiter():
+    async def fake_aiter() -> typing.AsyncIterator[bytes]:
+        for _ in range(32):
+            yield b"foobar"
+            await asyncio.sleep(0)
+
+    async with AsyncSession(app=app) as s:
+        resp = await s.post("/echo", data=fake_aiter())
+        assert resp.status_code == 200
+        assert resp.json()["path"] == "/echo"
+        assert resp.json()["body"] == "foobar" * 32
 
 
 @pytest.mark.asyncio

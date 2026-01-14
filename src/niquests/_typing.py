@@ -13,6 +13,13 @@ from .packages.urllib3.fields import RequestField
 from .structures import CaseInsensitiveDict
 
 if typing.TYPE_CHECKING:
+    # tool like pyright in strict mode can't infer what is ".packages.urllib3"
+    # so we circumvent it there[...]
+    from urllib3 import AsyncResolverDescription, ResolverDescription, Retry, Timeout  # type: ignore[no-redef]
+    from urllib3.contrib.resolver import BaseResolver  # type: ignore[no-redef]
+    from urllib3.contrib.resolver._async import AsyncBaseResolver  # type: ignore[no-redef]
+    from urllib3.fields import RequestField  # type: ignore[no-redef]
+
     from .hooks import AsyncLifeCycleHook, LifeCycleHook
     from .models import PreparedRequest
 
@@ -34,7 +41,8 @@ BodyType: typing.TypeAlias = typing.Union[
     str,
     bytes,
     bytearray,
-    typing.IO,
+    typing.IO[bytes],
+    typing.IO[str],
     BodyFormType,
     typing.Iterable[bytes],
     typing.Iterable[str],
@@ -58,7 +66,7 @@ CookiesType: typing.TypeAlias = typing.Union[
     CookieJar,
 ]
 #: Either Yes/No, or CA bundle pem location. Or directly the raw bundle content itself.
-TLSVerifyType: typing.TypeAlias = typing.Union[bool, str, bytes, PathLike]
+TLSVerifyType: typing.TypeAlias = typing.Union[bool, str, bytes, "PathLike[str]"]
 #: Accept a pem certificate (concat cert, key) or an explicit tuple of cert, key pair with an optional password.
 TLSClientCertType: typing.TypeAlias = typing.Union[str, typing.Tuple[str, str], typing.Tuple[str, str, str]]
 #: All accepted ways to describe desired timeout.
@@ -96,7 +104,8 @@ BodyFileType: typing.TypeAlias = typing.Union[
     str,
     bytes,
     bytearray,
-    typing.IO,
+    typing.IO[str],
+    typing.IO[bytes],
 ]
 MultiPartFileType: typing.TypeAlias = typing.Tuple[
     str,

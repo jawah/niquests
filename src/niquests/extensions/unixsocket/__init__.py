@@ -17,13 +17,14 @@ from ...utils import select_proxy
 class UnixHTTPConnection(HTTPConnection):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.sock = None
+        self.host: str = unquote(self.host)
+        self.socket_path = self.host
+        self.host = self.socket_path.split("/")[-1]
 
     def connect(self):
         sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
         sock.settimeout(self.timeout)
-        socket_path = unquote(self.host)
-        sock.connect(socket_path)
+        sock.connect(self.socket_path)
         self.sock = sock
         self._post_conn()
 
@@ -53,9 +54,9 @@ class UnixAdapter(HTTPAdapter):
             preemptive_quic_cache=quic_cache_layer,
             **pool_kwargs,
         )
-        self.poolmanager.key_fn_by_scheme["unix+http"] = self.poolmanager.key_fn_by_scheme["http"]
+        self.poolmanager.key_fn_by_scheme["http+unix"] = self.poolmanager.key_fn_by_scheme["http"]
         self.poolmanager.pool_classes_by_scheme = {
-            "unix+http": UnixHTTPConnectionPool,
+            "http+unix": UnixHTTPConnectionPool,
         }
 
     def get_connection(self, url, proxies=None):
