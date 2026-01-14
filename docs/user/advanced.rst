@@ -698,29 +698,31 @@ Niquests provides built-in rate limiters based on common algorithms. These are i
 
 Requests "leak" out at a constant rate. When a request arrives, it waits until enough time has passed since the last request to maintain the rate. This provides smooth, evenly-spaced requests.
 
-.. code-block:: python
+.. tab:: 🔂 Sync
 
-    import niquests
+    .. code-block:: python
 
-    # Synchronous usage
-    limiter = niquests.LeakyBucketLimiter(rate=10.0)  # 10 requests per second
-    with niquests.Session(hooks=limiter) as session:
-        for i in range(20):
-            session.get("https://httpbingo.org/get")  # Requests are evenly spaced
+        import niquests
 
-.. code-block:: python
-
-    import asyncio
-    import niquests
-
-    # Asynchronous usage
-    async def main():
-        limiter = niquests.AsyncLeakyBucketLimiter(rate=10.0)
-        async with niquests.AsyncSession(hooks=limiter) as session:
+        limiter = niquests.LeakyBucketLimiter(rate=10.0)  # 10 requests per second
+        with niquests.Session(hooks=limiter) as session:
             for i in range(20):
-                await session.get("https://httpbingo.org/get")
+                session.get("https://httpbingo.org/get")  # Requests are evenly spaced
 
-    asyncio.run(main())
+.. tab:: 🔀 Async
+
+    .. code-block:: python
+
+        import asyncio
+        import niquests
+
+        async def main():
+            limiter = niquests.AsyncLeakyBucketLimiter(rate=10.0)
+            async with niquests.AsyncSession(hooks=limiter) as session:
+                for i in range(20):
+                    await session.get("https://httpbingo.org/get")
+
+        asyncio.run(main())
 
 .. note:: These rate limiters are proactive - they throttle requests before they are sent. If the API still returns a 429 (Too Many Requests), consider using :class:`~niquests.RetryConfiguration` with ``status_forcelist=[429]`` and ``respect_retry_after_header=True`` for reactive retry handling.
 
@@ -728,31 +730,34 @@ Requests "leak" out at a constant rate. When a request arrives, it waits until e
 
 Tokens are added to a bucket at a constant rate up to a maximum capacity. Each request consumes one token. This allows bursts up to the bucket capacity while maintaining a long-term rate limit.
 
-.. code-block:: python
+.. tab:: 🔂 Sync
 
-    import niquests
+    .. code-block:: python
 
-    # Synchronous usage - allows bursts of up to 50 requests, refills at 10/s
-    limiter = niquests.TokenBucketLimiter(rate=10.0, capacity=50.0)
-    with niquests.Session(hooks=limiter) as session:
-        # First 50 requests can be immediate (burst)
-        # After that, limited to 10 requests per second
-        for i in range(100):
-            session.get("https://httpbingo.org/get")
+        import niquests
 
-.. code-block:: python
+        # Allows bursts of up to 50 requests, refills at 10/s
+        limiter = niquests.TokenBucketLimiter(rate=10.0, capacity=50.0)
+        with niquests.Session(hooks=limiter) as session:
+            # First 50 requests can be immediate (burst)
+            # After that, limited to 10 requests per second
+            for i in range(100):
+                session.get("https://httpbingo.org/get")
 
-    import asyncio
-    import niquests
+.. tab:: 🔀 Async
 
-    # Asynchronous usage
-    async def main():
-        limiter = niquests.AsyncTokenBucketLimiter(rate=10.0, capacity=50.0)
-        async with niquests.AsyncSession(hooks=limiter) as session:
-            tasks = [session.get("https://httpbingo.org/get") for _ in range(100)]
-            await asyncio.gather(*tasks)
+    .. code-block:: python
 
-    asyncio.run(main())
+        import asyncio
+        import niquests
+
+        async def main():
+            limiter = niquests.AsyncTokenBucketLimiter(rate=10.0, capacity=50.0)
+            async with niquests.AsyncSession(hooks=limiter) as session:
+                tasks = [session.get("https://httpbingo.org/get") for _ in range(100)]
+                await asyncio.gather(*tasks)
+
+        asyncio.run(main())
 
 **Choosing Between Algorithms**
 
@@ -763,42 +768,46 @@ Tokens are added to a bucket at a constant rate up to a maximum capacity. Each r
 
 Rate limiters are proactive (throttle before sending), while :class:`~niquests.RetryConfiguration` is reactive (retry after failure). You can combine both for robust rate limit handling:
 
-.. code-block:: python
+.. tab:: 🔂 Sync
 
-    import niquests
+    .. code-block:: python
 
-    # Proactive: limit to 10 requests/second
-    limiter = niquests.LeakyBucketLimiter(rate=10.0)
+        import niquests
 
-    # Reactive: retry on 429 with Retry-After header
-    retry = niquests.RetryConfiguration(
-        total=3,
-        status_forcelist=[429],
-        respect_retry_after_header=True,
-    )
+        # Proactive: limit to 10 requests/second
+        limiter = niquests.LeakyBucketLimiter(rate=10.0)
 
-    with niquests.Session(hooks=limiter, retries=retry) as session:
-        for i in range(100):
-            session.get("https://api.example.com/data")
-
-.. code-block:: python
-
-    import asyncio
-    import niquests
-
-    async def main():
-        limiter = niquests.AsyncLeakyBucketLimiter(rate=10.0)
+        # Reactive: retry on 429 with Retry-After header
         retry = niquests.RetryConfiguration(
             total=3,
             status_forcelist=[429],
             respect_retry_after_header=True,
         )
 
-        async with niquests.AsyncSession(hooks=limiter, retries=retry) as session:
+        with niquests.Session(hooks=limiter, retries=retry) as session:
             for i in range(100):
-                await session.get("https://api.example.com/data")
+                session.get("https://api.example.com/data")
 
-    asyncio.run(main())
+.. tab:: 🔀 Async
+
+    .. code-block:: python
+
+        import asyncio
+        import niquests
+
+        async def main():
+            limiter = niquests.AsyncLeakyBucketLimiter(rate=10.0)
+            retry = niquests.RetryConfiguration(
+                total=3,
+                status_forcelist=[429],
+                respect_retry_after_header=True,
+            )
+
+            async with niquests.AsyncSession(hooks=limiter, retries=retry) as session:
+                for i in range(100):
+                    await session.get("https://api.example.com/data")
+
+        asyncio.run(main())
 
 Track upload progress
 ---------------------
