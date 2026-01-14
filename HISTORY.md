@@ -14,6 +14,7 @@ Release History
 
 **Misc**
 - Restore function `utils.guess_json_utf` from Requests era. (#313)
+- Making request with empty url when base_url is set don't add trailing slash at the end. (#319)
 
 3.16.1 (2025-12-23)
 -------------------

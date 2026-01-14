@@ -386,7 +386,7 @@ class PreparedRequest:
             if parse_scheme(url, default="") == "":
                 if base_url.endswith("/"):
                     base_url = base_url[:-1]
-                if not url.startswith("/"):
+                if url and not url.startswith("/"):
                     url = f"/{url}"
                 url = base_url + url
 
