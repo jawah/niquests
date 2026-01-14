@@ -5,7 +5,7 @@ Release History
 -------------------
 
 **Added**
-- Native support for `unix+http` connections without 3rd party support in both sync and async context. (#315)
+- Native support for `http+unix` connections without 3rd party support in both sync and async context. (#315)
 - ASGI (e.g. fastapi)  app direct usage within `AsyncSession` and WSGI (e.g. Flask) app direct usage within `Session`. (#316)
 
 **Fixed**
