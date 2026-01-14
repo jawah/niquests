@@ -558,9 +558,6 @@ class HTTPAdapter(BaseAdapter):
                     elif hasattr(verify, "__fspath__"):
                         cert_loc = verify.__fspath__()
 
-                        if isinstance(cert_loc, bytes):
-                            cert_loc = cert_loc.decode()
-
                     if isinstance(cert_loc, str) and not os.path.exists(cert_loc):
                         raise OSError(f"Could not find a suitable TLS CA certificate bundle, invalid path: {cert_loc}")
 
@@ -1636,9 +1633,6 @@ class AsyncHTTPAdapter(AsyncBaseAdapter):
 
                     elif hasattr(verify, "__fspath__"):
                         cert_loc = verify.__fspath__()
-
-                        if isinstance(cert_loc, bytes):
-                            cert_loc = cert_loc.decode()
 
                     if isinstance(cert_loc, str) and not os.path.exists(cert_loc):
                         raise OSError(f"Could not find a suitable TLS CA certificate bundle, invalid path: {cert_loc}")
