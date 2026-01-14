@@ -1543,6 +1543,8 @@ class Response:
         resolved_links = {}
 
         if header:
+            if isinstance(header, bytes):
+                header = header.decode()
             links = parse_header_links(header)
 
             for link in links:

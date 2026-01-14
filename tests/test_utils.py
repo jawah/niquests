@@ -27,6 +27,7 @@ from niquests.utils import (
     getproxies,
     getproxies_environment,
     guess_filename,
+    guess_json_utf,
     is_ipv4_address,
     is_valid_cidr,
     iter_slices,
@@ -874,3 +875,35 @@ def test_extract_scheme(url, expected):
     else:
         scheme = parse_scheme(url)
         assert scheme == expected
+
+
+class TestGuessJSONUTF:
+    @pytest.mark.parametrize(
+        "encoding",
+        (
+            "utf-32",
+            "utf-8-sig",
+            "utf-16",
+            "utf-8",
+            "utf-16-be",
+            "utf-16-le",
+            "utf-32-be",
+            "utf-32-le",
+        ),
+    )
+    def test_encoded(self, encoding):
+        data = '{"hello": "world"}'.encode(encoding)
+        assert guess_json_utf(data) == encoding
+
+    @pytest.mark.parametrize(
+        ("encoding", "expected"),
+        (
+            ("utf-16-be", "utf-16"),
+            ("utf-16-le", "utf-16"),
+            ("utf-32-be", "utf-32"),
+            ("utf-32-le", "utf-32"),
+        ),
+    )
+    def test_guess_by_bom(self, encoding, expected):
+        data = "\ufeff{}".encode(encoding)
+        assert guess_json_utf(data) == expected

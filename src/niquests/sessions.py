@@ -44,6 +44,7 @@ from ._typing import (
     TimeoutType,
     TLSClientCertType,
     TLSVerifyType,
+    WSGIApp,
 )
 from .adapters import BaseAdapter, HTTPAdapter
 from .auth import _basic_auth_str
@@ -61,6 +62,8 @@ from .exceptions import (
     TooManyRedirects,
 )
 from .extensions.revocation import DEFAULT_STRATEGY, RevocationConfiguration
+from .extensions.sgi import WebServerGatewayInterface
+from .extensions.unixsocket import UnixAdapter
 from .hooks import HOOKS, default_hooks, dispatch_hook
 
 # formerly defined here, reexposed here for backward compatibility
@@ -251,6 +254,7 @@ class Session:
         headers: HeadersType | None = None,
         hooks: HookType[PreparedRequest | Response] | None = None,
         revocation_configuration: RevocationConfiguration | None = DEFAULT_STRATEGY,
+        app: WSGIApp | None = None,
     ):
         """
         :param resolver: Specify a DNS resolver that should be used within this Session.
@@ -443,6 +447,34 @@ class Session:
                 revocation_configuration=revocation_configuration,
             ),
         )
+        self.mount(
+            "unix+http://",
+            UnixAdapter(
+                max_retries=retries,
+                resolver=resolver,
+                source_address=source_address,
+                disable_http1=disable_http1,
+                disable_http2=disable_http2,
+                disable_http3=disable_http3,
+                disable_ipv4=disable_ipv4,
+                disable_ipv6=disable_ipv6,
+                pool_connections=pool_connections,
+                pool_maxsize=pool_maxsize,
+                happy_eyeballs=happy_eyeballs,
+                keepalive_delay=keepalive_delay,
+                keepalive_idle_window=keepalive_idle_window,
+                revocation_configuration=revocation_configuration,
+            ),
+        )
+        if app is not None:
+            self.mount(
+                "wsgi://default",
+                WebServerGatewayInterface(
+                    app=app,
+                ),
+            )
+            if self.base_url is None:
+                self.base_url = "wsgi://default"
 
     def __repr__(self) -> str:
         return f"<Session {repr(self.adapters).replace('OrderedDict(', '')[:-1]}>"
@@ -1295,6 +1327,25 @@ class Session:
                     revocation_configuration=self._revocation_configuration,
                 ),
             )
+            self.mount(
+                "unix+http://",
+                UnixAdapter(
+                    max_retries=self.retries,
+                    disable_http1=self._disable_http1,
+                    disable_http2=self._disable_http2,
+                    disable_http3=self._disable_http3,
+                    resolver=self.resolver,
+                    source_address=self.source_address,
+                    disable_ipv4=self._disable_ipv4,
+                    disable_ipv6=self._disable_ipv6,
+                    pool_connections=self._pool_connections,
+                    pool_maxsize=self._pool_maxsize,
+                    happy_eyeballs=self._happy_eyeballs,
+                    keepalive_delay=self._keepalive_delay,
+                    keepalive_idle_window=self._keepalive_idle_window,
+                    revocation_configuration=self._revocation_configuration,
+                ),
+            )
 
         # Get the appropriate adapter to use
         adapter = self.get_adapter(url=request.url)
@@ -1552,6 +1603,25 @@ class Session:
         self.mount(
             "http://",
             HTTPAdapter(
+                max_retries=self.retries,
+                disable_http1=self._disable_http1,
+                disable_http2=self._disable_http2,
+                disable_http3=self._disable_http3,
+                source_address=self.source_address,
+                disable_ipv4=self._disable_ipv4,
+                disable_ipv6=self._disable_ipv6,
+                resolver=self.resolver,
+                pool_connections=self._pool_connections,
+                pool_maxsize=self._pool_maxsize,
+                happy_eyeballs=self._happy_eyeballs,
+                keepalive_delay=self._keepalive_delay,
+                keepalive_idle_window=self._keepalive_idle_window,
+                revocation_configuration=self._revocation_configuration,
+            ),
+        )
+        self.mount(
+            "unix+http://",
+            UnixAdapter(
                 max_retries=self.retries,
                 disable_http1=self._disable_http1,
                 disable_http2=self._disable_http2,
