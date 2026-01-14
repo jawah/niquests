@@ -108,7 +108,6 @@ class TestSyncLimiters:
                     assert response.status_code == 200
                 elapsed = time.monotonic() - start
 
-
                 # Burst should be fast - with rate=1.0 and no burst, 5 requests
                 # would take 4+ seconds. With burst capacity, it should be much faster.
                 # Allow 5 seconds for network overhead.
