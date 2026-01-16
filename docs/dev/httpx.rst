@@ -413,3 +413,5 @@ You can do so with Niquests also!
 .. note:: TestClient exposed in FastAPI is actually starlette.TestClient. Starlette is using httpx deep under the hood as an optional dependency.
 
 .. warning:: Like starlette.TestClient we are defeating the purpose of true async with threading. It's there for convenience only, we recommend you to leverage async/await as a best practice.
+
+.. warning:: The synchronous Session handle lifespan startup/shutdown events opposed to the pure asynchronous implementation. Also, for convenience.

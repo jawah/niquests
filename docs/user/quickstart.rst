@@ -1851,7 +1851,7 @@ Test your FastAPI, Starlette, or other ASGI applications directly:
 
     asyncio.run(main())
 
-.. note:: You can also use an ASGI app within a synchronous Session at the cost of loosing streaming responses.
+.. note:: You can also use an ASGI app within a synchronous Session at the cost of loosing streaming responses. And in the sync version, lifespan events (startup, shutdown) are handled automatically.
 
 WSGI Applications (Sync)
 ~~~~~~~~~~~~~~~~~~~~~~~~

@@ -432,6 +432,10 @@ class ThreadAsyncServerGatewayInterface(BaseAdapter):
         self._loop: typing.Any = None  # asyncio.AbstractEventLoop
         self._thread: threading.Thread | None = None
         self._started = threading.Event()
+        self._lifespan_task: asyncio.Task | None = None
+        self._lifespan_receive_queue: asyncio.Queue | None = None
+        self._lifespan_startup_complete = threading.Event()
+        self._lifespan_startup_failed: Exception | None = None
 
     def _ensure_loop_running(self) -> None:
         """Start the background event loop thread if not already running."""
@@ -443,17 +447,81 @@ class ThreadAsyncServerGatewayInterface(BaseAdapter):
         def run_loop() -> None:
             self._loop = asyncio.new_event_loop()
             asyncio.set_event_loop(self._loop)
+            self._lifespan_receive_queue = asyncio.Queue()
             self._async_adapter = AsyncServerGatewayInterface(
                 self.app,
                 raise_app_exceptions=self.raise_app_exceptions,
                 max_retries=self.max_retries,
             )
+            # Start lifespan handler
+            self._lifespan_task = self._loop.create_task(self._handle_lifespan())
             self._started.set()
             self._loop.run_forever()
 
         self._thread = threading.Thread(target=run_loop, daemon=True)
         self._thread.start()
         self._started.wait()
+        self._lifespan_startup_complete.wait()
+
+        if self._lifespan_startup_failed is not None:
+            raise self._lifespan_startup_failed
+
+    async def _handle_lifespan(self) -> None:
+        """Handle ASGI lifespan protocol."""
+        scope = {
+            "type": "lifespan",
+            "asgi": {"version": "3.0"},
+        }
+
+        startup_complete = asyncio.Event()
+        shutdown_complete = asyncio.Event()
+        startup_failed: list[Exception] = []
+
+        async def receive() -> ASGIMessage:
+            return await self._lifespan_receive_queue.get()  # type: ignore[union-attr]
+
+        async def send(message: ASGIMessage) -> None:
+            if message["type"] == "lifespan.startup.complete":
+                startup_complete.set()
+            elif message["type"] == "lifespan.startup.failed":
+                startup_failed.append(RuntimeError(message.get("message", "Lifespan startup failed")))
+                startup_complete.set()
+            elif message["type"] == "lifespan.shutdown.complete":
+                shutdown_complete.set()
+            elif message["type"] == "lifespan.shutdown.failed":
+                shutdown_complete.set()
+
+        async def run_lifespan() -> None:
+            try:
+                await self.app(scope, receive, send)
+            except Exception as e:
+                if not startup_complete.is_set():
+                    startup_failed.append(e)
+                    startup_complete.set()
+
+        lifespan_task = asyncio.create_task(run_lifespan())
+
+        # Send startup event
+        await self._lifespan_receive_queue.put({"type": "lifespan.startup"})  # type: ignore[union-attr]
+        await startup_complete.wait()
+
+        if startup_failed:
+            self._lifespan_startup_failed = startup_failed[0]
+        self._lifespan_startup_complete.set()
+
+        # Wait for shutdown signal (loop.stop() will cancel this)
+        try:
+            await asyncio.Future()  # Wait forever until cancelled
+        except asyncio.CancelledError:
+            pass
+        finally:
+            # Send shutdown event
+            await self._lifespan_receive_queue.put({"type": "lifespan.shutdown"})  # type: ignore[union-attr]
+            with contextlib.suppress(asyncio.TimeoutError):
+                await asyncio.wait_for(shutdown_complete.wait(), timeout=5.0)
+            lifespan_task.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await lifespan_task
 
     def send(
         self,
@@ -500,14 +568,22 @@ class ThreadAsyncServerGatewayInterface(BaseAdapter):
 
     def close(self) -> None:
         """Clean up adapter resources."""
+        if self._loop is not None and self._lifespan_task is not None:
+            # Cancel lifespan task to trigger shutdown
+            self._loop.call_soon_threadsafe(self._lifespan_task.cancel)
         if self._loop is not None:
             self._loop.call_soon_threadsafe(self._loop.stop)
         if self._thread is not None:
-            self._thread.join(timeout=1.0)
+            self._thread.join(timeout=5.0)
             self._thread = None
+        # Clear resources only after thread has stopped
         self._loop = None
         self._async_adapter = None
+        self._lifespan_task = None
+        self._lifespan_receive_queue = None
         self._started.clear()
+        self._lifespan_startup_complete.clear()
+        self._lifespan_startup_failed = None
 
 
 __all__ = ("AsyncServerGatewayInterface", "ThreadAsyncServerGatewayInterface")
