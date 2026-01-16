@@ -8,6 +8,7 @@ requests (cookies, auth, proxies).
 
 from __future__ import annotations
 
+import asyncio
 import os
 import sys
 import time
@@ -28,6 +29,7 @@ from ._constant import (
     WRITE_DEFAULT_TIMEOUT,
 )
 from ._typing import (
+    ASGIApp,
     BodyType,
     CacheLayerAltSvcType,
     CookiesType,
@@ -63,6 +65,7 @@ from .exceptions import (
 )
 from .extensions.revocation import DEFAULT_STRATEGY, RevocationConfiguration
 from .extensions.sgi import WebServerGatewayInterface
+from .extensions.sgi._async import ThreadAsyncServerGatewayInterface
 from .extensions.unixsocket import UnixAdapter
 from .hooks import HOOKS, default_hooks, dispatch_hook
 
@@ -253,7 +256,7 @@ class Session:
         timeout: TimeoutType | None = None,
         headers: HeadersType | None = None,
         revocation_configuration: RevocationConfiguration | None = DEFAULT_STRATEGY,
-        app: WSGIApp | None = None,
+        app: WSGIApp | ASGIApp | None = None,
     ):
         """
         :param resolver: Specify a DNS resolver that should be used within this Session.
@@ -462,15 +465,26 @@ class Session:
             ),
         )
         if app is not None:
-            self.mount(
-                "wsgi://default",
-                WebServerGatewayInterface(
-                    app=app,
-                    max_retries=retries,
-                ),
-            )
-            if self.base_url is None:
-                self.base_url = "wsgi://default"
+            if hasattr(app, "__call__") and asyncio.iscoroutinefunction(app.__call__):
+                self.mount(
+                    "asgi://default",
+                    ThreadAsyncServerGatewayInterface(
+                        app=app,  # type: ignore[arg-type]
+                        max_retries=retries,
+                    ),
+                )
+                if self.base_url is None:
+                    self.base_url = "asgi://default"
+            else:
+                self.mount(
+                    "wsgi://default",
+                    WebServerGatewayInterface(
+                        app=app,  # type: ignore[arg-type]
+                        max_retries=retries,
+                    ),
+                )
+                if self.base_url is None:
+                    self.base_url = "wsgi://default"
 
     def __repr__(self) -> str:
         return f"<Session {repr(self.adapters).replace('OrderedDict(', '')[:-1]}>"

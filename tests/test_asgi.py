@@ -4,12 +4,11 @@ import asyncio
 import json
 import typing
 
-import httpx
 import pytest
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 
-from niquests import AsyncSession, RetryConfiguration
+from niquests import AsyncSession, RetryConfiguration, Session
 
 app = FastAPI()
 
@@ -58,7 +57,6 @@ async def echo(request: Request):
 
 @pytest.mark.asyncio
 async def test_asgi_basic():
-    httpx.ASGITransport(app=app)
     async with AsyncSession(app=app) as s:
         resp = await s.get("/hello", params={"foo": "bar", "channels": [0, 3]})
         assert resp.status_code == 200
@@ -115,3 +113,37 @@ async def test_asgi_stream_response():
         payload = json.loads(body)
 
         assert payload["path"] == "/echo"
+
+
+def test_thread_asgi_basic():
+    with Session(app=app) as s:
+        resp = s.get("/hello", params={"foo": "bar", "channels": [0, 3]})
+        assert resp.status_code == 200
+        assert resp.json()["path"] == "/hello"
+        assert resp.json()["query"] == "foo=bar&channels=0&channels=3"
+
+
+def test_thread_asgi_retries():
+    # Reset counter for test isolation
+    app.state._retry_count = 0
+
+    with Session(app=app, retries=RetryConfiguration(total=1, status_forcelist=(503,))) as s:
+        resp = s.get("/retries")
+        assert resp.status_code == 200
+
+        resp = s.get("/retries")
+        assert resp.status_code == 200
+
+    with Session(app=app) as s:
+        resp = s.get("/retries")
+        assert resp.status_code == 503
+
+
+def test_thread_asgi_stream_response():
+    with Session(app=app) as s:
+        with pytest.raises(ValueError):
+            s.post(
+                "/echo",
+                data=b"foobar" * 32,
+                stream=True,
+            )

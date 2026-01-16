@@ -2,10 +2,12 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import threading
 import typing
+from concurrent.futures import Future
 
 from ...._constant import DEFAULT_RETRIES
-from ....adapters import AsyncBaseAdapter
+from ....adapters import AsyncBaseAdapter, BaseAdapter
 from ....exceptions import ConnectTimeout, ReadTimeout
 from ....models import AsyncResponse, PreparedRequest, Response
 from ....packages.urllib3._async.response import AsyncHTTPResponse as BaseHTTPResponse
@@ -408,4 +410,104 @@ class AsyncServerGatewayInterface(AsyncBaseAdapter):
         pass
 
 
-__all__ = ("AsyncServerGatewayInterface",)
+class ThreadAsyncServerGatewayInterface(BaseAdapter):
+    """Synchronous adapter for ASGI applications using a background event loop."""
+
+    def __init__(
+        self,
+        app: ASGIApp,
+        raise_app_exceptions: bool = True,
+        max_retries: RetryType = DEFAULT_RETRIES,
+    ) -> None:
+        super().__init__()
+        self.app = app
+        self.raise_app_exceptions = raise_app_exceptions
+
+        if isinstance(max_retries, Retry):
+            self.max_retries = max_retries
+        else:
+            self.max_retries = Retry.from_int(max_retries)
+
+        self._async_adapter: AsyncServerGatewayInterface | None = None
+        self._loop: typing.Any = None  # asyncio.AbstractEventLoop
+        self._thread: threading.Thread | None = None
+        self._started = threading.Event()
+
+    def _ensure_loop_running(self) -> None:
+        """Start the background event loop thread if not already running."""
+        if self._thread is not None and self._thread.is_alive():
+            return
+
+        import asyncio
+
+        def run_loop() -> None:
+            self._loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(self._loop)
+            self._async_adapter = AsyncServerGatewayInterface(
+                self.app,
+                raise_app_exceptions=self.raise_app_exceptions,
+                max_retries=self.max_retries,
+            )
+            self._started.set()
+            self._loop.run_forever()
+
+        self._thread = threading.Thread(target=run_loop, daemon=True)
+        self._thread.start()
+        self._started.wait()
+
+    def send(
+        self,
+        request: PreparedRequest,
+        stream: bool = False,
+        timeout: int | float | None = None,
+        verify: TLSVerifyType = True,
+        cert: TLSClientCertType | None = None,
+        proxies: ProxyType | None = None,
+        on_post_connection: typing.Callable[[typing.Any], None] | None = None,
+        on_upload_body: typing.Callable[[int, int | None, bool, bool], None] | None = None,
+        on_early_response: typing.Callable[[Response], None] | None = None,
+        multiplexed: bool = False,
+    ) -> Response:
+        """Send a PreparedRequest to the ASGI application synchronously."""
+        if stream:
+            raise ValueError(
+                "ThreadAsyncServerGatewayInterface does not support streaming responses. "
+                "Use stream=False or migrate to pure async/await implementation."
+            )
+
+        self._ensure_loop_running()
+
+        future: Future[Response] = Future()
+
+        async def run_send() -> None:
+            try:
+                result = await self._async_adapter.send(  # type: ignore[union-attr]
+                    request,
+                    stream=False,
+                    timeout=timeout,
+                    verify=verify,
+                    cert=cert,
+                    proxies=proxies,
+                )
+                _swap_context(result)
+                future.set_result(result)  # type: ignore[arg-type]
+            except Exception as e:
+                future.set_exception(e)
+
+        self._loop.call_soon_threadsafe(lambda: self._loop.create_task(run_send()))
+
+        return future.result()
+
+    def close(self) -> None:
+        """Clean up adapter resources."""
+        if self._loop is not None:
+            self._loop.call_soon_threadsafe(self._loop.stop)
+        if self._thread is not None:
+            self._thread.join(timeout=1.0)
+            self._thread = None
+        self._loop = None
+        self._async_adapter = None
+        self._started.clear()
+
+
+__all__ = ("AsyncServerGatewayInterface", "ThreadAsyncServerGatewayInterface")
