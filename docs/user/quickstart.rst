@@ -25,7 +25,7 @@ Let's get started with some simple examples.
         import niquests
 
         async def main() -> None:
-            """past your example code here!"""
+            """paste your example code here!"""
 
         if __name__ == "__main__":
             asyncio.run(main())
