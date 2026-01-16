@@ -466,6 +466,7 @@ class Session:
                 "wsgi://default",
                 WebServerGatewayInterface(
                     app=app,
+                    max_retries=retries,
                 ),
             )
             if self.base_url is None:

@@ -2,13 +2,17 @@ from __future__ import annotations
 
 import typing
 
+from ..._constant import DEFAULT_RETRIES
 from ...adapters import BaseAdapter
 from ...models import PreparedRequest, Response
+from ...packages.urllib3.exceptions import MaxRetryError
 from ...packages.urllib3.response import BytesQueueBuffer
+from ...packages.urllib3.response import HTTPResponse as BaseHTTPResponse
+from ...packages.urllib3.util.retry import Retry
 from ...structures import CaseInsensitiveDict
 
 if typing.TYPE_CHECKING:
-    from ..._typing import ProxyType, TLSClientCertType, TLSVerifyType, WSGIApp
+    from ..._typing import ProxyType, RetryType, TLSClientCertType, TLSVerifyType, WSGIApp
 
 from io import BytesIO
 
@@ -74,14 +78,20 @@ class _WSGIRawIO:
 class WebServerGatewayInterface(BaseAdapter):
     """Adapter for making requests to WSGI applications directly."""
 
-    def __init__(self, app: WSGIApp) -> None:
+    def __init__(self, app: WSGIApp, max_retries: RetryType = DEFAULT_RETRIES) -> None:
         """
         Initialize the WSGI adapter.
 
         :param app: A WSGI application callable.
+        :param max_retries: Maximum number of retries for requests.
         """
         super().__init__()
         self.app = app
+
+        if isinstance(max_retries, Retry):
+            self.max_retries = max_retries
+        else:
+            self.max_retries = Retry.from_int(max_retries)
 
     def send(
         self,
@@ -97,10 +107,53 @@ class WebServerGatewayInterface(BaseAdapter):
         multiplexed: bool = False,
     ) -> Response:
         """Send a PreparedRequest to the WSGI application."""
+        retries = self.max_retries
+        method = request.method or "GET"
+
+        while True:
+            try:
+                response = self._do_send(request, stream)
+            except Exception as err:
+                try:
+                    retries = retries.increment(method, request.url, error=err)
+                except MaxRetryError:
+                    raise
+
+                retries.sleep()
+                continue
+
+            # we rely on the urllib3 implementation for retries
+            # so we basically mock a response to get it to work
+            base_response = BaseHTTPResponse(
+                body=b"",
+                headers=response.headers,
+                status=response.status_code,
+                request_method=request.method,
+                request_url=request.url,
+            )
+
+            # Check if we should retry based on status code
+            has_retry_after = bool(response.headers.get("Retry-After"))
+
+            if retries.is_retry(method, response.status_code, has_retry_after):
+                try:
+                    retries = retries.increment(method, request.url, response=base_response)
+                except MaxRetryError:
+                    if retries.raise_on_status:
+                        raise
+                    return response
+
+                retries.sleep(base_response)
+                continue
+
+            return response
+
+    def _do_send(self, request: PreparedRequest, stream: bool) -> Response:
+        """Perform the actual WSGI request."""
         environ = self._create_environ(request)
 
         status_code = None
-        response_headers = []
+        response_headers: list[tuple[str, str]] = []
 
         def start_response(status: str, headers: list[tuple[str, str]], exc_info=None):
             nonlocal status_code, response_headers

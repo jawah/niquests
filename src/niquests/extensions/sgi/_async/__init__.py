@@ -4,16 +4,20 @@ import asyncio
 import contextlib
 import typing
 
+from ...._constant import DEFAULT_RETRIES
 from ....adapters import AsyncBaseAdapter
 from ....exceptions import ConnectTimeout, ReadTimeout
 from ....models import AsyncResponse, PreparedRequest, Response
+from ....packages.urllib3._async.response import AsyncHTTPResponse as BaseHTTPResponse
 from ....packages.urllib3.contrib.ssa._timeout import timeout as asyncio_timeout
+from ....packages.urllib3.exceptions import MaxRetryError
 from ....packages.urllib3.response import BytesQueueBuffer
+from ....packages.urllib3.util.retry import Retry
 from ....structures import CaseInsensitiveDict
 from ....utils import _swap_context
 
 if typing.TYPE_CHECKING:
-    from ...._typing import ASGIApp, ProxyType, TLSClientCertType, TLSVerifyType
+    from ...._typing import ASGIApp, ASGIMessage, ProxyType, RetryType, TLSClientCertType, TLSVerifyType
 
 
 class _ASGIRawIO:
@@ -21,7 +25,7 @@ class _ASGIRawIO:
 
     def __init__(
         self,
-        response_queue: asyncio.Queue[dict | None],
+        response_queue: asyncio.Queue[ASGIMessage | None],
         response_complete: asyncio.Event,
         timeout: float | None = None,
     ) -> None:
@@ -123,10 +127,15 @@ class _ASGIRawIO:
 class AsyncServerGatewayInterface(AsyncBaseAdapter):
     """Adapter for making requests to ASGI applications directly."""
 
-    def __init__(self, app: ASGIApp, raise_app_exceptions: bool = True) -> None:
+    def __init__(self, app: ASGIApp, raise_app_exceptions: bool = True, max_retries: RetryType = DEFAULT_RETRIES) -> None:
         super().__init__()
         self.app = app
         self.raise_app_exceptions = raise_app_exceptions
+
+        if isinstance(max_retries, Retry):
+            self.max_retries = max_retries
+        else:
+            self.max_retries = Retry.from_int(max_retries)
 
     async def send(
         self,
@@ -142,6 +151,54 @@ class AsyncServerGatewayInterface(AsyncBaseAdapter):
         multiplexed: bool = False,
     ) -> AsyncResponse:
         """Send a PreparedRequest to the ASGI application."""
+        retries = self.max_retries
+        method = request.method or "GET"
+
+        while True:
+            try:
+                response = await self._do_send(request, stream, timeout)
+            except Exception as err:
+                try:
+                    retries = retries.increment(method, request.url, error=err)
+                except MaxRetryError:
+                    raise
+
+                await retries.async_sleep()
+                continue
+
+            # we rely on the urllib3 implementation for retries
+            # so we basically mock a response to get it to work
+            base_response = BaseHTTPResponse(
+                body=b"",
+                headers=response.headers,
+                status=response.status_code,
+                request_method=request.method,
+                request_url=request.url,
+            )
+
+            # Check if we should retry based on status code
+            has_retry_after = bool(response.headers.get("Retry-After"))
+
+            if retries.is_retry(method, response.status_code, has_retry_after):
+                try:
+                    retries = retries.increment(method, request.url, response=base_response)
+                except MaxRetryError:
+                    if retries.raise_on_status:
+                        raise
+                    return response
+
+                await retries.async_sleep(base_response)
+                continue
+
+            return response
+
+    async def _do_send(
+        self,
+        request: PreparedRequest,
+        stream: bool,
+        timeout: int | float | None,
+    ) -> AsyncResponse:
+        """Perform the actual ASGI request."""
         scope = self._create_scope(request)
 
         body = request.body or b""
@@ -156,10 +213,10 @@ class AsyncServerGatewayInterface(AsyncBaseAdapter):
 
         request_complete = False
         response_complete = asyncio.Event()
-        response_queue: asyncio.Queue[dict | None] = asyncio.Queue()
+        response_queue: asyncio.Queue[ASGIMessage | None] = asyncio.Queue()
         app_exception: Exception | None = None
 
-        async def receive() -> dict:
+        async def receive() -> ASGIMessage:
             nonlocal request_complete
             if request_complete:
                 await response_complete.wait()
@@ -180,7 +237,7 @@ class AsyncServerGatewayInterface(AsyncBaseAdapter):
                 request_complete = True
                 return {"type": "http.request", "body": body, "more_body": False}
 
-        async def send_func(message: dict) -> None:
+        async def send_func(message: ASGIMessage) -> None:
             await response_queue.put(message)
             if message["type"] == "http.response.body" and not message.get("more_body", False):
                 response_complete.set()
@@ -206,7 +263,7 @@ class AsyncServerGatewayInterface(AsyncBaseAdapter):
     async def _stream_response(
         self,
         request: PreparedRequest,
-        response_queue: asyncio.Queue[dict | None],
+        response_queue: asyncio.Queue[ASGIMessage | None],
         response_complete: asyncio.Event,
         run_app: typing.Callable[[], typing.Awaitable[None]],
         get_exception: typing.Callable[[], Exception | None],
@@ -263,7 +320,7 @@ class AsyncServerGatewayInterface(AsyncBaseAdapter):
     async def _buffered_response(
         self,
         request: PreparedRequest,
-        response_queue: asyncio.Queue[dict | None],
+        response_queue: asyncio.Queue[ASGIMessage | None],
         response_complete: asyncio.Event,
         run_app: typing.Callable[[], typing.Awaitable[None]],
         get_exception: typing.Callable[[], Exception | None],
