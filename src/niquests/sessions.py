@@ -287,6 +287,7 @@ class Session:
             lists of callables, or a LifeCycleHook instance.
         :param revocation_configuration: How should that session do the certificate revocation check. Set it as None to disable
             this additional security measure.
+        :param app: A WSGI (e.g. Flask) or ASGI (e.g. FastAPI) app to be mounted automatically.
         """
         if [disable_ipv4, disable_ipv6].count(True) == 2:
             raise RuntimeError("Cannot disable both IPv4 and IPv6")
