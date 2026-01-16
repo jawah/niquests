@@ -1798,6 +1798,8 @@ WSGI/ASGI Application Testing
 
 Niquests provides built-in adapters for testing WSGI and ASGI applications directly without starting a server. This is particularly useful for integration testing.
 
+.. warning:: This feature silently ignore fine tuning parameters like "http version enable/disable", "pool sizing", "multiplexing", ... that are only meant for true HTTP connections.
+
 ASGI Applications (Async)
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -1848,6 +1850,8 @@ Test your FastAPI, Starlette, or other ASGI applications directly:
             print(body)
 
     asyncio.run(main())
+
+.. note:: You can also use an ASGI app within a synchronous Session at the cost of loosing streaming responses. And in the sync version, lifespan events (startup, shutdown) are handled automatically.
 
 WSGI Applications (Sync)
 ~~~~~~~~~~~~~~~~~~~~~~~~

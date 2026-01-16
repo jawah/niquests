@@ -389,3 +389,29 @@ Now you can easily achieve the same with Niquests:
 .. note:: The same goes for ASGI testing, but instead of using ``Session``, you'll use ``AsyncSession`` instead.
 
 .. warning:: ASGI lifespan startup/shutdown is not handled by Niquests (neither does httpx). You'll use something like asgi-lifespan (https://github.com/florimondmanca/asgi-lifespan#usage) to handle that part.
+
+With FastAPI you could have been used to:
+
+.. code-block:: python
+
+    from fastapi import TestClient
+
+    client = TestClient(app)
+
+    response = client.get("/")
+
+You can do so with Niquests also!
+
+.. code-block:: python
+
+    from niquests import Session
+
+    client = Session(app=app)
+
+    response = client.get("/")
+
+.. note:: TestClient exposed in FastAPI is actually starlette.TestClient. Starlette is using httpx deep under the hood as an optional dependency.
+
+.. warning:: Like starlette.TestClient we are defeating the purpose of true async with threading. It's there for convenience only, we recommend you to leverage async/await as a best practice.
+
+.. warning:: The synchronous Session handle lifespan startup/shutdown events opposed to the pure asynchronous implementation. Also, for convenience.

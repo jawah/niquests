@@ -2,18 +2,24 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import threading
 import typing
+from concurrent.futures import Future
 
-from ....adapters import AsyncBaseAdapter
+from ...._constant import DEFAULT_RETRIES
+from ....adapters import AsyncBaseAdapter, BaseAdapter
 from ....exceptions import ConnectTimeout, ReadTimeout
 from ....models import AsyncResponse, PreparedRequest, Response
+from ....packages.urllib3._async.response import AsyncHTTPResponse as BaseHTTPResponse
 from ....packages.urllib3.contrib.ssa._timeout import timeout as asyncio_timeout
+from ....packages.urllib3.exceptions import MaxRetryError
 from ....packages.urllib3.response import BytesQueueBuffer
+from ....packages.urllib3.util.retry import Retry
 from ....structures import CaseInsensitiveDict
 from ....utils import _swap_context
 
 if typing.TYPE_CHECKING:
-    from ...._typing import ASGIApp, ProxyType, TLSClientCertType, TLSVerifyType
+    from ...._typing import ASGIApp, ASGIMessage, ProxyType, RetryType, TLSClientCertType, TLSVerifyType
 
 
 class _ASGIRawIO:
@@ -21,7 +27,7 @@ class _ASGIRawIO:
 
     def __init__(
         self,
-        response_queue: asyncio.Queue[dict | None],
+        response_queue: asyncio.Queue[ASGIMessage | None],
         response_complete: asyncio.Event,
         timeout: float | None = None,
     ) -> None:
@@ -123,10 +129,15 @@ class _ASGIRawIO:
 class AsyncServerGatewayInterface(AsyncBaseAdapter):
     """Adapter for making requests to ASGI applications directly."""
 
-    def __init__(self, app: ASGIApp, raise_app_exceptions: bool = True) -> None:
+    def __init__(self, app: ASGIApp, raise_app_exceptions: bool = True, max_retries: RetryType = DEFAULT_RETRIES) -> None:
         super().__init__()
         self.app = app
         self.raise_app_exceptions = raise_app_exceptions
+
+        if isinstance(max_retries, Retry):
+            self.max_retries = max_retries
+        else:
+            self.max_retries = Retry.from_int(max_retries)
 
     async def send(
         self,
@@ -142,6 +153,54 @@ class AsyncServerGatewayInterface(AsyncBaseAdapter):
         multiplexed: bool = False,
     ) -> AsyncResponse:
         """Send a PreparedRequest to the ASGI application."""
+        retries = self.max_retries
+        method = request.method or "GET"
+
+        while True:
+            try:
+                response = await self._do_send(request, stream, timeout)
+            except Exception as err:
+                try:
+                    retries = retries.increment(method, request.url, error=err)
+                except MaxRetryError:
+                    raise
+
+                await retries.async_sleep()
+                continue
+
+            # we rely on the urllib3 implementation for retries
+            # so we basically mock a response to get it to work
+            base_response = BaseHTTPResponse(
+                body=b"",
+                headers=response.headers,
+                status=response.status_code,
+                request_method=request.method,
+                request_url=request.url,
+            )
+
+            # Check if we should retry based on status code
+            has_retry_after = bool(response.headers.get("Retry-After"))
+
+            if retries.is_retry(method, response.status_code, has_retry_after):
+                try:
+                    retries = retries.increment(method, request.url, response=base_response)
+                except MaxRetryError:
+                    if retries.raise_on_status:
+                        raise
+                    return response
+
+                await retries.async_sleep(base_response)
+                continue
+
+            return response
+
+    async def _do_send(
+        self,
+        request: PreparedRequest,
+        stream: bool,
+        timeout: int | float | None,
+    ) -> AsyncResponse:
+        """Perform the actual ASGI request."""
         scope = self._create_scope(request)
 
         body = request.body or b""
@@ -156,10 +215,10 @@ class AsyncServerGatewayInterface(AsyncBaseAdapter):
 
         request_complete = False
         response_complete = asyncio.Event()
-        response_queue: asyncio.Queue[dict | None] = asyncio.Queue()
+        response_queue: asyncio.Queue[ASGIMessage | None] = asyncio.Queue()
         app_exception: Exception | None = None
 
-        async def receive() -> dict:
+        async def receive() -> ASGIMessage:
             nonlocal request_complete
             if request_complete:
                 await response_complete.wait()
@@ -180,7 +239,7 @@ class AsyncServerGatewayInterface(AsyncBaseAdapter):
                 request_complete = True
                 return {"type": "http.request", "body": body, "more_body": False}
 
-        async def send_func(message: dict) -> None:
+        async def send_func(message: ASGIMessage) -> None:
             await response_queue.put(message)
             if message["type"] == "http.response.body" and not message.get("more_body", False):
                 response_complete.set()
@@ -206,7 +265,7 @@ class AsyncServerGatewayInterface(AsyncBaseAdapter):
     async def _stream_response(
         self,
         request: PreparedRequest,
-        response_queue: asyncio.Queue[dict | None],
+        response_queue: asyncio.Queue[ASGIMessage | None],
         response_complete: asyncio.Event,
         run_app: typing.Callable[[], typing.Awaitable[None]],
         get_exception: typing.Callable[[], Exception | None],
@@ -263,7 +322,7 @@ class AsyncServerGatewayInterface(AsyncBaseAdapter):
     async def _buffered_response(
         self,
         request: PreparedRequest,
-        response_queue: asyncio.Queue[dict | None],
+        response_queue: asyncio.Queue[ASGIMessage | None],
         response_complete: asyncio.Event,
         run_app: typing.Callable[[], typing.Awaitable[None]],
         get_exception: typing.Callable[[], Exception | None],
@@ -351,4 +410,180 @@ class AsyncServerGatewayInterface(AsyncBaseAdapter):
         pass
 
 
-__all__ = ("AsyncServerGatewayInterface",)
+class ThreadAsyncServerGatewayInterface(BaseAdapter):
+    """Synchronous adapter for ASGI applications using a background event loop."""
+
+    def __init__(
+        self,
+        app: ASGIApp,
+        raise_app_exceptions: bool = True,
+        max_retries: RetryType = DEFAULT_RETRIES,
+    ) -> None:
+        super().__init__()
+        self.app = app
+        self.raise_app_exceptions = raise_app_exceptions
+
+        if isinstance(max_retries, Retry):
+            self.max_retries = max_retries
+        else:
+            self.max_retries = Retry.from_int(max_retries)
+
+        self._async_adapter: AsyncServerGatewayInterface | None = None
+        self._loop: typing.Any = None  # asyncio.AbstractEventLoop
+        self._thread: threading.Thread | None = None
+        self._started = threading.Event()
+        self._lifespan_task: asyncio.Task | None = None
+        self._lifespan_receive_queue: asyncio.Queue | None = None
+        self._lifespan_startup_complete = threading.Event()
+        self._lifespan_startup_failed: Exception | None = None
+
+    def _ensure_loop_running(self) -> None:
+        """Start the background event loop thread if not already running."""
+        if self._thread is not None and self._thread.is_alive():
+            return
+
+        import asyncio
+
+        def run_loop() -> None:
+            self._loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(self._loop)
+            self._lifespan_receive_queue = asyncio.Queue()
+            self._async_adapter = AsyncServerGatewayInterface(
+                self.app,
+                raise_app_exceptions=self.raise_app_exceptions,
+                max_retries=self.max_retries,
+            )
+            # Start lifespan handler
+            self._lifespan_task = self._loop.create_task(self._handle_lifespan())
+            self._started.set()
+            self._loop.run_forever()
+
+        self._thread = threading.Thread(target=run_loop, daemon=True)
+        self._thread.start()
+        self._started.wait()
+        self._lifespan_startup_complete.wait()
+
+        if self._lifespan_startup_failed is not None:
+            raise self._lifespan_startup_failed
+
+    async def _handle_lifespan(self) -> None:
+        """Handle ASGI lifespan protocol."""
+        scope = {
+            "type": "lifespan",
+            "asgi": {"version": "3.0"},
+        }
+
+        startup_complete = asyncio.Event()
+        shutdown_complete = asyncio.Event()
+        startup_failed: list[Exception] = []
+
+        async def receive() -> ASGIMessage:
+            return await self._lifespan_receive_queue.get()  # type: ignore[union-attr]
+
+        async def send(message: ASGIMessage) -> None:
+            if message["type"] == "lifespan.startup.complete":
+                startup_complete.set()
+            elif message["type"] == "lifespan.startup.failed":
+                startup_failed.append(RuntimeError(message.get("message", "Lifespan startup failed")))
+                startup_complete.set()
+            elif message["type"] == "lifespan.shutdown.complete":
+                shutdown_complete.set()
+            elif message["type"] == "lifespan.shutdown.failed":
+                shutdown_complete.set()
+
+        async def run_lifespan() -> None:
+            try:
+                await self.app(scope, receive, send)
+            except Exception as e:
+                if not startup_complete.is_set():
+                    startup_failed.append(e)
+                    startup_complete.set()
+
+        lifespan_task = asyncio.create_task(run_lifespan())
+
+        # Send startup event
+        await self._lifespan_receive_queue.put({"type": "lifespan.startup"})  # type: ignore[union-attr]
+        await startup_complete.wait()
+
+        if startup_failed:
+            self._lifespan_startup_failed = startup_failed[0]
+        self._lifespan_startup_complete.set()
+
+        # Wait for shutdown signal (loop.stop() will cancel this)
+        try:
+            await asyncio.Future()  # Wait forever until cancelled
+        except asyncio.CancelledError:
+            pass
+        finally:
+            # Send shutdown event
+            await self._lifespan_receive_queue.put({"type": "lifespan.shutdown"})  # type: ignore[union-attr]
+            with contextlib.suppress(asyncio.TimeoutError):
+                await asyncio.wait_for(shutdown_complete.wait(), timeout=5.0)
+            lifespan_task.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await lifespan_task
+
+    def send(
+        self,
+        request: PreparedRequest,
+        stream: bool = False,
+        timeout: int | float | None = None,
+        verify: TLSVerifyType = True,
+        cert: TLSClientCertType | None = None,
+        proxies: ProxyType | None = None,
+        on_post_connection: typing.Callable[[typing.Any], None] | None = None,
+        on_upload_body: typing.Callable[[int, int | None, bool, bool], None] | None = None,
+        on_early_response: typing.Callable[[Response], None] | None = None,
+        multiplexed: bool = False,
+    ) -> Response:
+        """Send a PreparedRequest to the ASGI application synchronously."""
+        if stream:
+            raise ValueError(
+                "ThreadAsyncServerGatewayInterface does not support streaming responses. "
+                "Use stream=False or migrate to pure async/await implementation."
+            )
+
+        self._ensure_loop_running()
+
+        future: Future[Response] = Future()
+
+        async def run_send() -> None:
+            try:
+                result = await self._async_adapter.send(  # type: ignore[union-attr]
+                    request,
+                    stream=False,
+                    timeout=timeout,
+                    verify=verify,
+                    cert=cert,
+                    proxies=proxies,
+                )
+                _swap_context(result)
+                future.set_result(result)  # type: ignore[arg-type]
+            except Exception as e:
+                future.set_exception(e)
+
+        self._loop.call_soon_threadsafe(lambda: self._loop.create_task(run_send()))
+
+        return future.result()
+
+    def close(self) -> None:
+        """Clean up adapter resources."""
+        if self._loop is not None and self._lifespan_task is not None:
+            # Cancel lifespan task to trigger shutdown
+            self._loop.call_soon_threadsafe(self._lifespan_task.cancel)
+        if self._loop is not None:
+            self._loop.call_soon_threadsafe(self._loop.stop)
+        if self._thread is not None:
+            self._thread.join(timeout=5.0)
+            self._thread = None
+        # Clear resources only after thread has stopped
+        self._loop = None
+        self._async_adapter = None
+        self._lifespan_task = None
+        self._lifespan_receive_queue = None
+        self._started.clear()
+        self._lifespan_startup_complete.clear()
+        self._lifespan_startup_failed = None
+
+
+__all__ = ("AsyncServerGatewayInterface", "ThreadAsyncServerGatewayInterface")

@@ -325,6 +325,7 @@ class AsyncSession(Session):
                 "asgi://default",
                 AsyncServerGatewayInterface(
                     app=app,
+                    max_retries=retries,
                 ),
             )
             if self.base_url is None:
