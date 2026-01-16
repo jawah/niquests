@@ -530,18 +530,20 @@ class ThreadAsyncServerGatewayInterface(BaseAdapter):
 
         # Wait for shutdown signal (loop.stop() will cancel this)
         try:
-            await asyncio.Future()  # Wait forever until cancelled
-        except asyncio.CancelledError:
+            await asyncio.Future()  # Wait forever until canceled
+        except (asyncio.CancelledError, GeneratorExit):
             pass
-        finally:
-            # Send shutdown event using local reference
-            if receive_queue is not None:
+
+        # Send shutdown event - must happen before loop stops
+        if receive_queue is not None:
+            try:
                 await receive_queue.put({"type": "lifespan.shutdown"})
-                with contextlib.suppress(asyncio.TimeoutError):
-                    await asyncio.wait_for(shutdown_complete.wait(), timeout=5.0)
-            lifespan_task.cancel()
-            with contextlib.suppress(asyncio.CancelledError):
-                await lifespan_task
+                await asyncio.wait_for(shutdown_complete.wait(), timeout=5.0)
+            except (asyncio.TimeoutError, asyncio.CancelledError, RuntimeError):
+                pass
+        lifespan_task.cancel()
+        with contextlib.suppress(asyncio.CancelledError):
+            await lifespan_task
 
     def send(
         self,
@@ -589,8 +591,19 @@ class ThreadAsyncServerGatewayInterface(BaseAdapter):
     def close(self) -> None:
         """Clean up adapter resources."""
         if self._loop is not None and self._lifespan_task is not None:
-            # Cancel lifespan task to trigger shutdown
-            self._loop.call_soon_threadsafe(self._lifespan_task.cancel)
+            # Signal shutdown and wait for it to complete
+            shutdown_done = threading.Event()
+
+            async def do_shutdown() -> None:
+                if self._lifespan_task is not None:
+                    self._lifespan_task.cancel()
+                    with contextlib.suppress(asyncio.CancelledError):
+                        await self._lifespan_task
+                shutdown_done.set()
+
+            self._loop.call_soon_threadsafe(lambda: self._loop.create_task(do_shutdown()))
+            shutdown_done.wait(timeout=6.0)
+
         if self._loop is not None:
             self._loop.call_soon_threadsafe(self._loop.stop)
         if self._thread is not None:
