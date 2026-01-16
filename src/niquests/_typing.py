@@ -183,8 +183,8 @@ AsyncResolverType: typing.TypeAlias = typing.Union[
     typing.List[AsyncResolverDescription],
 ]
 
-ASGIScope: typing.TypeAlias = typing.Dict[str, typing.Any]
-ASGIMessage: typing.TypeAlias = typing.Dict[str, typing.Any]
+ASGIScope: typing.TypeAlias = typing.MutableMapping[str, typing.Any]
+ASGIMessage: typing.TypeAlias = typing.MutableMapping[str, typing.Any]
 ASGIReceive: typing.TypeAlias = typing.Callable[[], typing.Awaitable[ASGIMessage]]
 ASGISend: typing.TypeAlias = typing.Callable[[ASGIMessage], typing.Awaitable[None]]
 
