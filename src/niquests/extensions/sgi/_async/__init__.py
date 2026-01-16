@@ -477,8 +477,11 @@ class ThreadAsyncServerGatewayInterface(BaseAdapter):
         shutdown_complete = asyncio.Event()
         startup_failed: list[Exception] = []
 
+        # Keep local reference to avoid race condition during shutdown
+        receive_queue = self._lifespan_receive_queue
+
         async def receive() -> ASGIMessage:
-            return await self._lifespan_receive_queue.get()  # type: ignore[union-attr]
+            return await receive_queue.get()  # type: ignore[union-attr]
 
         async def send(message: ASGIMessage) -> None:
             if message["type"] == "lifespan.startup.complete":
@@ -502,7 +505,7 @@ class ThreadAsyncServerGatewayInterface(BaseAdapter):
         lifespan_task = asyncio.create_task(run_lifespan())
 
         # Send startup event
-        await self._lifespan_receive_queue.put({"type": "lifespan.startup"})  # type: ignore[union-attr]
+        await receive_queue.put({"type": "lifespan.startup"})  # type: ignore[union-attr]
         await startup_complete.wait()
 
         if startup_failed:
@@ -515,10 +518,11 @@ class ThreadAsyncServerGatewayInterface(BaseAdapter):
         except asyncio.CancelledError:
             pass
         finally:
-            # Send shutdown event
-            await self._lifespan_receive_queue.put({"type": "lifespan.shutdown"})  # type: ignore[union-attr]
-            with contextlib.suppress(asyncio.TimeoutError):
-                await asyncio.wait_for(shutdown_complete.wait(), timeout=5.0)
+            # Send shutdown event using local reference
+            if receive_queue is not None:
+                await receive_queue.put({"type": "lifespan.shutdown"})
+                with contextlib.suppress(asyncio.TimeoutError):
+                    await asyncio.wait_for(shutdown_complete.wait(), timeout=5.0)
             lifespan_task.cancel()
             with contextlib.suppress(asyncio.CancelledError):
                 await lifespan_task
