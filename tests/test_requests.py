@@ -1615,7 +1615,6 @@ class TestRequests:
             "https://",
             "http://",
         ]
-        print(list(s.adapters))
         assert order == list(s.adapters)
         s.mount("http://gittip", HTTPAdapter())
         s.mount("http://gittip.com", HTTPAdapter())
