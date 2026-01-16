@@ -35,22 +35,6 @@ from urllib.parse import urlencode, urlsplit, urlunparse
 
 from charset_normalizer import from_bytes
 
-from ._typing import (
-    AsyncBodyType,
-    AsyncHookType,
-    AsyncHttpAuthenticationType,
-    BodyFormType,
-    BodyType,
-    CookiesType,
-    HeadersType,
-    HookCallableType,
-    HookType,
-    HttpAuthenticationType,
-    HttpMethodType,
-    MultiPartFilesAltType,
-    MultiPartFilesType,
-    QueryParameterType,
-)
 from ._vendor.kiss_headers import Headers, parse_it
 from .auth import BearerTokenAuth, HTTPBasicAuth
 from .cookies import (
@@ -102,6 +86,22 @@ from .packages.urllib3.filepost import choose_boundary, encode_multipart_formdat
 from .packages.urllib3.util import parse_url
 from .status_codes import codes
 from .structures import CaseInsensitiveDict
+from .typing import (
+    AsyncBodyType,
+    AsyncHookType,
+    AsyncHttpAuthenticationType,
+    BodyFormType,
+    BodyType,
+    CookiesType,
+    HeadersType,
+    HookCallableType,
+    HookType,
+    HttpAuthenticationType,
+    HttpMethodType,
+    MultiPartFilesAltType,
+    MultiPartFilesType,
+    QueryParameterType,
+)
 from .utils import (
     astream_decode_response_unicode,
     get_auth_from_url,

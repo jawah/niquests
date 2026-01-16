@@ -20,12 +20,12 @@ from qh3._hazmat import (
     ReasonFlags,
 )
 
-from ...._typing import ProxyType
 from ....exceptions import RequestException, SSLError
 from ....models import PreparedRequest
 from ....packages.urllib3 import ConnectionInfo
 from ....packages.urllib3.contrib.resolver import BaseResolver
 from ....packages.urllib3.exceptions import SecurityWarning
+from ....typing import ProxyType
 
 
 @lru_cache(maxsize=64)

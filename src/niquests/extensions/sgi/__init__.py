@@ -12,7 +12,7 @@ from ...packages.urllib3.util.retry import Retry
 from ...structures import CaseInsensitiveDict
 
 if typing.TYPE_CHECKING:
-    from ..._typing import ProxyType, RetryType, TLSClientCertType, TLSVerifyType, WSGIApp
+    from ...typing import ProxyType, RetryType, TLSClientCertType, TLSVerifyType, WSGIApp
 
 from io import BytesIO
 

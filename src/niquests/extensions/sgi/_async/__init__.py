@@ -19,7 +19,7 @@ from ....structures import CaseInsensitiveDict
 from ....utils import _swap_context
 
 if typing.TYPE_CHECKING:
-    from ...._typing import ASGIApp, ASGIMessage, ProxyType, RetryType, TLSClientCertType, TLSVerifyType
+    from ....typing import ASGIApp, ASGIMessage, ProxyType, RetryType, TLSClientCertType, TLSVerifyType
 
 
 class _ASGIRawIO:

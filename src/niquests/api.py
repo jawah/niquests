@@ -14,7 +14,9 @@ import typing
 
 from . import sessions
 from ._constant import DEFAULT_RETRIES, READ_DEFAULT_TIMEOUT, WRITE_DEFAULT_TIMEOUT
-from ._typing import (
+from .models import PreparedRequest, Response
+from .structures import QuicSharedCache
+from .typing import (
     BodyType,
     CacheLayerAltSvcType,
     CookiesType,
@@ -31,8 +33,6 @@ from ._typing import (
     TLSClientCertType,
     TLSVerifyType,
 )
-from .models import PreparedRequest, Response
-from .structures import QuicSharedCache
 
 try:
     from .extensions.revocation._ocsp import InMemoryRevocationStatus

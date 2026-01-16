@@ -5,13 +5,13 @@ import typing
 from urllib.parse import unquote
 
 from ...._constant import DEFAULT_POOLBLOCK
-from ...._typing import CacheLayerAltSvcType
 from ....adapters import AsyncHTTPAdapter
 from ....exceptions import RequestException
 from ....packages.urllib3._async.connection import AsyncHTTPConnection
 from ....packages.urllib3._async.connectionpool import AsyncHTTPConnectionPool
 from ....packages.urllib3._async.poolmanager import AsyncPoolManager
 from ....packages.urllib3.contrib.ssa import AsyncSocket
+from ....typing import CacheLayerAltSvcType
 from ....utils import select_proxy
 
 

@@ -22,27 +22,6 @@ from ._constant import (
     READ_DEFAULT_TIMEOUT,
     WRITE_DEFAULT_TIMEOUT,
 )
-from ._typing import (
-    ASGIApp,
-    AsyncBodyType,
-    AsyncHookType,
-    AsyncHttpAuthenticationType,
-    AsyncResolverType,
-    BodyType,
-    CacheLayerAltSvcType,
-    CookiesType,
-    HeadersType,
-    HttpAuthenticationType,
-    HttpMethodType,
-    MultiPartFilesAltType,
-    MultiPartFilesType,
-    ProxyType,
-    QueryParameterType,
-    RetryType,
-    TimeoutType,
-    TLSClientCertType,
-    TLSVerifyType,
-)
 from .adapters import AsyncBaseAdapter, AsyncHTTPAdapter
 from .cookies import (
     RequestsCookieJar,
@@ -73,6 +52,27 @@ from .packages.urllib3.contrib.resolver._async import AsyncBaseResolver
 from .packages.urllib3.contrib.webextensions._async import load_extension
 from .sessions import Session, merge_hooks
 from .structures import AsyncQuicSharedCache, CaseInsensitiveDict
+from .typing import (
+    ASGIApp,
+    AsyncBodyType,
+    AsyncHookType,
+    AsyncHttpAuthenticationType,
+    AsyncResolverType,
+    BodyType,
+    CacheLayerAltSvcType,
+    CookiesType,
+    HeadersType,
+    HttpAuthenticationType,
+    HttpMethodType,
+    MultiPartFilesAltType,
+    MultiPartFilesType,
+    ProxyType,
+    QueryParameterType,
+    RetryType,
+    TimeoutType,
+    TLSClientCertType,
+    TLSVerifyType,
+)
 from .utils import (
     _deepcopy_ci,
     _swap_context,

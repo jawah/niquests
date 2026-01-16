@@ -28,16 +28,6 @@ else:
 
 from ._compat import urllib3_ensure_type
 from ._constant import DEFAULT_POOLBLOCK, DEFAULT_POOLSIZE, DEFAULT_RETRIES
-from ._typing import (
-    AsyncResolverType,
-    CacheLayerAltSvcType,
-    HookType,
-    ProxyType,
-    ResolverType,
-    RetryType,
-    TLSClientCertType,
-    TLSVerifyType,
-)
 from .auth import _basic_auth_str
 from .cookies import extract_cookies_to_jar
 from .exceptions import (
@@ -115,6 +105,16 @@ from .packages.urllib3.util import (
     Timeout as TimeoutSauce,
 )
 from .structures import CaseInsensitiveDict
+from .typing import (
+    AsyncResolverType,
+    CacheLayerAltSvcType,
+    HookType,
+    ProxyType,
+    ResolverType,
+    RetryType,
+    TLSClientCertType,
+    TLSVerifyType,
+)
 from .utils import (
     _deepcopy_ci,
     _swap_context,

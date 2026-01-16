@@ -27,7 +27,7 @@ import time
 import typing
 from collections.abc import MutableMapping
 
-from ._typing import (
+from .typing import (
     _HV,
     AsyncHookCallableType,
     AsyncHookType,

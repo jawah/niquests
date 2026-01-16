@@ -5,12 +5,12 @@ import typing
 from urllib.parse import unquote
 
 from ..._constant import DEFAULT_POOLBLOCK
-from ..._typing import CacheLayerAltSvcType
 from ...adapters import HTTPAdapter
 from ...exceptions import RequestException
 from ...packages.urllib3.connection import HTTPConnection
 from ...packages.urllib3.connectionpool import HTTPConnectionPool
 from ...packages.urllib3.poolmanager import PoolManager
+from ...typing import CacheLayerAltSvcType
 from ...utils import select_proxy
 
 

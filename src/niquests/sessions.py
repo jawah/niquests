@@ -28,26 +28,6 @@ from ._constant import (
     READ_DEFAULT_TIMEOUT,
     WRITE_DEFAULT_TIMEOUT,
 )
-from ._typing import (
-    ASGIApp,
-    BodyType,
-    CacheLayerAltSvcType,
-    CookiesType,
-    HeadersType,
-    HookType,
-    HttpAuthenticationType,
-    HttpMethodType,
-    MultiPartFilesAltType,
-    MultiPartFilesType,
-    ProxyType,
-    QueryParameterType,
-    ResolverType,
-    RetryType,
-    TimeoutType,
-    TLSClientCertType,
-    TLSVerifyType,
-    WSGIApp,
-)
 from .adapters import BaseAdapter, HTTPAdapter
 from .auth import _basic_auth_str
 from .cookies import (
@@ -82,6 +62,26 @@ from .packages.urllib3 import ConnectionInfo
 from .packages.urllib3.contrib.webextensions import load_extension
 from .status_codes import codes
 from .structures import CaseInsensitiveDict, QuicSharedCache
+from .typing import (
+    ASGIApp,
+    BodyType,
+    CacheLayerAltSvcType,
+    CookiesType,
+    HeadersType,
+    HookType,
+    HttpAuthenticationType,
+    HttpMethodType,
+    MultiPartFilesAltType,
+    MultiPartFilesType,
+    ProxyType,
+    QueryParameterType,
+    ResolverType,
+    RetryType,
+    TimeoutType,
+    TLSClientCertType,
+    TLSVerifyType,
+    WSGIApp,
+)
 from .utils import (  # noqa: F401
     DEFAULT_PORTS,
     _deepcopy_ci,
