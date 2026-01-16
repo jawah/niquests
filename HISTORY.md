@@ -7,6 +7,8 @@ Release History
 **Added**
 - Native support for `http+unix` connections without 3rd party support in both sync and async context. (#315)
 - ASGI (e.g. fastapi)  app direct usage within `AsyncSession` and WSGI (e.g. Flask) app direct usage within `Session`. (#316)
+- Rate limiter helpers `LeakyBucketLimiter` and `TokenBucketLimiter` that can be passed directly to the `hooks` parameter
+  of `Session` or `AsyncSession` for automatic request throttling with 429 handling. (#321)
 
 **Fixed**
 - Method `get` of `CaseInsensitiveDict` ambiguous return type. (#288)

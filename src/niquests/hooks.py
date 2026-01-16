@@ -22,6 +22,8 @@ Available hooks:
 from __future__ import annotations
 
 import asyncio
+import threading
+import time
 import typing
 from collections.abc import MutableMapping
 
@@ -229,4 +231,198 @@ class AsyncLifeCycleHook(_BaseLifeCycleHook[_HV]):
 
     async def response(self, response: Response, **kwargs: typing.Any) -> Response | None:
         """The response generated from a Request. You may alter the response at will."""
+        return None
+
+
+class _LeakyBucketMixin:
+    """Shared leaky bucket algorithm logic."""
+
+    rate: float
+    interval: float
+    last_request: float | None
+
+    def _init_leaky_bucket(self, rate: float) -> None:
+        self.rate = rate
+        self.interval = 1.0 / rate
+        self.last_request = None
+
+    def _compute_wait(self) -> float:
+        """Compute wait time and update state. Returns wait time (may be <= 0)."""
+        now = time.monotonic()
+        if self.last_request is not None:
+            elapsed = now - self.last_request
+            wait_time = self.interval - elapsed
+        else:
+            wait_time = 0.0
+        return wait_time
+
+    def _record_request(self) -> None:
+        """Record that a request was made."""
+        self.last_request = time.monotonic()
+
+
+class _TokenBucketMixin:
+    """Shared token bucket algorithm logic."""
+
+    rate: float
+    capacity: float
+    tokens: float
+    last_update: float
+
+    def _init_token_bucket(self, rate: float, capacity: float | None) -> None:
+        self.rate = rate
+        self.capacity = capacity if capacity is not None else rate
+        self.tokens = self.capacity
+        self.last_update = time.monotonic()
+
+    def _acquire_token(self) -> float | None:
+        """Replenish tokens and try to acquire one. Returns wait time if needed, None otherwise."""
+        now = time.monotonic()
+        elapsed = now - self.last_update
+        self.tokens = min(self.capacity, self.tokens + elapsed * self.rate)
+        self.last_update = now
+
+        if self.tokens < 1.0:
+            return (1.0 - self.tokens) / self.rate
+        else:
+            self.tokens -= 1.0
+            return None
+
+    def _post_wait(self) -> None:
+        """Called after waiting to reset state."""
+        self.tokens = 0.0
+        self.last_update = time.monotonic()
+
+
+class LeakyBucketLimiter(_LeakyBucketMixin, LifeCycleHook):
+    """Rate limiter using the leaky bucket algorithm.
+
+    Requests "leak" out at a constant rate. When a request arrives, it waits
+    until enough time has passed since the last request to maintain the rate.
+
+    Usage::
+
+        limiter = LeakyBucketLimiter(rate=10.0)  # 10 requests per second
+        with niquests.Session(hooks=limiter) as session:
+            ...
+    """
+
+    def __init__(self, rate: float = 10.0) -> None:
+        """Initialize the leaky bucket limiter.
+
+        Args:
+            rate: Maximum requests per second
+        """
+        super().__init__()
+        self._init_leaky_bucket(rate)
+        self._lock = threading.Lock()
+
+    def pre_request(self, prepared_request: PreparedRequest, **kwargs: typing.Any) -> PreparedRequest | None:
+        """Wait if needed to maintain the rate limit."""
+        with self._lock:
+            wait_time = self._compute_wait()
+            if wait_time > 0:
+                time.sleep(wait_time)
+            self._record_request()
+        return None
+
+
+class AsyncLeakyBucketLimiter(_LeakyBucketMixin, AsyncLifeCycleHook):
+    """Rate limiter using the leaky bucket algorithm.
+
+    Requests "leak" out at a constant rate. When a request arrives, it waits
+    until enough time has passed since the last request to maintain the rate.
+
+    Usage::
+
+        limiter = AsyncLeakyBucketLimiter(rate=10.0)  # 10 requests per second
+        async with niquests.AsyncSession(hooks=limiter) as session:
+            ...
+    """
+
+    def __init__(self, rate: float = 10.0) -> None:
+        """Initialize the leaky bucket limiter.
+
+        Args:
+            rate: Maximum requests per second
+        """
+        super().__init__()
+        self._init_leaky_bucket(rate)
+        self._lock = asyncio.Lock()
+
+    async def pre_request(self, prepared_request: PreparedRequest, **kwargs: typing.Any) -> PreparedRequest | None:
+        """Wait if needed to maintain the rate limit."""
+        async with self._lock:
+            wait_time = self._compute_wait()
+            if wait_time > 0:
+                await asyncio.sleep(wait_time)
+            self._record_request()
+        return None
+
+
+class TokenBucketLimiter(_TokenBucketMixin, LifeCycleHook):
+    """Rate limiter using the token bucket algorithm.
+
+    Tokens are added to a bucket at a constant rate up to a maximum capacity.
+    Each request consumes one token. Allows bursts up to the bucket capacity.
+
+    Usage::
+
+        limiter = TokenBucketLimiter(rate=10.0, capacity=50.0)  # 10/s, burst of 50
+        with niquests.Session(hooks=limiter) as session:
+            ...
+    """
+
+    def __init__(self, rate: float = 10.0, capacity: float | None = None) -> None:
+        """Initialize the token bucket limiter.
+
+        Args:
+            rate: Token replenishment rate (tokens per second)
+            capacity: Maximum bucket capacity (defaults to rate, allowing 1 second burst)
+        """
+        super().__init__()
+        self._init_token_bucket(rate, capacity)
+        self._lock = threading.Lock()
+
+    def pre_request(self, prepared_request: PreparedRequest, **kwargs: typing.Any) -> PreparedRequest | None:
+        """Wait until a token is available, then consume it."""
+        with self._lock:
+            wait_time = self._acquire_token()
+            if wait_time is not None:
+                time.sleep(wait_time)
+                self._post_wait()
+        return None
+
+
+class AsyncTokenBucketLimiter(_TokenBucketMixin, AsyncLifeCycleHook):
+    """Rate limiter using the token bucket algorithm.
+
+    Tokens are added to a bucket at a constant rate up to a maximum capacity.
+    Each request consumes one token. Allows bursts up to the bucket capacity.
+
+    Usage::
+
+        limiter = AsyncTokenBucketLimiter(rate=10.0, capacity=50.0)  # 10/s, burst of 50
+        async with niquests.AsyncSession(hooks=limiter) as session:
+            ...
+    """
+
+    def __init__(self, rate: float = 10.0, capacity: float | None = None) -> None:
+        """Initialize the token bucket limiter.
+
+        Args:
+            rate: Token replenishment rate (tokens per second)
+            capacity: Maximum bucket capacity (defaults to rate, allowing 1 second burst)
+        """
+        super().__init__()
+        self._init_token_bucket(rate, capacity)
+        self._lock = asyncio.Lock()
+
+    async def pre_request(self, prepared_request: PreparedRequest, **kwargs: typing.Any) -> PreparedRequest | None:
+        """Wait until a token is available, then consume it."""
+        async with self._lock:
+            wait_time = self._acquire_token()
+            if wait_time is not None:
+                await asyncio.sleep(wait_time)
+                self._post_wait()
         return None
