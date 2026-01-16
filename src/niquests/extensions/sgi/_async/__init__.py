@@ -129,10 +129,17 @@ class _ASGIRawIO:
 class AsyncServerGatewayInterface(AsyncBaseAdapter):
     """Adapter for making requests to ASGI applications directly."""
 
-    def __init__(self, app: ASGIApp, raise_app_exceptions: bool = True, max_retries: RetryType = DEFAULT_RETRIES) -> None:
+    def __init__(
+        self,
+        app: ASGIApp,
+        raise_app_exceptions: bool = True,
+        max_retries: RetryType = DEFAULT_RETRIES,
+        lifespan_state: dict[str, typing.Any] | None = None,
+    ) -> None:
         super().__init__()
         self.app = app
         self.raise_app_exceptions = raise_app_exceptions
+        self._lifespan_state = lifespan_state
 
         if isinstance(max_retries, Retry):
             self.max_retries = max_retries
@@ -390,7 +397,7 @@ class AsyncServerGatewayInterface(AsyncBaseAdapter):
             for key, value in request.headers.items():
                 headers.append((key.lower().encode("latin-1"), value.encode("latin-1")))
 
-        return {
+        scope: dict[str, typing.Any] = {
             "type": "http",
             "asgi": {"version": "3.0"},
             "http_version": "1.1",
@@ -405,6 +412,12 @@ class AsyncServerGatewayInterface(AsyncBaseAdapter):
                 parsed.port or (443 if parsed.scheme == "https" else 80),
             ),
         }
+
+        # Include lifespan state if available (for frameworks like Starlette that use it)
+        if self._lifespan_state is not None:
+            scope["state"] = self._lifespan_state.copy()
+
+        return scope
 
     async def close(self) -> None:
         pass
@@ -436,6 +449,7 @@ class ThreadAsyncServerGatewayInterface(BaseAdapter):
         self._lifespan_receive_queue: asyncio.Queue | None = None
         self._lifespan_startup_complete = threading.Event()
         self._lifespan_startup_failed: Exception | None = None
+        self._lifespan_state: dict[str, typing.Any] = {}
 
     def _ensure_loop_running(self) -> None:
         """Start the background event loop thread if not already running."""
@@ -452,6 +466,7 @@ class ThreadAsyncServerGatewayInterface(BaseAdapter):
                 self.app,
                 raise_app_exceptions=self.raise_app_exceptions,
                 max_retries=self.max_retries,
+                lifespan_state=self._lifespan_state,
             )
             # Start lifespan handler
             self._lifespan_task = self._loop.create_task(self._handle_lifespan())
@@ -471,6 +486,7 @@ class ThreadAsyncServerGatewayInterface(BaseAdapter):
         scope = {
             "type": "lifespan",
             "asgi": {"version": "3.0"},
+            "state": self._lifespan_state,
         }
 
         startup_complete = asyncio.Event()
