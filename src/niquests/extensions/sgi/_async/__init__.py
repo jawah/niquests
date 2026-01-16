@@ -446,40 +446,42 @@ class ThreadAsyncServerGatewayInterface(BaseAdapter):
         self._thread: threading.Thread | None = None
         self._started = threading.Event()
         self._lifespan_task: asyncio.Task | None = None
-        self._lifespan_receive_queue: asyncio.Queue | None = None
+        self._lifespan_receive_queue: asyncio.Queue[ASGIMessage] | None = None
         self._lifespan_startup_complete = threading.Event()
         self._lifespan_startup_failed: Exception | None = None
         self._lifespan_state: dict[str, typing.Any] = {}
+        self._startup_lock: threading.Lock = threading.Lock()
 
     def _ensure_loop_running(self) -> None:
         """Start the background event loop thread if not already running."""
-        if self._thread is not None and self._thread.is_alive():
-            return
+        with self._startup_lock:
+            if self._thread is not None and self._thread.is_alive():
+                return
 
-        import asyncio
+            import asyncio
 
-        def run_loop() -> None:
-            self._loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(self._loop)
-            self._lifespan_receive_queue = asyncio.Queue()
-            self._async_adapter = AsyncServerGatewayInterface(
-                self.app,
-                raise_app_exceptions=self.raise_app_exceptions,
-                max_retries=self.max_retries,
-                lifespan_state=self._lifespan_state,
-            )
-            # Start lifespan handler
-            self._lifespan_task = self._loop.create_task(self._handle_lifespan())
-            self._started.set()
-            self._loop.run_forever()
+            def run_loop() -> None:
+                self._loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(self._loop)
+                self._lifespan_receive_queue = asyncio.Queue()
+                self._async_adapter = AsyncServerGatewayInterface(
+                    self.app,
+                    raise_app_exceptions=self.raise_app_exceptions,
+                    max_retries=self.max_retries,
+                    lifespan_state=self._lifespan_state,
+                )
+                # Start lifespan handler
+                self._lifespan_task = self._loop.create_task(self._handle_lifespan())
+                self._started.set()
+                self._loop.run_forever()
 
-        self._thread = threading.Thread(target=run_loop, daemon=True)
-        self._thread.start()
-        self._started.wait()
-        self._lifespan_startup_complete.wait()
+            self._thread = threading.Thread(target=run_loop, daemon=True)
+            self._thread.start()
+            self._started.wait()
+            self._lifespan_startup_complete.wait()
 
-        if self._lifespan_startup_failed is not None:
-            raise self._lifespan_startup_failed
+            if self._lifespan_startup_failed is not None:
+                raise self._lifespan_startup_failed
 
     async def _handle_lifespan(self) -> None:
         """Handle ASGI lifespan protocol."""
