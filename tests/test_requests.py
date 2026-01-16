@@ -1600,7 +1600,7 @@ class TestRequests:
 
     def test_transport_adapter_ordering(self):
         s = niquests.Session()
-        order = ["https://", "http://"]
+        order = ["http+unix://", "https://", "http://"]
         assert order == list(s.adapters)
         s.mount("http://git", HTTPAdapter())
         s.mount("http://github", HTTPAdapter())
@@ -1610,6 +1610,7 @@ class TestRequests:
             "http://github.com/about/",
             "http://github.com",
             "http://github",
+            "http+unix://",
             "http://git",
             "https://",
             "http://",
@@ -1625,6 +1626,7 @@ class TestRequests:
             "http://gittip.com",
             "http://github",
             "http://gittip",
+            "http+unix://",
             "http://git",
             "https://",
             "http://",

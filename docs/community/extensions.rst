@@ -382,6 +382,8 @@ requests-unixsocket
 
 .. note:: Classified as: Usable
 
+.. warning:: Since Niquests 3.17.0 you are able to connect to unixsocket without it, natively.
+
 requests-futures
 ----------------
 

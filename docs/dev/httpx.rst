@@ -337,3 +337,81 @@ Event Hooks
 
 Whenever you see an HTTPX-specific parameter or method, look for its closest Niquests counterpart as shown above.
 Happy migrating!
+
+
+ASGI/WSGI Testing
+-----------------
+
+.. versionadded:: 3.17.0
+
+You can do ASGI or WSGI testing using Niquests.
+
+In HTTPX you wrote something like:
+
+.. code-block:: python
+
+    from flask import Flask
+    import httpx
+
+
+    app = Flask(__name__)
+
+    @app.route("/")
+    def hello():
+        return "Hello World!"
+
+    transport = httpx.WSGITransport(app=app)
+    with httpx.Client(transport=transport, base_url="http://testserver") as client:
+        r = client.get("/")
+        assert r.status_code == 200
+        assert r.text == "Hello World!"
+
+Now you can easily achieve the same with Niquests:
+
+.. code-block:: python
+
+    from flask import Flask
+    import niquests
+
+
+    app = Flask(__name__)
+
+    @app.route("/")
+    def hello():
+        return "Hello World!"
+
+    with niquests.Session(app=app) as s:
+        r = s.get("/")
+
+        assert r.status_code == 200
+        assert r.text == "Hello World!"
+
+.. note:: The same goes for ASGI testing, but instead of using ``Session``, you'll use ``AsyncSession`` instead.
+
+.. warning:: ASGI lifespan startup/shutdown is not handled by Niquests (neither does httpx). You'll use something like asgi-lifespan (https://github.com/florimondmanca/asgi-lifespan#usage) to handle that part.
+
+With FastAPI you could have been used to:
+
+.. code-block:: python
+
+    from fastapi import TestClient
+
+    client = TestClient(app)
+
+    response = client.get("/")
+
+You can do so with Niquests also!
+
+.. code-block:: python
+
+    from niquests import Session
+
+    client = Session(app=app)
+
+    response = client.get("/")
+
+.. note:: TestClient exposed in FastAPI is actually starlette.TestClient. Starlette is using httpx deep under the hood as an optional dependency.
+
+.. warning:: Like starlette.TestClient we are defeating the purpose of true async with threading. It's there for convenience only, we recommend you to leverage async/await as a best practice.
+
+.. warning:: The synchronous Session handle lifespan startup/shutdown events opposed to the pure asynchronous implementation. Also, for convenience.

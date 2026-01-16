@@ -9,3 +9,5 @@ cryptography<40.0.0; python_version <= '3.8'
 cryptography<44.0.0; python_version <= '3.10'
 cryptography<46; python_version > '3.10'
 werkzeug>=2.2.3,<=3.0.2
+fastapi
+flask

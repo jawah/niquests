@@ -14,7 +14,10 @@ import contextvars
 import typing
 
 from ._constant import DEFAULT_RETRIES, READ_DEFAULT_TIMEOUT, WRITE_DEFAULT_TIMEOUT
-from ._typing import (
+from .async_session import AsyncSession
+from .models import AsyncResponse, PreparedRequest, Response
+from .structures import AsyncQuicSharedCache
+from .typing import (
     AsyncBodyType,
     AsyncHookType,
     AsyncHttpAuthenticationType,
@@ -33,9 +36,6 @@ from ._typing import (
     TLSClientCertType,
     TLSVerifyType,
 )
-from .async_session import AsyncSession
-from .models import AsyncResponse, PreparedRequest, Response
-from .structures import AsyncQuicSharedCache
 
 try:
     from .extensions.revocation._ocsp._async import InMemoryRevocationStatus

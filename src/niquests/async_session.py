@@ -22,7 +22,38 @@ from ._constant import (
     READ_DEFAULT_TIMEOUT,
     WRITE_DEFAULT_TIMEOUT,
 )
-from ._typing import (
+from .adapters import AsyncBaseAdapter, AsyncHTTPAdapter
+from .cookies import (
+    RequestsCookieJar,
+    cookiejar_from_dict,
+    extract_cookies_to_jar,
+    merge_cookies,
+)
+from .exceptions import (
+    ChunkedEncodingError,
+    ContentDecodingError,
+    InvalidSchema,
+    TooManyRedirects,
+)
+from .extensions.revocation import DEFAULT_STRATEGY, RevocationConfiguration
+from .extensions.sgi._async import AsyncServerGatewayInterface
+from .extensions.unixsocket._async import AsyncUnixAdapter
+from .hooks import async_dispatch_hook, default_hooks
+from .models import (
+    DEFAULT_REDIRECT_LIMIT,
+    AsyncResponse,
+    PreparedRequest,
+    Request,
+    Response,
+    TransferProgress,
+)
+from .packages.urllib3 import ConnectionInfo
+from .packages.urllib3.contrib.resolver._async import AsyncBaseResolver
+from .packages.urllib3.contrib.webextensions._async import load_extension
+from .sessions import Session, merge_hooks
+from .structures import AsyncQuicSharedCache, CaseInsensitiveDict
+from .typing import (
+    ASGIApp,
     AsyncBodyType,
     AsyncHookType,
     AsyncHttpAuthenticationType,
@@ -42,34 +73,6 @@ from ._typing import (
     TLSClientCertType,
     TLSVerifyType,
 )
-from .adapters import AsyncBaseAdapter, AsyncHTTPAdapter
-from .cookies import (
-    RequestsCookieJar,
-    cookiejar_from_dict,
-    extract_cookies_to_jar,
-    merge_cookies,
-)
-from .exceptions import (
-    ChunkedEncodingError,
-    ContentDecodingError,
-    InvalidSchema,
-    TooManyRedirects,
-)
-from .extensions.revocation import DEFAULT_STRATEGY, RevocationConfiguration
-from .hooks import async_dispatch_hook, default_hooks
-from .models import (
-    DEFAULT_REDIRECT_LIMIT,
-    AsyncResponse,
-    PreparedRequest,
-    Request,
-    Response,
-    TransferProgress,
-)
-from .packages.urllib3 import ConnectionInfo
-from .packages.urllib3.contrib.resolver._async import AsyncBaseResolver
-from .packages.urllib3.contrib.webextensions._async import load_extension
-from .sessions import Session
-from .structures import AsyncQuicSharedCache, CaseInsensitiveDict
 from .utils import (
     _deepcopy_ci,
     _swap_context,
@@ -130,7 +133,9 @@ class AsyncSession(Session):
         base_url: str | None = None,
         timeout: TimeoutType | None = None,
         headers: HeadersType | None = None,
+        hooks: AsyncHookType[PreparedRequest | Response | AsyncResponse] | None = None,
         revocation_configuration: RevocationConfiguration | None = DEFAULT_STRATEGY,
+        app: ASGIApp | None = None,
     ):
         if [disable_ipv4, disable_ipv6].count(True) == 2:
             raise RuntimeError("Cannot disable both IPv4 and IPv6")
@@ -161,7 +166,11 @@ class AsyncSession(Session):
         self.proxies: ProxyType = {}
 
         #: Event-handling hooks.
-        self.hooks: AsyncHookType[PreparedRequest | Response | AsyncResponse] = default_hooks()  # type: ignore[assignment]
+        self.hooks: AsyncHookType[PreparedRequest | Response | AsyncResponse] = (
+            merge_hooks(default_hooks(), hooks)  # type: ignore[assignment]
+            if hooks is not None
+            else default_hooks()
+        )
 
         #: Dictionary of querystring data to attach to each
         #: :class:`Request <Request>`. The dictionary values may be lists for
@@ -292,6 +301,35 @@ class AsyncSession(Session):
                 revocation_configuration=revocation_configuration,
             ),
         )
+        self.mount(
+            "http+unix://",
+            AsyncUnixAdapter(
+                max_retries=retries,
+                disable_http1=disable_http1,
+                disable_http2=disable_http2,
+                disable_http3=disable_http3,
+                resolver=resolver,
+                source_address=source_address,
+                disable_ipv4=disable_ipv4,
+                disable_ipv6=disable_ipv6,
+                pool_connections=pool_connections,
+                pool_maxsize=pool_maxsize,
+                happy_eyeballs=happy_eyeballs,
+                keepalive_delay=keepalive_delay,
+                keepalive_idle_window=keepalive_idle_window,
+                revocation_configuration=revocation_configuration,
+            ),
+        )
+        if app is not None:
+            self.mount(
+                "asgi://default",
+                AsyncServerGatewayInterface(
+                    app=app,
+                    max_retries=retries,
+                ),
+            )
+            if self.base_url is None:
+                self.base_url = "asgi://default"
 
     def __repr__(self) -> str:
         return f"<AsyncSession {repr(self.adapters).replace('OrderedDict(', '')[:-1]}>"
@@ -336,6 +374,25 @@ class AsyncSession(Session):
         self.mount(
             "http://",
             AsyncHTTPAdapter(
+                max_retries=self.retries,
+                disable_http1=self._disable_http1,
+                disable_http2=self._disable_http2,
+                disable_http3=self._disable_http3,
+                source_address=self.source_address,
+                disable_ipv4=self._disable_ipv4,
+                disable_ipv6=self._disable_ipv6,
+                resolver=self.resolver,
+                pool_connections=self._pool_connections,
+                pool_maxsize=self._pool_maxsize,
+                happy_eyeballs=self._happy_eyeballs,
+                keepalive_delay=self._keepalive_delay,
+                keepalive_idle_window=self._keepalive_idle_window,
+                revocation_configuration=self._revocation_configuration,
+            ),
+        )
+        self.mount(
+            "http+unix://",
+            AsyncUnixAdapter(
                 max_retries=self.retries,
                 disable_http1=self._disable_http1,
                 disable_http2=self._disable_http2,
@@ -561,6 +618,25 @@ class AsyncSession(Session):
             self.mount(
                 "http://",
                 AsyncHTTPAdapter(
+                    max_retries=self.retries,
+                    disable_http1=self._disable_http1,
+                    disable_http2=self._disable_http2,
+                    disable_http3=self._disable_http3,
+                    resolver=self.resolver,
+                    source_address=self.source_address,
+                    disable_ipv4=self._disable_ipv4,
+                    disable_ipv6=self._disable_ipv6,
+                    pool_connections=self._pool_connections,
+                    pool_maxsize=self._pool_maxsize,
+                    happy_eyeballs=self._happy_eyeballs,
+                    keepalive_delay=self._keepalive_delay,
+                    keepalive_idle_window=self._keepalive_idle_window,
+                    revocation_configuration=self._revocation_configuration,
+                ),
+            )
+            self.mount(
+                "http+unix://",
+                AsyncUnixAdapter(
                     max_retries=self.retries,
                     disable_http1=self._disable_http1,
                     disable_http2=self._disable_http2,

@@ -321,7 +321,7 @@ streamed to a file:
             async for chunk in await r.iter_content(chunk_size=128):
                 fd.write(chunk)
 
-    .. warning:: It is recommended to use ``aiofile`` or similar to handle file I/O in async mode.
+    .. warning:: It is recommended to use ``aiofiles`` or similar to handle file I/O in async mode.
 
 Using ``Response.iter_content`` will handle a lot of what you would otherwise
 have to handle when using ``Response.raw`` directly. When streaming a
@@ -1710,6 +1710,189 @@ Notes
 
 SSE can be reached from HTTP/1, HTTP/2 or HTTP/3 at will. Niquests makes this very easy.
 Moreover every features like proxies, happy-eyeballs, hooks, etc.. can be used as you always did.
+
+Unix Socket
+-----------
+
+.. versionadded:: 3.17.0
+.. warning:: Only on Linux/Unix systems. Unix sockets can only implement HTTP/1, and HTTP/2 (h2c).
+
+Niquests natively supports connecting to services via Unix domain sockets. This is particularly useful for communicating with local services like Docker, databases, or any application exposing a Unix socket API (docker don't).
+
+Basic Usage
+~~~~~~~~~~~
+
+To connect via a Unix socket, use the ``http+unix://`` scheme with the URL-encoded socket path:
+
+.. tab:: 🔂 Sync
+
+    .. code:: python
+
+        from niquests import Session
+
+        with Session() as s:
+            # %2F is the URL-encoded forward slash
+            response = s.get("http+unix://%2Fvar%2Frun%2Fdocker.sock/version")
+            print(response.json())
+
+.. tab:: 🔀 Async
+
+    .. code:: python
+
+        from niquests import AsyncSession
+
+        async with AsyncSession() as s:
+            response = await s.get("http+unix://%2Fvar%2Frun%2Fdocker.sock/version")
+            print(response.json())
+
+.. tip:: You can also use the ``base_url`` parameter in Session to avoid writing ``http+unix://%2Fvar%2Frun%2Fdocker.sock/`` over and over again.
+
+.. warning:: To speak with a h2c (HTTP/2 over cleartext) unix socket you will have to disable HTTP/1 first via ``Session(disable_http1=True)``. Not many services support that.
+
+URL Format
+~~~~~~~~~~
+
+The Unix socket URL follows this pattern::
+
+    http+unix://<url-encoded-socket-path>/<api-path>
+
+For example, to access ``/var/run/docker.sock`` with path ``/version``:
+
+- Socket path: ``/var/run/docker.sock``
+- URL-encoded: ``%2Fvar%2Frun%2Fdocker.sock``
+- Full URL: ``http+unix://%2Fvar%2Frun%2Fdocker.sock/version``
+
+.. tip:: Use ``urllib.parse.quote(path, safe='')`` to URL-encode socket paths programmatically.
+
+Concurrent Connections
+~~~~~~~~~~~~~~~~~~~~~~
+
+Unix sockets support multiple concurrent connections, just like TCP sockets:
+
+.. code:: python
+
+    import asyncio
+    from niquests import AsyncSession
+
+    async def main():
+        async with AsyncSession() as s:
+            endpoints = ["/containers/json", "/images/json", "/version", "/info"]
+
+            tasks = [
+                s.get(f"http+unix://%2Fvar%2Frun%2Fdocker.sock{ep}")
+                for ep in endpoints
+            ]
+
+            responses = await asyncio.gather(*tasks)
+
+            print(responses)
+
+    asyncio.run(main())
+
+.. note:: You can also leverage a thread pool executor in a sync context as you always did with http.
+
+WSGI/ASGI Application Testing
+-----------------------------
+
+.. versionadded:: 3.17.0
+
+Niquests provides built-in adapters for testing WSGI and ASGI applications directly without starting a server. This is particularly useful for integration testing.
+
+.. warning:: This feature silently ignore fine tuning parameters like "http version enable/disable", "pool sizing", "multiplexing", ... that are only meant for true HTTP connections.
+
+ASGI Applications (Async)
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Test your FastAPI, Starlette, or other ASGI applications directly:
+
+.. code:: python
+
+    from fastapi import FastAPI, Request
+
+    app = FastAPI()
+
+    @app.get("/hello")
+    async def hello(request: Request):
+        return {"message": "hello from asgi"}
+
+    @app.api_route("/echo", methods=["GET", "POST"])
+    async def echo(request: Request):
+        body = await request.body()
+        return {"body": body.decode()}
+
+**Basic usage:**
+
+.. code:: python
+
+    import asyncio
+    from niquests import AsyncSession
+
+    async def main():
+        async with AsyncSession(app=app) as s:
+            resp = await s.get("/hello?foo=bar")
+            print(resp.status_code)  # 200
+            print(resp.json())  # {"message": "hello from asgi"}
+
+    asyncio.run(main())
+
+**Streaming responses:**
+
+.. code:: python
+
+    async def main():
+        async with AsyncSession(app=app) as s:
+            resp = await s.post("/echo", data=b"foobar", stream=True)
+
+            body = b""
+            async for chunk in await resp.iter_content(6):
+                body += chunk
+
+            print(body)
+
+    asyncio.run(main())
+
+.. note:: You can also use an ASGI app within a synchronous Session at the cost of loosing streaming responses. And in the sync version, lifespan events (startup, shutdown) are handled automatically.
+
+WSGI Applications (Sync)
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+Test your Flask, Django, or other WSGI applications:
+
+.. code:: python
+
+    from flask import Flask, request, jsonify
+
+    app = Flask(__name__)
+
+    @app.route("/hello")
+    def hello():
+        return jsonify({"message": "hello from wsgi"})
+
+    @app.route("/echo", methods=["GET", "POST"])
+    def echo():
+        return jsonify({"body": request.get_data(as_text=True)})
+
+**Basic usage:**
+
+.. code:: python
+
+    from niquests import Session
+
+    with Session(app=app) as s:
+        resp = s.get("/hello?foo=bar")
+        print(resp.status_code)  # 200
+        print(resp.json())  # {"message": "hello from wsgi"}
+
+**Streaming responses:**
+
+.. code:: python
+
+    with Session(app=app) as s:
+        resp = s.post("/echo", data=b"foobar", stream=True)
+        print(resp.json())
+
+        for chunk in resp.iter_content(6):
+            ...
 
 -----------------------
 

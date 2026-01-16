@@ -28,16 +28,6 @@ else:
 
 from ._compat import urllib3_ensure_type
 from ._constant import DEFAULT_POOLBLOCK, DEFAULT_POOLSIZE, DEFAULT_RETRIES
-from ._typing import (
-    AsyncResolverType,
-    CacheLayerAltSvcType,
-    HookType,
-    ProxyType,
-    ResolverType,
-    RetryType,
-    TLSClientCertType,
-    TLSVerifyType,
-)
 from .auth import _basic_auth_str
 from .cookies import extract_cookies_to_jar
 from .exceptions import (
@@ -115,6 +105,16 @@ from .packages.urllib3.util import (
     Timeout as TimeoutSauce,
 )
 from .structures import CaseInsensitiveDict
+from .typing import (
+    AsyncResolverType,
+    CacheLayerAltSvcType,
+    HookType,
+    ProxyType,
+    ResolverType,
+    RetryType,
+    TLSClientCertType,
+    TLSVerifyType,
+)
 from .utils import (
     _deepcopy_ci,
     _swap_context,
@@ -558,9 +558,6 @@ class HTTPAdapter(BaseAdapter):
                     elif hasattr(verify, "__fspath__"):
                         cert_loc = verify.__fspath__()
 
-                        if isinstance(cert_loc, bytes):
-                            cert_loc = cert_loc.decode()
-
                     if isinstance(cert_loc, str) and not os.path.exists(cert_loc):
                         raise OSError(f"Could not find a suitable TLS CA certificate bundle, invalid path: {cert_loc}")
 
@@ -870,7 +867,7 @@ class HTTPAdapter(BaseAdapter):
         scheme = parse_scheme(request.url)
         extension = None
 
-        if scheme is not None and scheme not in ("http", "https"):
+        if scheme is not None and scheme not in ("http", "https", "http+unix"):
             if "+" in scheme:
                 scheme, implementation = tuple(scheme.split("+", maxsplit=1))
             else:
@@ -1637,9 +1634,6 @@ class AsyncHTTPAdapter(AsyncBaseAdapter):
                     elif hasattr(verify, "__fspath__"):
                         cert_loc = verify.__fspath__()
 
-                        if isinstance(cert_loc, bytes):
-                            cert_loc = cert_loc.decode()
-
                     if isinstance(cert_loc, str) and not os.path.exists(cert_loc):
                         raise OSError(f"Could not find a suitable TLS CA certificate bundle, invalid path: {cert_loc}")
 
@@ -1950,7 +1944,7 @@ class AsyncHTTPAdapter(AsyncBaseAdapter):
         scheme = parse_scheme(request.url)
         extension = None
 
-        if scheme is not None and scheme not in ("http", "https"):
+        if scheme is not None and scheme not in ("http", "https", "http+unix"):
             if "+" in scheme:
                 scheme, implementation = tuple(scheme.split("+", maxsplit=1))
             else:

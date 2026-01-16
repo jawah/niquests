@@ -17,12 +17,12 @@ from qh3._hazmat import (
     OCSPResponseStatus,
 )
 
-from ....._typing import ProxyType
 from .....exceptions import RequestException, SSLError
 from .....models import PreparedRequest
 from .....packages.urllib3 import ConnectionInfo
 from .....packages.urllib3.contrib.resolver._async import AsyncBaseResolver
 from .....packages.urllib3.exceptions import SecurityWarning
+from .....typing import ProxyType
 from .....utils import is_cancelled_error_root_cause
 from .. import (
     _parse_x509_der_cached,

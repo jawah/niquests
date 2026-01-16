@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import wassima
 
-from ._typing import RetryType, TimeoutType
+from .typing import RetryType, TimeoutType
 
 #: Default timeout (total) assigned for GET, HEAD, and OPTIONS methods.
 READ_DEFAULT_TIMEOUT: TimeoutType = 30

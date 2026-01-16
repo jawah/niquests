@@ -99,6 +99,29 @@ Lower-Lower-Level Classes
 .. autoclass:: niquests.adapters.AsyncHTTPAdapter
    :inherited-members:
 
+Hooks and Middleware
+--------------------
+
+.. autoclass:: niquests.hooks.LifeCycleHook
+   :members: pre_request, pre_send, on_upload, early_response, response
+   :no-index:
+
+.. autoclass:: niquests.hooks.AsyncLifeCycleHook
+   :members: pre_request, pre_send, on_upload, early_response, response
+   :no-index:
+
+.. autoclass:: niquests.LeakyBucketLimiter
+   :members: __init__
+
+.. autoclass:: niquests.AsyncLeakyBucketLimiter
+   :members: __init__
+
+.. autoclass:: niquests.TokenBucketLimiter
+   :members: __init__
+
+.. autoclass:: niquests.AsyncTokenBucketLimiter
+   :members: __init__
+
 Authentication
 --------------
 

@@ -1,6 +1,27 @@
 Release History
 ===============
 
+3.17.0 (2026-01-16)
+-------------------
+
+**Added**
+- Native support for `http+unix` connections without 3rd party support in both sync and async context. (#315)
+- ASGI (e.g. fastapi)  app direct usage within `AsyncSession` and WSGI (e.g. Flask) app direct usage within `Session`. (#316)
+- Passing `hooks` directly in the `Session` or `AsyncSession` constructor. (#321)
+- Rate limiter helpers `LeakyBucketLimiter` and `TokenBucketLimiter` that can be passed directly to the `hooks` parameter
+  of `Session` or `AsyncSession` for automatic request throttling. (#321)
+
+**Fixed**
+- Method `get` of `CaseInsensitiveDict` ambiguous return type. (#288)
+- More precise type definitions for PathLike, and IO. (#290)
+
+**Changed**
+- Our typing definitions are now publicly exposed via `niquests.typing`. This aims to considerably ease extending Niquests.
+
+**Misc**
+- Restore function `utils.guess_json_utf` from Requests era. (#313)
+- Making request with empty url when base_url is set don't add trailing slash at the end. (#319)
+
 3.16.1 (2025-12-23)
 -------------------
 

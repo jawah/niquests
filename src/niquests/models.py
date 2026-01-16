@@ -35,22 +35,6 @@ from urllib.parse import urlencode, urlsplit, urlunparse
 
 from charset_normalizer import from_bytes
 
-from ._typing import (
-    AsyncBodyType,
-    AsyncHookType,
-    AsyncHttpAuthenticationType,
-    BodyFormType,
-    BodyType,
-    CookiesType,
-    HeadersType,
-    HookCallableType,
-    HookType,
-    HttpAuthenticationType,
-    HttpMethodType,
-    MultiPartFilesAltType,
-    MultiPartFilesType,
-    QueryParameterType,
-)
 from ._vendor.kiss_headers import Headers, parse_it
 from .auth import BearerTokenAuth, HTTPBasicAuth
 from .cookies import (
@@ -102,6 +86,22 @@ from .packages.urllib3.filepost import choose_boundary, encode_multipart_formdat
 from .packages.urllib3.util import parse_url
 from .status_codes import codes
 from .structures import CaseInsensitiveDict
+from .typing import (
+    AsyncBodyType,
+    AsyncHookType,
+    AsyncHttpAuthenticationType,
+    BodyFormType,
+    BodyType,
+    CookiesType,
+    HeadersType,
+    HookCallableType,
+    HookType,
+    HttpAuthenticationType,
+    HttpMethodType,
+    MultiPartFilesAltType,
+    MultiPartFilesType,
+    QueryParameterType,
+)
 from .utils import (
     astream_decode_response_unicode,
     get_auth_from_url,
@@ -386,7 +386,7 @@ class PreparedRequest:
             if parse_scheme(url, default="") == "":
                 if base_url.endswith("/"):
                     base_url = base_url[:-1]
-                if not url.startswith("/"):
+                if url and not url.startswith("/"):
                     url = f"/{url}"
                 url = base_url + url
 
@@ -406,7 +406,11 @@ class PreparedRequest:
         # Don't do any URL preparation for non-HTTP schemes like `mailto`,
         # `data` etc to work around exceptions from `url_parse`, which
         # handles RFC 3986 only.
-        if not parse_scheme(url).startswith("http"):
+        parsed_scheme = parse_scheme(url)
+        if "http" not in parsed_scheme and parsed_scheme not in {
+            "asgi",
+            "wsgi",
+        }:
             self.url = url
             return
 
@@ -1543,6 +1547,8 @@ class Response:
         resolved_links = {}
 
         if header:
+            if isinstance(header, bytes):
+                header = header.decode()
             links = parse_header_links(header)
 
             for link in links:
