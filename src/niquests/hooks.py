@@ -282,16 +282,23 @@ class _TokenBucketMixin:
         self.tokens = min(self.capacity, self.tokens + elapsed * self.rate)
         self.last_update = now
 
-        if self.tokens < 1.0:
-            return (1.0 - self.tokens) / self.rate
-        else:
+        if self.tokens >= 1.0:
             self.tokens -= 1.0
             return None
+        else:
+            # Don't update last_update here; let _post_wait handle it
+            wait_time = (1.0 - self.tokens) / self.rate
+            return wait_time
 
     def _post_wait(self) -> None:
-        """Called after waiting to reset state."""
-        self.tokens = 0.0
-        self.last_update = time.monotonic()
+        """Called after waiting to consume the token."""
+        now = time.monotonic()
+        elapsed = now - self.last_update
+        # Replenish tokens accumulated during the wait
+        self.tokens = min(self.capacity, self.tokens + elapsed * self.rate)
+        self.last_update = now
+        # Now consume the token
+        self.tokens -= 1.0
 
 
 class LeakyBucketLimiter(_LeakyBucketMixin, LifeCycleHook):
