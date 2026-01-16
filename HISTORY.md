@@ -9,7 +9,7 @@ Release History
 - ASGI (e.g. fastapi)  app direct usage within `AsyncSession` and WSGI (e.g. Flask) app direct usage within `Session`. (#316)
 - Passing `hooks` directly in the `Session` or `AsyncSession` constructor. (#321)
 - Rate limiter helpers `LeakyBucketLimiter` and `TokenBucketLimiter` that can be passed directly to the `hooks` parameter
-  of `Session` or `AsyncSession` for automatic request throttling with 429 handling. (#321)
+  of `Session` or `AsyncSession` for automatic request throttling. (#321)
 
 **Fixed**
 - Method `get` of `CaseInsensitiveDict` ambiguous return type. (#288)
