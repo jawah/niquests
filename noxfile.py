@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import os
+import re
 import shutil
+from pathlib import Path
 
 import nox
 
@@ -10,7 +12,11 @@ def tests_impl(
     session: nox.Session,
     extras: str = "socks,ws",
     cohabitation: bool | None = False,
+    pytest_extra_args: list[str] | None = None,
+    override_dev_deps: str | None = None,
 ) -> None:
+    if pytest_extra_args is None:
+        pytest_extra_args = []
     # Install deps and the package itself.
     if cohabitation is True or cohabitation is None:
         install_env = {"URLLIB3_NO_OVERRIDE": "1"}
@@ -24,11 +30,21 @@ def tests_impl(
         )
         session.install("-r", "requirements-dev.txt")
     else:
-        session.install("-r", "requirements-dev.txt")
-        session.install(
-            f".[{extras}]",
-            silent=False,
-        )
+        if override_dev_deps is None:
+            session.install("-r", "requirements-dev.txt")
+        else:
+            session.install("-r", override_dev_deps)
+
+        if extras:
+            session.install(
+                f".[{extras}]",
+                silent=False,
+            )
+        else:
+            session.install(
+                ".",
+                silent=False,
+            )
 
     # Show the pip version.
     session.run("pip", "--version")
@@ -55,7 +71,8 @@ def tests_impl(
         "--durations=10",
         "--strict-config",
         "--strict-markers",
-        *(session.posargs or ("tests/",)),
+        *pytest_extra_args,
+        *(session.posargs or (("tests/",) if not pytest_extra_args else ())),
         env={
             "PYTHONWARNINGS": "always::DeprecationWarning",
             "NIQUESTS_STRICT_OCSP": "1",
@@ -107,3 +124,87 @@ def i18n(session: nox.Session) -> None:
 
     session.run("sphinx-build", "-b", "gettext", ".", "_build/gettext")
     session.run("sphinx-intl", "update", "-p", "_build/gettext", "-l", "fr_FR")
+
+
+@nox.session(python="3.12")
+def pyodideconsole(session: nox.Session) -> None:
+    # build wheel into dist folder
+    # Run build and capture output
+    session.install("build")
+    build_output = session.run("python", "-m", "build", "--wheel", silent=True)
+    assert build_output
+
+    session.run("python", "-m", "http.server", "-d", "dist", "-b", "localhost")
+
+
+@nox.session(python="3.12")
+@nox.parametrize(
+    "runner", ["node", "firefox", "chrome"], ids=["node", "firefox", "chrome"]
+)
+def emscripten(session: nox.Session, runner: str) -> None:
+    """Test on Emscripten with Pyodide & Chrome / Firefox / Node.js"""
+    if runner == "node":
+        print(
+            "Node version:",
+            session.run("node", "--version", silent=True, external=True),
+        )
+
+    session.install("build")
+
+    # make sure we have a dist dir for pyodide
+    pyodide_version = "0.28.1"
+
+    pyodide_artifacts_path = Path(session.cache_dir) / f"pyodide-{pyodide_version}"
+
+    if not pyodide_artifacts_path.exists():
+        print("Fetching pyodide build artifacts")
+        session.run(
+            "curl",
+            "-L",
+            f"https://github.com/pyodide/pyodide/releases/download/{pyodide_version}/pyodide-{pyodide_version}.tar.bz2",
+            "--output-dir",
+            session.cache_dir,
+            "-O",
+            external=True,
+        )
+        pyodide_artifacts_path.mkdir(parents=True)
+        session.run(
+            "tar",
+            "-xjf",
+            f"{pyodide_artifacts_path}.tar.bz2",
+            "-C",
+            str(pyodide_artifacts_path),
+            "--strip-components",
+            "1",
+            external=True,
+        )
+
+    dist_dir = pyodide_artifacts_path
+
+    if os.path.exists("dist"):
+        shutil.rmtree("dist")
+
+    session.run("python", "-m", "build")
+
+    # Prepare the wheel for the test runner.
+    # pytest-pyodide can upload files from the host if referenced by path.
+    # We rename the dynamic wheel version to a fixed name for the test decorator.
+    wheel_file = next(Path("dist").glob("*.whl"))
+    shutil.copy(wheel_file, Path("dist") / "niquests.whl")
+
+    assert dist_dir is not None
+    assert dist_dir.exists()
+
+    tests_impl(
+        session,
+        extras="",
+        pytest_extra_args=[
+            "--runtime",
+            f"{runner}-no-host",
+            "--dist-dir",
+            str(dist_dir),
+            "tests/test_emscripten.py",
+            "-v",
+        ],
+        override_dev_deps="requirements-wasm.txt",
+    )

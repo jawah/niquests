@@ -38,6 +38,10 @@ from .exceptions import (
 from .extensions.revocation import DEFAULT_STRATEGY, RevocationConfiguration
 from .extensions.sgi._async import AsyncServerGatewayInterface
 from .extensions.unixsocket._async import AsyncUnixAdapter
+try:
+    from .extensions.pyodide._async import AsyncPyodideAdapter
+except ImportError:
+    AsyncPyodideAdapter = None  # type: ignore[no-redef]
 from .hooks import async_dispatch_hook, default_hooks
 from .models import (
     DEFAULT_REDIRECT_LIMIT,
@@ -262,64 +266,79 @@ class AsyncSession(Session):
 
         # Default connection adapters.
         self.adapters: OrderedDict[str, AsyncBaseAdapter] = OrderedDict()  # type: ignore[assignment]
-        self.mount(
-            "https://",
-            AsyncHTTPAdapter(
-                quic_cache_layer=self.quic_cache_layer,
-                max_retries=retries,
-                disable_http1=disable_http1,
-                disable_http2=disable_http2,
-                disable_http3=disable_http3,
-                resolver=resolver,
-                source_address=source_address,
-                disable_ipv4=disable_ipv4,
-                disable_ipv6=disable_ipv6,
-                pool_connections=pool_connections,
-                pool_maxsize=pool_maxsize,
-                happy_eyeballs=happy_eyeballs,
-                keepalive_delay=keepalive_delay,
-                keepalive_idle_window=keepalive_idle_window,
-                revocation_configuration=revocation_configuration,
-            ),
-        )
-        self.mount(
-            "http://",
-            AsyncHTTPAdapter(
-                max_retries=retries,
-                disable_http1=disable_http1,
-                disable_http2=disable_http2,
-                disable_http3=disable_http3,
-                resolver=resolver,
-                source_address=source_address,
-                disable_ipv4=disable_ipv4,
-                disable_ipv6=disable_ipv6,
-                pool_connections=pool_connections,
-                pool_maxsize=pool_maxsize,
-                happy_eyeballs=happy_eyeballs,
-                keepalive_delay=keepalive_delay,
-                keepalive_idle_window=keepalive_idle_window,
-                revocation_configuration=revocation_configuration,
-            ),
-        )
-        self.mount(
-            "http+unix://",
-            AsyncUnixAdapter(
-                max_retries=retries,
-                disable_http1=disable_http1,
-                disable_http2=disable_http2,
-                disable_http3=disable_http3,
-                resolver=resolver,
-                source_address=source_address,
-                disable_ipv4=disable_ipv4,
-                disable_ipv6=disable_ipv6,
-                pool_connections=pool_connections,
-                pool_maxsize=pool_maxsize,
-                happy_eyeballs=happy_eyeballs,
-                keepalive_delay=keepalive_delay,
-                keepalive_idle_window=keepalive_idle_window,
-                revocation_configuration=revocation_configuration,
-            ),
-        )
+
+        if AsyncPyodideAdapter is None:
+            self.mount(
+                "https://",
+                AsyncHTTPAdapter(
+                    quic_cache_layer=self.quic_cache_layer,
+                    max_retries=retries,
+                    disable_http1=disable_http1,
+                    disable_http2=disable_http2,
+                    disable_http3=disable_http3,
+                    resolver=resolver,
+                    source_address=source_address,
+                    disable_ipv4=disable_ipv4,
+                    disable_ipv6=disable_ipv6,
+                    pool_connections=pool_connections,
+                    pool_maxsize=pool_maxsize,
+                    happy_eyeballs=happy_eyeballs,
+                    keepalive_delay=keepalive_delay,
+                    keepalive_idle_window=keepalive_idle_window,
+                    revocation_configuration=revocation_configuration,
+                ),
+            )
+            self.mount(
+                "http://",
+                AsyncHTTPAdapter(
+                    max_retries=retries,
+                    disable_http1=disable_http1,
+                    disable_http2=disable_http2,
+                    disable_http3=disable_http3,
+                    resolver=resolver,
+                    source_address=source_address,
+                    disable_ipv4=disable_ipv4,
+                    disable_ipv6=disable_ipv6,
+                    pool_connections=pool_connections,
+                    pool_maxsize=pool_maxsize,
+                    happy_eyeballs=happy_eyeballs,
+                    keepalive_delay=keepalive_delay,
+                    keepalive_idle_window=keepalive_idle_window,
+                    revocation_configuration=revocation_configuration,
+                ),
+            )
+            self.mount(
+                "http+unix://",
+                AsyncUnixAdapter(
+                    max_retries=retries,
+                    disable_http1=disable_http1,
+                    disable_http2=disable_http2,
+                    disable_http3=disable_http3,
+                    resolver=resolver,
+                    source_address=source_address,
+                    disable_ipv4=disable_ipv4,
+                    disable_ipv6=disable_ipv6,
+                    pool_connections=pool_connections,
+                    pool_maxsize=pool_maxsize,
+                    happy_eyeballs=happy_eyeballs,
+                    keepalive_delay=keepalive_delay,
+                    keepalive_idle_window=keepalive_idle_window,
+                    revocation_configuration=revocation_configuration,
+                ),
+            )
+        else:
+            self.mount(
+                "http://",
+                AsyncPyodideAdapter(
+                    max_retries=retries,
+                )
+            )
+            self.mount(
+                "https://",
+                AsyncPyodideAdapter(
+                    max_retries=retries,
+                )
+            )
         if app is not None:
             self.mount(
                 "asgi://default",

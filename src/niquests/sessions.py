@@ -47,6 +47,10 @@ from .extensions.revocation import DEFAULT_STRATEGY, RevocationConfiguration
 from .extensions.sgi import WebServerGatewayInterface
 from .extensions.sgi._async import ThreadAsyncServerGatewayInterface
 from .extensions.unixsocket import UnixAdapter
+try:
+    from .extensions.pyodide import PyodideAdapter
+except ImportError:
+    PyodideAdapter = None  # type: ignore[no-redef]
 from .hooks import HOOKS, default_hooks, dispatch_hook
 
 # formerly defined here, reexposed here for backward compatibility
@@ -412,64 +416,78 @@ class Session:
 
         # Default connection adapters.
         self.adapters: OrderedDict[str, BaseAdapter] = OrderedDict()
-        self.mount(
-            "https://",
-            HTTPAdapter(
-                quic_cache_layer=self.quic_cache_layer,
-                max_retries=retries,
-                disable_http1=disable_http1,
-                disable_http2=disable_http2,
-                disable_http3=disable_http3,
-                resolver=resolver,
-                source_address=source_address,
-                disable_ipv4=disable_ipv4,
-                disable_ipv6=disable_ipv6,
-                pool_connections=pool_connections,
-                pool_maxsize=pool_maxsize,
-                happy_eyeballs=happy_eyeballs,
-                keepalive_delay=keepalive_delay,
-                keepalive_idle_window=keepalive_idle_window,
-                revocation_configuration=revocation_configuration,
-            ),
-        )
-        self.mount(
-            "http://",
-            HTTPAdapter(
-                max_retries=retries,
-                resolver=resolver,
-                source_address=source_address,
-                disable_http1=disable_http1,
-                disable_http2=disable_http2,
-                disable_http3=disable_http3,
-                disable_ipv4=disable_ipv4,
-                disable_ipv6=disable_ipv6,
-                pool_connections=pool_connections,
-                pool_maxsize=pool_maxsize,
-                happy_eyeballs=happy_eyeballs,
-                keepalive_delay=keepalive_delay,
-                keepalive_idle_window=keepalive_idle_window,
-                revocation_configuration=revocation_configuration,
-            ),
-        )
-        self.mount(
-            "http+unix://",
-            UnixAdapter(
-                max_retries=retries,
-                resolver=resolver,
-                source_address=source_address,
-                disable_http1=disable_http1,
-                disable_http2=disable_http2,
-                disable_http3=disable_http3,
-                disable_ipv4=disable_ipv4,
-                disable_ipv6=disable_ipv6,
-                pool_connections=pool_connections,
-                pool_maxsize=pool_maxsize,
-                happy_eyeballs=happy_eyeballs,
-                keepalive_delay=keepalive_delay,
-                keepalive_idle_window=keepalive_idle_window,
-                revocation_configuration=revocation_configuration,
-            ),
-        )
+        if PyodideAdapter is None:
+            self.mount(
+                "https://",
+                HTTPAdapter(
+                    quic_cache_layer=self.quic_cache_layer,
+                    max_retries=retries,
+                    disable_http1=disable_http1,
+                    disable_http2=disable_http2,
+                    disable_http3=disable_http3,
+                    resolver=resolver,
+                    source_address=source_address,
+                    disable_ipv4=disable_ipv4,
+                    disable_ipv6=disable_ipv6,
+                    pool_connections=pool_connections,
+                    pool_maxsize=pool_maxsize,
+                    happy_eyeballs=happy_eyeballs,
+                    keepalive_delay=keepalive_delay,
+                    keepalive_idle_window=keepalive_idle_window,
+                    revocation_configuration=revocation_configuration,
+                ),
+            )
+            self.mount(
+                "http://",
+                HTTPAdapter(
+                    max_retries=retries,
+                    resolver=resolver,
+                    source_address=source_address,
+                    disable_http1=disable_http1,
+                    disable_http2=disable_http2,
+                    disable_http3=disable_http3,
+                    disable_ipv4=disable_ipv4,
+                    disable_ipv6=disable_ipv6,
+                    pool_connections=pool_connections,
+                    pool_maxsize=pool_maxsize,
+                    happy_eyeballs=happy_eyeballs,
+                    keepalive_delay=keepalive_delay,
+                    keepalive_idle_window=keepalive_idle_window,
+                    revocation_configuration=revocation_configuration,
+                ),
+            )
+            self.mount(
+                "http+unix://",
+                UnixAdapter(
+                    max_retries=retries,
+                    resolver=resolver,
+                    source_address=source_address,
+                    disable_http1=disable_http1,
+                    disable_http2=disable_http2,
+                    disable_http3=disable_http3,
+                    disable_ipv4=disable_ipv4,
+                    disable_ipv6=disable_ipv6,
+                    pool_connections=pool_connections,
+                    pool_maxsize=pool_maxsize,
+                    happy_eyeballs=happy_eyeballs,
+                    keepalive_delay=keepalive_delay,
+                    keepalive_idle_window=keepalive_idle_window,
+                    revocation_configuration=revocation_configuration,
+                ),
+            )
+        else:
+            self.mount(
+                "http://",
+                PyodideAdapter(
+                    max_retries=retries,
+                )
+            )
+            self.mount(
+                "https://",
+                PyodideAdapter(
+                    max_retries=retries,
+                )
+            )
         if app is not None:
             if hasattr(app, "__call__") and asyncio.iscoroutinefunction(app.__call__):
                 self.mount(
