@@ -1986,6 +1986,10 @@ class AsyncResponse(Response):
             # This aliases json.JSONDecodeError and simplejson.JSONDecodeError
             raise RequestsJSONDecodeError(e.msg, e.doc, e.pos)
 
+    def raise_for_status(self) -> AsyncResponse:  # type: ignore[override]
+        """Raises :class:`HTTPError`, if one occurred."""
+        return typing.cast(AsyncResponse, super().raise_for_status())
+
     async def close(self) -> None:  # type: ignore[override]
         if self.lazy:
             await self._gather()
