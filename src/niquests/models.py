@@ -7,7 +7,6 @@ This module contains the primary objects that power Requests.
 
 from __future__ import annotations
 
-import asyncio
 import codecs
 import datetime
 
@@ -35,6 +34,7 @@ from urllib.parse import urlencode, urlsplit, urlunparse
 
 from charset_normalizer import from_bytes
 
+from ._compat import iscoroutinefunction
 from ._vendor.kiss_headers import Headers, parse_it
 from .auth import BearerTokenAuth, HTTPBasicAuth
 from .cookies import (
@@ -633,9 +633,9 @@ class PreparedRequest:
             if not callable(auth):
                 raise ValueError("Unexpected non-callable authentication. Did you pass unsupported tuple to auth argument?")
 
-            self._asynchronous_auth = (
-                hasattr(auth, "__call__") and asyncio.iscoroutinefunction(auth.__call__)
-            ) or asyncio.iscoroutinefunction(auth)
+            self._asynchronous_auth = (hasattr(auth, "__call__") and iscoroutinefunction(auth.__call__)) or iscoroutinefunction(
+                auth
+            )
 
             if not self._asynchronous_auth:
                 # Allow auth to make its changes.
@@ -1035,7 +1035,7 @@ class Response:
     def __getattribute__(self, item):
         try:
             if super().__getattribute__("raw") is None and item in Response.__lazy_attrs__ and super().__getattribute__("lazy"):
-                if asyncio.iscoroutinefunction(super().__getattribute__("connection").gather):
+                if iscoroutinefunction(super().__getattribute__("connection").gather):
                     raise MultiplexingError(
                         "Accessing a lazy response produced by an AsyncSession is forbidden. "
                         "Either call await session.gather() or set stream=True to produce an AsyncResponse "
@@ -1058,7 +1058,7 @@ class Response:
         # Consume everything; accessing the content attribute makes
         # sure the content has been fully read.
         if self.lazy:
-            if asyncio.iscoroutinefunction(super().__getattribute__("connection").gather):
+            if iscoroutinefunction(super().__getattribute__("connection").gather):
                 raise MultiplexingError(
                     "Accessing a lazy response produced by an AsyncSession is forbidden. "
                     "Either call await session.gather() or set stream=True to produce an AsyncResponse "
@@ -1605,7 +1605,7 @@ class Response:
         *Note: Should not normally need to be called explicitly.*
         """
         if self._content_consumed is False and self.raw is not None:
-            if not asyncio.iscoroutinefunction(self.raw.close):
+            if not iscoroutinefunction(self.raw.close):
                 self.raw.close()
             else:
                 warnings.warn(
@@ -1622,7 +1622,7 @@ class Response:
 
     async def __aexit__(self, exc_type, exc_val, exc_tb) -> None:
         if self._content_consumed is False and self.raw is not None:
-            if not asyncio.iscoroutinefunction(self.raw.close):
+            if not iscoroutinefunction(self.raw.close):
                 raise OSError("Attempted to use a synchronous response in an awaitable context.")
 
             await self.raw.close()

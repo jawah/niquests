@@ -1,6 +1,18 @@
 from __future__ import annotations
 
+import asyncio
+import inspect
+import sys
 import typing
+
+# asyncio.iscoroutinefunction is deprecated in Python 3.14 and will be removed in 3.16.
+# Use inspect.iscoroutinefunction for Python 3.14+ and asyncio.iscoroutinefunction for earlier.
+# Note: There are subtle behavioral differences between the two functions, but for
+# the use cases in niquests (checking if callbacks/hooks are async), both should work.
+if sys.version_info >= (3, 14):
+    iscoroutinefunction = inspect.iscoroutinefunction
+else:
+    iscoroutinefunction = asyncio.iscoroutinefunction
 
 try:
     from urllib3 import __version__

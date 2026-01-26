@@ -8,7 +8,6 @@ requests (cookies, auth, proxies).
 
 from __future__ import annotations
 
-import asyncio
 import os
 import sys
 import time
@@ -21,7 +20,7 @@ from http import cookiejar as cookielib
 from http.cookiejar import CookieJar
 from urllib.parse import urljoin, urlparse
 
-from ._compat import HAS_LEGACY_URLLIB3, urllib3_ensure_type
+from ._compat import HAS_LEGACY_URLLIB3, iscoroutinefunction, urllib3_ensure_type
 from ._constant import (
     DEFAULT_POOLSIZE,
     DEFAULT_RETRIES,
@@ -471,7 +470,7 @@ class Session:
             ),
         )
         if app is not None:
-            if hasattr(app, "__call__") and asyncio.iscoroutinefunction(app.__call__):
+            if hasattr(app, "__call__") and iscoroutinefunction(app.__call__):
                 self.mount(
                     "asgi://default",
                     ThreadAsyncServerGatewayInterface(
