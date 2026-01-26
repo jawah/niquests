@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-import asyncio
-import inspect
 import sys
 import typing
 
@@ -10,8 +8,12 @@ import typing
 # Note: There are subtle behavioral differences between the two functions, but for
 # the use cases in niquests (checking if callbacks/hooks are async), both should work.
 if sys.version_info >= (3, 14):
+    import inspect
+
     iscoroutinefunction = inspect.iscoroutinefunction
 else:
+    import asyncio
+
     iscoroutinefunction = asyncio.iscoroutinefunction
 
 try:
