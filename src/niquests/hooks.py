@@ -27,6 +27,7 @@ import time
 import typing
 from collections.abc import MutableMapping
 
+from ._compat import iscoroutinefunction
 from .typing import (
     _HV,
     AsyncHookCallableType,
@@ -83,7 +84,7 @@ async def async_dispatch_hook(key: str, hooks: AsyncHookType[_HV] | None, hook_d
         if callable(callables):
             callables = [callables]
         for hook in callables:
-            if asyncio.iscoroutinefunction(hook):
+            if iscoroutinefunction(hook):
                 try:
                     _hook_data = await hook(hook_data, **kwargs)
                 except TypeError:
