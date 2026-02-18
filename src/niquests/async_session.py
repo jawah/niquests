@@ -451,14 +451,10 @@ class AsyncSession(Session):
         raise InvalidSchema(f"No connection adapters were found for {url!r}{additional_hint}")
 
     @typing.overload  # type: ignore[override]
-    async def send(
-        self, request: PreparedRequest, *, stream: Literal[True], **kwargs: typing.Any
-    ) -> AsyncResponse: ...
+    async def send(self, request: PreparedRequest, *, stream: Literal[True], **kwargs: typing.Any) -> AsyncResponse: ...
 
     @typing.overload  # type: ignore[override]
-    async def send(
-        self, request: PreparedRequest, **kwargs: typing.Any
-    ) -> Response: ...
+    async def send(self, request: PreparedRequest, **kwargs: typing.Any) -> Response: ...
 
     async def send(  # type: ignore[override]
         self, request: PreparedRequest, **kwargs: typing.Any
