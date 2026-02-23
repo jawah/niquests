@@ -133,6 +133,7 @@ class AsyncSession(Session):
         base_url: str | None = None,
         timeout: TimeoutType | None = None,
         headers: HeadersType | None = None,
+        auth: HttpAuthenticationType | AsyncHttpAuthenticationType | None = None,
         hooks: AsyncHookType[PreparedRequest | Response | AsyncResponse] | None = None,
         revocation_configuration: RevocationConfiguration | None = DEFAULT_STRATEGY,
         app: ASGIApp | None = None,
@@ -158,7 +159,7 @@ class AsyncSession(Session):
 
         #: Default Authentication tuple or object to attach to
         #: :class:`Request <Request>`.
-        self.auth = None
+        self.auth = auth  # type: ignore[assignment]
 
         #: Dictionary mapping protocol or protocol and host to the URL of the proxy
         #: (e.g. {'http': 'foo.bar:3128', 'http://host.name': 'foo.bar:4012'}) to
