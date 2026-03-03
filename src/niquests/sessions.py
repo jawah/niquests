@@ -254,6 +254,7 @@ class Session:
         base_url: str | None = None,
         timeout: TimeoutType | None = None,
         headers: HeadersType | None = None,
+        auth: HttpAuthenticationType | None = None,
         hooks: HookType[PreparedRequest | Response] | None = None,
         revocation_configuration: RevocationConfiguration | None = DEFAULT_STRATEGY,
         app: WSGIApp | ASGIApp | None = None,
@@ -282,6 +283,7 @@ class Session:
         :param base_url: Automatically set a URL prefix (or base url) on every request emitted if applicable.
         :param timeout: Default timeout configuration to be used if no timeout is provided in exposed methods.
         :param headers: Default headers to be used on every request emitted.
+        :param auth: Default authentication tuple or object to attach to every request emitted.
         :param hooks: Default hooks to be used on every request emitted. Can be a dictionary mapping hook names to
             lists of callables, or a LifeCycleHook instance.
         :param revocation_configuration: How should that session do the certificate revocation check. Set it as None to disable
@@ -309,7 +311,7 @@ class Session:
 
         #: Default Authentication tuple or object to attach to
         #: :class:`Request <Request>`.
-        self.auth = None
+        self.auth = auth
 
         #: Dictionary mapping protocol or protocol and host to the URL of the proxy
         #: (e.g. {'http': 'foo.bar:3128', 'http://host.name': 'foo.bar:4012'}) to
