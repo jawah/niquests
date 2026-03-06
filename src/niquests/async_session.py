@@ -38,10 +38,11 @@ from .exceptions import (
 from .extensions.revocation import DEFAULT_STRATEGY, RevocationConfiguration
 from .extensions.sgi._async import AsyncServerGatewayInterface
 from .extensions.unixsocket._async import AsyncUnixAdapter
+
 try:
     from .extensions.pyodide._async import AsyncPyodideAdapter
 except ImportError:
-    AsyncPyodideAdapter = None  # type: ignore[no-redef]
+    AsyncPyodideAdapter = None  # type: ignore[assignment,misc]
 from .hooks import async_dispatch_hook, default_hooks
 from .models import (
     DEFAULT_REDIRECT_LIMIT,
@@ -333,13 +334,13 @@ class AsyncSession(Session):
                 "http://",
                 AsyncPyodideAdapter(
                     max_retries=retries,
-                )
+                ),
             )
             self.mount(
                 "https://",
                 AsyncPyodideAdapter(
                     max_retries=retries,
-                )
+                ),
             )
         if app is not None:
             self.mount(

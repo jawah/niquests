@@ -1,15 +1,9 @@
-"""
-Async Pyodide Adapter for Niquests
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-This module provides an async adapter for making HTTP requests in Pyodide
-using the native pyfetch API (JavaScript Fetch API).
-"""
-
 from __future__ import annotations
 
 import asyncio
+import time
 import typing
+from datetime import timedelta
 
 from pyodide.http import pyfetch  # type: ignore[import]
 
@@ -23,7 +17,7 @@ from ....packages.urllib3.exceptions import MaxRetryError
 from ....packages.urllib3.response import BytesQueueBuffer
 from ....packages.urllib3.util.retry import Retry
 from ....structures import CaseInsensitiveDict
-from ....utils import _swap_context
+from ....utils import _swap_context, get_encoding_from_headers
 
 if typing.TYPE_CHECKING:
     from ....typing import ProxyType, RetryType, TLSClientCertType, TLSVerifyType
@@ -85,7 +79,7 @@ class _AsyncPyodideRawIO:
 
         # Read until we have enough bytes or stream ends
         while len(self._buffer) < amt and not self._finished:
-            chunk = await self._get_next_chunk()
+            chunk = await self._get_next_chunk()  # type: ignore[assignment]
             if chunk is None:
                 self._finished = True
                 break
@@ -148,12 +142,12 @@ class _AsyncPyodideRawIO:
                 break
             yield chunk
 
-    def close(self) -> None:
+    async def close(self) -> None:
         """Close the stream and release resources."""
         self._closed = True
         if self._reader is not None:
             try:
-                self._reader.cancel()
+                await self._reader.cancel()
             except Exception:
                 pass
         self._reader = None
@@ -170,27 +164,7 @@ class _AsyncPyodideRawIO:
 
 
 class AsyncPyodideAdapter(AsyncBaseAdapter):
-    """
-    Async adapter for making HTTP requests in Pyodide using the native pyfetch API.
-
-    This adapter uses JavaScript's Fetch API through Pyodide's pyfetch, which
-    provides true async/await support for HTTP requests in the browser.
-
-    When ``stream=True``, this adapter provides genuine streaming support using
-    the JavaScript ReadableStream API, avoiding buffering the entire response
-    in memory.
-
-    Usage::
-
-        import niquests
-
-        async def main():
-            async with niquests.AsyncSession() as s:
-                adapter = niquests.extensions.pyodide.AsyncPyodideAdapter()
-                s.mount('http://', adapter)
-                s.mount('https://', adapter)
-                response = await s.get('https://example.com')
-    """
+    """Async adapter for making HTTP requests in Pyodide using the native pyfetch API."""
 
     def __init__(self, max_retries: RetryType = DEFAULT_RETRIES) -> None:
         """
@@ -221,6 +195,7 @@ class AsyncPyodideAdapter(AsyncBaseAdapter):
         """Send a PreparedRequest using Pyodide's pyfetch (JavaScript Fetch API)."""
         retries = self.max_retries
         method = request.method or "GET"
+        start = time.time()
 
         while True:
             try:
@@ -258,6 +233,7 @@ class AsyncPyodideAdapter(AsyncBaseAdapter):
                 await retries.async_sleep(base_response)
                 continue
 
+            response.elapsed = timedelta(seconds=time.time() - start)
             return response
 
     async def _do_send(
@@ -295,7 +271,7 @@ class AsyncPyodideAdapter(AsyncBaseAdapter):
                 for chunk in body:
                     if isinstance(chunk, str):
                         chunks.append(chunk.encode("utf-8"))
-                    else:
+                    elif isinstance(chunk, bytes):
                         chunks.append(chunk)
                 body = b"".join(chunks)
 
@@ -342,7 +318,7 @@ class AsyncPyodideAdapter(AsyncBaseAdapter):
         response.headers = CaseInsensitiveDict(response_headers)
         response.request = request
         response.url = js_response.url or request.url
-        response.encoding = response.headers.get("content-type", "utf-8")  # type: ignore[assignment]
+        response.encoding = get_encoding_from_headers(response_headers)
 
         # Try to get status text
         try:

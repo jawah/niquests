@@ -46,10 +46,11 @@ from .extensions.revocation import DEFAULT_STRATEGY, RevocationConfiguration
 from .extensions.sgi import WebServerGatewayInterface
 from .extensions.sgi._async import ThreadAsyncServerGatewayInterface
 from .extensions.unixsocket import UnixAdapter
+
 try:
     from .extensions.pyodide import PyodideAdapter
 except ImportError:
-    PyodideAdapter = None  # type: ignore[no-redef]
+    PyodideAdapter = None  # type: ignore[assignment,misc]
 from .hooks import HOOKS, default_hooks, dispatch_hook
 
 # formerly defined here, reexposed here for backward compatibility
@@ -481,13 +482,13 @@ class Session:
                 "http://",
                 PyodideAdapter(
                     max_retries=retries,
-                )
+                ),
             )
             self.mount(
                 "https://",
                 PyodideAdapter(
                     max_retries=retries,
-                )
+                ),
             )
         if app is not None:
             if hasattr(app, "__call__") and iscoroutinefunction(app.__call__):

@@ -32,7 +32,11 @@ from urllib.request import (  # type: ignore[attr-defined]  # type: ignore[attr-
 )
 from urllib.request import parse_http_list as _parse_list_header
 
-import wassima
+if sys.platform != "emscripten":
+    import wassima
+else:
+    wassima = None
+
 from charset_normalizer import from_bytes
 
 from .__version__ import __version__

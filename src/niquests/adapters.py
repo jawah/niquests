@@ -18,7 +18,10 @@ from datetime import timedelta
 from http.cookiejar import CookieJar
 from threading import RLock
 
-import wassima
+if sys.platform != "emscripten":
+    import wassima
+else:
+    wassima = None
 
 # Preferred clock, based on which one is more accurate on a given system.
 if sys.platform == "win32":

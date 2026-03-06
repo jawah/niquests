@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import os
-import re
 import shutil
 from pathlib import Path
 
@@ -137,10 +136,8 @@ def pyodideconsole(session: nox.Session) -> None:
     session.run("python", "-m", "http.server", "-d", "dist", "-b", "localhost")
 
 
-@nox.session(python="3.12")
-@nox.parametrize(
-    "runner", ["node", "firefox", "chrome"], ids=["node", "firefox", "chrome"]
-)
+@nox.session(python="3.13")
+@nox.parametrize("runner", ["node", "firefox", "chrome"], ids=["node", "firefox", "chrome"])
 def emscripten(session: nox.Session, runner: str) -> None:
     """Test on Emscripten with Pyodide & Chrome / Firefox / Node.js"""
     if runner == "node":
@@ -186,11 +183,12 @@ def emscripten(session: nox.Session, runner: str) -> None:
 
     session.run("python", "-m", "build")
 
-    # Prepare the wheel for the test runner.
-    # pytest-pyodide can upload files from the host if referenced by path.
-    # We rename the dynamic wheel version to a fixed name for the test decorator.
+    # Copy the wheel into the pyodide dist dir with a fixed name so test code
+    # can reference it without knowing the version. The name must be a valid
+    # PEP 427 wheel filename for Pyodide's wheel parser.
     wheel_file = next(Path("dist").glob("*.whl"))
-    shutil.copy(wheel_file, Path("dist") / "niquests.whl")
+    fixed_wheel_name = "niquests-0.0.dev0-py3-none-any.whl"
+    shutil.copy(wheel_file, dist_dir / fixed_wheel_name)
 
     assert dist_dir is not None
     assert dist_dir.exists()
