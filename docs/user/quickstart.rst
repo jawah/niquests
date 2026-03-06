@@ -840,27 +840,55 @@ It's a bit like if we have a controlled concurrent environment.
 Gather responses
 ~~~~~~~~~~~~~~~~
 
-Emitting concurrent requests and loading them via `Session.gather()`::
+Emitting concurrent requests and loading them via `Session.gather()`:
 
-    from niquests import Session
-    from time import time
+.. tab:: 🔂 Sync
 
-    s = Session(multiplexed=True)
+    .. code:: python
 
-    before = time()
-    responses = []
+        from niquests import Session
+        from time import time
 
-    responses.append(
-      s.get("https://httpbingo.org/delay/3")
-    )
+        s = Session(multiplexed=True)
 
-    responses.append(
-      s.get("https://httpbingo.org/delay/1")
-    )
+        before = time()
+        responses = []
 
-    s.gather()
+        responses.append(
+          s.get("https://httpbingo.org/delay/3")
+        )
 
-    print(f"waited {time() - before} second(s)")  # will print 3s
+        responses.append(
+          s.get("https://httpbingo.org/delay/1")
+        )
+
+        s.gather()
+
+        print(f"waited {time() - before} second(s)")  # will print 3s
+
+.. tab:: 🔀 Async
+
+    .. code:: python
+
+        from niquests import AsyncSession
+        from time import time
+
+        s = AsyncSession(multiplexed=True)
+
+        before = time()
+        responses = []
+
+        responses.append(
+          await s.get("https://httpbingo.org/delay/3")
+        )
+
+        responses.append(
+          await s.get("https://httpbingo.org/delay/1")
+        )
+
+        await s.gather()
+
+        print(f"waited {time() - before} second(s)")  # will print 3s
 
 
 Direct Access
@@ -898,13 +926,27 @@ Session Gather
 The ``Session`` instance expose a method called ``gather(*responses, max_fetch = None)``, you may call it to
 improve the efficiency of resolving your _lazy_ responses.
 
-Here are the possible outcome of invocation::
+Here are the possible outcome of invocation:
 
-    s.gather()  # resolve all pending "lazy" responses
-    s.gather(resp)  # resolve given "resp" only
-    s.gather(max_fetch=2)  # resolve two responses (the first two that come)
-    s.gather(resp_a, resp_b, resp_c)  # resolve all three
-    s.gather(resp_a, resp_b, resp_c, max_fetch=1)  # only resolve the first one
+.. tab:: 🔂 Sync
+
+    .. code:: python
+
+        s.gather()  # resolve all pending "lazy" responses
+        s.gather(resp)  # resolve given "resp" only
+        s.gather(max_fetch=2)  # resolve two responses (the first two that come)
+        s.gather(resp_a, resp_b, resp_c)  # resolve all three
+        s.gather(resp_a, resp_b, resp_c, max_fetch=1)  # only resolve the first one
+
+.. tab:: 🔀 Async
+
+    .. code:: python
+
+        await s.gather()  # resolve all pending "lazy" responses
+        await s.gather(resp)  # resolve given "resp" only
+        await s.gather(max_fetch=2)  # resolve two responses (the first two that come)
+        await s.gather(resp_a, resp_b, resp_c)  # resolve all three
+        await s.gather(resp_a, resp_b, resp_c, max_fetch=1)  # only resolve the first one
 
 .. note:: Call to ``s.gather`` is optional, you can access at will the responses properties and methods at any time.
 
@@ -1103,14 +1145,27 @@ Pool Connections
 Setting ``pool_connections=2`` will keep the connection to ``host-b.tld`` and ``host-c.tld``.
 ``host-a.tld`` will be silently discarded.
 
-.. code:: python
+.. tab:: 🔂 Sync
 
-    import niquests
+    .. code:: python
 
-    with niquests.Session(pool_connections=2) as s:
-        s.get("https://host-a.tld/some")
-        s.get("https://host-b.tld/some")
-        s.get("https://host-c.tld/some")
+        import niquests
+
+        with niquests.Session(pool_connections=2) as s:
+            s.get("https://host-a.tld/some")
+            s.get("https://host-b.tld/some")
+            s.get("https://host-c.tld/some")
+
+.. tab:: 🔀 Async
+
+    .. code:: python
+
+        import niquests
+
+        async with niquests.AsyncSession(pool_connections=2) as s:
+            await s.get("https://host-a.tld/some")
+            await s.get("https://host-b.tld/some")
+            await s.get("https://host-c.tld/some")
 
 .. attention::
 

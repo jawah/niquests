@@ -19,26 +19,56 @@ increase (see `HTTP persistent connection`_).
 
 A Session object has all the methods of the main Niquests API.
 
-Let's persist some cookies across requests::
+Let's persist some cookies across requests:
 
-    s = niquests.Session()
+.. tab:: 🔂 Sync
 
-    s.get('https://httpbin.org/cookies/set/sessioncookie/123456789')
-    r = s.get('https://httpbin.org/cookies')
+    .. code:: python
 
-    print(r.text)
-    # '{"cookies": {"sessioncookie": "123456789"}}'
+        s = niquests.Session()
 
+        s.get('https://httpbin.org/cookies/set/sessioncookie/123456789')
+        r = s.get('https://httpbin.org/cookies')
+
+        print(r.text)
+        # '{"cookies": {"sessioncookie": "123456789"}}'
+
+.. tab:: 🔀 Async
+
+    .. code:: python
+
+        s = niquests.AsyncSession()
+
+        await s.get('https://httpbin.org/cookies/set/sessioncookie/123456789')
+        r = await s.get('https://httpbin.org/cookies')
+
+        print(r.text)
+        # '{"cookies": {"sessioncookie": "123456789"}}'
 
 Sessions can also be used to provide default data to the request methods. This
-is done by providing data to the properties on a Session object::
+is done by providing data to the properties on a Session object:
 
-    s = niquests.Session()
-    s.auth = ('user', 'pass')
-    s.headers.update({'x-test': 'true'})
+.. tab:: 🔂 Sync
 
-    # both 'x-test' and 'x-test2' are sent
-    s.get('https://httpbin.org/headers', headers={'x-test2': 'true'})
+    .. code:: python
+
+        s = niquests.Session()
+        s.auth = ('user', 'pass')
+        s.headers.update({'x-test': 'true'})
+
+        # both 'x-test' and 'x-test2' are sent
+        s.get('https://httpbin.org/headers', headers={'x-test2': 'true'})
+
+.. tab:: 🔀 Async
+
+    .. code:: python
+
+        s = niquests.AsyncSession()
+        s.auth = ('user', 'pass')
+        s.headers.update({'x-test': 'true'})
+
+        # both 'x-test' and 'x-test2' are sent
+        await s.get('https://httpbin.org/headers', headers={'x-test2': 'true'})
 
 
 Any dictionaries that you pass to a request method will be merged with the
@@ -47,27 +77,55 @@ parameters.
 
 Note, however, that method-level parameters will *not* be persisted across
 requests, even if using a session. This example will only send the cookies
-with the first request, but not the second::
+with the first request, but not the second:
 
-    s = niquests.Session()
+.. tab:: 🔂 Sync
 
-    r = s.get('https://httpbin.org/cookies', cookies={'from-my': 'browser'})
-    print(r.text)
-    # '{"cookies": {"from-my": "browser"}}'
+    .. code:: python
 
-    r = s.get('https://httpbin.org/cookies')
-    print(r.text)
-    # '{"cookies": {}}'
+        s = niquests.Session()
 
+        r = s.get('https://httpbin.org/cookies', cookies={'from-my': 'browser'})
+        print(r.text)
+        # '{"cookies": {"from-my": "browser"}}'
+
+        r = s.get('https://httpbin.org/cookies')
+        print(r.text)
+        # '{"cookies": {}}'
+
+.. tab:: 🔀 Async
+
+    .. code:: python
+
+        s = niquests.AsyncSession()
+
+        r = await s.get('https://httpbin.org/cookies', cookies={'from-my': 'browser'})
+        print(r.text)
+        # '{"cookies": {"from-my": "browser"}}'
+
+        r = await s.get('https://httpbin.org/cookies')
+        print(r.text)
+        # '{"cookies": {}}'
 
 If you want to manually add cookies to your session, use the
 :ref:`Cookie utility functions <api-cookies>` to manipulate
 :attr:`Session.cookies <niquests.Session.cookies>`.
 
-Sessions can also be used as context managers::
+Sessions can also be used as context managers:
 
-    with niquests.Session() as s:
-        s.get('https://httpbin.org/cookies/set/sessioncookie/123456789')
+.. tab:: 🔂 Sync
+
+    .. code:: python
+
+        with niquests.Session() as s:
+            s.get('https://httpbin.org/cookies/set/sessioncookie/123456789')
+
+.. tab:: 🔀 Async
+
+    .. code:: python
+
+        async with niquests.AsyncSession() as s:
+            await s.get('https://httpbin.org/cookies/set/sessioncookie/123456789')
 
 This will make sure the session is closed as soon as the ``with`` block is
 exited, even if unhandled exceptions occurred.
@@ -106,10 +164,21 @@ Setting a Base URL
 You can avoid repetitive URL basic concatenation if your sole purpose of Session instance
 is to reach a particular server and/or base path.
 
-Setup it like follow::
+Setup it like follow:
 
-    with niquests.Session(base_url="https://httpbin.org") as s:
-        s.get('/headers')  # internally will become "https://httpbin.org/headers"
+.. tab:: 🔂 Sync
+
+    .. code:: python
+
+        with niquests.Session(base_url="https://httpbin.org") as s:
+            s.get('/headers')  # internally will become "https://httpbin.org/headers"
+
+.. tab:: 🔀 Async
+
+    .. code:: python
+
+        async with niquests.AsyncSession(base_url="https://httpbin.org") as s:
+            await s.get('/headers')  # internally will become "https://httpbin.org/headers"
 
 Request and Response Objects
 ----------------------------
@@ -152,30 +221,61 @@ Whenever you receive a :class:`Response <niquests.Response>` object
 from an API call or a Session call, the ``request`` attribute is actually the
 ``PreparedRequest`` that was used. In some cases you may wish to do some extra
 work to the body or headers (or anything else really) before sending a
-request. The simple recipe for this is the following::
+request. The simple recipe for this is the following:
 
-    from niquests import Request, Session
+.. tab:: 🔂 Sync
 
-    s = Session()
+    .. code:: python
 
-    req = Request('POST', url, data=data, headers=headers)
-    prepped = req.prepare()
+        from niquests import Request, Session
 
-    # do something with prepped.body
-    prepped.body = 'No, I want exactly this as the body.'
+        s = Session()
 
-    # do something with prepped.headers
-    del prepped.headers['Content-Type']
+        req = Request('POST', url, data=data, headers=headers)
+        prepped = req.prepare()
 
-    resp = s.send(prepped,
-        stream=stream,
-        verify=verify,
-        proxies=proxies,
-        cert=cert,
-        timeout=timeout
-    )
+        # do something with prepped.body
+        prepped.body = 'No, I want exactly this as the body.'
 
-    print(resp.status_code)
+        # do something with prepped.headers
+        del prepped.headers['Content-Type']
+
+        resp = s.send(prepped,
+            stream=stream,
+            verify=verify,
+            proxies=proxies,
+            cert=cert,
+            timeout=timeout
+        )
+
+        print(resp.status_code)
+
+.. tab:: 🔀 Async
+
+    .. code:: python
+
+        from niquests import Request, AsyncSession
+
+        s = AsyncSession()
+
+        req = Request('POST', url, data=data, headers=headers)
+        prepped = req.prepare()
+
+        # do something with prepped.body
+        prepped.body = 'No, I want exactly this as the body.'
+
+        # do something with prepped.headers
+        del prepped.headers['Content-Type']
+
+        resp = await s.send(prepped,
+            stream=stream,
+            verify=verify,
+            proxies=proxies,
+            cert=cert,
+            timeout=timeout
+        )
+
+        print(resp.status_code)
 
 Since you are not doing anything special with the ``Request`` object, you
 prepare it immediately and modify the ``PreparedRequest`` object. You then
@@ -189,49 +289,101 @@ not get applied to your request. To get a
 :class:`PreparedRequest <niquests.PreparedRequest>` with that state
 applied, replace the call to :meth:`Request.prepare()
 <niquests.Request.prepare>` with a call to
-:meth:`Session.prepare_request() <niquests.Session.prepare_request>`, like this::
+:meth:`Session.prepare_request() <niquests.Session.prepare_request>`, like this:
 
-    from niquests import Request, Session
+.. tab:: 🔂 Sync
 
-    s = Session()
-    req = Request('GET',  url, data=data, headers=headers)
+    .. code:: python
 
-    prepped = s.prepare_request(req)
+        from niquests import Request, Session
 
-    # do something with prepped.body
-    prepped.body = 'Seriously, send exactly these bytes.'
+        s = Session()
+        req = Request('GET',  url, data=data, headers=headers)
 
-    # do something with prepped.headers
-    prepped.headers['Keep-Dead'] = 'parrot'
+        prepped = s.prepare_request(req)
 
-    resp = s.send(prepped,
-        stream=stream,
-        verify=verify,
-        proxies=proxies,
-        cert=cert,
-        timeout=timeout
-    )
+        # do something with prepped.body
+        prepped.body = 'Seriously, send exactly these bytes.'
 
-    print(resp.status_code)
+        # do something with prepped.headers
+        prepped.headers['Keep-Dead'] = 'parrot'
+
+        resp = s.send(prepped,
+            stream=stream,
+            verify=verify,
+            proxies=proxies,
+            cert=cert,
+            timeout=timeout
+        )
+
+        print(resp.status_code)
+
+.. tab:: 🔀 Async
+
+    .. code:: python
+
+        from niquests import Request, AsyncSession
+
+        s = AsyncSession()
+        req = Request('GET',  url, data=data, headers=headers)
+
+        prepped = s.prepare_request(req)
+
+        # do something with prepped.body
+        prepped.body = 'Seriously, send exactly these bytes.'
+
+        # do something with prepped.headers
+        prepped.headers['Keep-Dead'] = 'parrot'
+
+        resp = await s.send(prepped,
+            stream=stream,
+            verify=verify,
+            proxies=proxies,
+            cert=cert,
+            timeout=timeout
+        )
+
+        print(resp.status_code)
 
 When you are using the prepared request flow, keep in mind that it does not take into account the environment.
 This can cause problems if you are using environment variables to change the behaviour of niquests.
 For example: Self-signed SSL certificates specified in ``REQUESTS_CA_BUNDLE`` will not be taken into account.
 As a result an ``SSL: CERTIFICATE_VERIFY_FAILED`` is thrown.
-You can get around this behaviour by explicitly merging the environment settings into your session::
+You can get around this behaviour by explicitly merging the environment settings into your session:
 
-    from niquests import Request, Session
+.. tab:: 🔂 Sync
 
-    s = Session()
-    req = Request('GET', url)
+    .. code:: python
 
-    prepped = s.prepare_request(req)
+        from niquests import Request, Session
 
-    # Merge environment settings into session
-    settings = s.merge_environment_settings(prepped.url, {}, None, None, None)
-    resp = s.send(prepped, **settings)
+        s = Session()
+        req = Request('GET', url)
 
-    print(resp.status_code)
+        prepped = s.prepare_request(req)
+
+        # Merge environment settings into session
+        settings = s.merge_environment_settings(prepped.url, {}, None, None, None)
+        resp = s.send(prepped, **settings)
+
+        print(resp.status_code)
+
+.. tab:: 🔀 Async
+
+    .. code:: python
+
+        from niquests import Request, AsyncSession
+
+        s = AsyncSession()
+        req = Request('GET', url)
+
+        prepped = s.prepare_request(req)
+
+        # Merge environment settings into session
+        settings = s.merge_environment_settings(prepped.url, {}, None, None, None)
+        resp = await s.send(prepped, **settings)
+
+        print(resp.status_code)
 
 .. _verification:
 
@@ -355,10 +507,22 @@ Body Content Workflow
 By default, when you make a request, the body of the response is downloaded
 immediately. You can override this behaviour and defer downloading the response
 body until you access the :attr:`Response.content <niquests.Response.content>`
-attribute with the ``stream`` parameter::
+attribute with the ``stream`` parameter:
 
-    tarball_url = 'https://github.com/jawah/niquests/tarball/main'
-    r = niquests.get(tarball_url, stream=True)
+.. tab:: 🔂 Sync
+
+    .. code:: python
+
+        tarball_url = 'https://github.com/jawah/niquests/tarball/main'
+        r = niquests.get(tarball_url, stream=True)
+
+.. tab:: 🔀 Async
+
+    .. code:: python
+
+        tarball_url = 'https://github.com/jawah/niquests/tarball/main'
+        async with niquests.AsyncSession() as s:
+            r = await s.get(tarball_url, stream=True)
 
 At this point only the response headers have been downloaded and the connection
 remains open, hence allowing us to make content retrieval conditional::
@@ -401,11 +565,21 @@ data has been read; be sure to either set ``stream`` to ``False`` or read the
 Niquests can automatically make sure that your HTTP connection is kept alive
 no matter the used protocol using a discrete scheduled task for each host.
 
-.. code-block:: python
+.. tab:: 🔂 Sync
 
-    import niquests
+    .. code-block:: python
 
-    sess = niquests.Session(keepalive_delay=3600, keepalive_idle_window=60)  # already the defaults!, you don't need to specify anything
+        import niquests
+
+        sess = niquests.Session(keepalive_delay=3600, keepalive_idle_window=60)  # already the defaults!, you don't need to specify anything
+
+.. tab:: 🔀 Async
+
+    .. code-block:: python
+
+        import niquests
+
+        sess = niquests.AsyncSession(keepalive_delay=3600, keepalive_idle_window=60)  # already the defaults!, you don't need to specify anything
 
 In that example, we indicate that we wish to keep a connection alive for 1 hour and
 eventually send ping every 60s after the connection was idle. (Those values are the default ones!)
@@ -426,10 +600,23 @@ Streaming Uploads
 
 Niquests supports streaming uploads, which allow you to send large streams or
 files without reading them into memory. To stream and upload, simply provide a
-file-like object for your body::
+file-like object for your body:
 
-    with open('massive-body', 'rb') as f:
-        niquests.post('http://some.url/streamed', data=f)
+.. tab:: 🔂 Sync
+
+    .. code:: python
+
+        with open('massive-body', 'rb') as f:
+            niquests.post('http://some.url/streamed', data=f)
+
+.. tab:: 🔀 Async
+
+    .. code:: python
+
+        import aiofile
+
+        async with aiofile.async_open('massive-body', 'rb') as f:
+            await niquests.apost('http://some.url/streamed', data=f)
 
 .. warning:: It is recommended that you open files in binary mode.
 
@@ -463,13 +650,27 @@ Chunk-Encoded Requests
 
 Niquests also supports Chunked transfer encoding for outgoing and incoming niquests.
 To send a chunk-encoded request, simply provide a generator (or any iterator without
-a length) for your body::
+a length) for your body:
 
-    def gen():
-        yield 'hi'
-        yield 'there'
+.. tab:: 🔂 Sync
 
-    niquests.post('http://some.url/chunked', data=gen())
+    .. code:: python
+
+        def gen():
+            yield 'hi'
+            yield 'there'
+
+        niquests.post('http://some.url/chunked', data=gen())
+
+.. tab:: 🔀 Async
+
+    .. code:: python
+
+        async def gen():
+            yield 'hi'
+            yield 'there'
+
+        await niquests.apost('http://some.url/chunked', data=gen())
 
 For chunked encoded responses, it's best to iterate over the data using
 :meth:`Response.iter_content() <niquests.Response.iter_content>`. In
@@ -817,16 +1018,31 @@ The callable will receive the ``PreparedRequest`` that will contain a property n
 
 .. note:: ``upload_progress`` is a ``TransferProgress`` instance.
 
-You may find bellow a plausible example::
+You may find bellow a plausible example:
 
-    import niquests
+.. tab:: 🔂 Sync
 
-    if __name__ == "__main__":
+    .. code:: python
+
+        import niquests
+
         def track(req):
             print(req.upload_progress)
 
         with niquests.Session() as s:
             s.post("https://httpbingo.org/post", data=b"foo"*16800*1024, hooks={"on_upload": [track]})
+
+.. tab:: 🔀 Async
+
+    .. code:: python
+
+        import niquests
+
+        async def track(req):
+            print(req.upload_progress)
+
+        async with niquests.AsyncSession() as s:
+            await s.post("https://httpbingo.org/post", data=b"foo"*16800*1024, hooks={"on_upload": [track]})
 
 .. note:: Niquests recommend the excellent tqdm library to create progress bars with ease.
 
@@ -888,33 +1104,72 @@ With :meth:`Response.iter_lines() <niquests.Response.iter_lines>` you can easily
 iterate over streaming APIs such as the `Twitter Streaming
 API <https://dev.twitter.com/streaming/overview>`_. Simply
 set ``stream`` to ``True`` and iterate over the response with
-:meth:`~niquests.Response.iter_lines()`::
+:meth:`~niquests.Response.iter_lines()`:
 
-    import json
-    import niquests
+.. tab:: 🔂 Sync
 
-    r = niquests.get('https://httpbin.org/stream/20', stream=True)
+    .. code:: python
 
-    for line in r.iter_lines():
+        import json
+        import niquests
 
-        # filter out keep-alive new lines
-        if line:
-            decoded_line = line.decode('utf-8')
-            print(json.loads(decoded_line))
+        r = niquests.get('https://httpbin.org/stream/20', stream=True)
+
+        for line in r.iter_lines():
+
+            # filter out keep-alive new lines
+            if line:
+                decoded_line = line.decode('utf-8')
+                print(json.loads(decoded_line))
+
+.. tab:: 🔀 Async
+
+    .. code:: python
+
+        import json
+        import niquests
+
+        async with niquests.AsyncSession() as s:
+            r = await s.get('https://httpbin.org/stream/20', stream=True)
+
+            async for line in r.iter_lines():
+
+                # filter out keep-alive new lines
+                if line:
+                    decoded_line = line.decode('utf-8')
+                    print(json.loads(decoded_line))
 
 When using `decode_unicode=True` with
 :meth:`Response.iter_lines() <niquests.Response.iter_lines>` or
 :meth:`Response.iter_content() <niquests.Response.iter_content>`, you'll want
-to provide a fallback encoding in the event the server doesn't provide one::
+to provide a fallback encoding in the event the server doesn't provide one:
 
-    r = niquests.get('https://httpbin.org/stream/20', stream=True)
+.. tab:: 🔂 Sync
 
-    if r.encoding is None:
-        r.encoding = 'utf-8'
+    .. code:: python
 
-    for line in r.iter_lines(decode_unicode=True):
-        if line:
-            print(json.loads(line))
+        r = niquests.get('https://httpbin.org/stream/20', stream=True)
+
+        if r.encoding is None:
+            r.encoding = 'utf-8'
+
+        for line in r.iter_lines(decode_unicode=True):
+            if line:
+                print(json.loads(line))
+
+.. tab:: 🔀 Async
+
+    .. code:: python
+
+        async with niquests.AsyncSession() as s:
+            r = await s.get('https://httpbin.org/stream/20', stream=True)
+
+            if r.encoding is None:
+                r.encoding = 'utf-8'
+
+            async for line in r.iter_lines(decode_unicode=True):
+                if line:
+                    print(json.loads(line))
 
 .. warning::
 
