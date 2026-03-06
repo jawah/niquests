@@ -15,7 +15,7 @@ from .status_codes import codes
 if typing.TYPE_CHECKING:
     from typing_extensions import Literal
 
-from ._compat import HAS_LEGACY_URLLIB3, urllib3_ensure_type
+from ._compat import HAS_LEGACY_URLLIB3, iscoroutinefunction, urllib3_ensure_type
 from ._constant import (
     DEFAULT_POOLSIZE,
     DEFAULT_RETRIES,
@@ -76,6 +76,7 @@ from .typing import (
 from .utils import (
     _deepcopy_ci,
     _swap_context,
+    arewind_body,
     create_async_resolver,
     default_headers,
     parse_scheme,
@@ -893,7 +894,15 @@ class AsyncSession(Session):
 
             # Attempt to rewind consumed file-like object.
             if rewindable:
-                rewind_body(prepared_request)
+                # could be async file with awaitable tell/seek!
+                if (
+                    prepared_request.body is not None
+                    and hasattr(prepared_request.body, "tell")
+                    and iscoroutinefunction(prepared_request.body.tell)
+                ):
+                    await arewind_body(prepared_request)
+                else:
+                    rewind_body(prepared_request)
 
             # Override the original request.
             req = prepared_request
@@ -1013,6 +1022,17 @@ class AsyncSession(Session):
             prep.__dict__.update(r.__dict__)
             prep.prepare_content_length(prep.body)
             del prep._pending_async_auth
+
+        if (
+            isinstance(prep._body_position, object)
+            and prep.body is not None
+            and hasattr(prep.body, "tell")
+            and iscoroutinefunction(prep.body.tell)
+        ):
+            try:
+                prep._body_position = await prep.body.tell()
+            except OSError:
+                pass
 
         prep = await async_dispatch_hook(
             "pre_request",

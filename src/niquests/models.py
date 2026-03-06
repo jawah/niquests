@@ -526,12 +526,15 @@ class PreparedRequest:
                 # Record the current file position before reading.
                 # This will allow us to rewind a file in the event
                 # of a redirect.
-                try:
-                    self._body_position = body.tell()
-                except OSError:
-                    # This differentiates from None, allowing us to catch
-                    # a failed `tell()` later when trying to rewind the body
+                if iscoroutinefunction(body.tell):
                     self._body_position = object()
+                else:
+                    try:
+                        self._body_position = body.tell()
+                    except OSError:
+                        # This differentiates from None, allowing us to catch
+                        # a failed `tell()` later when trying to rewind the body
+                        self._body_position = object()
 
             if files:
                 raise NotImplementedError("Streamed bodies and files are mutually exclusive.")
