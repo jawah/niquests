@@ -10,6 +10,7 @@ This module implements the Requests API.
 
 from __future__ import annotations
 
+import threading
 import typing
 
 from . import sessions
@@ -34,23 +35,10 @@ from .typing import (
     TLSVerifyType,
 )
 
-try:
-    from .extensions.revocation._ocsp import InMemoryRevocationStatus
-
-    _SHARED_OCSP_CACHE: InMemoryRevocationStatus | None = InMemoryRevocationStatus()
-except ImportError:
-    _SHARED_OCSP_CACHE = None
-
-
-try:
-    from .extensions.revocation._crl import InMemoryRevocationList
-
-    _SHARED_CRL_CACHE: InMemoryRevocationList | None = InMemoryRevocationList()
-except ImportError:
-    _SHARED_CRL_CACHE = None
-
-
+_SHARED_OCSP_CACHE: typing.Any | None = None
+_SHARED_CRL_CACHE: typing.Any | None = None
 _SHARED_QUIC_CACHE: CacheLayerAltSvcType = QuicSharedCache(max_size=12_288)
+_SHARED_CACHE_LOCK: threading.RLock = threading.RLock()
 
 
 def request(
@@ -124,27 +112,35 @@ def request(
     # By using the 'with' statement we are sure the session is closed, thus we
     # avoid leaving sockets open which can trigger a ResourceWarning in some
     # cases, and look like a memory leak in others.
+    global _SHARED_OCSP_CACHE, _SHARED_CRL_CACHE
     with sessions.Session(quic_cache_layer=_SHARED_QUIC_CACHE, retries=retries) as session:
         session._ocsp_cache = _SHARED_OCSP_CACHE
         session._crl_cache = _SHARED_CRL_CACHE
-        return session.request(
-            method=method,
-            url=url,
-            params=params,
-            data=data,
-            headers=headers,
-            cookies=cookies,
-            files=files,
-            auth=auth,
-            timeout=timeout,
-            allow_redirects=allow_redirects,
-            proxies=proxies,
-            hooks=hooks,
-            stream=stream,
-            verify=verify,
-            cert=cert,
-            json=json,
-        )
+        try:
+            return session.request(
+                method=method,
+                url=url,
+                params=params,
+                data=data,
+                headers=headers,
+                cookies=cookies,
+                files=files,
+                auth=auth,
+                timeout=timeout,
+                allow_redirects=allow_redirects,
+                proxies=proxies,
+                hooks=hooks,
+                stream=stream,
+                verify=verify,
+                cert=cert,
+                json=json,
+            )
+        finally:
+            with _SHARED_CACHE_LOCK:
+                if _SHARED_OCSP_CACHE is None and session._ocsp_cache is not None:
+                    _SHARED_OCSP_CACHE = session._ocsp_cache
+                if _SHARED_CRL_CACHE is None and session._crl_cache is not None:
+                    _SHARED_CRL_CACHE = session._crl_cache
 
 
 def get(
