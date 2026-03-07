@@ -478,18 +478,11 @@ class Session:
                 ),
             )
         else:
-            self.mount(
-                "http://",
-                PyodideAdapter(
-                    max_retries=retries,
-                ),
+            wasm_adapter = PyodideAdapter(
+                max_retries=retries,
             )
-            self.mount(
-                "https://",
-                PyodideAdapter(
-                    max_retries=retries,
-                ),
-            )
+            for supported_scheme in ["http", "https", "sse", "psse", "ws", "wss"]:
+                self.mount(f"{supported_scheme}://", wasm_adapter)
         if app is not None:
             if hasattr(app, "__call__") and iscoroutinefunction(app.__call__):
                 self.mount(

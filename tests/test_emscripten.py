@@ -169,3 +169,281 @@ async def test_async_retry_works(selenium):
     async with AsyncSession(retries=3) as s:
         response = await s.get("https://httpbingo.org/get")
         assert response.status_code == 200
+
+
+@run_in_pyodide(packages=["micropip"])
+async def test_sync_websocket(selenium_jspi):
+    """Test sync WebSocket via browser native API + JSPI."""
+    try:
+        import niquests  # noqa: F401
+    except ImportError:
+        import micropip
+
+        await micropip.install("./niquests-0.0.dev0-py3-none-any.whl", deps=True)
+
+    import sys
+
+    if "emscripten" not in sys.platform:
+        return  # skip outside Pyodide
+
+    try:
+        from js import WebSocket  # noqa: F401
+    except ImportError:
+        import pytest
+
+        pytest.skip("websocket support unavailable on platform")
+
+    from niquests import Session
+
+    with Session() as s:
+        response = s.get("wss://echo.websocket.org")
+        assert response.status_code == 101
+
+        ext = response.extension
+        assert ext is not None
+        assert ext.closed is False
+
+        # Consume potential welcome/greeting message from the server
+        welcome = ext.next_payload()
+        assert isinstance(welcome, str)
+
+        ext.send_payload("hello from niquests")
+        msg = ext.next_payload()
+        assert isinstance(msg, str)
+        assert msg == "hello from niquests"
+
+        ext.close()
+        assert ext.closed is True
+
+
+@run_in_pyodide(packages=["micropip"])
+async def test_sync_websocket_binary(selenium_jspi):
+    """Test sync WebSocket binary message handling."""
+    try:
+        import niquests  # noqa: F401
+    except ImportError:
+        import micropip
+
+        await micropip.install("./niquests-0.0.dev0-py3-none-any.whl", deps=True)
+
+    try:
+        from js import WebSocket  # noqa: F401
+    except ImportError:
+        import pytest
+
+        pytest.skip("websocket support unavailable on platform")
+
+    from niquests import Session
+
+    with Session() as s:
+        response = s.get("wss://echo.websocket.org")
+        assert response.status_code == 101
+
+        ext = response.extension
+
+        # Consume potential welcome/greeting message from the server
+        ext.next_payload()
+
+        ext.send_payload(b"\x00\x01\x02\x03")
+        msg = ext.next_payload()
+        assert isinstance(msg, bytes)
+        assert msg == b"\x00\x01\x02\x03"
+
+        ext.close()
+
+
+@run_in_pyodide(packages=["micropip"])
+async def test_async_websocket(selenium):
+    """Test async WebSocket via browser native API."""
+    try:
+        import niquests  # noqa: F401
+    except ImportError:
+        import micropip
+
+        await micropip.install("./niquests-0.0.dev0-py3-none-any.whl", deps=True)
+
+    try:
+        from js import WebSocket  # noqa: F401
+    except ImportError:
+        import pytest
+
+        pytest.skip("websocket support unavailable on platform")
+
+    from niquests import AsyncSession
+
+    async with AsyncSession() as s:
+        response = await s.get("wss://echo.websocket.org")
+        assert response.status_code == 101
+
+        ext = response.extension
+        assert ext is not None
+        assert ext.closed is False
+
+        # Consume potential welcome/greeting message from the server
+        welcome = await ext.next_payload()
+        assert isinstance(welcome, str)
+
+        await ext.send_payload("hello from niquests async")
+        msg = await ext.next_payload()
+        assert isinstance(msg, str)
+        assert msg == "hello from niquests async"
+
+        await ext.close()
+        assert ext.closed is True
+
+
+@run_in_pyodide(packages=["micropip"])
+async def test_async_websocket_binary(selenium):
+    """Test async WebSocket binary message handling."""
+    try:
+        import niquests  # noqa: F401
+    except ImportError:
+        import micropip
+
+        await micropip.install("./niquests-0.0.dev0-py3-none-any.whl", deps=True)
+
+    try:
+        from js import WebSocket  # noqa: F401
+    except ImportError:
+        import pytest
+
+        pytest.skip("websocket support unavailable on platform")
+
+    from niquests import AsyncSession
+
+    async with AsyncSession() as s:
+        response = await s.get("wss://echo.websocket.org")
+        assert response.status_code == 101
+
+        ext = response.extension
+
+        # Consume potential welcome/greeting message from the server
+        await ext.next_payload()
+
+        await ext.send_payload(b"\x00\x01\x02\x03")
+        msg = await ext.next_payload()
+        assert isinstance(msg, bytes)
+        assert msg == b"\x00\x01\x02\x03"
+
+        await ext.close()
+
+
+@run_in_pyodide(packages=["micropip"])
+async def test_sync_sse(selenium_jspi):
+    """Test sync SSE via pyfetch streaming + manual parsing."""
+    try:
+        import niquests  # noqa: F401
+    except ImportError:
+        import micropip
+
+        await micropip.install("./niquests-0.0.dev0-py3-none-any.whl", deps=True)
+
+    from niquests import Session
+    from niquests.packages.urllib3.contrib.webextensions.sse import ServerSentEvent
+
+    with Session() as s:
+        response = s.get("sse://httpbingo.org/sse?count=3&duration=1")
+        assert response.status_code == 200
+
+        ext = response.extension
+        assert ext is not None
+        assert ext.closed is False
+
+        events = []
+        while True:
+            event = ext.next_payload()
+            if event is None:
+                break
+            assert isinstance(event, ServerSentEvent)
+            events.append(event)
+
+        assert len(events) >= 1
+        assert ext.closed is True
+
+
+@run_in_pyodide(packages=["micropip"])
+async def test_async_sse(selenium):
+    """Test async SSE via pyfetch streaming + manual parsing."""
+    try:
+        import niquests  # noqa: F401
+    except ImportError:
+        import micropip
+
+        await micropip.install("./niquests-0.0.dev0-py3-none-any.whl", deps=True)
+
+    from niquests import AsyncSession
+    from niquests.packages.urllib3.contrib.webextensions.sse import ServerSentEvent
+
+    async with AsyncSession() as s:
+        response = await s.get("sse://httpbingo.org/sse?count=3&duration=1")
+        assert response.status_code == 200
+
+        ext = response.extension
+        assert ext is not None
+        assert ext.closed is False
+
+        events = []
+        while True:
+            event = await ext.next_payload()
+            if event is None:
+                break
+            assert isinstance(event, ServerSentEvent)
+            events.append(event)
+
+        assert len(events) >= 1
+        assert ext.closed is True
+
+
+@run_in_pyodide(packages=["micropip"])
+async def test_sync_sse_send_raises(selenium_jspi):
+    """Test that SSE send_payload raises NotImplementedError."""
+    try:
+        import niquests  # noqa: F401
+    except ImportError:
+        import micropip
+
+        await micropip.install("./niquests-0.0.dev0-py3-none-any.whl", deps=True)
+
+    from niquests import Session
+
+    with Session() as s:
+        response = s.get("sse://httpbingo.org/sse?count=1&duration=1")
+        ext = response.extension
+
+        raised = False
+        try:
+            ext.send_payload("test")
+        except NotImplementedError:
+            raised = True
+
+        assert raised is True
+        ext.close()
+
+
+@run_in_pyodide(packages=["micropip"])
+async def test_sync_websocket_close_from_server(selenium_jspi):
+    """Test that close works and state is updated."""
+    try:
+        import niquests  # noqa: F401
+    except ImportError:
+        import micropip
+
+        await micropip.install("./niquests-0.0.dev0-py3-none-any.whl", deps=True)
+
+    try:
+        from js import WebSocket  # noqa: F401
+    except ImportError:
+        import pytest
+
+        pytest.skip("websocket support unavailable on platform")
+
+    from niquests import Session
+
+    with Session() as s:
+        response = s.get("wss://echo.websocket.org")
+        ext = response.extension
+        assert ext.closed is False
+
+        # Close from our side, then verify state
+        ext.close()
+        assert ext.closed is True

@@ -41,6 +41,7 @@ class _PyodideRawIO:
         self._finished = preloaded_content is not None or js_response is None
         self._reader: typing.Any = None
         self.headers: dict[str, str] = {}
+        self.extension: typing.Any = None
 
         if preloaded_content is not None:
             self._buffer.put(preloaded_content)
@@ -213,6 +214,17 @@ class PyodideAdapter(BaseAdapter):
         timeout: int | float | None,
     ) -> Response:
         """Perform the actual request using pyfetch made synchronous via JSPI."""
+        url = request.url or ""
+        scheme = url.split("://")[0].lower() if "://" in url else ""
+
+        # WebSocket: delegate to browser native WebSocket API
+        if scheme in ("ws", "wss"):
+            return self._do_send_ws(request, url)
+
+        # SSE: delegate to pyfetch streaming + manual SSE parsing
+        if scheme in ("sse", "psse"):
+            return self._do_send_sse(request, url, scheme)
+
         # Prepare headers
         headers_dict: dict[str, str] = {}
         if request.headers:
@@ -298,6 +310,62 @@ class PyodideAdapter(BaseAdapter):
             raw_io.headers = response_headers
             response.raw = raw_io  # type: ignore
             response._content = response_body
+
+        return response
+
+    def _do_send_ws(self, request: PreparedRequest, url: str) -> Response:
+        """Handle WebSocket connections via browser native WebSocket API."""
+        from ._ws import PyodideWebSocketExtension
+
+        try:
+            ext = PyodideWebSocketExtension(url)
+        except Exception as e:
+            raise ConnectionError(f"WebSocket connection to {url} failed: {e}")
+
+        response = Response()
+        response.status_code = 101
+        response.headers = CaseInsensitiveDict({"upgrade": "websocket", "connection": "upgrade"})
+        response.request = request
+        response.url = url
+        response.reason = "Switching Protocols"
+
+        raw_io = _PyodideRawIO()
+        raw_io.extension = ext
+        response.raw = raw_io  # type: ignore
+        response._content = b""
+
+        return response
+
+    def _do_send_sse(self, request: PreparedRequest, url: str, scheme: str) -> Response:
+        """Handle SSE connections via pyfetch streaming + manual parsing."""
+        from ._sse import PyodideSSEExtension
+
+        http_url = url.replace("sse://", "https://", 1) if scheme == "sse" else url.replace("psse://", "http://", 1)
+
+        # Pass through user-provided headers
+        headers_dict: dict[str, str] = {}
+        if request.headers:
+            for key, value in request.headers.items():
+                if key.lower() not in ("host", "content-length", "connection"):
+                    headers_dict[key] = value
+
+        try:
+            ext = PyodideSSEExtension(http_url, headers=headers_dict)
+        except Exception as e:
+            raise ConnectionError(f"SSE connection to {url} failed: {e}")
+
+        response = Response()
+        response.status_code = 200
+        response.headers = CaseInsensitiveDict({"content-type": "text/event-stream"})
+        response.request = request
+        response.url = url
+        response.reason = "OK"
+
+        raw_io = _PyodideRawIO()
+        raw_io.extension = ext
+        response.raw = raw_io  # type: ignore
+        response._content = False  # type: ignore[assignment]
+        response._content_consumed = False
 
         return response
 

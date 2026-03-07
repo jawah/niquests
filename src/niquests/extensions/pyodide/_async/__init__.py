@@ -43,6 +43,7 @@ class _AsyncPyodideRawIO:
         self._finished = False
         self._reader: typing.Any = None  # JavaScript ReadableStreamDefaultReader
         self.headers: dict[str, str] = {}
+        self.extension: typing.Any = None
 
     async def _ensure_reader(self) -> None:
         """Initialize the stream reader if not already done."""
@@ -243,6 +244,17 @@ class AsyncPyodideAdapter(AsyncBaseAdapter):
         timeout: int | float | None,
     ) -> AsyncResponse:
         """Perform the actual request using Pyodide's pyfetch."""
+        url = request.url or ""
+        scheme = url.split("://")[0].lower() if "://" in url else ""
+
+        # WebSocket: delegate to browser native WebSocket API
+        if scheme in ("ws", "wss"):
+            return await self._do_send_ws(request, url)
+
+        # SSE: delegate to pyfetch streaming + manual SSE parsing
+        if scheme in ("sse", "psse"):
+            return await self._do_send_sse(request, url, scheme)
+
         # Prepare headers
         headers_dict: dict[str, str] = {}
         if request.headers:
@@ -349,6 +361,70 @@ class AsyncPyodideAdapter(AsyncBaseAdapter):
             raw_io = _AsyncPyodideRawIO(None, timeout)
             raw_io.headers = response_headers
             response.raw = raw_io  # type: ignore
+
+        _swap_context(response)
+
+        return response  # type: ignore[return-value]
+
+    async def _do_send_ws(self, request: PreparedRequest, url: str) -> AsyncResponse:
+        """Handle WebSocket connections via browser native WebSocket API."""
+        from ._ws import AsyncPyodideWebSocketExtension
+
+        ext = AsyncPyodideWebSocketExtension()
+
+        try:
+            await ext.start(url)
+        except Exception as e:
+            raise ConnectionError(f"WebSocket connection to {url} failed: {e}")
+
+        response = Response()
+        response.status_code = 101
+        response.headers = CaseInsensitiveDict({"upgrade": "websocket", "connection": "upgrade"})
+        response.request = request
+        response.url = url
+        response.reason = "Switching Protocols"
+
+        raw_io = _AsyncPyodideRawIO(None)
+        raw_io.extension = ext
+        response.raw = raw_io  # type: ignore
+        response._content = b""
+
+        _swap_context(response)
+
+        return response  # type: ignore[return-value]
+
+    async def _do_send_sse(self, request: PreparedRequest, url: str, scheme: str) -> AsyncResponse:
+        """Handle SSE connections via pyfetch streaming + manual parsing."""
+        from ._sse import AsyncPyodideSSEExtension
+
+        http_url = url.replace("sse://", "https://", 1) if scheme == "sse" else url.replace("psse://", "http://", 1)
+
+        # Pass through user-provided headers
+        headers_dict: dict[str, str] = {}
+        if request.headers:
+            for key, value in request.headers.items():
+                if key.lower() not in ("host", "content-length", "connection"):
+                    headers_dict[key] = value
+
+        ext = AsyncPyodideSSEExtension()
+
+        try:
+            await ext.start(http_url, headers=headers_dict)
+        except Exception as e:
+            raise ConnectionError(f"SSE connection to {url} failed: {e}")
+
+        response = Response()
+        response.status_code = 200
+        response.headers = CaseInsensitiveDict({"content-type": "text/event-stream"})
+        response.request = request
+        response.url = url
+        response.reason = "OK"
+
+        raw_io = _AsyncPyodideRawIO(None)
+        raw_io.extension = ext
+        response.raw = raw_io  # type: ignore
+        response._content = False  # type: ignore[assignment]
+        response._content_consumed = False
 
         _swap_context(response)
 

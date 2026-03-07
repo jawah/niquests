@@ -330,18 +330,11 @@ class AsyncSession(Session):
                 ),
             )
         else:
-            self.mount(
-                "http://",
-                AsyncPyodideAdapter(
-                    max_retries=retries,
-                ),
+            wasm_adapter = AsyncPyodideAdapter(
+                max_retries=retries,
             )
-            self.mount(
-                "https://",
-                AsyncPyodideAdapter(
-                    max_retries=retries,
-                ),
-            )
+            for supported_scheme in ["http", "https", "sse", "psse", "ws", "wss"]:
+                self.mount(f"{supported_scheme}://", wasm_adapter)
         if app is not None:
             self.mount(
                 "asgi://default",
