@@ -336,13 +336,13 @@ class AsyncSession(Session):
             for supported_scheme in ["http", "https", "sse", "psse", "ws", "wss"]:
                 self.mount(f"{supported_scheme}://", wasm_adapter)
         if app is not None:
-            self.mount(
-                "asgi://default",
-                AsyncServerGatewayInterface(
-                    app=app,
-                    max_retries=retries,
-                ),
+            adapter = AsyncServerGatewayInterface(
+                app=app,
+                max_retries=retries,
             )
+            self.mount("asgi://default", adapter)
+            for _scheme in ("ws", "wss", "sse", "psse"):
+                self.mount(f"{_scheme}://default", adapter)
             if self.base_url is None:
                 self.base_url = "asgi://default"
 

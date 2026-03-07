@@ -485,23 +485,23 @@ class Session:
                 self.mount(f"{supported_scheme}://", wasm_adapter)
         if app is not None:
             if hasattr(app, "__call__") and iscoroutinefunction(app.__call__):
-                self.mount(
-                    "asgi://default",
-                    ThreadAsyncServerGatewayInterface(
-                        app=app,  # type: ignore[arg-type]
-                        max_retries=retries,
-                    ),
+                adapter = ThreadAsyncServerGatewayInterface(
+                    app=app,  # type: ignore[arg-type]
+                    max_retries=retries,
                 )
+                self.mount("asgi://default", adapter)
+                for _scheme in ("ws", "wss", "sse", "psse"):
+                    self.mount(f"{_scheme}://default", adapter)
                 if self.base_url is None:
                     self.base_url = "asgi://default"
             else:
-                self.mount(
-                    "wsgi://default",
-                    WebServerGatewayInterface(
-                        app=app,  # type: ignore[arg-type]
-                        max_retries=retries,
-                    ),
+                adapter = WebServerGatewayInterface(  # type: ignore[assignment]
+                    app=app,  # type: ignore[arg-type]
+                    max_retries=retries,
                 )
+                self.mount("wsgi://default", adapter)
+                for _scheme in ("ws", "wss", "sse", "psse"):
+                    self.mount(f"{_scheme}://default", adapter)
                 if self.base_url is None:
                     self.base_url = "wsgi://default"
 

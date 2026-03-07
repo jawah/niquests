@@ -25,6 +25,7 @@ class _WSGIRawIO:
         self._buffer = BytesQueueBuffer()
         self._closed = False
         self.headers = headers
+        self.extension: typing.Any = None
 
     def read(
         self,
@@ -148,8 +149,71 @@ class WebServerGatewayInterface(BaseAdapter):
 
             return response
 
+    def _do_send_sse(self, request: PreparedRequest) -> Response:
+        """Handle SSE requests by wrapping the WSGI response with SSE parsing."""
+        from urllib.parse import urlparse
+
+        from ._sse import WSGISSEExtension
+
+        # Convert scheme: sse:// -> https://, psse:// -> http://
+        parsed = urlparse(request.url)
+        if parsed.scheme == "sse":
+            http_scheme = "https"
+        else:
+            http_scheme = "http"
+
+        original_url = request.url
+        request.url = request.url.replace(f"{parsed.scheme}://", f"{http_scheme}://", 1)  # type: ignore[union-attr,str-bytes-safe]
+
+        environ = self._create_environ(request)
+        request.url = original_url
+
+        status_code = None
+        response_headers: list[tuple[str, str]] = []
+
+        def start_response(status: str, headers: list[tuple[str, str]], exc_info=None):
+            nonlocal status_code, response_headers
+            status_code = int(status.split(" ", 1)[0])
+            response_headers = headers
+
+        result = self.app(environ, start_response)
+
+        def generate():
+            try:
+                yield from result
+            finally:
+                if hasattr(result, "close"):
+                    result.close()
+
+        ext = WSGISSEExtension(generate())
+
+        response = Response()
+        response.status_code = status_code
+        response.headers = CaseInsensitiveDict(response_headers)
+        response.request = request
+        response.url = original_url
+        response.encoding = response.headers.get("content-type", "utf-8")  # type: ignore[assignment]
+
+        raw_io = _WSGIRawIO(iter([]), response_headers)  # type: ignore[arg-type]
+        raw_io.extension = ext
+        response.raw = raw_io  # type: ignore
+        response._content = False
+        response._content_consumed = False
+
+        return response
+
     def _do_send(self, request: PreparedRequest, stream: bool) -> Response:
         """Perform the actual WSGI request."""
+        from urllib.parse import urlparse
+
+        parsed = urlparse(request.url)
+
+        if parsed.scheme in ("ws", "wss"):
+            raise NotImplementedError("WebSocket is not supported over WSGI")
+
+        if parsed.scheme in ("sse", "psse"):
+            return self._do_send_sse(request)
+
         environ = self._create_environ(request)
 
         status_code = None
