@@ -39,18 +39,14 @@ class ASGIWebSocketExtension:
             self._task.cancel()
             with contextlib.suppress(asyncio.CancelledError):
                 await self._task
-            raise ConnectionError(
-                f"WebSocket connection rejected with code {message.get('code', 1000)}"
-            )
+            raise ConnectionError(f"WebSocket connection rejected with code {message.get('code', 1000)}")
 
         if message["type"] != "websocket.accept":
             self._closed = True
             self._task.cancel()
             with contextlib.suppress(asyncio.CancelledError):
                 await self._task
-            raise ConnectionError(
-                f"Unexpected ASGI message during handshake: {message['type']}"
-            )
+            raise ConnectionError(f"Unexpected ASGI message during handshake: {message['type']}")
 
     @property
     def closed(self) -> bool:
@@ -83,13 +79,9 @@ class ASGIWebSocketExtension:
             raise OSError("The WebSocket extension is closed")
 
         if isinstance(buf, (bytes, bytearray)):
-            await self._app_receive_queue.put(
-                {"type": "websocket.receive", "bytes": bytes(buf)}
-            )
+            await self._app_receive_queue.put({"type": "websocket.receive", "bytes": bytes(buf)})
         else:
-            await self._app_receive_queue.put(
-                {"type": "websocket.receive", "text": buf}
-            )
+            await self._app_receive_queue.put({"type": "websocket.receive", "text": buf})
 
     async def close(self) -> None:
         """Close the WebSocket and clean up the app task."""
@@ -98,9 +90,7 @@ class ASGIWebSocketExtension:
 
         self._closed = True
 
-        await self._app_receive_queue.put(
-            {"type": "websocket.disconnect", "code": 1000}
-        )
+        await self._app_receive_queue.put({"type": "websocket.disconnect", "code": 1000})
 
         if self._task is not None and not self._task.done():
             self._task.cancel()

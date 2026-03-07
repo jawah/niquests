@@ -89,7 +89,7 @@ class ASGISSEExtension:
 
             if sep_idx != -1:
                 raw_event = self._buffer[:sep_idx]
-                self._buffer = self._buffer[sep_idx + sep_len:]
+                self._buffer = self._buffer[sep_idx + sep_len :]
 
                 event = self._parse_event(raw_event)
 
