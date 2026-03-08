@@ -117,8 +117,8 @@ jobs:
 
       - name: "Combine & check coverage"
         run: |
-          python -m coverage combine
-          python -m coverage html --skip-covered --skip-empty
+          python -m coverage combine --ignore-errors
+          python -m coverage html --skip-covered --skip-empty --ignore-errors
           python -m coverage report --ignore-errors --show-missing --fail-under=70
 
       - name: "Upload report"
