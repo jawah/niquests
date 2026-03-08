@@ -1654,3 +1654,57 @@ def test_async_sse_via_stream(selenium):
     if data:
         with open(f".coverage.pyodide.{uuid.uuid4().hex}", "wb") as f:
             f.write(data)
+
+
+@run_in_pyodide(packages=["micropip"])
+async def _inner_test_async_concurrent_gather(selenium):
+    import micropip
+
+    await micropip.install(["./niquests-0.0.dev0-py3-none-any.whl", "coverage"], deps=True)
+
+    import coverage
+
+    cov = coverage.Coverage(source=["niquests"])
+    cov.start()
+    try:
+        import asyncio
+
+        from niquests import AsyncSession
+
+        async with AsyncSession() as s:
+
+            async def do_get(req_id):
+                resp = await s.get(f"https://httpbingo.org/get?req={req_id}")
+                return req_id, resp
+
+            results = await asyncio.gather(
+                do_get("a1"),
+                do_get("b2"),
+                do_get("c3"),
+                do_get("d4"),
+                do_get("e5"),
+            )
+
+            assert len(results) == 5
+
+            seen_ids = set()
+            for req_id, resp in results:
+                assert resp.status_code == 200
+                data = resp.json()
+                assert data["args"]["req"] == [req_id]
+                seen_ids.add(req_id)
+
+            assert seen_ids == {"a1", "b2", "c3", "d4", "e5"}
+    finally:
+        cov.stop()
+        cov.save()
+    with open(".coverage", "rb") as f:
+        return f.read()
+
+
+def test_async_concurrent_gather(selenium):
+    """Test that 5 concurrent async requests via asyncio.gather all complete."""
+    data = _inner_test_async_concurrent_gather(selenium)
+    if data:
+        with open(f".coverage.pyodide.{uuid.uuid4().hex}", "wb") as f:
+            f.write(data)
