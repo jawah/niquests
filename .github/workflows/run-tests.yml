@@ -20,22 +20,25 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.7", "3.8", "3.9", "3.10", "3.11", "3.12", "3.13", "3.14", "pypy-3.11"]
+        python-version: ["3.7", "3.8", "3.9", "3.10", "3.11", "3.12", "3.13", "3.14"]
         os: [ubuntu-22.04, macos-14, windows-latest]
         nox-session: ['']
         include:
           - python-version: "3.13"
             os: ubuntu-24.04
             nox-session: emscripten(node)
-            experimental: true
           - python-version: "3.13"
             os: ubuntu-24.04
             nox-session: emscripten(firefox)
-            experimental: true
           - python-version: "3.13"
             os: ubuntu-24.04
             nox-session: emscripten(chrome)
-            experimental: true
+          - python-version: "pypy-3.11"
+            os: ubuntu-24.04
+            nox-session: "test-pypy3.11"
+          - python-version: "pypy-3.11"
+            os: windows-latest
+            nox-session: "test-pypy3.11"
         exclude:
           - python-version: "3.7"
             os: macos-14
@@ -78,10 +81,8 @@ jobs:
       run: |
         pip install nox
     - name: Run tests
-      env:
-        NOX_SESSION: ${{ matrix.nox-session != '' && matrix.nox-session || format('test-{0}', matrix.python-version) }}
       run: |
-        nox -s "$NOX_SESSION"
+        nox -s "${{ matrix.nox-session != '' && matrix.nox-session || format('test-{0}', matrix.python-version) }}"
     - name: "Upload artifact"
       uses: "actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f"
       with:
