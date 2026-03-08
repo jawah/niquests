@@ -147,7 +147,7 @@ def test_wsgi_sse_close():
 
 
 def test_wsgi_websocket_not_supported():
-    from urllib3.exceptions import MaxRetryError
+    from niquests.packages.urllib3.exceptions import MaxRetryError
 
     with Session(app=app) as s:
         with pytest.raises(MaxRetryError) as exc_info:
