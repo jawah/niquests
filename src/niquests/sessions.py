@@ -51,6 +51,12 @@ try:
     from .extensions.pyodide import PyodideAdapter
 except ImportError:
     PyodideAdapter = None  # type: ignore[assignment,misc]
+
+    if sys.platform == "emscripten":
+        warnings.warn(
+            "Unable to load native WASM adapter for Session. HTTP requests may fail in sync. Did you forget to enable JSPI?",
+            UserWarning,
+        )
 from .hooks import HOOKS, default_hooks, dispatch_hook
 
 # formerly defined here, reexposed here for backward compatibility

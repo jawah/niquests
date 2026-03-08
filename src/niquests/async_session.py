@@ -43,6 +43,13 @@ try:
     from .extensions.pyodide._async import AsyncPyodideAdapter
 except ImportError:
     AsyncPyodideAdapter = None  # type: ignore[assignment,misc]
+    if sys.platform == "emscripten":
+        import warnings
+
+        warnings.warn(
+            "unable to load native WASM adapter for AsyncSession. HTTP requests may fail in async.",
+            UserWarning,
+        )
 from .hooks import async_dispatch_hook, default_hooks
 from .models import (
     DEFAULT_REDIRECT_LIMIT,
