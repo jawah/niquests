@@ -226,7 +226,7 @@ class PyodideAdapter(BaseAdapter):
         headers_dict: dict[str, str] = {}
         if request.headers:
             for key, value in request.headers.items():
-                if key.lower() not in ("host", "content-length", "connection"):
+                if key.lower() not in ("host", "content-length", "connection", "transfer-encoding"):
                     headers_dict[key] = value
 
         # Prepare body
