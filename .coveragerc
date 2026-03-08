@@ -10,6 +10,7 @@ source =
     *\niquests
 
 [report]
+ignore_errors = True
 omit =
     src/niquests/help.py
     src/niquests/_vendor/*
