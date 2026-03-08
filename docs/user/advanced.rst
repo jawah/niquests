@@ -142,17 +142,71 @@ See the :ref:`Session API Docs <sessionapi>` to learn more.
 
 The ``Session`` class takes several (optional) named arguments for your convenience.
 
+- `resolver`
+  Specify a DNS resolver that should be used within this Session.
+
+- `source_address`
+  Bind Session to a specific network adapter and/or port so that all outgoing requests use it.
+
 - `quic_cache_layer`
   Specify a `MutableMapping` that can memorize Alt-Svc capabilities (when a server is HTTP/3 compatible).
 
 - `retries`
   Determine the retry strategy across the ``Session`` lifetime. See :class:`~niquests.RetryConfiguration`.
 
+- `multiplexed`
+  Enable or disable concurrent requests when the remote host supports HTTP/2 onward.
+
+- `disable_http1`
+  Toggle to disable negotiating HTTP/1 with remote peers. Set it to ``True`` to force HTTP/2 over cleartext (h2c).
+
+- `disable_http2`
+  Toggle to disable negotiating HTTP/2 with remote peers.
+
+- `disable_http3`
+  Toggle to disable negotiating HTTP/3 with remote peers.
+
+- `disable_ipv6`
+  Toggle to disable using IPv6 even if the remote host supports it.
+
+- `disable_ipv4`
+  Toggle to disable using IPv4 even if the remote host supports it.
+
+- `pool_connections`
+  Number of concurrent hosts to be kept alive by this Session at a maximum.
+
+- `pool_maxsize`
+  Maximum number of concurrent connections per (single) host at a time.
+
+- `happy_eyeballs`
+  Use IETF Happy Eyeballs algorithm when trying to connect by issuing concurrent IPv6/IPv4 connections. The domain name must yield multiple A or AAAA records.
+
+- `keepalive_delay`
+  Delay in seconds in which we should keep a connection alive by sending PING frames. Only applies to HTTP/2 onward.
+
+- `keepalive_idle_window`
+  Delay in seconds in which we should send a PING frame after the connection being completely idle. Only applies to HTTP/2 onward.
+
+- `base_url`
+  Automatically set a URL prefix on every request emitted if applicable.
+
+- `timeout`
+  Default timeout configuration to be used if no timeout is provided in exposed methods.
+
 - `headers`
   Specify default headers to be sent on every request made with this session.
 
+- `auth`
+  Default authentication tuple or object to attach to every request emitted.
+
 - `hooks`
   Specify default hooks to be applied to all requests made with this session. Can be a dictionary of hook names to callables, or a :class:`~niquests.hooks.LifeCycleHook` instance (or :class:`~niquests.hooks.AsyncLifeCycleHook` for ``AsyncSession``).
+
+- `revocation_configuration`
+  How should the session do the certificate revocation check. Set it to ``None`` to disable this additional security measure.
+
+- `app`
+  A WSGI (e.g. Flask) or ASGI (e.g. FastAPI) app to be mounted automatically.
 
 .. _request-and-response-objects:
 
