@@ -5,6 +5,7 @@ import json
 import os
 
 import pytest
+from aiofiles.tempfile import NamedTemporaryFile
 
 from niquests import AsyncResponse, AsyncSession, Response
 from niquests.exceptions import MultiplexingError
@@ -136,6 +137,16 @@ class TestAsyncWithoutMultiplex:
                 r = await s.get("https://httpbingo.org/html", stream=True)
             finally:
                 await r.close()
+
+    async def test_post_awaitable_body_seek_tell(self) -> None:
+        async with AsyncSession() as s:
+            async with NamedTemporaryFile() as fp:
+                await fp.write(b"foobar" * 128)
+                await fp.seek(0)
+
+                r = await s.post("https://httpbingo.org/post", data=fp)
+
+                assert r.request._body_position == 0
 
 
 @pytest.mark.usefixtures("requires_wan")

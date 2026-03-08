@@ -840,27 +840,55 @@ It's a bit like if we have a controlled concurrent environment.
 Gather responses
 ~~~~~~~~~~~~~~~~
 
-Emitting concurrent requests and loading them via `Session.gather()`::
+Emitting concurrent requests and loading them via `Session.gather()`:
 
-    from niquests import Session
-    from time import time
+.. tab:: 🔂 Sync
 
-    s = Session(multiplexed=True)
+    .. code:: python
 
-    before = time()
-    responses = []
+        from niquests import Session
+        from time import time
 
-    responses.append(
-      s.get("https://httpbingo.org/delay/3")
-    )
+        s = Session(multiplexed=True)
 
-    responses.append(
-      s.get("https://httpbingo.org/delay/1")
-    )
+        before = time()
+        responses = []
 
-    s.gather()
+        responses.append(
+          s.get("https://httpbingo.org/delay/3")
+        )
 
-    print(f"waited {time() - before} second(s)")  # will print 3s
+        responses.append(
+          s.get("https://httpbingo.org/delay/1")
+        )
+
+        s.gather()
+
+        print(f"waited {time() - before} second(s)")  # will print 3s
+
+.. tab:: 🔀 Async
+
+    .. code:: python
+
+        from niquests import AsyncSession
+        from time import time
+
+        s = AsyncSession(multiplexed=True)
+
+        before = time()
+        responses = []
+
+        responses.append(
+          await s.get("https://httpbingo.org/delay/3")
+        )
+
+        responses.append(
+          await s.get("https://httpbingo.org/delay/1")
+        )
+
+        await s.gather()
+
+        print(f"waited {time() - before} second(s)")  # will print 3s
 
 
 Direct Access
@@ -898,13 +926,27 @@ Session Gather
 The ``Session`` instance expose a method called ``gather(*responses, max_fetch = None)``, you may call it to
 improve the efficiency of resolving your _lazy_ responses.
 
-Here are the possible outcome of invocation::
+Here are the possible outcome of invocation:
 
-    s.gather()  # resolve all pending "lazy" responses
-    s.gather(resp)  # resolve given "resp" only
-    s.gather(max_fetch=2)  # resolve two responses (the first two that come)
-    s.gather(resp_a, resp_b, resp_c)  # resolve all three
-    s.gather(resp_a, resp_b, resp_c, max_fetch=1)  # only resolve the first one
+.. tab:: 🔂 Sync
+
+    .. code:: python
+
+        s.gather()  # resolve all pending "lazy" responses
+        s.gather(resp)  # resolve given "resp" only
+        s.gather(max_fetch=2)  # resolve two responses (the first two that come)
+        s.gather(resp_a, resp_b, resp_c)  # resolve all three
+        s.gather(resp_a, resp_b, resp_c, max_fetch=1)  # only resolve the first one
+
+.. tab:: 🔀 Async
+
+    .. code:: python
+
+        await s.gather()  # resolve all pending "lazy" responses
+        await s.gather(resp)  # resolve given "resp" only
+        await s.gather(max_fetch=2)  # resolve two responses (the first two that come)
+        await s.gather(resp_a, resp_b, resp_c)  # resolve all three
+        await s.gather(resp_a, resp_b, resp_c, max_fetch=1)  # only resolve the first one
 
 .. note:: Call to ``s.gather`` is optional, you can access at will the responses properties and methods at any time.
 
@@ -1103,14 +1145,27 @@ Pool Connections
 Setting ``pool_connections=2`` will keep the connection to ``host-b.tld`` and ``host-c.tld``.
 ``host-a.tld`` will be silently discarded.
 
-.. code:: python
+.. tab:: 🔂 Sync
 
-    import niquests
+    .. code:: python
 
-    with niquests.Session(pool_connections=2) as s:
-        s.get("https://host-a.tld/some")
-        s.get("https://host-b.tld/some")
-        s.get("https://host-c.tld/some")
+        import niquests
+
+        with niquests.Session(pool_connections=2) as s:
+            s.get("https://host-a.tld/some")
+            s.get("https://host-b.tld/some")
+            s.get("https://host-c.tld/some")
+
+.. tab:: 🔀 Async
+
+    .. code:: python
+
+        import niquests
+
+        async with niquests.AsyncSession(pool_connections=2) as s:
+            await s.get("https://host-a.tld/some")
+            await s.get("https://host-b.tld/some")
+            await s.get("https://host-c.tld/some")
 
 .. attention::
 
@@ -1851,6 +1906,90 @@ Test your FastAPI, Starlette, or other ASGI applications directly:
 
     asyncio.run(main())
 
+**WebSocket and SSE:**
+
+.. versionadded:: 3.18.0
+
+WebSocket and Server-Sent Events work with ASGI applications using the exact same interfaces as the main HTTP part.
+Use ``wss://`` (or ``ws://``) for WebSocket and ``sse://`` (or ``psse://``) for SSE, just like you would with a live server.
+
+.. tab:: 🔂 Sync
+
+    .. code:: python
+
+        from fastapi import FastAPI, WebSocket
+        from starlette.responses import StreamingResponse
+
+        app = FastAPI()
+
+        @app.websocket("/ws-echo")
+        async def ws_echo(websocket: WebSocket):
+            await websocket.accept()
+            while True:
+                data = await websocket.receive_text()
+                await websocket.send_text(f"echo: {data}")
+
+        @app.get("/sse-events")
+        async def sse_events():
+            async def generate():
+                for i in range(3):
+                    yield f"event: message\ndata: event {i}\n\n"
+            return StreamingResponse(generate(), media_type="text/event-stream")
+
+    WebSocket:
+
+    .. code:: python
+
+        from niquests import Session
+
+        with Session(app=app) as s:
+            resp = s.get("wss://default/ws-echo")
+
+            resp.extension.send_payload("Hello")
+            print(resp.extension.next_payload())  # "echo: Hello"
+
+            resp.extension.close()
+
+    SSE:
+
+    .. code:: python
+
+        from niquests import Session
+
+        with Session(app=app) as s:
+            resp = s.get("sse://default/sse-events")
+
+            while not resp.extension.closed:
+                event = resp.extension.next_payload()
+                if event is None:
+                    break
+                print(event)  # ServerSentEvent(event='message', data='event 0')
+
+.. tab:: 🔀 Async
+
+    .. code:: python
+
+        import asyncio
+        from niquests import AsyncSession
+
+        async def main():
+            async with AsyncSession(app=app) as s:
+                # WebSocket
+                resp = await s.get("wss://default/ws-echo")
+                await resp.extension.send_payload("Hello")
+                print(await resp.extension.next_payload())  # "echo: Hello"
+                await resp.extension.close()
+
+                # SSE
+                resp = await s.get("sse://default/sse-events")
+                while not resp.extension.closed:
+                    event = await resp.extension.next_payload()
+                    if event is None:
+                        break
+                    print(event)
+
+        asyncio.run(main())
+
 .. note:: You can also use an ASGI app within a synchronous Session at the cost of loosing streaming responses. And in the sync version, lifespan events (startup, shutdown) are handled automatically.
 
 WSGI Applications (Sync)
@@ -1893,6 +2032,144 @@ Test your Flask, Django, or other WSGI applications:
 
         for chunk in resp.iter_content(6):
             ...
+
+**Server-Sent Events:**
+
+.. versionadded:: 3.18.0
+
+SSE works with WSGI applications using the same interface as the main HTTP part.
+
+.. code:: python
+
+    from flask import Flask, Response
+
+    app = Flask(__name__)
+
+    @app.route("/sse-events")
+    def sse_events():
+        def generate():
+            for i in range(3):
+                yield f"event: message\ndata: event {i}\n\n"
+        return Response(generate(), mimetype="text/event-stream")
+
+.. code:: python
+
+    from niquests import Session
+
+    with Session(app=app) as s:
+        resp = s.get("sse://default/sse-events")
+
+        while not resp.extension.closed:
+            event = resp.extension.next_payload()
+            if event is None:
+                break
+            print(event)  # ServerSentEvent(event='message', data='event 0')
+
+.. warning:: WebSocket is not supported over WSGI as it is a request/response-only protocol. Use an ASGI application for WebSocket testing.
+
+Running in the Browser (Pyodide)
+--------------------------------
+
+.. versionadded:: 3.18.0
+
+Niquests runs natively in `Pyodide <https://pyodide.org>`_ with zero configuration changes.
+Your existing code: HTTP requests, WebSocket, and SSE works identically using ``Session``, or ``AsyncSession``,
+and ``resp.extension``. The adapter is selected automatically when Pyodide is detected.
+
+.. warning:: The sync interfaces requires a JSPI capable browser or Node interpreter. Modern build of Firefox, Chrome and Node support it.
+
+.. tab:: 🔂 Sync
+
+    .. code:: python
+
+        # This exact code works in both CPython and Pyodide:
+        import niquests
+
+        resp = niquests.get("https://httpbingo.org/get")
+        print(resp.json())
+
+.. tab:: 🔀 Async
+
+    .. code:: python
+
+        # This exact code works in both CPython and Pyodide:
+        import niquests
+
+        resp = await niquests.aget("https://httpbingo.org/get")
+        print(resp.json())
+
+WebSocket and SSE use the same API as described in the sections above:
+
+.. tab:: 🔂 Sync
+
+    .. code:: python
+
+        from niquests import Session
+
+        with Session() as s:
+            # Behind the scenes, uses the browser's native WebSocket API
+            resp = s.get("wss://echo.websocket.org")
+            resp.extension.send_payload("Hello")
+            print(resp.extension.next_payload())
+            resp.extension.close()
+
+            # Behind the scenes, uses fetch streaming under the hood
+            resp = s.get("sse://some-server.example/events")
+            while not resp.extension.closed:
+                event = resp.extension.next_payload()
+                if event is None:
+                    break
+                print(event)
+
+.. tab:: 🔀 Async
+
+    .. code:: python
+
+        from niquests import AsyncSession
+
+        async with AsyncSession() as s:
+            # Behind the scenes, uses the browser's native WebSocket API
+            resp = await s.get("wss://echo.websocket.org")
+            await resp.extension.send_payload("Hello")
+            print(await resp.extension.next_payload())
+            await resp.extension.close()
+
+            # Behind the scenes, uses fetch streaming under the hood
+            resp = await s.get("sse://some-server.example/events")
+            while not resp.extension.closed:
+                event = await resp.extension.next_payload()
+                if event is None:
+                    break
+                print(event)
+
+What the browser controls
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Under Pyodide, the browser's network stack handles the actual connections.
+This means a few things behave differently from your usual Python! There are not limitations of Niquests,
+but inherent properties of the browser sandbox:
+
+- **DNS resolution** is handled by the browser. Custom resolvers, DNS-over-HTTPS, Protocol toggles, and so on have no effect.
+- **TLS** is handled by the browser. The ``verify`` and ``cert`` parameters are ignored, the browser uses its own certificate store. And unfortunately, by direct impact, ``response.conn_info`` is unset.
+- **CORS applies**. The remote server must include the appropriate ``Access-Control-Allow-Origin`` headers, or the browser will block the request.
+- **response.http_version is None**. The browser does not expose which HTTP protocol (HTTP/1.1, h2, h3) was negotiated easily.
+- **Certain headers just cannot be set**. The browser forbids overriding ``Host``, ``Origin``, ``Cookie``, ``Connection``, and other `forbidden headers <https://developer.mozilla.org/en-US/docs/Glossary/Forbidden_header_name>`_.
+- **No HTTP+Unix sockets**. Unix domain sockets are not available in the browser environment.
+- **Pool sizing, HTTP version toggles, and multiplexing settings** are silently ignored, the browser manages its own connection pool.
+- **No redirection history** accessible through the heavy browser sandbox.
+- **Disable autoredirect** isn't supported due to above. (intermediaries requests are 'opaque', so we can't build a response object with them).
+- **pre_send and early_response** hooks are silently ignored.
+
+That's a lot of thing missing! But you are now informed.
+
+Scheme mapping
+~~~~~~~~~~~~~~
+
+The scheme prefixes work exactly as elsewhere:
+
+- ``sse://`` maps to ``https://`` for SSE
+- ``psse://`` maps to ``http://`` for plaintext SSE
+- ``wss://`` and ``ws://`` use the browser's native WebSocket
 
 -----------------------
 

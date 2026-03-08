@@ -32,10 +32,15 @@ from urllib.request import (  # type: ignore[attr-defined]  # type: ignore[attr-
 )
 from urllib.request import parse_http_list as _parse_list_header
 
-import wassima
+if sys.platform != "emscripten":
+    import wassima
+else:
+    wassima = None
+
 from charset_normalizer import from_bytes
 
 from .__version__ import __version__
+from ._compat import iscoroutinefunction
 from .exceptions import InvalidURL, MissingSchema, UnrewindableBodyError
 from .extensions.revocation import RevocationConfiguration, RevocationStrategy
 from .packages.urllib3 import ConnectionInfo
@@ -147,7 +152,7 @@ def super_len(o: typing.Any) -> int:
         else:
             total_length = os.fstat(fileno).st_size
 
-    if hasattr(o, "tell"):
+    if hasattr(o, "tell") and not iscoroutinefunction(o.tell):
         try:
             current_position = o.tell()
         except OSError:
@@ -961,6 +966,18 @@ def rewind_body(prepared_request: PreparedRequest) -> None:
     if body_seek is not None and isinstance(prepared_request._body_position, int):
         try:
             body_seek(prepared_request._body_position)
+        except OSError:
+            raise UnrewindableBodyError("An error occurred when rewinding request body for redirect.")
+    else:
+        raise UnrewindableBodyError("Unable to rewind request body for redirect.")
+
+
+async def arewind_body(prepared_request: PreparedRequest) -> None:
+    """Async counterpart of rewind_body."""
+    body_seek = getattr(prepared_request.body, "seek", None)
+    if body_seek is not None and isinstance(prepared_request._body_position, int):
+        try:
+            await body_seek(prepared_request._body_position)
         except OSError:
             raise UnrewindableBodyError("An error occurred when rewinding request body for redirect.")
     else:

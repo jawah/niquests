@@ -61,56 +61,23 @@ Niquests, is the “**Safest**, **Fastest[^10]**, **Easiest**, and **Most advanc
 | `Automatic Ping for HTTP/2+`               |       ✅        |    N/A    |       ❌       | N/A           |
 | `Automatic Connection Upgrade / Downgrade` |       ✅        |    N/A    |       ❌       | N/A           |
 | `Server Side Event (SSE)`                  |       ✅        |     ❌     |       ❌       | ❌             |
+| `WASM / Pyodide`                           |       ✅        |     ✅     |       ❌       | ❌             |
 </details>
 
 <details>
   <summary>📈 <b>Look at the performance comparison</b> against <i>them</i>!</summary>
 
-_Scenario:_ Fetch a thousand requests using 10 tasks or threads, each with a hundred requests using a single pool of connection.
+Given the script hosted at https://gist.github.com/Ousret/9e99b07e66eec48ccea5811775ec116d that simply send 1000 requests.
+We deliberately use a real remote endpoint, disabled Niquests manual multiplexing (for fairness), to showcase how the client behave in
+a **real life usage**.
 
-**High-Level APIs**
-
-| Client   | Average Delay to Complete | Notes                        |
-|----------|---------------------------|------------------------------|
-| requests | 987 ms or ~1013 req/s     | ThreadPoolExecutor. HTTP/1.1 |
-| httpx    | 720 ms or ~1389 req/s     | Asyncio. HTTP/2              |
-| niquests | 340 ms or ~2941 req/s     | Asyncio. HTTP/2              |
-
-**Simplified APIs**
-
-| Client        | Average Delay to Complete | Notes                        |
-|---------------|---------------------------|------------------------------|
-| requests core | 643 ms or ~1555 req/s     | ThreadPoolExecutor. HTTP/1.1 |
-| httpx core    | 490 ms or ~2000 req/s     | Asyncio. HTTP/2              |
-| aiohttp       | 210 ms or ~4762 req/s     | Asyncio. HTTP/1.1            |
-| niquests core | 160 ms or ~6200 req/s     | Asyncio. HTTP/2              |
-
-Did you give up on HTTP/2 due to performance concerns? Think again! Do you realize that you can get 3 times faster with the same CPU if you ever switched to Niquests from Requests?
-Multiplexing and response lazyness open up a wide range of possibilities! Want to learn more about the tests? scripts? reasoning?
-
-Take a deeper look at https://github.com/Ousret/niquests-stats
-
-**Update:** The previous scenario is fairly complex to set up, and we were asked to provide a more "real life" benchmark scenario.
-
-Given the script hosted at https://gist.github.com/Ousret/9e99b07e66eec48ccea5811775ec116d that simply execute 1k requests.
-We deliberately use two hosts, disabled Niquests manual multiplexing (for fairness), one known to
-be very slow (httpbin.org), and the other adequately fast (httpbingo.org) to showcase how the client behave.
-
-_Fast endpoint_
+_GET https://httpbingo.org/get_
 
 | Client   | Average Delay to Complete | Notes    |
 |----------|---------------------------|----------|
-| httpx    | 1.771s                    | HTTP/1.1 |
-| aiohttp  | 1.372s                    | HTTP/2   |
-| niquests | 0.704s                    | HTTP/2   |
-
-_Slow endpoint_
-
-| Client   | Average Delay to Complete | Notes    |
-|----------|---------------------------|----------|
-| httpx    | 8.19s                     | HTTP/1.1 |
-| aiohttp  | 7.041s                    | HTTP/2   |
-| niquests | 4.201s                    | HTTP/2   |
+| httpx    | 2.087s                    | HTTP/2   |
+| aiohttp  | 1.351s                    | HTTP/1.1 |
+| niquests | 0.551s                    | HTTP/2   |
 
 :tada: Niquests can easily bring you twice the throughput if you migrated today. Join us today!
 
@@ -200,6 +167,7 @@ Niquests is ready for the demands of building scalable, robust and reliable HTTP
 - Post-Quantum Security
 - Chunked HTTP Requests
 - Fully type-annotated!
+- Run in the Browser!
 - SOCKS Proxy Support
 - Connection Timeouts
 - Streaming Downloads
@@ -215,7 +183,7 @@ Niquests is ready for the demands of building scalable, robust and reliable HTTP
 - Async!
 - SSE!
 
-Need something more? Create an issue, we listen.
+Need something more? Create an issue, we **actively** listen.
 
 ## 📝 Why did we pursue this?
 
@@ -245,12 +213,12 @@ Niquests is a highly improved HTTP client that is based (forked) on Requests. Th
 [^2]: requests has no support for asynchronous request.
 [^3]: while the HTTP/2 connection object can handle concurrent requests, you cannot leverage its true potential.
 [^4]: loading client certificate without file can't be done.
-[^5]: httpx officially claim to be thread safe but recent tests demonstrate otherwise as of December 2025. https://github.com/jawah/niquests/issues/83#issuecomment-1956065258 https://github.com/encode/httpx/issues/3072 https://github.com/encode/httpx/issues/3002 and only recently acknowledged the issue in https://github.com/encode/httpx/issues/3324 (one year after getting valid reports).
+[^5]: httpx officially claim to be thread safe but recent tests demonstrate otherwise as of Mars 2026. https://github.com/jawah/niquests/issues/83#issuecomment-1956065258 https://github.com/encode/httpx/issues/3072 https://github.com/encode/httpx/issues/3002 and only recently acknowledged the issue in https://github.com/encode/httpx/issues/3324 (one year after getting valid reports).
 [^6]: they do not expose anything to control network aspects such as IPv4/IPv6 toggles, and timings (e.g. DNS response time, established delay, TLS handshake delay, etc...) and such.
 [^7]: while advertised as possible, they refuse to make it the default due to performance and stability issues. as of December 2025 an extra is required to enable it manually.
 [^8]: they don't support HTTP/3 at all.
 [^9]: you must use a custom DNS resolver so that it can preemptively connect using HTTP/3 over QUIC when remote is compatible.
-[^10]: performance measured when leveraging a multiplexed connection with or without uses of any form of concurrency as of December 2025. The research compared `httpx`, `requests`, `aiohttp` against `niquests`. See https://github.com/Ousret/niquests-stats
+[^10]: performance measured when leveraging a multiplexed connection with or without uses of any form of concurrency as of Mars 2026. The research compared `httpx`, `requests`, `aiohttp` against `niquests`. See https://gist.github.com/Ousret/9e99b07e66eec48ccea5811775ec116d
 [^11]: enabled when using a custom DNS resolver.
 [^12]: available only when using HTTP/3 over QUIC and that the remote server support also the same post-quantum key-exchange algorithm. Also, the `qh3` installed version must be >= 1.1.
 [^13]: most servers out there are not ready for this feature, but Niquests is already compliant and future-proof! [Caddy](https://github.com/caddyserver/caddy/releases/tag/v2.9.0) server and [HAProxy](https://github.com/haproxy/haproxy) support this!
