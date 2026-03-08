@@ -2098,6 +2098,8 @@ and ``resp.extension``. The adapter is selected automatically when Pyodide is de
         resp = await niquests.aget("https://httpbingo.org/get")
         print(resp.json())
 
+.. note:: Even if Niquests exposes synchronous interfaces for HTTP request, you should always prefer async/await. Browsers are async first-class. You may face undesirable performance bottlenecks.
+
 WebSocket and SSE use the same API as described in the sections above:
 
 .. tab:: 🔂 Sync
@@ -2158,7 +2160,9 @@ but inherent properties of the browser sandbox:
 - **Pool sizing, HTTP version toggles, and multiplexing settings** are silently ignored, the browser manages its own connection pool.
 - **No redirection history** accessible through the heavy browser sandbox.
 - **Disable autoredirect** isn't supported due to above. (intermediaries requests are 'opaque', so we can't build a response object with them).
+- **Proxies** aren't allowed because, well(...) the browser need to be configured, and those settings are nowhere near accessible through WASM/JS.
 - **pre_send and early_response** hooks are silently ignored.
+- **extras** such as socks, ocsp, speedups, zstd can't be installed/aren't used in WASM.
 
 That's a lot of thing missing! But you are now informed.
 
