@@ -44,7 +44,7 @@ dynamic = ["version"]
 dependencies = [
     "charset_normalizer>=2,<4",
     "urllib3.future>=2.13.903,<3",
-    "wassima>=1.0.1,<3",
+    "wassima>=1.0.1,<3; sys_platform != 'emscripten'",
 ]
 
 [project.optional-dependencies]
