@@ -11,7 +11,7 @@ import uuid
 import pytest
 
 # Handle the import safely. If pytest-pyodide is not installed (e.g. checks in IDE),
-# we define a dummy decorator to avoid NameError/ImportError during local editing/collection.
+# we define a dummy decorator and mock fixtures to avoid NameError/fixture errors.
 try:
     from pytest_pyodide import run_in_pyodide
 except ImportError:
@@ -21,6 +21,14 @@ except ImportError:
             return pytest.mark.skip(reason="pytest-pyodide not installed")(func)
 
         return decorator
+
+    @pytest.fixture
+    def selenium():
+        pytest.skip("pytest-pyodide not installed")
+
+    @pytest.fixture
+    def selenium_jspi():
+        pytest.skip("pytest-pyodide not installed")
 
 
 @run_in_pyodide(packages=["micropip"])
