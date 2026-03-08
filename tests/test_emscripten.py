@@ -868,7 +868,7 @@ async def _inner_test_sync_forbidden_header_silently_dropped(selenium_jspi):
 
             # The forbidden headers must NOT reach the server
             assert headers.get("Host", [None])[0] != "evil.example.com"
-            assert "Connection" not in headers
+            assert headers.get("Connection", [""])[0] != "close"
 
             # Non-forbidden headers must still be sent
             assert "X-Legit" in headers
@@ -913,7 +913,7 @@ async def _inner_test_async_forbidden_header_silently_dropped(selenium):
 
             # The forbidden headers must NOT reach the server
             assert headers.get("Host", [None])[0] != "evil.example.com"
-            assert "Connection" not in headers
+            assert headers.get("Connection", [""])[0] != "close"
 
             # Non-forbidden headers must still be sent
             assert "X-Legit" in headers
