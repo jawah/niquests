@@ -11,6 +11,7 @@ Release History
   default.
 - Passing `auth` parameter through `Session` or `AsyncSession` constructor. (#337)
 - Automatic WebSocket and SSE for ASGI and Automatic SSE for WSGI.
+- Automatic WebSocket and SSE for Unix socket through `psse+unix://` and `ws+unix://` schemes. (#325)
 
 **Fixed**
 - Coroutine `tell` never awaited when using aiofiles file wrapper or alike in async. (#334)

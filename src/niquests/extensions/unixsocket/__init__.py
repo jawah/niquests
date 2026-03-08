@@ -9,9 +9,32 @@ from ...adapters import HTTPAdapter
 from ...exceptions import RequestException
 from ...packages.urllib3.connection import HTTPConnection
 from ...packages.urllib3.connectionpool import HTTPConnectionPool
+from ...packages.urllib3.contrib.webextensions import ServerSideEventExtensionFromHTTP, WebSocketExtensionFromHTTP
 from ...packages.urllib3.poolmanager import PoolManager
 from ...typing import CacheLayerAltSvcType
 from ...utils import select_proxy
+
+
+class UnixServerSideEventExtensionFromHTTP(ServerSideEventExtensionFromHTTP):
+    @staticmethod
+    def implementation() -> str:
+        return "unix"
+
+    @staticmethod
+    def scheme_to_http_scheme(scheme: str) -> str:
+        return {"psse": "http+unix"}[scheme]
+
+
+if WebSocketExtensionFromHTTP is not None:
+
+    class UnixWebSocketExtensionFromHTTP(WebSocketExtensionFromHTTP):
+        @staticmethod
+        def implementation() -> str:
+            return "unix"
+
+        @staticmethod
+        def scheme_to_http_scheme(scheme: str) -> str:
+            return {"ws": "http+unix"}[scheme]
 
 
 class UnixHTTPConnection(HTTPConnection):

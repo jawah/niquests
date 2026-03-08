@@ -1846,6 +1846,33 @@ Unix sockets support multiple concurrent connections, just like TCP sockets:
 
 .. note:: You can also leverage a thread pool executor in a sync context as you always did with http.
 
+WebSocket and SSE
+~~~~~~~~~~~~~~~~~
+
+.. versionadded:: 3.18.0
+
+Niquests powerful architecture permit to easily boot WS/SSE extension as you were using "normal" http.
+
+.. code:: python
+
+    import niquests
+
+    if __name__ == "__main__":
+
+        with niquests.Session() as s:
+
+            r = s.get("psse+unix://%2Ftmp%2Fhello.sock/sse")
+
+            while not r.extension.closed:
+                print(r.extension.next_payload())
+
+.. note:: Take a good look at the scheme, instead of ``http+unix://`` it's ``psse+unix://`` to let know about your intention of automatically start ``response.extension``.
+
+You can leverage ``psse+unix://`` for the SSE extension and ``ws+unix://`` for the Websocket one. To learn more about WS
+and SSE handling, see the dedicated section about it.
+
+.. warning:: ``ws+unix://`` requires you to have the ``ws`` extra installed.
+
 WSGI/ASGI Application Testing
 -----------------------------
 
