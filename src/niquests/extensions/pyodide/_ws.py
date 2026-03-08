@@ -21,7 +21,7 @@ class PyodideWebSocketExtension:
     """
 
     def __init__(self, url: str) -> None:
-        if JSWebSocket is None:
+        if JSWebSocket is None:  # Defensive: depends on JS runtime
             raise OSError(
                 "WebSocket is not available in this JavaScript runtime. "
                 "Browser environment required (not supported in Node.js)."
@@ -52,21 +52,23 @@ class PyodideWebSocketExtension:
         open_promise = Promise.new(exec_proxy)
         self._proxies.append(exec_proxy)
 
-        def _onopen(event: typing.Any) -> None:
+        # JS→Python callbacks: invoked by the browser event loop, not Python call
+        # frames, so coverage cannot trace into them.
+        def _onopen(event: typing.Any) -> None:  # Defensive: JS callback
             r = _open_state["resolve"]
             if r is not None:
                 _open_state["resolve"] = None
                 _open_state["reject"] = None
                 r()
 
-        def _onerror(event: typing.Any) -> None:
+        def _onerror(event: typing.Any) -> None:  # Defensive: JS callback
             r = _open_state["reject"]
             if r is not None:
                 _open_state["resolve"] = None
                 _open_state["reject"] = None
                 r("WebSocket connection failed")
 
-        def _onmessage(event: typing.Any) -> None:
+        def _onmessage(event: typing.Any) -> None:  # Defensive: JS callback
             data = event.data
             if isinstance(data, str):
                 msg: str | bytes = data
@@ -82,7 +84,7 @@ class PyodideWebSocketExtension:
             else:
                 self._pending.append(msg)
 
-        def _onclose(event: typing.Any) -> None:
+        def _onclose(event: typing.Any) -> None:  # Defensive: JS callback
             if self._waiting_resolve is not None:
                 self._last_msg = None
                 r = self._waiting_resolve
@@ -112,13 +114,13 @@ class PyodideWebSocketExtension:
     def next_payload(self) -> str | bytes | None:
         """Block (via JSPI) until the next message arrives.
         Returns None when the remote end closes the connection."""
-        if self._closed:
+        if self._closed:  # Defensive: caller should not call after close
             raise OSError("The WebSocket extension is closed")
 
         # Drain from buffer first
         if self._pending:
             msg = self._pending.pop(0)
-            if msg is None:
+            if msg is None:  # Defensive: serverinitiated close sentinel
                 self._closed = True
             return msg
 
@@ -132,13 +134,13 @@ class PyodideWebSocketExtension:
         exec_proxy.destroy()
 
         msg = self._last_msg
-        if msg is None:
+        if msg is None:  # Defensive: server-initiated close sentinel
             self._closed = True
         return msg
 
     def send_payload(self, buf: str | bytes) -> None:
         """Send a message over the WebSocket."""
-        if self._closed:
+        if self._closed:  # Defensive: caller should not call after close
             raise OSError("The WebSocket extension is closed")
 
         if isinstance(buf, (bytes, bytearray)):
@@ -154,19 +156,19 @@ class PyodideWebSocketExtension:
 
     def close(self) -> None:
         """Close the WebSocket and clean up proxies."""
-        if self._closed:
+        if self._closed:  # Defensive: idempotent close
             return
 
         self._closed = True
 
         try:
             self._ws.close()
-        except Exception:
+        except Exception:  # Defensive: suppress JS errors on teardown
             pass
 
         for proxy in self._proxies:
             try:
                 proxy.destroy()
-            except Exception:
+            except Exception:  # Defensive: suppress JS errors on teardown
                 pass
         self._proxies.clear()

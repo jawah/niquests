@@ -175,10 +175,7 @@ class PyodideAdapter(BaseAdapter):
             try:
                 response = self._do_send(request, stream, timeout)
             except Exception as err:
-                try:
-                    retries = retries.increment(method, request.url, error=err)
-                except MaxRetryError:
-                    raise
+                retries = retries.increment(method, request.url, error=err)
 
                 retries.sleep()
                 continue
@@ -255,12 +252,20 @@ class PyodideAdapter(BaseAdapter):
         if body:
             fetch_options["body"] = body
 
-        # Make the request — run_sync blocks via JSPI until the Promise resolves
+        # Use AbortSignal.timeout() for timeout — the browser-native mechanism.
+        # run_sync cannot interrupt a JS Promise.
+        signal = None
+
+        if timeout is not None:
+            from js import AbortSignal  # type: ignore[import]
+
+            signal = AbortSignal.timeout(int(timeout * 1000))
+
         try:
-            js_response = run_sync(pyfetch(request.url, **fetch_options))
+            js_response = run_sync(pyfetch(request.url, signal=signal, **fetch_options))
         except Exception as e:
             err_str = str(e).lower()
-            if "timeout" in err_str:
+            if "abort" in err_str or "timeout" in err_str or "timed out" in err_str:
                 raise ConnectTimeout(f"Connection to {request.url} timed out")
             raise ConnectionError(f"Failed to fetch {request.url}: {e}")
 

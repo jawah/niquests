@@ -202,11 +202,7 @@ class AsyncPyodideAdapter(AsyncBaseAdapter):
             try:
                 response = await self._do_send(request, stream, timeout)
             except Exception as err:
-                try:
-                    retries = retries.increment(method, request.url, error=err)
-                except MaxRetryError:
-                    raise
-
+                retries = retries.increment(method, request.url, error=err)
                 await retries.async_sleep()
                 continue
 
@@ -296,16 +292,21 @@ class AsyncPyodideAdapter(AsyncBaseAdapter):
         if body:
             fetch_options["body"] = body
 
-        # Make the request with timeout
+        # Use AbortSignal.timeout() for timeout — the browser-native mechanism.
+        # asyncio_timeout cannot interrupt a single JS Promise await.
+        signal = None
+
+        if timeout is not None:
+            from js import AbortSignal  # type: ignore[import]
+
+            signal = AbortSignal.timeout(int(timeout * 1000))
+
         try:
-            if timeout is not None:
-                async with asyncio_timeout(timeout):
-                    js_response = await pyfetch(request.url, **fetch_options)
-            else:
-                js_response = await pyfetch(request.url, **fetch_options)
-        except asyncio.TimeoutError:
-            raise ConnectTimeout(f"Connection to {request.url} timed out")
+            js_response = await pyfetch(request.url, signal=signal, **fetch_options)
         except Exception as e:
+            err_str = str(e).lower()
+            if "abort" in err_str or "timeout" in err_str or "timed out" in err_str:
+                raise ConnectTimeout(f"Connection to {request.url} timed out")
             raise ConnectionError(f"Failed to fetch {request.url}: {e}")
 
         # Parse response headers
