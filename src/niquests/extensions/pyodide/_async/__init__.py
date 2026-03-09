@@ -180,6 +180,9 @@ class AsyncPyodideAdapter(AsyncBaseAdapter):
         else:
             self.max_retries = Retry.from_int(max_retries)
 
+    def __repr__(self) -> str:
+        return "<AsyncPyodideAdapter WASM/>"
+
     async def send(
         self,
         request: PreparedRequest,

@@ -94,6 +94,9 @@ class WebServerGatewayInterface(BaseAdapter):
         else:
             self.max_retries = Retry.from_int(max_retries)
 
+    def __repr__(self) -> str:
+        return "<WSGIAdapter />"
+
     def send(
         self,
         request: PreparedRequest,

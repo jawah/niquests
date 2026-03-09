@@ -147,6 +147,9 @@ class AsyncServerGatewayInterface(AsyncBaseAdapter):
         else:
             self.max_retries = Retry.from_int(max_retries)
 
+    def __repr__(self) -> str:
+        return "<ASGIAdapter Native/>"
+
     async def send(
         self,
         request: PreparedRequest,
@@ -567,6 +570,9 @@ class ThreadAsyncServerGatewayInterface(BaseAdapter):
         self._lifespan_startup_failed: Exception | None = None
         self._lifespan_state: dict[str, typing.Any] = {}
         self._startup_lock: threading.Lock = threading.Lock()
+
+    def __repr__(self) -> str:
+        return "<ASGIAdapter Thread/>"
 
     def _ensure_loop_running(self) -> None:
         """Start the background event loop thread if not already running."""
