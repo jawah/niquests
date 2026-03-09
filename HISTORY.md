@@ -19,6 +19,7 @@ Release History
 
 **Misc**
 - Improved import delay performance by delaying some dependencies load (notably qh3 and wassima). (#333)
+- Made `niquests.typing.TLSVerifyType` without a lazy ``PathLike`` reference for Python 3.9+ (#324)
 
 3.17.0 (2026-01-16)
 -------------------
