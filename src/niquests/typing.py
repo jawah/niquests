@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import sys
 import typing
 from http.cookiejar import CookieJar
 from os import PathLike
@@ -66,7 +67,12 @@ CookiesType: typing.TypeAlias = typing.Union[
     CookieJar,
 ]
 #: Either Yes/No, or CA bundle pem location. Or directly the raw bundle content itself.
-TLSVerifyType: typing.TypeAlias = typing.Union[bool, str, bytes, "PathLike[str]"]
+if sys.version_info >= (3, 9):  # we can't subscribe PathLike until that version...
+    # This one was found used directly within a Pydantic model
+    # see https://github.com/jawah/niquests/issues/324
+    TLSVerifyType: typing.TypeAlias = typing.Union[bool, str, bytes, PathLike[str]]
+else:
+    TLSVerifyType: typing.TypeAlias = typing.Union[bool, str, bytes, "PathLike[str]"]
 #: Accept a pem certificate (concat cert, key) or an explicit tuple of cert, key pair with an optional password.
 TLSClientCertType: typing.TypeAlias = typing.Union[str, typing.Tuple[str, str], typing.Tuple[str, str, str]]
 #: All accepted ways to describe desired timeout.

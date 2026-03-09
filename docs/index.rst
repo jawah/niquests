@@ -90,6 +90,7 @@ Niquests is ready for today's web.
 - Post-Quantum Security
 - Chunked HTTP Requests
 - Fully type-annotated!
+- Works in the Browser!
 - SOCKS Proxy Support
 - Connection Timeouts
 - Streaming Downloads
@@ -105,7 +106,7 @@ Niquests is ready for today's web.
 - Async!
 - SSE!
 
-Niquests officially supports Python 3.7+, and runs great on PyPy.
+Niquests officially supports Python 3.7+, and runs great on PyPy and Pyodide.
 
 
 The User Guide

@@ -17,6 +17,7 @@ from base64 import b64encode
 from dataclasses import dataclass, field
 from urllib.parse import urlparse
 
+from ._compat import iscoroutinefunction
 from .cookies import extract_cookies_to_jar
 from .utils import parse_dict_header
 
@@ -409,7 +410,11 @@ class AsyncHTTPDigestAuth(HTTPDigestAuth, AsyncAuthBase):
         if state.last_nonce:
             r.headers["Authorization"] = self.build_digest_header(r.method, r.url)
         try:
-            state.pos = r.body.tell()
+            if iscoroutinefunction(r.body.tell):
+                state.pos = await r.body.tell()
+            else:
+                state.pos = r.body.tell()
+
         except AttributeError:
             # In the case of AsyncHTTPDigestAuth being reused and the body of
             # the previous request was a file-like object, pos has the

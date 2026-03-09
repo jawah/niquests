@@ -14,6 +14,7 @@ from ....packages.urllib3._async.response import AsyncHTTPResponse as BaseHTTPRe
 from ....packages.urllib3.contrib.ssa._timeout import timeout as asyncio_timeout
 from ....packages.urllib3.exceptions import MaxRetryError
 from ....packages.urllib3.response import BytesQueueBuffer
+from ....packages.urllib3.util import Timeout as TimeoutSauce
 from ....packages.urllib3.util.retry import Retry
 from ....structures import CaseInsensitiveDict
 from ....utils import _swap_context
@@ -39,6 +40,7 @@ class _ASGIRawIO:
         self._finished = False
         self._task: asyncio.Task | None = None
         self.headers: dict | None = None
+        self.extension: typing.Any = None
 
     async def read(self, amt: int | None = None, decode_content: bool = True) -> bytes:
         if self._closed or self._finished:
@@ -146,11 +148,14 @@ class AsyncServerGatewayInterface(AsyncBaseAdapter):
         else:
             self.max_retries = Retry.from_int(max_retries)
 
+    def __repr__(self) -> str:
+        return "<ASGIAdapter Native/>"
+
     async def send(
         self,
         request: PreparedRequest,
         stream: bool = False,
-        timeout: int | float | None = None,
+        timeout: int | float | tuple | TimeoutSauce | None = None,
         verify: TLSVerifyType = True,
         cert: TLSClientCertType | None = None,
         proxies: ProxyType | None = None,
@@ -160,6 +165,14 @@ class AsyncServerGatewayInterface(AsyncBaseAdapter):
         multiplexed: bool = False,
     ) -> AsyncResponse:
         """Send a PreparedRequest to the ASGI application."""
+        if isinstance(timeout, tuple):
+            if len(timeout) == 3:
+                timeout = timeout[2] or timeout[0]  # prefer total, fallback connect
+            else:
+                timeout = timeout[0]  # use connect
+        elif isinstance(timeout, TimeoutSauce):
+            timeout = timeout.total or timeout.connect_timeout
+
         retries = self.max_retries
         method = request.method or "GET"
 
@@ -201,6 +214,80 @@ class AsyncServerGatewayInterface(AsyncBaseAdapter):
 
             return response
 
+    async def _do_send_ws(self, request: PreparedRequest) -> AsyncResponse:
+        """Handle WebSocket requests via the ASGI websocket protocol."""
+        from ._ws import ASGIWebSocketExtension
+
+        scope = self._create_ws_scope(request)
+
+        ext = ASGIWebSocketExtension()
+        await ext.start(self.app, scope)
+
+        response = Response()
+        response.status_code = 101
+        response.headers = CaseInsensitiveDict({"upgrade": "websocket"})
+        response.request = request
+        response.url = request.url
+
+        raw_io = _ASGIRawIO(asyncio.Queue(), asyncio.Event())
+        raw_io.extension = ext
+        response.raw = raw_io  # type: ignore
+
+        _swap_context(response)
+        return response  # type: ignore
+
+    async def _do_send_sse(
+        self,
+        request: PreparedRequest,
+        timeout: int | float | None,
+    ) -> AsyncResponse:
+        """Handle SSE requests via ASGI HTTP streaming with SSE parsing."""
+        from urllib.parse import urlparse
+
+        from ._sse import ASGISSEExtension
+
+        # Convert scheme: sse:// -> https://, psse:// -> http://
+        parsed = urlparse(request.url)
+        if parsed.scheme == "sse":
+            http_scheme = "https"
+        else:
+            http_scheme = "http"
+
+        # Build a modified request with http scheme for scope creation
+        original_url = request.url
+        request.url = request.url.replace(f"{parsed.scheme}://", f"{http_scheme}://", 1)  # type: ignore[union-attr,str-bytes-safe]
+
+        scope = self._create_scope(request)
+        request.url = original_url
+
+        body = request.body or b""
+        if isinstance(body, str):
+            body = body.encode("utf-8")
+
+        ext = ASGISSEExtension()
+        start_message = await ext.start(self.app, scope, body)  # type: ignore[arg-type]
+
+        status_code = start_message["status"]
+        response_headers = start_message.get("headers", [])
+        headers_dict = {k.decode("latin-1"): v.decode("latin-1") for k, v in response_headers}
+
+        response = Response()
+        response.status_code = status_code
+        response.headers = CaseInsensitiveDict(headers_dict)
+        response.request = request
+        response.url = original_url
+        response.encoding = response.headers.get("content-type", "utf-8")  # type: ignore[assignment]
+
+        raw_io = _ASGIRawIO(asyncio.Queue(), asyncio.Event(), timeout)
+        raw_io.headers = headers_dict
+        raw_io.extension = ext
+        response.raw = raw_io  # type: ignore
+        response._content = False
+        response._content_consumed = False
+
+        _swap_context(response)
+        return response  # type: ignore
+
     async def _do_send(
         self,
         request: PreparedRequest,
@@ -208,6 +295,16 @@ class AsyncServerGatewayInterface(AsyncBaseAdapter):
         timeout: int | float | None,
     ) -> AsyncResponse:
         """Perform the actual ASGI request."""
+        from urllib.parse import urlparse
+
+        parsed = urlparse(request.url)
+
+        if parsed.scheme in ("ws", "wss"):
+            return await self._do_send_ws(request)
+
+        if parsed.scheme in ("sse", "psse"):
+            return await self._do_send_sse(request, timeout)
+
         scope = self._create_scope(request)
 
         body = request.body or b""
@@ -419,6 +516,37 @@ class AsyncServerGatewayInterface(AsyncBaseAdapter):
 
         return scope
 
+    def _create_ws_scope(self, request: PreparedRequest) -> dict:
+        from urllib.parse import unquote, urlparse
+
+        parsed = urlparse(request.url)
+        headers: list[tuple[bytes, bytes]] = []
+        if request.headers:
+            for key, value in request.headers.items():
+                headers.append((key.lower().encode("latin-1"), value.encode("latin-1")))
+
+        scheme = "wss" if parsed.scheme == "wss" else "ws"
+
+        scope: dict[str, typing.Any] = {
+            "type": "websocket",
+            "asgi": {"version": "3.0"},
+            "http_version": "1.1",
+            "scheme": scheme,
+            "path": unquote(parsed.path) or "/",
+            "query_string": (parsed.query or "").encode("latin-1"),  # type: ignore[union-attr]
+            "root_path": "",
+            "headers": headers,
+            "server": (
+                parsed.hostname or "localhost",
+                parsed.port or (443 if scheme == "wss" else 80),
+            ),
+        }
+
+        if self._lifespan_state is not None:
+            scope["state"] = self._lifespan_state.copy()
+
+        return scope
+
     async def close(self) -> None:
         pass
 
@@ -451,6 +579,9 @@ class ThreadAsyncServerGatewayInterface(BaseAdapter):
         self._lifespan_startup_failed: Exception | None = None
         self._lifespan_state: dict[str, typing.Any] = {}
         self._startup_lock: threading.Lock = threading.Lock()
+
+    def __repr__(self) -> str:
+        return "<ASGIAdapter Thread/>"
 
     def _ensure_loop_running(self) -> None:
         """Start the background event loop thread if not already running."""
@@ -547,11 +678,59 @@ class ThreadAsyncServerGatewayInterface(BaseAdapter):
         with contextlib.suppress(asyncio.CancelledError):
             await lifespan_task
 
+    def _do_send_ws(self, request: PreparedRequest) -> Response:
+        """Handle WebSocket requests synchronously via the background loop."""
+        from .._ws import ThreadASGIWebSocketExtension
+
+        self._ensure_loop_running()
+
+        future: Future[Response] = Future()
+
+        async def run_ws() -> None:
+            try:
+                result = await self._async_adapter._do_send_ws(request)  # type: ignore[union-attr]
+                _swap_context(result)
+
+                # Wrap the async WS extension in a sync wrapper
+                async_ext = result.raw.extension  # type: ignore[union-attr]
+                result.raw.extension = ThreadASGIWebSocketExtension(async_ext, self._loop)  # type: ignore[union-attr]
+
+                future.set_result(result)  # type: ignore[arg-type]
+            except Exception as e:
+                future.set_exception(e)
+
+        self._loop.call_soon_threadsafe(lambda: self._loop.create_task(run_ws()))
+        return future.result()
+
+    def _do_send_sse(self, request: PreparedRequest, timeout: int | float | None = None) -> Response:
+        """Handle SSE requests synchronously via the background loop."""
+        from .._sse import ThreadASGISSEExtension
+
+        self._ensure_loop_running()
+
+        future: Future[Response] = Future()
+
+        async def run_sse() -> None:
+            try:
+                result = await self._async_adapter._do_send_sse(request, timeout)  # type: ignore[union-attr]
+                _swap_context(result)
+
+                # Wrap the async SSE extension in a sync wrapper
+                async_ext = result.raw.extension  # type: ignore[union-attr]
+                result.raw.extension = ThreadASGISSEExtension(async_ext, self._loop)  # type: ignore[union-attr]
+
+                future.set_result(result)  # type: ignore[arg-type]
+            except Exception as e:
+                future.set_exception(e)
+
+        self._loop.call_soon_threadsafe(lambda: self._loop.create_task(run_sse()))
+        return future.result()
+
     def send(
         self,
         request: PreparedRequest,
         stream: bool = False,
-        timeout: int | float | None = None,
+        timeout: int | float | tuple | TimeoutSauce | None = None,
         verify: TLSVerifyType = True,
         cert: TLSClientCertType | None = None,
         proxies: ProxyType | None = None,
@@ -561,6 +740,24 @@ class ThreadAsyncServerGatewayInterface(BaseAdapter):
         multiplexed: bool = False,
     ) -> Response:
         """Send a PreparedRequest to the ASGI application synchronously."""
+        if isinstance(timeout, tuple):
+            if len(timeout) == 3:
+                timeout = timeout[2] or timeout[0]  # prefer total, fallback connect
+            else:
+                timeout = timeout[0]  # use connect
+        elif isinstance(timeout, TimeoutSauce):
+            timeout = timeout.total or timeout.connect_timeout
+
+        from urllib.parse import urlparse
+
+        parsed = urlparse(request.url)
+
+        if parsed.scheme in ("ws", "wss"):
+            return self._do_send_ws(request)
+
+        if parsed.scheme in ("sse", "psse"):
+            return self._do_send_sse(request, timeout)
+
         if stream:
             raise ValueError(
                 "ThreadAsyncServerGatewayInterface does not support streaming responses. "

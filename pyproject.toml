@@ -44,7 +44,7 @@ dynamic = ["version"]
 dependencies = [
     "charset_normalizer>=2,<4",
     "urllib3.future>=2.13.903,<3",
-    "wassima>=1.0.1,<3",
+    "wassima>=1.0.1,<3; sys_platform != 'emscripten'",
 ]
 
 [project.optional-dependencies]
@@ -128,6 +128,9 @@ addopts = "--doctest-modules"
 doctest_optionflags = "NORMALIZE_WHITESPACE ELLIPSIS"
 minversion = "6.2"
 testpaths = ["tests"]
+markers = [
+    "pyodide: mark test to run in pyodide environment",
+]
 filterwarnings = [
     "error",
     '''ignore:'parse_authorization_header' is deprecated and will be removed:DeprecationWarning''',
@@ -135,7 +138,7 @@ filterwarnings = [
     '''ignore:Passing bytes as a header value is deprecated and will:DeprecationWarning''',
     '''ignore:The 'JSONIFY_PRETTYPRINT_REGULAR' config key is deprecated and will:DeprecationWarning''',
     '''ignore:unclosed .*:ResourceWarning''',
-    '''ignore:Parsed a negative serial number:cryptography.utils.CryptographyDeprecationWarning''',
+
     '''ignore:A plugin raised an exception during an old-style hookwrapper teardown''',
     '''ignore:.*:pytest.PytestUnraisableExceptionWarning''',
     '''ignore:.*iscoroutinefunction.*:DeprecationWarning''',

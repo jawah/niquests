@@ -1,6 +1,26 @@
 Release History
 ===============
 
+3.18.0 (2026-03-09)
+-------------------
+
+**Added**
+- Experimental support for WASM through Pyodide. (#219)
+  Niquests should be able to automatically operate in the browser or a Node interpreter. We tested
+  Chrome (v137+), Firefox (v131+), and Node (v22+). You must enable JSPI if not already available by
+  default.
+- Passing `auth` parameter through `Session` or `AsyncSession` constructor. (#337)
+- Automatic WebSocket and SSE for ASGI and Automatic SSE for WSGI.
+- Automatic WebSocket and SSE for Unix socket through `psse+unix://` and `ws+unix://` schemes. (#325)
+
+**Fixed**
+- Coroutine `tell` never awaited when using aiofiles file wrapper or alike in async. (#334)
+- Missing typing overload for `AsyncSession.send` method. (#335)
+
+**Misc**
+- Improved import delay performance by delaying some dependencies load (notably qh3 and wassima). (#333)
+- Made `niquests.typing.TLSVerifyType` without a lazy ``PathLike`` reference for Python 3.9+ (#324)
+
 3.17.0 (2026-01-16)
 -------------------
 

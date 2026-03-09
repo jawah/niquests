@@ -11,3 +11,4 @@ cryptography<46; python_version > '3.10'
 werkzeug>=2.2.3,<=3.0.2
 fastapi
 flask
+aiofiles>=22,<26
