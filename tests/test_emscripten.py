@@ -700,7 +700,7 @@ async def _inner_test_sync_timeout(selenium_jspi):
     try:
         import pytest
 
-        from niquests import Session
+        from niquests import Session, TimeoutConfiguration
         from niquests.exceptions import ConnectTimeout
         from niquests.packages.urllib3.exceptions import MaxRetryError
 
@@ -711,6 +711,10 @@ async def _inner_test_sync_timeout(selenium_jspi):
         with Session(retries=0) as s:
             with pytest.raises(MaxRetryError):
                 s.get("https://httpbingo.org/delay/5", timeout=0.5)
+
+        with Session(retries=0) as s:
+            with pytest.raises(MaxRetryError):
+                s.get("https://httpbingo.org/delay/5", timeout=TimeoutConfiguration(0.5))
     finally:
         cov.stop()
         cov.save()
@@ -739,7 +743,7 @@ async def _inner_test_async_timeout(selenium):
     try:
         import pytest
 
-        from niquests import AsyncSession
+        from niquests import AsyncSession, TimeoutConfiguration
         from niquests.exceptions import ConnectTimeout
         from niquests.packages.urllib3.exceptions import MaxRetryError
 
@@ -750,6 +754,10 @@ async def _inner_test_async_timeout(selenium):
         async with AsyncSession(retries=0) as s:
             with pytest.raises(MaxRetryError):
                 await s.get("https://httpbingo.org/delay/5", timeout=0.5)
+
+        async with AsyncSession(retries=0) as s:
+            with pytest.raises(MaxRetryError):
+                await s.get("https://httpbingo.org/delay/5", timeout=TimeoutConfiguration(0.5))
     finally:
         cov.stop()
         cov.save()

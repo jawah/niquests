@@ -8,6 +8,7 @@ from ...models import PreparedRequest, Response
 from ...packages.urllib3.exceptions import MaxRetryError
 from ...packages.urllib3.response import BytesQueueBuffer
 from ...packages.urllib3.response import HTTPResponse as BaseHTTPResponse
+from ...packages.urllib3.util import Timeout as TimeoutSauce
 from ...packages.urllib3.util.retry import Retry
 from ...structures import CaseInsensitiveDict
 
@@ -101,7 +102,7 @@ class WebServerGatewayInterface(BaseAdapter):
         self,
         request: PreparedRequest,
         stream: bool = False,
-        timeout: int | float | None = None,
+        timeout: int | float | tuple | TimeoutSauce | None = None,
         verify: TLSVerifyType = True,
         cert: TLSClientCertType | None = None,
         proxies: ProxyType | None = None,
@@ -111,6 +112,14 @@ class WebServerGatewayInterface(BaseAdapter):
         multiplexed: bool = False,
     ) -> Response:
         """Send a PreparedRequest to the WSGI application."""
+        if isinstance(timeout, tuple):
+            if len(timeout) == 3:
+                timeout = timeout[2] or timeout[0]  # prefer total, fallback connect
+            else:
+                timeout = timeout[0]  # use connect
+        elif isinstance(timeout, TimeoutSauce):
+            timeout = timeout.total or timeout.connect_timeout
+
         retries = self.max_retries
         method = request.method or "GET"
 
