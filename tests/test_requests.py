@@ -513,6 +513,30 @@ class TestRequests:
         s = niquests.Session(headers=init_headers)
         assert s.headers == expected_headers
 
+    @pytest.mark.parametrize(
+        "init_auth, expected_auth",
+        [
+            pytest.param(None, None, id="default-none"),
+            pytest.param(("user", "pass"), ("user", "pass"), id="basic-tuple"),
+        ],
+    )
+    def test_session_init_auth(self, init_auth, expected_auth):
+        """Session accepts custom auth at initialization."""
+        s = niquests.Session(auth=init_auth)
+        assert s.auth == expected_auth
+
+    @pytest.mark.parametrize(
+        "init_auth, expected_auth",
+        [
+            pytest.param(None, None, id="default-none"),
+            pytest.param(("user", "pass"), ("user", "pass"), id="basic-tuple"),
+        ],
+    )
+    def test_async_session_init_auth(self, init_auth, expected_auth):
+        """AsyncSession accepts custom auth at initialization."""
+        s = niquests.AsyncSession(auth=init_auth)
+        assert s.auth == expected_auth
+
     @pytest.mark.parametrize("key", ("User-agent", "user-agent"))
     def test_user_agent_transfers(self, httpbin, key):
         heads = {key: "Mozilla/5.0 (github.com/psf/requests)"}

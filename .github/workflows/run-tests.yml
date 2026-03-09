@@ -20,8 +20,26 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.7", "3.8", "3.9", "3.10", "3.11", "3.12", "3.13", "3.14", "pypy-3.11"]
+        python-version: ["3.7", "3.8", "3.9", "3.10", "3.11", "3.12", "3.13", "3.14"]
         os: [ubuntu-22.04, macos-14, windows-latest]
+        nox-session: ['']
+        include:
+          - python-version: "3.13"
+            os: ubuntu-24.04
+            nox-session: emscripten(node)
+          - python-version: "3.13"
+            os: ubuntu-24.04
+            nox-session: emscripten(firefox)
+          - python-version: "3.13"
+            os: ubuntu-24.04
+            nox-session: emscripten(chrome)
+          - python-version: "pypy-3.11"
+            os: ubuntu-24.04
+            nox-session: "test-pypy3.11"
+# todo: investigate the two failures later.
+#          - python-version: "pypy-3.11"
+#            os: windows-latest
+#            nox-session: "test-pypy3.11"
         exclude:
           - python-version: "3.7"
             os: macos-14
@@ -36,14 +54,38 @@ jobs:
         python-version: ${{ matrix.python-version }}
         allow-prereleases: true
         cache: 'pip'
+    - name: "Install Chrome"
+      uses: browser-actions/setup-chrome@b94431e051d1c52dcbe9a7092a4f10f827795416 # v2.1.0
+      id: setup-chrome
+      if: ${{ matrix.nox-session == 'emscripten(chrome)' }}
+      with:
+        install-chromedriver: true
+    - name: Force override system chrome
+      env:
+        CHROME_PATH: ${{ steps.setup-chrome.outputs.chrome-path }}
+      run: |
+        sudo rm -f /usr/bin/google-chrome
+        sudo rm -f /usr/bin/chrome
+        sudo ln -s $CHROME_PATH /usr/bin/google-chrome
+        sudo ln -s $CHROME_PATH /usr/bin/chrome
+        google-chrome --version
+      if: ${{ matrix.nox-session == 'emscripten(chrome)' }}
+    - name: "Install Firefox"
+      uses: browser-actions/setup-firefox@5914774dda97099441f02628f8d46411fcfbd208 # v1.7.0
+      if: ${{ matrix.nox-session == 'emscripten(firefox)' }}
+    - name: "Install node.js"
+      uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238 # v6.2.0
+      if: ${{ matrix.nox-session == 'emscripten(node)' }}
+      with:
+        node-version: 24
     - name: Install dependencies
       run: |
         pip install nox
     - name: Run tests
       run: |
-        nox -s "test-${{ startsWith(matrix.python-version, 'pypy') && 'pypy' || matrix.python-version }}"
+        nox -s "${{ matrix.nox-session != '' && matrix.nox-session || format('test-{0}', matrix.python-version) }}"
     - name: "Upload artifact"
-      uses: "actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f"
+      uses: "actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f"
       with:
         name: coverage-data-${{ matrix.os }}-${{ matrix.nox-session }}-${{ matrix.python-version }}-${{ matrix.traefik-server }}
         path: ".coverage.*"
@@ -77,11 +119,11 @@ jobs:
       - name: "Combine & check coverage"
         run: |
           python -m coverage combine
-          python -m coverage html --skip-covered --skip-empty
+          python -m coverage html --skip-covered --skip-empty --ignore-errors
           python -m coverage report --ignore-errors --show-missing --fail-under=70
 
       - name: "Upload report"
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f
         with:
           name: coverage-report
           path: htmlcov

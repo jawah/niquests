@@ -11,8 +11,34 @@ from ....packages.urllib3._async.connection import AsyncHTTPConnection
 from ....packages.urllib3._async.connectionpool import AsyncHTTPConnectionPool
 from ....packages.urllib3._async.poolmanager import AsyncPoolManager
 from ....packages.urllib3.contrib.ssa import AsyncSocket
+from ....packages.urllib3.contrib.webextensions._async import (
+    AsyncServerSideEventExtensionFromHTTP,
+    AsyncWebSocketExtensionFromHTTP,
+)
 from ....typing import CacheLayerAltSvcType
 from ....utils import select_proxy
+
+
+class AsyncUnixServerSideEventExtensionFromHTTP(AsyncServerSideEventExtensionFromHTTP):
+    @staticmethod
+    def implementation() -> str:
+        return "unix"
+
+    @staticmethod
+    def scheme_to_http_scheme(scheme: str) -> str:
+        return {"psse": "http+unix"}[scheme]
+
+
+if AsyncWebSocketExtensionFromHTTP is not None:
+
+    class AsyncUnixWebSocketExtensionFromHTTP(AsyncWebSocketExtensionFromHTTP):
+        @staticmethod
+        def implementation() -> str:
+            return "unix"
+
+        @staticmethod
+        def scheme_to_http_scheme(scheme: str) -> str:
+            return {"ws": "http+unix"}[scheme]
 
 
 class AsyncUnixHTTPConnection(AsyncHTTPConnection):

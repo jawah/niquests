@@ -75,6 +75,37 @@ def san_server(tmp_path_factory):
     server_thread.join()
 
 
+try:
+    from pytest_pyodide.fixture import (
+        parse_driver_timeout,
+        selenium_common,
+        selenium_context_manager,
+        selenium_jspi_inner,  # noqa: F401
+        set_webdriver_script_timeout,
+    )
+
+    @pytest.fixture(scope="module")
+    def selenium_jspi_module_scope(request, runtime, web_server_main, playwright_browsers):
+        """Module-scoped JSPI Pyodide instance, reused across tests."""
+        if runtime in ("firefox", "safari"):
+            pytest.skip(f"jspi not supported in {runtime}")
+        if request.config.option.runner.lower() == "playwright":
+            pytest.skip("jspi not supported with playwright")
+        with selenium_common(request, runtime, web_server_main, browsers=playwright_browsers, jspi=True) as selenium:
+            yield selenium
+
+    @pytest.fixture
+    def selenium_jspi(request, selenium_jspi_module_scope):
+        """Function-scoped wrapper that reuses the module-scoped JSPI instance."""
+        with selenium_context_manager(selenium_jspi_module_scope) as selenium, set_webdriver_script_timeout(
+            selenium, script_timeout=parse_driver_timeout(request.node)
+        ):
+            yield selenium
+
+except ImportError:
+    pass
+
+
 _WAN_AVAILABLE = None
 
 

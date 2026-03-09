@@ -52,7 +52,7 @@ class TestOnlineCertificateRevocationProtocol:
     def test_sync_valid_ensure_cached(self) -> None:
         with Session() as s:
             assert s._ocsp_cache is None
-            s.get("https://raw.githubusercontent.com/jawah/niquests/refs/heads/main/README.md", timeout=OCSP_MAX_DELAY_WAIT)
+            s.get("https://conda-forge.org/blog/2020/10/02/versions/", timeout=OCSP_MAX_DELAY_WAIT)
             assert s._ocsp_cache is not None
             assert hasattr(s._ocsp_cache, "_store")
             assert isinstance(s._ocsp_cache._store, dict)
@@ -93,9 +93,7 @@ class TestOnlineCertificateRevocationProtocol:
     async def test_async_valid_ensure_cached(self) -> None:
         async with AsyncSession() as s:
             assert s._ocsp_cache is None
-            await s.get(
-                "https://raw.githubusercontent.com/jawah/niquests/refs/heads/main/README.md", timeout=OCSP_MAX_DELAY_WAIT
-            )
+            await s.get("https://conda-forge.org/blog/2020/10/02/versions/", timeout=OCSP_MAX_DELAY_WAIT)
             assert s._ocsp_cache is not None
             assert hasattr(s._ocsp_cache, "_store")
             assert isinstance(s._ocsp_cache._store, dict)

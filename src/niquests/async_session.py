@@ -15,7 +15,7 @@ from .status_codes import codes
 if typing.TYPE_CHECKING:
     from typing_extensions import Literal
 
-from ._compat import HAS_LEGACY_URLLIB3, urllib3_ensure_type
+from ._compat import HAS_LEGACY_URLLIB3, iscoroutinefunction, urllib3_ensure_type
 from ._constant import (
     DEFAULT_POOLSIZE,
     DEFAULT_RETRIES,
@@ -38,6 +38,18 @@ from .exceptions import (
 from .extensions.revocation import DEFAULT_STRATEGY, RevocationConfiguration
 from .extensions.sgi._async import AsyncServerGatewayInterface
 from .extensions.unixsocket._async import AsyncUnixAdapter
+
+try:
+    from .extensions.pyodide._async import AsyncPyodideAdapter
+except ImportError:
+    AsyncPyodideAdapter = None  # type: ignore[assignment,misc]
+    if sys.platform == "emscripten":
+        import warnings
+
+        warnings.warn(
+            "unable to load native WASM adapter for AsyncSession. HTTP requests may fail in async.",
+            UserWarning,
+        )
 from .hooks import async_dispatch_hook, default_hooks
 from .models import (
     DEFAULT_REDIRECT_LIMIT,
@@ -76,6 +88,7 @@ from .typing import (
 from .utils import (
     _deepcopy_ci,
     _swap_context,
+    arewind_body,
     create_async_resolver,
     default_headers,
     parse_scheme,
@@ -133,6 +146,7 @@ class AsyncSession(Session):
         base_url: str | None = None,
         timeout: TimeoutType | None = None,
         headers: HeadersType | None = None,
+        auth: HttpAuthenticationType | AsyncHttpAuthenticationType | None = None,
         hooks: AsyncHookType[PreparedRequest | Response | AsyncResponse] | None = None,
         revocation_configuration: RevocationConfiguration | None = DEFAULT_STRATEGY,
         app: ASGIApp | None = None,
@@ -158,7 +172,7 @@ class AsyncSession(Session):
 
         #: Default Authentication tuple or object to attach to
         #: :class:`Request <Request>`.
-        self.auth = None
+        self.auth = auth  # type: ignore[assignment]
 
         #: Dictionary mapping protocol or protocol and host to the URL of the proxy
         #: (e.g. {'http': 'foo.bar:3128', 'http://host.name': 'foo.bar:4012'}) to
@@ -262,72 +276,80 @@ class AsyncSession(Session):
 
         # Default connection adapters.
         self.adapters: OrderedDict[str, AsyncBaseAdapter] = OrderedDict()  # type: ignore[assignment]
-        self.mount(
-            "https://",
-            AsyncHTTPAdapter(
-                quic_cache_layer=self.quic_cache_layer,
-                max_retries=retries,
-                disable_http1=disable_http1,
-                disable_http2=disable_http2,
-                disable_http3=disable_http3,
-                resolver=resolver,
-                source_address=source_address,
-                disable_ipv4=disable_ipv4,
-                disable_ipv6=disable_ipv6,
-                pool_connections=pool_connections,
-                pool_maxsize=pool_maxsize,
-                happy_eyeballs=happy_eyeballs,
-                keepalive_delay=keepalive_delay,
-                keepalive_idle_window=keepalive_idle_window,
-                revocation_configuration=revocation_configuration,
-            ),
-        )
-        self.mount(
-            "http://",
-            AsyncHTTPAdapter(
-                max_retries=retries,
-                disable_http1=disable_http1,
-                disable_http2=disable_http2,
-                disable_http3=disable_http3,
-                resolver=resolver,
-                source_address=source_address,
-                disable_ipv4=disable_ipv4,
-                disable_ipv6=disable_ipv6,
-                pool_connections=pool_connections,
-                pool_maxsize=pool_maxsize,
-                happy_eyeballs=happy_eyeballs,
-                keepalive_delay=keepalive_delay,
-                keepalive_idle_window=keepalive_idle_window,
-                revocation_configuration=revocation_configuration,
-            ),
-        )
-        self.mount(
-            "http+unix://",
-            AsyncUnixAdapter(
-                max_retries=retries,
-                disable_http1=disable_http1,
-                disable_http2=disable_http2,
-                disable_http3=disable_http3,
-                resolver=resolver,
-                source_address=source_address,
-                disable_ipv4=disable_ipv4,
-                disable_ipv6=disable_ipv6,
-                pool_connections=pool_connections,
-                pool_maxsize=pool_maxsize,
-                happy_eyeballs=happy_eyeballs,
-                keepalive_delay=keepalive_delay,
-                keepalive_idle_window=keepalive_idle_window,
-                revocation_configuration=revocation_configuration,
-            ),
-        )
-        if app is not None:
+
+        if AsyncPyodideAdapter is None:
             self.mount(
-                "asgi://default",
-                AsyncServerGatewayInterface(
-                    app=app,
+                "https://",
+                AsyncHTTPAdapter(
+                    quic_cache_layer=self.quic_cache_layer,
                     max_retries=retries,
+                    disable_http1=disable_http1,
+                    disable_http2=disable_http2,
+                    disable_http3=disable_http3,
+                    resolver=resolver,
+                    source_address=source_address,
+                    disable_ipv4=disable_ipv4,
+                    disable_ipv6=disable_ipv6,
+                    pool_connections=pool_connections,
+                    pool_maxsize=pool_maxsize,
+                    happy_eyeballs=happy_eyeballs,
+                    keepalive_delay=keepalive_delay,
+                    keepalive_idle_window=keepalive_idle_window,
+                    revocation_configuration=revocation_configuration,
                 ),
             )
+            self.mount(
+                "http://",
+                AsyncHTTPAdapter(
+                    max_retries=retries,
+                    disable_http1=disable_http1,
+                    disable_http2=disable_http2,
+                    disable_http3=disable_http3,
+                    resolver=resolver,
+                    source_address=source_address,
+                    disable_ipv4=disable_ipv4,
+                    disable_ipv6=disable_ipv6,
+                    pool_connections=pool_connections,
+                    pool_maxsize=pool_maxsize,
+                    happy_eyeballs=happy_eyeballs,
+                    keepalive_delay=keepalive_delay,
+                    keepalive_idle_window=keepalive_idle_window,
+                    revocation_configuration=revocation_configuration,
+                ),
+            )
+            self.mount(
+                "http+unix://",
+                AsyncUnixAdapter(
+                    max_retries=retries,
+                    disable_http1=disable_http1,
+                    disable_http2=disable_http2,
+                    disable_http3=disable_http3,
+                    resolver=resolver,
+                    source_address=source_address,
+                    disable_ipv4=disable_ipv4,
+                    disable_ipv6=disable_ipv6,
+                    pool_connections=pool_connections,
+                    pool_maxsize=pool_maxsize,
+                    happy_eyeballs=happy_eyeballs,
+                    keepalive_delay=keepalive_delay,
+                    keepalive_idle_window=keepalive_idle_window,
+                    revocation_configuration=revocation_configuration,
+                ),
+            )
+        else:
+            wasm_adapter = AsyncPyodideAdapter(
+                max_retries=retries,
+            )
+            for supported_scheme in ["http", "https", "sse", "psse", "ws", "wss"]:
+                self.mount(f"{supported_scheme}://", wasm_adapter)
+        if app is not None:
+            adapter = AsyncServerGatewayInterface(
+                app=app,
+                max_retries=retries,
+            )
+            self.mount("asgi://default", adapter)
+            for _scheme in ("ws", "wss", "sse", "psse"):
+                self.mount(f"{_scheme}://default", adapter)
             if self.base_url is None:
                 self.base_url = "asgi://default"
 
@@ -449,6 +471,12 @@ class AsyncSession(Session):
 
         # Nothing matches :-/
         raise InvalidSchema(f"No connection adapters were found for {url!r}{additional_hint}")
+
+    @typing.overload  # type: ignore[override]
+    async def send(self, request: PreparedRequest, *, stream: Literal[True], **kwargs: typing.Any) -> AsyncResponse: ...
+
+    @typing.overload  # type: ignore[override]
+    async def send(self, request: PreparedRequest, **kwargs: typing.Any) -> Response: ...
 
     async def send(  # type: ignore[override]
         self, request: PreparedRequest, **kwargs: typing.Any
@@ -886,7 +914,15 @@ class AsyncSession(Session):
 
             # Attempt to rewind consumed file-like object.
             if rewindable:
-                rewind_body(prepared_request)
+                # could be async file with awaitable tell/seek!
+                if (
+                    prepared_request.body is not None
+                    and hasattr(prepared_request.body, "tell")
+                    and iscoroutinefunction(prepared_request.body.tell)
+                ):
+                    await arewind_body(prepared_request)
+                else:
+                    rewind_body(prepared_request)
 
             # Override the original request.
             req = prepared_request
@@ -1006,6 +1042,17 @@ class AsyncSession(Session):
             prep.__dict__.update(r.__dict__)
             prep.prepare_content_length(prep.body)
             del prep._pending_async_auth
+
+        if (
+            isinstance(prep._body_position, object)
+            and prep.body is not None
+            and hasattr(prep.body, "tell")
+            and iscoroutinefunction(prep.body.tell)
+        ):
+            try:
+                prep._body_position = await prep.body.tell()
+            except OSError:
+                pass
 
         prep = await async_dispatch_hook(
             "pre_request",

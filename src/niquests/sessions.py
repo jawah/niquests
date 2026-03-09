@@ -46,6 +46,17 @@ from .extensions.revocation import DEFAULT_STRATEGY, RevocationConfiguration
 from .extensions.sgi import WebServerGatewayInterface
 from .extensions.sgi._async import ThreadAsyncServerGatewayInterface
 from .extensions.unixsocket import UnixAdapter
+
+try:
+    from .extensions.pyodide import PyodideAdapter
+except ImportError:
+    PyodideAdapter = None  # type: ignore[assignment,misc]
+
+    if sys.platform == "emscripten":
+        warnings.warn(
+            "Unable to load native WASM adapter for Session. HTTP requests may fail in sync. Did you forget to enable JSPI?",
+            UserWarning,
+        )
 from .hooks import HOOKS, default_hooks, dispatch_hook
 
 # formerly defined here, reexposed here for backward compatibility
@@ -254,6 +265,7 @@ class Session:
         base_url: str | None = None,
         timeout: TimeoutType | None = None,
         headers: HeadersType | None = None,
+        auth: HttpAuthenticationType | None = None,
         hooks: HookType[PreparedRequest | Response] | None = None,
         revocation_configuration: RevocationConfiguration | None = DEFAULT_STRATEGY,
         app: WSGIApp | ASGIApp | None = None,
@@ -282,6 +294,7 @@ class Session:
         :param base_url: Automatically set a URL prefix (or base url) on every request emitted if applicable.
         :param timeout: Default timeout configuration to be used if no timeout is provided in exposed methods.
         :param headers: Default headers to be used on every request emitted.
+        :param auth: Default authentication tuple or object to attach to every request emitted.
         :param hooks: Default hooks to be used on every request emitted. Can be a dictionary mapping hook names to
             lists of callables, or a LifeCycleHook instance.
         :param revocation_configuration: How should that session do the certificate revocation check. Set it as None to disable
@@ -309,7 +322,7 @@ class Session:
 
         #: Default Authentication tuple or object to attach to
         #: :class:`Request <Request>`.
-        self.auth = None
+        self.auth = auth
 
         #: Dictionary mapping protocol or protocol and host to the URL of the proxy
         #: (e.g. {'http': 'foo.bar:3128', 'http://host.name': 'foo.bar:4012'}) to
@@ -411,83 +424,90 @@ class Session:
 
         # Default connection adapters.
         self.adapters: OrderedDict[str, BaseAdapter] = OrderedDict()
-        self.mount(
-            "https://",
-            HTTPAdapter(
-                quic_cache_layer=self.quic_cache_layer,
+        if PyodideAdapter is None:
+            self.mount(
+                "https://",
+                HTTPAdapter(
+                    quic_cache_layer=self.quic_cache_layer,
+                    max_retries=retries,
+                    disable_http1=disable_http1,
+                    disable_http2=disable_http2,
+                    disable_http3=disable_http3,
+                    resolver=resolver,
+                    source_address=source_address,
+                    disable_ipv4=disable_ipv4,
+                    disable_ipv6=disable_ipv6,
+                    pool_connections=pool_connections,
+                    pool_maxsize=pool_maxsize,
+                    happy_eyeballs=happy_eyeballs,
+                    keepalive_delay=keepalive_delay,
+                    keepalive_idle_window=keepalive_idle_window,
+                    revocation_configuration=revocation_configuration,
+                ),
+            )
+            self.mount(
+                "http://",
+                HTTPAdapter(
+                    max_retries=retries,
+                    resolver=resolver,
+                    source_address=source_address,
+                    disable_http1=disable_http1,
+                    disable_http2=disable_http2,
+                    disable_http3=disable_http3,
+                    disable_ipv4=disable_ipv4,
+                    disable_ipv6=disable_ipv6,
+                    pool_connections=pool_connections,
+                    pool_maxsize=pool_maxsize,
+                    happy_eyeballs=happy_eyeballs,
+                    keepalive_delay=keepalive_delay,
+                    keepalive_idle_window=keepalive_idle_window,
+                    revocation_configuration=revocation_configuration,
+                ),
+            )
+            self.mount(
+                "http+unix://",
+                UnixAdapter(
+                    max_retries=retries,
+                    resolver=resolver,
+                    source_address=source_address,
+                    disable_http1=disable_http1,
+                    disable_http2=disable_http2,
+                    disable_http3=disable_http3,
+                    disable_ipv4=disable_ipv4,
+                    disable_ipv6=disable_ipv6,
+                    pool_connections=pool_connections,
+                    pool_maxsize=pool_maxsize,
+                    happy_eyeballs=happy_eyeballs,
+                    keepalive_delay=keepalive_delay,
+                    keepalive_idle_window=keepalive_idle_window,
+                    revocation_configuration=revocation_configuration,
+                ),
+            )
+        else:
+            wasm_adapter = PyodideAdapter(
                 max_retries=retries,
-                disable_http1=disable_http1,
-                disable_http2=disable_http2,
-                disable_http3=disable_http3,
-                resolver=resolver,
-                source_address=source_address,
-                disable_ipv4=disable_ipv4,
-                disable_ipv6=disable_ipv6,
-                pool_connections=pool_connections,
-                pool_maxsize=pool_maxsize,
-                happy_eyeballs=happy_eyeballs,
-                keepalive_delay=keepalive_delay,
-                keepalive_idle_window=keepalive_idle_window,
-                revocation_configuration=revocation_configuration,
-            ),
-        )
-        self.mount(
-            "http://",
-            HTTPAdapter(
-                max_retries=retries,
-                resolver=resolver,
-                source_address=source_address,
-                disable_http1=disable_http1,
-                disable_http2=disable_http2,
-                disable_http3=disable_http3,
-                disable_ipv4=disable_ipv4,
-                disable_ipv6=disable_ipv6,
-                pool_connections=pool_connections,
-                pool_maxsize=pool_maxsize,
-                happy_eyeballs=happy_eyeballs,
-                keepalive_delay=keepalive_delay,
-                keepalive_idle_window=keepalive_idle_window,
-                revocation_configuration=revocation_configuration,
-            ),
-        )
-        self.mount(
-            "http+unix://",
-            UnixAdapter(
-                max_retries=retries,
-                resolver=resolver,
-                source_address=source_address,
-                disable_http1=disable_http1,
-                disable_http2=disable_http2,
-                disable_http3=disable_http3,
-                disable_ipv4=disable_ipv4,
-                disable_ipv6=disable_ipv6,
-                pool_connections=pool_connections,
-                pool_maxsize=pool_maxsize,
-                happy_eyeballs=happy_eyeballs,
-                keepalive_delay=keepalive_delay,
-                keepalive_idle_window=keepalive_idle_window,
-                revocation_configuration=revocation_configuration,
-            ),
-        )
+            )
+            for supported_scheme in ["http", "https", "sse", "psse", "ws", "wss"]:
+                self.mount(f"{supported_scheme}://", wasm_adapter)
         if app is not None:
             if hasattr(app, "__call__") and iscoroutinefunction(app.__call__):
-                self.mount(
-                    "asgi://default",
-                    ThreadAsyncServerGatewayInterface(
-                        app=app,  # type: ignore[arg-type]
-                        max_retries=retries,
-                    ),
+                adapter = ThreadAsyncServerGatewayInterface(
+                    app=app,  # type: ignore[arg-type]
+                    max_retries=retries,
                 )
+                self.mount("asgi://default", adapter)
+                for _scheme in ("ws", "wss", "sse", "psse"):
+                    self.mount(f"{_scheme}://default", adapter)
                 if self.base_url is None:
                     self.base_url = "asgi://default"
             else:
-                self.mount(
-                    "wsgi://default",
-                    WebServerGatewayInterface(
-                        app=app,  # type: ignore[arg-type]
-                        max_retries=retries,
-                    ),
+                adapter = WebServerGatewayInterface(  # type: ignore[assignment]
+                    app=app,  # type: ignore[arg-type]
+                    max_retries=retries,
                 )
+                self.mount("wsgi://default", adapter)
+                for _scheme in ("ws", "wss", "sse", "psse"):
+                    self.mount(f"{_scheme}://default", adapter)
                 if self.base_url is None:
                     self.base_url = "wsgi://default"
 
