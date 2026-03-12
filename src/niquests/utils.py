@@ -1148,10 +1148,18 @@ def parse_scheme(url: str, default: str | None = None, max_length: int = 11) -> 
     enough to use urlparse for it...! We were wasting precious CPU cycles.
     Return used scheme url, lowercased."""
     try:
-        scheme = url[: url.index(":", 1, max_length + 1)]
+        scheme = url[: url.index("://", 1, max_length + 1)]
     except ValueError as e:
         if default is not None:
             return default
+
+        try:
+            outsider_scheme = url[: url.index(":", 1, max_length + 1)]
+
+            return outsider_scheme.lower()
+        except ValueError:
+            pass
+
         raise MissingSchema(f"Invalid URL {url!r}: No scheme supplied. Perhaps you meant https://{url}?") from e
 
     return scheme.lower()
@@ -1443,3 +1451,25 @@ def guess_json_utf(data: bytes) -> str | None:
         return encoding_guess.encoding.replace("_", "-")
 
     return None
+
+
+@typing.overload
+def merge_base_url(base_url: str | None, url: None) -> None: ...
+
+
+@typing.overload
+def merge_base_url(base_url: str | None, url: str) -> str: ...
+
+
+def merge_base_url(base_url: str | None, url: str | None) -> str | None:
+    if base_url is None or url is None:
+        return url
+
+    if parse_scheme(url, default="") == "":
+        if base_url.endswith("/"):
+            base_url = base_url[:-1]
+        if url and not url.startswith("/"):
+            url = f"/{url}"
+        return base_url + url
+
+    return url
