@@ -405,6 +405,12 @@ class PreparedRequest:
         if "http" not in parsed_scheme and parsed_scheme not in {
             "asgi",
             "wsgi",
+            "ws",
+            "wss",
+            "see",
+            "psse",
+            "psse+unix",
+            "ws+unix",
         }:
             self.url = url
             return
