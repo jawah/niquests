@@ -1,6 +1,14 @@
 Release History
 ===============
 
+3.18.2 (2026-03-12)
+-------------------
+
+**Fixed**
+- Unprepared URLs when scheme don't contain `http`.
+- Edge case false positive scheme detection in url. (#349)
+- Netrc don't work when base_url is set. (#348)
+
 3.18.1 (2026-03-09)
 -------------------
 

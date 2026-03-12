@@ -107,6 +107,7 @@ from .utils import (
     get_auth_from_url,
     guess_filename,
     iter_slices,
+    merge_base_url,
     parse_header_links,
     parse_scheme,
     requote_uri,
@@ -382,13 +383,7 @@ class PreparedRequest:
         """Prepares the given HTTP URL."""
         assert url is not None, "Missing URL in PreparedRequest"
 
-        if base_url is not None:
-            if parse_scheme(url, default="") == "":
-                if base_url.endswith("/"):
-                    base_url = base_url[:-1]
-                if url and not url.startswith("/"):
-                    url = f"/{url}"
-                url = base_url + url
+        url = merge_base_url(base_url, url)
 
         #: Accept objects that have string representations.
         #: We're unable to blindly call unicode/str functions
@@ -410,6 +405,12 @@ class PreparedRequest:
         if "http" not in parsed_scheme and parsed_scheme not in {
             "asgi",
             "wsgi",
+            "ws",
+            "wss",
+            "see",
+            "psse",
+            "psse+unix",
+            "ws+unix",
         }:
             self.url = url
             return

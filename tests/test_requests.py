@@ -2799,6 +2799,7 @@ class TestPreparingURLs:
             ("http://httpbingo.org", "get", "http://httpbingo.org/get"),
             ("http://api.example.com", "/v1/users", "http://api.example.com/v1/users"),
             ("http://api.example.com", "v1/users", "http://api.example.com/v1/users"),
+            ("https://example.com", "123456789/k:v", "https://example.com/123456789/k:v"),
         ],
     )
     def test_base_url_prepare(self, base_url, url, join_expected):
