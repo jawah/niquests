@@ -270,6 +270,12 @@ and returned. To check that a request is successful, use
 
 .. tip:: Niquests support using ``orjson`` instead of the ``json`` standard library. To leverage that feature, install ``orjson`` or ``niquests[speedups]``. This can dramatically increase performance.
 
+.. tip:: For typed JSON deserialization (e.g. with ``msgspec``, ``pydantic``, or ``cattrs``),
+   use ``r.content`` directly instead of ``r.json()`` for significantly better performance.
+   For example, ``msgspec.json.decode(r.content, type=list[User])`` decodes bytes into typed
+   objects in a single pass, avoiding the intermediate dict. This is 2-5x faster than
+   ``msgspec.convert(r.json(), list[User])``.
+
 Raw Response Content
 --------------------
 
