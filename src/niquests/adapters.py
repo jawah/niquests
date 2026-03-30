@@ -314,7 +314,7 @@ class HTTPAdapter(BaseAdapter):
         disable_ipv4: bool = False,
         disable_ipv6: bool = False,
         happy_eyeballs: bool | int = False,
-        keepalive_delay: float | int | None = 3600.0,
+        keepalive_delay: float | int | None = 600.0,
         keepalive_idle_window: float | int | None = 60.0,
         revocation_configuration: RevocationConfiguration | None = DEFAULT_STRATEGY,
     ):
@@ -1391,7 +1391,7 @@ class AsyncHTTPAdapter(AsyncBaseAdapter):
         disable_ipv4: bool = False,
         disable_ipv6: bool = False,
         happy_eyeballs: bool | int = False,
-        keepalive_delay: float | int | None = 3600.0,
+        keepalive_delay: float | int | None = 600.0,
         keepalive_idle_window: float | int | None = 60.0,
         revocation_configuration: RevocationConfiguration | None = DEFAULT_STRATEGY,
     ):
