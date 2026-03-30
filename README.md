@@ -25,43 +25,43 @@ Niquests, is the “**Safest**, **Fastest[^10]**, **Easiest**, and **Most advanc
 <details>
   <summary>👆 <b>Look at the feature table comparison</b> against <i>requests, httpx and aiohttp</i>!</summary>
 
-| Feature                                    |    niquests    | requests  |     httpx     | aiohttp       |
-|--------------------------------------------|:--------------:|:---------:|:-------------:|---------------|
-| `HTTP/1.1`                                 |       ✅        |     ✅     |       ✅       | ✅             |
-| `HTTP/2`                                   |       ✅        |     ❌     |     ✅[^7]     | ❌             |
-| `HTTP/3 over QUIC`                         |       ✅        |     ❌     |       ❌       | ❌             |
-| `Synchronous`                              |       ✅        |     ✅     |       ✅       | _N/A_[^1]     |
-| `Asynchronous`                             |       ✅        |     ❌     |       ✅       | ✅             |
-| `Thread Safe`                              |       ✅        |     ✅     |     ❌[^5]     | _N/A_[^1]     |
-| `Task Safe`                                |       ✅        | _N/A_[^2] |       ✅       | ✅             |
-| `OS Trust Store`                           |       ✅        |     ❌     |       ❌       | ❌             |
-| `Multiplexing`                             |       ✅        |     ❌     | _Limited_[^3] | ❌             |
-| `DNSSEC`                                   |     ✅[^11]     |     ❌     |       ❌       | ❌             |
-| `Customizable DNS Resolution`              |       ✅        |     ❌     |       ❌       | ✅             |
-| `DNS over HTTPS`                           |       ✅        |     ❌     |       ❌       | ❌             |
-| `DNS over QUIC`                            |       ✅        |     ❌     |       ❌       | ❌             |
-| `DNS over TLS`                             |       ✅        |     ❌     |       ❌       | ❌             |
-| `Multiple DNS Resolver`                    |       ✅        |     ❌     |       ❌       | ❌             |
-| `Network Fine Tuning & Inspect`            |       ✅        |     ❌     | _Limited_[^6] | _Limited_[^6] |
-| `Certificate Revocation Protection`        |       ✅        |     ❌     |       ❌       | ❌             |
-| `Session Persistence`                      |       ✅        |     ✅     |       ✅       | ✅             |
-| `In-memory Certificate CA & mTLS`          |       ✅        |     ❌     | _Limited_[^4] | _Limited_[^4] |
-| `SOCKS 4/5 Proxies`                        |       ✅        |     ✅     |       ✅       | ❌             |
-| `HTTP/HTTPS Proxies`                       |       ✅        |     ✅     |       ✅       | ✅             |
-| `TLS-in-TLS Support`                       |       ✅        |     ✅     |       ✅       | ✅             |
-| `Direct HTTP/3 Negotiation`                |     ✅[^9]      |  N/A[^8]  |    N/A[^8]    | N/A[^8]       |
-| `Happy Eyeballs`                           |       ✅        |     ❌     |       ❌       | ✅             |
-| `Package / SLSA Signed`                    |       ✅        |     ❌     |       ❌       | ✅             |
-| `HTTP/2 with prior knowledge (h2c)`        |       ✅        |     ❌     |       ✅       | ❌             |
-| `Post-Quantum Security`                    | _Limited_[^12] |     ❌     |       ❌       | ❌             |
-| `HTTP Trailers`                            |       ✅        |     ❌     |       ❌       | ❌             |
-| `Early Responses`                          |       ✅        |     ❌     |       ❌       | ❌             |
-| `WebSocket over HTTP/1`                    |       ✅        |  ❌[^14]   |    ❌[^14]     | ✅             |
-| `WebSocket over HTTP/2 and HTTP/3`         |     ✅[^13]     |     ❌     |       ❌       | ❌             |
-| `Automatic Ping for HTTP/2+`               |       ✅        |    N/A    |       ❌       | N/A           |
-| `Automatic Connection Upgrade / Downgrade` |       ✅        |    N/A    |       ❌       | N/A           |
-| `Server Side Event (SSE)`                  |       ✅        |     ❌     |       ❌       | ❌             |
-| `WASM / Pyodide`                           |       ✅        |     ✅     |       ❌       | ❌             |
+| Feature                                    |      niquests      | requests  |     httpx     | aiohttp       |
+|--------------------------------------------|:------------------:|:---------:|:-------------:|---------------|
+| `HTTP/1.1`                                 |         ✅          |     ✅     |       ✅       | ✅             |
+| `HTTP/2`                                   |         ✅          |     ❌     |     ✅[^7]     | ❌             |
+| `HTTP/3 over QUIC`                         |         ✅          |     ❌     |       ❌       | ❌             |
+| `Synchronous`                              |         ✅          |     ✅     |       ✅       | _N/A_[^1]     |
+| `Asynchronous`                             |         ✅          |     ❌     |       ✅       | ✅             |
+| `Thread Safe`                              |         ✅          |     ✅     |     ❌[^5]     | _N/A_[^1]     |
+| `Task Safe`                                |         ✅          | _N/A_[^2] |       ✅       | ✅             |
+| `OS Trust Store`                           |         ✅          |     ❌     |       ❌       | ❌             |
+| `Multiplexing`                             |         ✅          |     ❌     | _Limited_[^3] | ❌             |
+| `DNSSEC`                                   |       ✅[^11]       |     ❌     |       ❌       | ❌             |
+| `Customizable DNS Resolution`              |         ✅          |     ❌     |       ❌       | ✅             |
+| `DNS over HTTPS`                           |         ✅          |     ❌     |       ❌       | ❌             |
+| `DNS over QUIC`                            |         ✅          |     ❌     |       ❌       | ❌             |
+| `DNS over TLS`                             |         ✅          |     ❌     |       ❌       | ❌             |
+| `Multiple DNS Resolver`                    |         ✅          |     ❌     |       ❌       | ❌             |
+| `Network Fine Tuning & Inspect`            |         ✅          |     ❌     | _Limited_[^6] | _Limited_[^6] |
+| `Certificate Revocation Protection`        |         ✅          |     ❌     |       ❌       | ❌             |
+| `Session Persistence`                      |         ✅          |     ✅     |       ✅       | ✅             |
+| `In-memory Certificate CA & mTLS`          |         ✅          |     ❌     | _Limited_[^4] | _Limited_[^4] |
+| `SOCKS 4/5 Proxies`                        |         ✅          |     ✅     |       ✅       | ❌             |
+| `HTTP/HTTPS Proxies`                       |         ✅          |     ✅     |       ✅       | ✅             |
+| `TLS-in-TLS Support`                       |         ✅          |     ✅     |       ✅       | ✅             |
+| `Direct HTTP/3 Negotiation`                |       ✅[^9]        |  N/A[^8]  |    N/A[^8]    | N/A[^8]       |
+| `Happy Eyeballs`                           |         ✅          |     ❌     |       ❌       | ✅             |
+| `Package / SLSA Signed`                    |         ✅          |     ❌     |       ❌       | ✅             |
+| `HTTP/2 with prior knowledge (h2c)`        |         ✅          |     ❌     |       ✅       | ❌             |
+| `Post-Quantum Security & ECH`              |    ✅      [^12]    |     ❌     |       ❌       | ❌             |
+| `HTTP Trailers`                            |         ✅          |     ❌     |       ❌       | ❌             |
+| `Early Responses`                          |         ✅          |     ❌     |       ❌       | ❌             |
+| `WebSocket over HTTP/1`                    |         ✅          |  ❌[^14]   |    ❌[^14]     | ✅             |
+| `WebSocket over HTTP/2 and HTTP/3`         |       ✅[^13]       |     ❌     |       ❌       | ❌             |
+| `Automatic Ping for HTTP/2+`               |         ✅          |    N/A    |       ❌       | N/A           |
+| `Automatic Connection Upgrade / Downgrade` |         ✅          |    N/A    |       ❌       | N/A           |
+| `Server Side Event (SSE)`                  |         ✅          |     ❌     |       ❌       | ❌             |
+| `WASM / Pyodide`                           |         ✅          |     ✅     |       ❌       | ❌             |
 </details>
 
 <details>
@@ -182,6 +182,7 @@ Niquests is ready for the demands of building scalable, robust and reliable HTTP
 - DNSSEC!
 - Async!
 - SSE!
+- ECH!
 
 Need something more? Create an issue, we **actively** listen.
 
@@ -213,13 +214,13 @@ Niquests is a highly improved HTTP client that is based (forked) on Requests. Th
 [^2]: requests has no support for asynchronous request.
 [^3]: while the HTTP/2 connection object can handle concurrent requests, you cannot leverage its true potential.
 [^4]: loading client certificate without file can't be done.
-[^5]: httpx officially claim to be thread safe but recent tests demonstrate otherwise as of Mars 2026. https://github.com/jawah/niquests/issues/83#issuecomment-1956065258 https://github.com/encode/httpx/issues/3072 https://github.com/encode/httpx/issues/3002 and only recently acknowledged the issue in https://github.com/encode/httpx/issues/3324 (one year after getting valid reports).
+[^5]: httpx officially claim to be thread safe but recent tests demonstrate otherwise as of March 2026. https://github.com/jawah/niquests/issues/83#issuecomment-1956065258 https://github.com/encode/httpx/issues/3072 https://github.com/encode/httpx/issues/3002 and only recently acknowledged the issue in https://github.com/encode/httpx/issues/3324 (one year after getting valid reports).
 [^6]: they do not expose anything to control network aspects such as IPv4/IPv6 toggles, and timings (e.g. DNS response time, established delay, TLS handshake delay, etc...) and such.
 [^7]: while advertised as possible, they refuse to make it the default due to performance and stability issues. as of December 2025 an extra is required to enable it manually.
 [^8]: they don't support HTTP/3 at all.
 [^9]: you must use a custom DNS resolver so that it can preemptively connect using HTTP/3 over QUIC when remote is compatible.
-[^10]: performance measured when leveraging a multiplexed connection with or without uses of any form of concurrency as of Mars 2026. The research compared `httpx`, `requests`, `aiohttp` against `niquests`. See https://gist.github.com/Ousret/9e99b07e66eec48ccea5811775ec116d
+[^10]: performance measured when leveraging a multiplexed connection with or without uses of any form of concurrency as of March 2026. The research compared `httpx`, `requests`, `aiohttp` against `niquests`. See https://gist.github.com/Ousret/9e99b07e66eec48ccea5811775ec116d
 [^11]: enabled when using a custom DNS resolver.
-[^12]: available only when using HTTP/3 over QUIC and that the remote server support also the same post-quantum key-exchange algorithm. Also, the `qh3` installed version must be >= 1.1.
+[^12]: depends on your Python runtime. ECH and PQ support through HTTP/3 over QUIC requires `qh3` installed. HTTP/1, and HTTP/2 can benefit from PQ and ECH, provided the `rtls` extra is installed. ECH requires you to use a custom resolver (e.g. DNS-over-HTTPS).
 [^13]: most servers out there are not ready for this feature, but Niquests is already compliant and future-proof! [Caddy](https://github.com/caddyserver/caddy/releases/tag/v2.9.0) server and [HAProxy](https://github.com/haproxy/haproxy) support this!
 [^14]: they don't offer any built-in to speak with a WebSocket server.

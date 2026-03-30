@@ -70,9 +70,12 @@ zstd = [
 brotli = [
     "urllib3.future[brotli]",
 ]
+rtls = [
+    "urllib3.future[rtls]",
+]
 full = [
     "orjson>=3,<4",
-    "urllib3.future[zstd,brotli,ws,socks]",
+    "urllib3.future[zstd,brotli,ws,socks,rtls]",
 ]
 
 [project.urls]

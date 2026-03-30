@@ -1,6 +1,15 @@
 Release History
 ===============
 
+3.18.3 (2026-03-30)
+-------------------
+
+**Fixed**
+- Lowered default keepalive_delay from 1h to 10min.
+
+**Misc**
+- Officialize support for `rtls` alternative TLS backend.
+
 3.18.2 (2026-03-12)
 -------------------
 
