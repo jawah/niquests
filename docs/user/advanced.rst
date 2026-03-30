@@ -2194,3 +2194,47 @@ You can simply do a ``repr(my_session)`` to get those answers!
 
 
 .. warning:: Do not abuse that joker, it's looking deep inside your pool state and may hurt performance badly.
+
+Alternative SSL Backend
+-----------------------
+
+.. versionadded:: 3.18.3
+
+Python is often built against OpenSSL or LibreSSL (depending on your OS), leaving no real alternative, at least easily.
+Niquests is capable to use Rustls (via AWS-LC) with a mere extra::
+
+    pip install niquests[rtls]
+
+.. note:: Running ``python -m niquests.help`` should print Rustls instead of OpenSSL.
+
+The ``rtls`` package is a drop-in replacement for the ``ssl`` stdlib. It is built against Rustls, that itself is built
+against aws-lc-rs.
+
+It's a memory-safe TLS backend. To learn more about it, visit https://github.com/jawah/rtls
+Any issue encountered with it should be reported directly to the linked repository.
+
+Encrypted Client Hello
+----------------------
+
+.. versionadded:: 3.18.3
+
+Here is a quick example of how to leverage ECH.
+
+.. code-block:: python
+
+    import niquests
+
+    if __name__ == "__main__":
+
+    with niquests.Session(resolver="doh+cloudflare://") as s:
+        r = s.get("https://encryptedsni.com", allow_redirects=False)
+
+        if hasattr(r.conn_info, "tls_ech_accepted") and r.conn_info.tls_ech_accepted:
+            print("Congratulation, ECH was accepted.")
+        else:
+            print("Unfortunately, ECH was either not sent or rejected")
+
+
+.. warning:: The custom resolver ``resolver=...`` is mandatory as the stdlib Python is completely unable to query a DNS HTTPS record, which is mandatory to retrieve the HPKE public key.
+
+.. note:: urllib3-future 2.19.900 or greater is required for that example. you may also need the ``rtls`` extra installed depending on your environment.

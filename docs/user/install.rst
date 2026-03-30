@@ -80,6 +80,12 @@ SOCKS proxies can be used in Niquests, at the sole condition to have::
 
     $ python -m pip install niquests[socks]
 
+- **rtls**
+
+Immediately swap your OpenSSL/LibreSSL default for a state-of-the-art, and memory-safe Rustls backend::
+
+    $ python -m pip install niquests[rtls]
+
 - **Brotli**, **Zstandard** (zstd) and **orjson**
 
 Niquests can run significantly faster when your environment is capable of decompressing Brotli, and Zstd.

@@ -6,9 +6,12 @@ import json
 import platform
 
 try:
-    import ssl
+    import rtls as ssl
 except ImportError:
-    ssl = None  # type: ignore
+    try:
+        import ssl  # type: ignore[no-redef]
+    except ImportError:
+        ssl = None  # type: ignore
 
 import sys
 import warnings
