@@ -76,7 +76,7 @@ Instead of importing ``urllib3`` do::
 
 It's best to do that and will allow smoother upgrade in the future when we make important changes.
 
-.. note:: The default behavior (ie. name shadowing) is not mandatory. You can circumvent it by a simple command. See bellow (Cohabitation).
+.. note:: The default behavior (ie. name shadowing) is not mandatory. You can circumvent it by a simple command. See below (Cohabitation).
 
 Cohabitation
 ~~~~~~~~~~~~
