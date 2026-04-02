@@ -4,10 +4,11 @@ import typing
 
 from pyodide.http import pyfetch  # type: ignore[import]
 
+from ....packages.urllib3.contrib.webextensions._async.sse import AsyncServerSideEventExtensionFromHTTP
 from ....packages.urllib3.contrib.webextensions.sse import ServerSentEvent
 
 
-class AsyncPyodideSSEExtension:
+class AsyncPyodideSSEExtension(AsyncServerSideEventExtensionFromHTTP):
     """Async SSE extension for Pyodide using pyfetch streaming + manual SSE parsing.
 
     Reads from a ReadableStream reader, buffers partial lines,
@@ -20,7 +21,7 @@ class AsyncPyodideSSEExtension:
         self._last_event_id: str | None = None
         self._reader: typing.Any = None
 
-    async def start(self, url: str, headers: dict[str, str] | None = None) -> None:
+    async def start(self, url: str, headers: dict[str, str] | None = None) -> None:  # type: ignore[override]
         """Open the SSE stream via pyfetch."""
         fetch_options: dict[str, typing.Any] = {
             "method": "GET",
@@ -132,10 +133,6 @@ class AsyncPyodideSSEExtension:
             self._last_event_id = event.id
 
         return event
-
-    async def send_payload(self, buf: str | bytes) -> None:
-        """SSE is one-way only."""
-        raise NotImplementedError("SSE is only one-way. Sending is forbidden.")
 
     async def close(self) -> None:
         """Close the stream and release resources."""

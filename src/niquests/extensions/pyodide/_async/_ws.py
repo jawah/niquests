@@ -6,12 +6,19 @@ import typing
 from pyodide.ffi import create_proxy  # type: ignore[import]
 
 try:
+    from ....packages.urllib3.contrib.webextensions._async.ws import AsyncWebSocketExtensionFromHTTP
+except ImportError:
+    from ....packages.urllib3.contrib.webextensions._async.raw import (
+        AsyncRawExtensionFromHTTP as AsyncWebSocketExtensionFromHTTP,
+    )
+
+try:
     from js import WebSocket as JSWebSocket  # type: ignore[import]
 except ImportError:
     JSWebSocket = None
 
 
-class AsyncPyodideWebSocketExtension:
+class AsyncPyodideWebSocketExtension(AsyncWebSocketExtensionFromHTTP):
     """Async WebSocket extension for Pyodide using the browser's native WebSocket API.
 
     Messages are queued from JS callbacks and dequeued by next_payload()
@@ -24,7 +31,7 @@ class AsyncPyodideWebSocketExtension:
         self._proxies: list[typing.Any] = []
         self._ws: typing.Any = None
 
-    async def start(self, url: str) -> None:
+    async def start(self, url: str) -> None:  # type: ignore[override]
         """Open the WebSocket connection and wait until it's ready."""
         if JSWebSocket is None:  # Defensive: depends on JS runtime
             raise OSError(
