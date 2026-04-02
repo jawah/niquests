@@ -4,8 +4,15 @@ import asyncio
 import contextlib
 import typing
 
+try:
+    from ....packages.urllib3.contrib.webextensions._async.ws import AsyncWebSocketExtensionFromHTTP
+except ImportError:
+    from ....packages.urllib3.contrib.webextensions._async.raw import (
+        AsyncRawExtensionFromHTTP as AsyncWebSocketExtensionFromHTTP,
+    )
 
-class ASGIWebSocketExtension:
+
+class ASGIWebSocketExtension(AsyncWebSocketExtensionFromHTTP):
     """Async WebSocket extension for ASGI applications.
 
     Uses the ASGI websocket protocol with send/receive queues to communicate
@@ -18,7 +25,7 @@ class ASGIWebSocketExtension:
         self._app_receive_queue: asyncio.Queue[dict[str, typing.Any]] = asyncio.Queue()
         self._task: asyncio.Task[None] | None = None
 
-    async def start(self, app: typing.Any, scope: dict[str, typing.Any]) -> None:
+    async def start(self, app: typing.Any, scope: dict[str, typing.Any]) -> None:  # type: ignore[override]
         """Start the ASGI app task and perform the WebSocket handshake."""
 
         async def receive() -> dict[str, typing.Any]:
