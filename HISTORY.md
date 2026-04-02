@@ -1,6 +1,13 @@
 Release History
 ===============
 
+3.18.4 (2026-04-02)
+-------------------
+
+**Fixed**
+- Failing basic isinstance check due to unintended modules duplicate via `niquests.packages` compat module. (#361)
+- ASGI/WSGI extensions aren't inheriting from HTTP extensions, thus breaking typing expectations on usage. (#361)
+
 3.18.3 (2026-03-30)
 -------------------
 
@@ -409,7 +416,7 @@ Release History
 
 **Misc**
 - Minor docs typos (#128)
-- Reformated error messages in our OCSP module for better readability.
+- Reformatted error messages in our OCSP module for better readability.
 - Added real test cases for our OCSP module to ensure its reliability.
 
 3.6.6 (2024-05-27)
@@ -690,7 +697,7 @@ Release History
 - urllib3.future minimal version raised to 2.3.900 to leverage the fallback top-level package `urllib3_future`.
 
 **Fixed**
-- Error when having accidentally overriden `urllib3.future` by an external dependency.
+- Error when having accidentally overridden `urllib3.future` by an external dependency.
 - Undesirable warning yielded by `cryptography` because of a Microsoft root certificate.
   "Parsed a negative serial number, which is disallowed by RFC 5280."
 - Take into account newly registered custom CA when using `wassima.register_ca(...)`.
@@ -726,7 +733,7 @@ Release History
 
 **Changed**
 - Enforced a maximum in-flight request when using multiplexed connections. Default to 124 per connections
-  so, actually 1240 per Session (_default is 10 connections_). This can be overriden in our `HTTPAdapter` for advanced users.
+  so, actually 1240 per Session (_default is 10 connections_). This can be overridden in our `HTTPAdapter` for advanced users.
   This limit was changed due to constraint in `qh3`, for now we have no way to dynamically set this. We choose the safest
   lowest common value in h2, and qh3.
 
@@ -742,7 +749,7 @@ Release History
 
 **Changed**
 - Enforced a maximum in-flight request when using multiplexed connections. Default to 200 per connections
-  so, actually 2000 per Session (_default is 10 connections_). This can be overriden in our `HTTPAdapter` for advanced users.
+  so, actually 2000 per Session (_default is 10 connections_). This can be overridden in our `HTTPAdapter` for advanced users.
 
 3.2.0 (2023-11-05)
 ------------------
@@ -750,7 +757,7 @@ Release History
 **Changed**
 - Changed method `raise_for_status` in class `Response` to return **self** in order to make the call chainable.
   Idea taken from upstream https://github.com/psf/requests/issues/6215
-- Bump minimal version supported for `urllib3.future` to 2.2.901 for recently introduced added features (bellow).
+- Bump minimal version supported for `urllib3.future` to 2.2.901 for recently introduced added features (below).
 
 **Added**
 - Support for multiplexed connection in HTTP/2 and HTTP/3. Concurrent requests per connection are now a thing, in synchronous code.
@@ -999,7 +1006,7 @@ Release History
 
 **Changed**
 - niquests.help show more information about direct dependencies.
-- urllib3.future minimal version raised to 2.0.936 due to an important fixe on the QUIC layer.
+- urllib3.future minimal version raised to 2.0.936 due to an important fixes on the QUIC layer.
 - wassima minimal version raised to 1.0.1 in order to support certifi as fallback in rare case.
 
 3.0.1 (2023-09-26)
