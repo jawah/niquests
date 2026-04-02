@@ -4,10 +4,11 @@ import asyncio
 import contextlib
 import typing
 
+from ....packages.urllib3.contrib.webextensions._async.sse import AsyncServerSideEventExtensionFromHTTP
 from ....packages.urllib3.contrib.webextensions.sse import ServerSentEvent
 
 
-class ASGISSEExtension:
+class ASGISSEExtension(AsyncServerSideEventExtensionFromHTTP):
     """Async SSE extension for ASGI applications.
 
     Runs the ASGI app as a normal HTTP streaming request and parses
@@ -21,7 +22,7 @@ class ASGISSEExtension:
         self._response_queue: asyncio.Queue[dict[str, typing.Any] | None] | None = None
         self._task: asyncio.Task[None] | None = None
 
-    async def start(
+    async def start(  # type: ignore[override]
         self,
         app: typing.Any,
         scope: dict[str, typing.Any],
@@ -157,10 +158,6 @@ class ASGISSEExtension:
             self._last_event_id = event.id
 
         return event
-
-    async def send_payload(self, buf: str | bytes) -> None:
-        """SSE is one-way only."""
-        raise NotImplementedError("SSE is only one-way. Sending is forbidden.")
 
     async def close(self) -> None:
         """Close the SSE stream and clean up the app task."""

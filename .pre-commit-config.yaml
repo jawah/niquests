@@ -24,3 +24,12 @@ repos:
       args: [--check-untyped-defs]
       exclude: 'tests/|noxfile.py'
       additional_dependencies: ['charset_normalizer', 'urllib3.future>=2.13.902', 'wassima>=2', 'qh3>=1.5', 'rtls', '.']
+- repo: https://github.com/codespell-project/codespell
+  rev: v2.4.2
+  hooks:
+  -   id: codespell
+      name: codespell
+      description: Checks for common misspellings in text files.
+      entry: codespell
+      language: python
+      types: [text]

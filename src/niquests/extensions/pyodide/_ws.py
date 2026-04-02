@@ -6,12 +6,20 @@ from js import Promise  # type: ignore[import]
 from pyodide.ffi import create_proxy, run_sync  # type: ignore[import]
 
 try:
+    from ...packages.urllib3.contrib.webextensions.ws import WebSocketExtensionFromHTTP
+except ImportError:
+    from ...packages.urllib3.contrib.webextensions.raw import RawExtensionFromHTTP as WebSocketExtensionFromHTTP
+
+try:
     from js import WebSocket as JSWebSocket  # type: ignore[import]
 except ImportError:
     JSWebSocket = None
 
+if typing.TYPE_CHECKING:
+    from ...packages.urllib3 import HTTPResponse
 
-class PyodideWebSocketExtension:
+
+class PyodideWebSocketExtension(WebSocketExtensionFromHTTP):
     """WebSocket extension for Pyodide using the browser's native WebSocket API.
 
     Synchronous via JSPI (run_sync). Uses JS Promises for signaling instead of
@@ -106,6 +114,9 @@ class PyodideWebSocketExtension:
 
         # Block until the connection is open (or error rejects the promise)
         run_sync(open_promise)
+
+    def start(self, response: HTTPResponse) -> None:
+        raise NotImplementedError
 
     @property
     def closed(self) -> bool:

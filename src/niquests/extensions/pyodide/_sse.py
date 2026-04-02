@@ -5,10 +5,13 @@ import typing
 from pyodide.ffi import run_sync  # type: ignore[import]
 from pyodide.http import pyfetch  # type: ignore[import]
 
-from ...packages.urllib3.contrib.webextensions.sse import ServerSentEvent
+from ...packages.urllib3.contrib.webextensions.sse import ServerSentEvent, ServerSideEventExtensionFromHTTP
+
+if typing.TYPE_CHECKING:
+    from ...packages.urllib3 import HTTPResponse
 
 
-class PyodideSSEExtension:
+class PyodideSSEExtension(ServerSideEventExtensionFromHTTP):
     """SSE extension for Pyodide using pyfetch streaming + manual SSE parsing.
 
     Synchronous via JSPI (run_sync). Reads from a ReadableStream reader,
@@ -132,9 +135,8 @@ class PyodideSSEExtension:
 
         return event
 
-    def send_payload(self, buf: str | bytes) -> None:
-        """SSE is one-way only."""
-        raise NotImplementedError("SSE is only one-way. Sending is forbidden.")
+    def start(self, response: HTTPResponse) -> None:
+        raise NotImplementedError
 
     def close(self) -> None:
         """Close the stream and release resources."""

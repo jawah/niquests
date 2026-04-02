@@ -1238,7 +1238,7 @@ def wrap_extension_for_http(
     extension: type[ExtensionFromHTTP],
 ) -> type[ExtensionFromHTTP]:
     """
-    We want to properly map exceptions from bellow (urllib3-future) into our own exceptions.
+    We want to properly map exceptions from below (urllib3-future) into our own exceptions.
     This function purposely wrap the extension class to achieve that.
     Warning: synchronous context only!
     """
@@ -1331,7 +1331,7 @@ def async_wrap_extension_for_http(
     extension: type[AsyncExtensionFromHTTP],
 ) -> type[AsyncExtensionFromHTTP]:
     """
-    We want to properly map exceptions from bellow (urllib3-future) into our own exceptions.
+    We want to properly map exceptions from below (urllib3-future) into our own exceptions.
     This function purposely wrap the extension class to achieve that.
     Warning: asynchronous context only!
     """

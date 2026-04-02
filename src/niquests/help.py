@@ -217,7 +217,7 @@ def main() -> None:
     if __legacy_urllib3_version__ is not None:
         warnings.warn(
             "urllib3-future is installed alongside (legacy) urllib3. This may cause compatibility issues. "
-            "Some (Requests) 3rd parties may be bound to urllib3, therefor the plugins may wrongfully invoke "
+            "Some (Requests) 3rd parties may be bound to urllib3, therefore the plugins may wrongfully invoke "
             "urllib3 (legacy) instead of urllib3-future. To remediate this, run "
             "`python -m pip uninstall -y urllib3 urllib3-future`, then run `python -m pip install urllib3-future`.",
             UserWarning,

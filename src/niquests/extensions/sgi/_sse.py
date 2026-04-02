@@ -3,15 +3,16 @@ from __future__ import annotations
 import typing
 from concurrent.futures import Future
 
-from ...packages.urllib3.contrib.webextensions.sse import ServerSentEvent
+from ...packages.urllib3.contrib.webextensions.sse import ServerSentEvent, ServerSideEventExtensionFromHTTP
 
 if typing.TYPE_CHECKING:
     import asyncio
 
+    from ...packages.urllib3 import HTTPResponse
     from ._async._sse import ASGISSEExtension
 
 
-class WSGISSEExtension:
+class WSGISSEExtension(ServerSideEventExtensionFromHTTP):
     """SSE extension for WSGI applications.
 
     Reads from a WSGI response iterator, buffers text, and parses SSE events.
@@ -112,10 +113,6 @@ class WSGISSEExtension:
 
         return event
 
-    def send_payload(self, buf: str | bytes) -> None:
-        """SSE is one-way only."""
-        raise NotImplementedError("SSE is only one-way. Sending is forbidden.")
-
     def close(self) -> None:
         """Close the stream and release resources."""
         if self._closed:
@@ -126,8 +123,11 @@ class WSGISSEExtension:
         if hasattr(self._generator, "close"):
             self._generator.close()
 
+    def start(self, response: HTTPResponse) -> None:
+        raise NotImplementedError
 
-class ThreadASGISSEExtension:
+
+class ThreadASGISSEExtension(ServerSideEventExtensionFromHTTP):
     """Synchronous SSE extension wrapping an async ASGISSEExtension.
 
     Delegates all operations to the async extension on a background event loop,
@@ -156,9 +156,8 @@ class ThreadASGISSEExtension:
         self._loop.call_soon_threadsafe(lambda: self._loop.create_task(_do()))
         return future.result()
 
-    def send_payload(self, buf: str | bytes) -> None:
-        """SSE is one-way only."""
-        raise NotImplementedError("SSE is only one-way. Sending is forbidden.")
+    def start(self, response: HTTPResponse) -> None:
+        raise NotImplementedError
 
     def close(self) -> None:
         """Close the SSE stream and clean up."""

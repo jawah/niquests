@@ -149,3 +149,6 @@ filterwarnings = [
     '''ignore:.*set_event_loop.*:DeprecationWarning''',
     '''ignore:.*EventLoopPolicy.*:DeprecationWarning''',
 ]
+
+[tool.codespell]
+ignore-words-list = "fo"
