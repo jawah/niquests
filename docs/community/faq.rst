@@ -47,11 +47,10 @@ Python 3 already includes native support for SNI in their SSL modules.
 What is "urllib3.future"?
 -------------------------
 
-It is a fork of the well-known **urllib3** library, you can easily imagine that
-Niquests would have been completely unable to serve that much feature with the
-existing **urllib3** library.
+It is a fork of the well-known **urllib3** library. Niquests would not have been
+able to deliver its feature set on top of the existing **urllib3** library.
 
-**urllib3.future** is independent, managed separately and completely compatible with
+**urllib3.future** is independent, managed separately, and fully compatible with
 its counterpart (API-wise).
 
 Shadow-Naming
@@ -64,19 +63,56 @@ So doing::
 
 By default, it will be ``urllib3-future`` sitting there.
 
-But fear not, if your script was compatible with urllib3, it will most certainly work
-out-of-the-box with urllib3.future.
+.. note:: This behavior is not mandatory. You can circumvent it with a simple command. See below (Cohabitation).
 
-This behavior was chosen to ensure the highest level of compatibility for your migration,
-ensuring the minimum friction during the migration between Requests to Niquests.
+The first reaction is usually instinctive: *software should not silently replace other software in my environment.*
+That feels like a firm principle - and a reasonable one.
 
-Instead of importing ``urllib3`` do::
+But then the question becomes: what's the alternative?
+
+**Contributing upstream?** That was attempted. A pull request bringing HTTP/2 support to urllib3 sat without review for months. The door wasn't open for our proposal.
+
+**A separate namespace?** Over 100 packages call ``import urllib3`` directly in their source code. Forking the entire ecosystem isn't viable.
+
+**An opt-in extra, like** ``pip install urllib3-future[override]`` **?** If any single dependency in the tree activates it, every other package in the environment is affected. Same outcome, false sense of consent.
+
+**A public** ``inject_into_urllib3()`` **function?** That's a ``sys.modules`` hack hiding inside application code, triggered by import order, invisible unless you go hunting for it. Strictly worse.
+
+**Why not a warning printed out to stderr?** This was considered, but printing a warning on every import would pollute stderr in ways that quickly become untenable.
+Long-running applications, CI pipelines, and containerized services would accumulate massive volumes of repeated warnings, one for every process, every worker, every restart.
+In sub-interpreter environments, each subinterpreter would emit its own copy of the warning, multiplying the noise further.
+Many monitoring and logging systems treat unexpected stderr output as a signal that something is wrong, which would generate false alerts at scale.
+A warning also creates the worst middle ground: it doesn't prevent the override from happening, it doesn't give the user a mechanism to act on it inline, and it
+trains developers to ignore it, the same fatigue that makes deprecation warnings invisible after the first occurrence.
+
+*Every path leads to the same destination.* The only difference is where the redirection happens and how easy it is to find. The ``.pth`` approach we implemented is deterministic - it runs before
+any user code, lives in one inspectable file in ``site-packages``, and supports a clean opt-out via ``URLLIB3_NO_OVERRIDE=1`` at install time. Of all the options, it's the most transparent.
+
+The discomfort is understandable. But it assumes a packaging system that supports package replacement natively - and Python's doesn't.
+When the principle collides with a hard ecosystem constraint, pragmatism has to win. Especially when the pragmatic choice is also the most auditable one.
+
+What tends to happen in practice is this: once the override is understood, most developers choose to keep it.
+
+The HTTP/2 and HTTP/3 support alone justifies it, and the compatibility story - we actually run the actual test suites of Requests, botocore, boto3, Sphinx, docker-py, and others on
+every push on top of urllib3-future, this builds genuine confidence that nothing will break.
+
+Using urllib3 within Niquests
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+If you are using Niquests alongside urllib3-future, prefer importing urllib3 through Niquests
+rather than directly::
 
     from niquests.packages import urllib3
 
-It's best to do that and will allow smoother upgrade in the future when we make important changes.
+This ensures smoother upgrades in the future when important changes are made.
 
-.. note:: The default behavior (ie. name shadowing) is not mandatory. You can circumvent it by a simple command. See below (Cohabitation).
+Audit
+^^^^^
+
+Anyone can freely analyze urllib3-future, its practices, sources, workflows ci/cd, sigstore signature, and so on.
+More details about the project history and more advanced topics are directly addressed there.
+
+Visit https://github.com/jawah/urllib3.future
 
 Cohabitation
 ~~~~~~~~~~~~
@@ -147,6 +183,8 @@ Niquests will use the secondary entrypoint for urllib3.future internally.
 It does not change anything for you. You may still pass ``urllib3.Retry`` and
 ``urllib3.Timeout`` regardless of the cohabitation, Niquests will do
 the translation internally.
+
+.. warning:: Separate namespace for urllib3 and urllib3-future can disturb the backward compatibility with Requests, especially with 3rd party plugins/extensions. Feel free to open an issue if you encounter compatibility bugs.
 
 Why are my headers are lowercased?
 ----------------------------------

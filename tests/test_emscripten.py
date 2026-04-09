@@ -566,8 +566,9 @@ async def _inner_test_sync_sse(selenium_jspi):
     cov = coverage.Coverage(source=["niquests"])
     cov.start()
     try:
-        from niquests import Session
         from niquests.packages.urllib3.contrib.webextensions.sse import ServerSentEvent
+
+        from niquests import Session
 
         with Session() as s:
             response = s.get("sse://httpbingo.org/sse?count=3&duration=1")
@@ -613,8 +614,9 @@ async def _inner_test_async_sse(selenium):
     cov = coverage.Coverage(source=["niquests"])
     cov.start()
     try:
-        from niquests import AsyncSession
         from niquests.packages.urllib3.contrib.webextensions.sse import ServerSentEvent
+
+        from niquests import AsyncSession
 
         async with AsyncSession() as s:
             response = await s.get("sse://httpbingo.org/sse?count=3&duration=1")
@@ -699,10 +701,10 @@ async def _inner_test_sync_timeout(selenium_jspi):
     cov.start()
     try:
         import pytest
+        from niquests.packages.urllib3.exceptions import MaxRetryError
 
         from niquests import Session, TimeoutConfiguration
         from niquests.exceptions import ConnectTimeout
-        from niquests.packages.urllib3.exceptions import MaxRetryError
 
         with Session(retries=False) as s:
             with pytest.raises(ConnectTimeout):
@@ -742,10 +744,10 @@ async def _inner_test_async_timeout(selenium):
     cov.start()
     try:
         import pytest
+        from niquests.packages.urllib3.exceptions import MaxRetryError
 
         from niquests import AsyncSession, TimeoutConfiguration
         from niquests.exceptions import ConnectTimeout
-        from niquests.packages.urllib3.exceptions import MaxRetryError
 
         async with AsyncSession(retries=False) as s:
             with pytest.raises(ConnectTimeout):

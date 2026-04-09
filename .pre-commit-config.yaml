@@ -2,7 +2,7 @@ exclude: 'docs/|src/niquests/_vendor'
 
 repos:
 - repo: https://github.com/pre-commit/pre-commit-hooks
-  rev: v5.0.0
+  rev: v6.0.0
   hooks:
   - id: check-yaml
   - id: debug-statements
@@ -10,7 +10,7 @@ repos:
   - id: trailing-whitespace
 - repo: https://github.com/astral-sh/ruff-pre-commit
   # Ruff version.
-  rev: v0.9.1
+  rev: v0.15.9
   hooks:
     # Run the linter.
     - id: ruff
@@ -33,3 +33,7 @@ repos:
       entry: codespell
       language: python
       types: [text]
+- repo: https://github.com/zizmorcore/zizmor-pre-commit
+  rev: v1.23.1
+  hooks:
+    - id: zizmor

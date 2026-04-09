@@ -3,9 +3,9 @@ from __future__ import annotations
 import pytest
 from flask import Flask, jsonify, request
 from flask import Response as FlaskResponse
+from niquests.packages.urllib3.contrib.webextensions.sse import ServerSentEvent
 
 from niquests import RetryConfiguration, Session
-from niquests.packages.urllib3.contrib.webextensions.sse import ServerSentEvent
 
 app = Flask(__name__)
 
