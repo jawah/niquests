@@ -7,10 +7,10 @@ import typing
 import pytest
 from fastapi import FastAPI, Request, WebSocket
 from fastapi.responses import JSONResponse
+from niquests.packages.urllib3.contrib.webextensions.sse import ServerSentEvent
 from starlette.responses import StreamingResponse
 
 from niquests import AsyncSession, RetryConfiguration, Session
-from niquests.packages.urllib3.contrib.webextensions.sse import ServerSentEvent
 
 app = FastAPI()
 

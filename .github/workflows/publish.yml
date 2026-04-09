@@ -53,7 +53,7 @@ jobs:
       actions: read
       contents: write
       id-token: write # Needed to access the workflow's OIDC identity.
-    uses: "slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@v2.1.0"
+    uses: slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@f7dd8c54c2067bafc12ca7a55595d5ee9b75204a  # v2.1.0
     with:
       base64-subjects: "${{ needs.build.outputs.hashes }}"
       upload-assets: true
@@ -81,8 +81,10 @@ jobs:
     - name: "Upload dists to GitHub Release"
       env:
         GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
+        REF_NAME: ${{ github.ref_name }}
+        REPOSITORY: ${{ github.repository }}
       run: |
-        gh release upload ${{ github.ref_name }} dist/* --repo ${{ github.repository }}
+        gh release upload "$REF_NAME" dist/* --repo "$REPOSITORY"
 
     - name: "Publish dists to PyPI"
       uses: "pypa/gh-action-pypi-publish@ed0c53931b1dc9bd32cbe73a98c7f6766f8a527e" # v1.13.0
