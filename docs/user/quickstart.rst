@@ -698,7 +698,7 @@ For example, GitHub redirects all HTTP requests to HTTPS:
     >>> r.status_code
     200
     >>> r.history
-    [<Response HTTP/2 [301]>]
+     [&lt;Response HTTP/2 [301]&gt;]
    </pre>
 
 If you're using GET, OPTIONS, POST, PUT, PATCH or DELETE, you can disable
@@ -723,7 +723,7 @@ If you're using HEAD, you can enable redirection as well:
     >>> r.url
     'https://github.com/'
     >>> r.history
-    [<Response HTTP/2 [301]>]
+     [&lt;Response HTTP/2 [301]&gt;]
    </pre>
 
 Timeouts
@@ -808,10 +808,10 @@ Find a quick way to know if your environment is capable of emitting HTTP/3 reque
     >>> from niquests import get
     >>> r = get("https://1.1.1.1")
     >>> r
-    <Response HTTP/2 [200]>
-    >>> r = get("https://1.1.1.1")
-    >>> r
-    <Response HTTP/3 [200]>
+     &lt;Response HTTP/2 [200]&gt;
+     >>> r = get("https://1.1.1.1")
+     >>> r
+     &lt;Response HTTP/3 [200]&gt;
    </pre>
 
 The underlying library natively understand the ``Alt-Svc`` header and is constantly looking for the ``h3``
