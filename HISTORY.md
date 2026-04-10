@@ -1,6 +1,12 @@
 Release History
 ===============
 
+3.18.5 (2026-04-10)
+-------------------
+
+**Fixed**
+- sse scheme (web extension) urls preparation are skipped. (#372)
+
 3.18.4 (2026-04-02)
 -------------------
 
