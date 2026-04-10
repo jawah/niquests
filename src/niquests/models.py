@@ -407,7 +407,7 @@ class PreparedRequest:
             "wsgi",
             "ws",
             "wss",
-            "see",
+            "sse",
             "psse",
             "psse+unix",
             "ws+unix",
