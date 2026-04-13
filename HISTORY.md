@@ -1,6 +1,12 @@
 Release History
 ===============
 
+3.18.6 (2026-04-13)
+-------------------
+
+**Fixed**
+- AsyncResponse aenter is not awaitable. (#374)
+
 3.18.5 (2026-04-10)
 -------------------
 
