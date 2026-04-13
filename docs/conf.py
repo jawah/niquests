@@ -43,6 +43,7 @@ extensions = [
     "sphinx_mdinclude",
     "sphinx_inline_tabs",
     "sphinxext.opengraph",
+    "sphinx.ext.intersphinx",
 ]
 
 # Open Graph metadata
@@ -143,7 +144,7 @@ html_theme_options = {
         "color-brand-content": "#7C4DFF",
     },
     "announcement": """
-        <a style=\"text-decoration: none; color: white;\" 
+        <a style=\"text-decoration: none; color: white;\"
            href=\"https://github.com/jawah/Niquests\">
             ⭐ Mark your support for Niquests initiative to bring an excellent, fair and free HTTP experience!
         </a>
@@ -410,4 +411,5 @@ epub_exclude_files = ["search.html"]
 intersphinx_mapping = {
     "python": ("https://docs.python.org/3/", None),
     "urllib3.future": ("https://urllib3future.readthedocs.io/en/latest", None),
+    "niquests_cache": ("https://niquests-cache.readthedocs.io/en/latest", None),
 }

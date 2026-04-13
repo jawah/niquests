@@ -2238,3 +2238,83 @@ Here is a quick example of how to leverage ECH.
 .. warning:: The custom resolver ``resolver=...`` is mandatory as the stdlib Python is completely unable to query a DNS HTTPS record, which is mandatory to retrieve the HPKE public key.
 
 .. note:: urllib3-future 2.19.900 or greater is required for that example. you may also need the ``rtls`` extra installed depending on your environment.
+
+.. _niquests-cache-filesystem:
+
+Filesystem caching
+------------------
+
+`niquests-cache`_ is a small companion library that adds **filesystem-backed response caching**
+to Niquests. It is intended as the successor to `requests-cache`_ for projects that have
+migrated to Niquests, but unlike requests-cache it supports async sessions. It will also eliminate
+the extra ``requests`` dependency brought in by requests-cache.
+
+.. warning:: ``niquests-cache`` is not a drop-in replacement for ``requests-cache`` as it only supports filesystem-backed caching.
+
+Install it from PyPI:
+
+.. code-block:: bash
+
+    pip install niquests-cache
+
+For synchronous use, the API is the same and async is almost identical:
+
+.. tab:: 🔂 Sync
+
+   .. code:: python
+
+        import niquests_cache
+
+        session = niquests_cache.CachedSession('demo_cache')  # stores files to demo_cache/
+        session.get('https://httpbin.org/delay/1')
+
+.. tab:: 🔀 Async
+
+   .. code:: python
+
+        import asyncio
+        import niquests_cache
+
+        async def main() -> None:
+            async with niquests_cache.CachedAsyncSession('demo_cache') as session:
+                session.get('https://httpbin.org/delay/1')
+
+        asyncio.run(main())
+
+Both classes extend :py:class:`niquests.Session`.
+
+The :py:func:`~niquests_cache.session.cached_session` helper returns a :py:class:`~niquests_cache.session.CachedSession` or
+:py:class:`~niquests_cache.session.CachedAsyncSession` depending on the ``aio`` parameter. Primarily its use is its ``app_name``
+parameter that makes it easy to store cache in conventional platform-specific paths without having to specify or calculate
+the complete path.
+
+.. tab:: 🔂 Sync
+
+    .. code:: python
+
+        from niquests_cache import cached_session
+
+        with cached_session(app_name='my-tool') as session:  # On XDG, stores to ~/.cache/my-tool/http
+            response = session.get('https://httpbin.org/get')
+            response.raise_for_status()
+
+.. tab:: 🔀 Async
+
+    .. code:: python
+
+        import asyncio
+        from niquests_cache import cached_session
+
+        async def main() -> None:
+            async with cached_session(app_name='my-tool', aio=True):
+                response = await session.get('https://httpbin.org/get')
+                response.raise_for_status()
+
+        asyncio.run(main())
+
+For configuration (custom cache directories, time-to-live, bypassing the cache per request, and
+more), see the `niquests-cache documentation`_.
+
+.. _niquests-cache: https://pypi.org/project/niquests-cache/
+.. _requests-cache: https://pypi.org/project/requests-cache/
+.. _niquests-cache documentation: https://niquests-cache.readthedocs.io/en/latest/
