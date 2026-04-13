@@ -1678,7 +1678,10 @@ class AsyncResponse(Response):
             else None
         )
 
-    def __aenter__(self) -> AsyncResponse:  # type: ignore[override]
+    def __enter__(self) -> typing.Never:  # type: ignore[override]
+        raise NotImplementedError("AsyncResponse support only 'async with'")
+
+    async def __aenter__(self) -> AsyncResponse:  # type: ignore[override]
         return self
 
     async def __aiter__(self) -> typing.AsyncIterator[bytes]:
