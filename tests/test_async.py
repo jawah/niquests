@@ -36,6 +36,13 @@ class TestAsyncWithoutMultiplex:
             assert resp.status_code == 200
             assert await resp.json()
 
+    async def test_awaitable_response_context(self):
+        async with AsyncSession() as s:
+            async with await s.get("https://httpbingo.org/get", stream=True) as resp:
+                assert resp.lazy is False
+                assert resp.status_code == 200
+                assert await resp.json()
+
     async def test_async_session_cookie_dummylock(self):
         async with AsyncSession() as s:
             await s.get("https://httpbingo.org/cookies/set?hello=world")
