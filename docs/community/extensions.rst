@@ -10,12 +10,16 @@ the extension owner.
 niquests-cache
 --------------
 
-`niquests-cache`_ is a small companion library that adds **filesystem-backed response caching**
-to Niquests. It is intended as the successor to `requests-cache`_ for projects that have
-migrated to Niquests, but unlike requests-cache it supports async sessions. It will also eliminate
-the extra ``requests`` dependency brought in by requests-cache.
+`niquests-cache`_ is a companion library that adds **HTTP response caching** to Niquests with
+pluggable storage backends. It is intended as the successor to `requests-cache`_ for projects that
+have migrated to Niquests, but unlike requests-cache it supports async sessions natively. It will
+also eliminate the extra ``requests`` dependency brought in by requests-cache.
 
-.. warning:: ``niquests-cache`` is not a drop-in replacement for ``requests-cache`` as it only supports filesystem-backed caching.
+Three backends are included:
+
+- **SQLite** (default) — efficient structured storage via a single ``.sqlite`` file
+- **Filesystem** — one file per cached entry, human-inspectable
+- **In-memory** — dictionary-backed, no disk I/O
 
 Install it from PyPI:
 
@@ -31,7 +35,7 @@ For synchronous use, the API is the same and async is almost identical:
 
         import niquests_cache
 
-        session = niquests_cache.CachedSession('demo_cache')  # stores files to demo_cache/
+        session = niquests_cache.CachedSession('demo_cache')
         session.get('https://httpbin.org/delay/1')
 
 .. tab:: 🔀 Async
@@ -42,15 +46,16 @@ For synchronous use, the API is the same and async is almost identical:
         import niquests_cache
 
         async def main() -> None:
-            async with niquests_cache.CachedAsyncSession('demo_cache') as session:
-                session.get('https://httpbin.org/delay/1')
+            async with niquests_cache.AsyncCachedSession('demo_cache') as session:
+                await session.get('https://httpbin.org/delay/1')
 
         asyncio.run(main())
 
-Both classes extend :py:class:`niquests.Session`.
+:py:class:`~niquests_cache.session.CachedSession` extends :py:class:`niquests.Session` and
+:py:class:`~niquests_cache.session.AsyncCachedSession` extends :py:class:`niquests.AsyncSession`.
 
 The :py:func:`~niquests_cache.session.cached_session` helper returns a :py:class:`~niquests_cache.session.CachedSession` or
-:py:class:`~niquests_cache.session.CachedAsyncSession` depending on the ``aio`` parameter. Primarily its use is its ``app_name``
+:py:class:`~niquests_cache.session.AsyncCachedSession` depending on the ``aio`` parameter. Primarily its use is its ``app_name``
 parameter that makes it easy to store cache in conventional platform-specific paths without having to specify or calculate
 the complete path.
 
@@ -60,7 +65,7 @@ the complete path.
 
         from niquests_cache import cached_session
 
-        with cached_session(app_name='my-tool') as session:  # On XDG, stores to ~/.cache/my-tool/http
+        with cached_session(app_name='my-tool') as session:  # On XDG, stores to ~/.cache/my-tool/http.sqlite
             response = session.get('https://httpbin.org/get')
             response.raise_for_status()
 
@@ -72,14 +77,40 @@ the complete path.
         from niquests_cache import cached_session
 
         async def main() -> None:
-            async with cached_session(app_name='my-tool', aio=True):
+            async with cached_session(app_name='my-tool', aio=True) as session:
                 response = await session.get('https://httpbin.org/get')
                 response.raise_for_status()
 
         asyncio.run(main())
 
-For configuration (custom cache directories, time-to-live, bypassing the cache per request, and
-more), see the `niquests-cache documentation`_.
+You can select a backend by alias or by passing an instance directly:
+
+.. code:: python
+
+    from niquests_cache import CachedSession
+
+    session = CachedSession('my_cache', backend='filesystem')
+    session = CachedSession('my_cache', backend='memory')
+    session = CachedSession('my_cache', backend='sqlite')  # default
+
+Individual requests accept per-request cache controls:
+
+.. code:: python
+
+    session.get('https://example.com', force_refresh=True)   # bypass cache, store fresh response
+    session.get('https://example.com', only_if_cached=True)  # return 504 if not cached
+    session.get('https://example.com', expire_after=60)      # override session TTL
+
+Cache behaviour is tuneable at runtime through ``session.settings``, and caching can be temporarily
+suspended with a context manager:
+
+.. code:: python
+
+    with session.cache_disabled():
+        response = session.get('https://example.com')  # not cached
+
+For the full configuration reference (URL-pattern TTL overrides, custom cache keys, header matching,
+ETag/Last-Modified revalidation, and more), see the `niquests-cache documentation`_.
 
 .. _niquests-cache: https://pypi.org/project/niquests-cache/
 .. _niquests-cache documentation: https://niquests-cache.readthedocs.io/en/latest/
