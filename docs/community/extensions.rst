@@ -1,3 +1,89 @@
+Native Niquests Extensions
+==========================
+
+The community regularly produce useful 3rd party extension that plugs directly into Niquests APIs without patch.
+We do not maintain the showcased extensions, any issue encountered with listed extensions must be reported to
+the extension owner.
+
+.. _niquests-cache-filesystem:
+
+niquests-cache
+--------------
+
+`niquests-cache`_ is a small companion library that adds **filesystem-backed response caching**
+to Niquests. It is intended as the successor to `requests-cache`_ for projects that have
+migrated to Niquests, but unlike requests-cache it supports async sessions. It will also eliminate
+the extra ``requests`` dependency brought in by requests-cache.
+
+.. warning:: ``niquests-cache`` is not a drop-in replacement for ``requests-cache`` as it only supports filesystem-backed caching.
+
+Install it from PyPI:
+
+.. code-block:: bash
+
+    pip install niquests-cache
+
+For synchronous use, the API is the same and async is almost identical:
+
+.. tab:: 🔂 Sync
+
+   .. code:: python
+
+        import niquests_cache
+
+        session = niquests_cache.CachedSession('demo_cache')  # stores files to demo_cache/
+        session.get('https://httpbin.org/delay/1')
+
+.. tab:: 🔀 Async
+
+   .. code:: python
+
+        import asyncio
+        import niquests_cache
+
+        async def main() -> None:
+            async with niquests_cache.CachedAsyncSession('demo_cache') as session:
+                session.get('https://httpbin.org/delay/1')
+
+        asyncio.run(main())
+
+Both classes extend :py:class:`niquests.Session`.
+
+The :py:func:`~niquests_cache.session.cached_session` helper returns a :py:class:`~niquests_cache.session.CachedSession` or
+:py:class:`~niquests_cache.session.CachedAsyncSession` depending on the ``aio`` parameter. Primarily its use is its ``app_name``
+parameter that makes it easy to store cache in conventional platform-specific paths without having to specify or calculate
+the complete path.
+
+.. tab:: 🔂 Sync
+
+    .. code:: python
+
+        from niquests_cache import cached_session
+
+        with cached_session(app_name='my-tool') as session:  # On XDG, stores to ~/.cache/my-tool/http
+            response = session.get('https://httpbin.org/get')
+            response.raise_for_status()
+
+.. tab:: 🔀 Async
+
+    .. code:: python
+
+        import asyncio
+        from niquests_cache import cached_session
+
+        async def main() -> None:
+            async with cached_session(app_name='my-tool', aio=True):
+                response = await session.get('https://httpbin.org/get')
+                response.raise_for_status()
+
+        asyncio.run(main())
+
+For configuration (custom cache directories, time-to-live, bypassing the cache per request, and
+more), see the `niquests-cache documentation`_.
+
+.. _niquests-cache: https://pypi.org/project/niquests-cache/
+.. _niquests-cache documentation: https://niquests-cache.readthedocs.io/en/latest/
+
 Extensions from Requests to Niquests
 ====================================
 
@@ -45,6 +131,8 @@ Quickstart to leverage its potential::
             r = s.get('https://httpbin.org/delay/1')
 
 .. warning:: Be advised that this extension nullify the advantage of using ``multiplexed=True`` within your Session constructor as is eagerly access the content.
+
+.. tip:: `niquests-cache`_ is a native alternative.
 
 responses
 ---------
