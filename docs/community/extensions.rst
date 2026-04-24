@@ -1,5 +1,8 @@
+Niquests Extension Ecosystem
+============================
+
 Native Niquests Extensions
-==========================
+--------------------------
 
 The community regularly produce useful 3rd party extension that plugs directly into Niquests APIs without patch.
 We do not maintain the showcased extensions, any issue encountered with listed extensions must be reported to
@@ -8,7 +11,7 @@ the extension owner.
 .. _niquests-cache-filesystem:
 
 niquests-cache
---------------
+~~~~~~~~~~~~~~
 
 `niquests-cache`_ is a companion library that adds **HTTP response caching** to Niquests with
 pluggable storage backends. It is intended as the successor to `requests-cache`_ for projects that
@@ -116,7 +119,7 @@ ETag/Last-Modified revalidation, and more), see the `niquests-cache documentatio
 .. _niquests-cache documentation: https://niquests-cache.readthedocs.io/en/latest/
 
 Extensions from Requests to Niquests
-====================================
+-------------------------------------
 
 One of the main strength behind Requests is the wide range of community plugins / extensions that
 allows one to extend its abilities.
@@ -136,7 +139,7 @@ There is 4 levels of compatibility:
 .. note:: Feel free to reach out to the maintainers and speak up about Niquests. Suggesting a patch to support both Requests, and Niquests is really straightforward!
 
 Requests Cache
---------------
+~~~~~~~~~~~~~~
 
 .. note:: Classified as: Working
 
@@ -166,7 +169,7 @@ Quickstart to leverage its potential::
 .. tip:: `niquests-cache`_ is a native alternative.
 
 responses
----------
+~~~~~~~~~
 
 .. note:: Classified as: Usable
 
@@ -353,7 +356,7 @@ have to extend the bellow code with the following::
 This will automatically make Responses work seamlessly when using awaitable http calls.
 
 betamax
--------
+~~~~~~~
 
 .. note:: Classified as: Usable
 
@@ -397,7 +400,7 @@ And make sure that the betamax plugin isn't loaded at boot with (pyproject.toml)
 Or run pytest directly with ``pytest -p no:pytest-betamax``.
 
 Requests-Toolbelt
------------------
+~~~~~~~~~~~~~~~~~
 
 .. note:: Classified as: Usable
 
@@ -409,17 +412,17 @@ requested by users within the community.
 .. _Requests-Toolbelt: https://toolbelt.readthedocs.io/en/latest/index.html
 
 requests-aws4auth
------------------
+~~~~~~~~~~~~~~~~~
 
 .. note:: Classified as: Native
 
 requests-file
--------------
+~~~~~~~~~~~~~
 
 .. note:: Classified as: Usable
 
 requests-mock
--------------
+~~~~~~~~~~~~~
 
 .. note:: Classified as: Usable
 
@@ -492,19 +495,19 @@ Then, use it as you were used to::
     of your pyproject.toml or equivalent.
 
 requests-ntlm
--------------
+~~~~~~~~~~~~~
 
 .. note:: Classified as: Native
 
 requests-unixsocket
--------------------
+~~~~~~~~~~~~~~~~~~~
 
 .. note:: Classified as: Usable
 
 .. warning:: Since Niquests 3.17.0 you are able to connect to unixsocket without it, natively.
 
 requests-futures
-----------------
+~~~~~~~~~~~~~~~~
 
 .. warning:: Classified as: Unusable
 
@@ -512,7 +515,7 @@ This project is no longer required for you! Niquests ships with native asyncio s
 Furthermore, you may leverage multiplexing to optimize your HTTP calls at will.
 
 requests-kerberos
------------------
+~~~~~~~~~~~~~~~~~
 
 .. note:: Classified as: Native
 
@@ -525,22 +528,22 @@ Nothing change from your previous code::
 The ``HTTPKerberosAuth`` can be used natively without patch.
 
 requests-pkcs12
----------------
+~~~~~~~~~~~~~~~
 
 .. note:: Classified as: Native
 
 requests-ntlm3
---------------
+~~~~~~~~~~~~~~
 
 .. note:: Classified as: Native
 
 requests-gssapi
----------------
+~~~~~~~~~~~~~~~
 
 .. note:: Classified as: Native
 
 Requests-OAuthlib
------------------
+~~~~~~~~~~~~~~~~~
 
 .. note:: Classified as: Working
 
@@ -571,4 +574,162 @@ Please patch your program as follow::
 
 The key element to be considered is ``requests_oauthlib.OAuth2Session.__bases__ = (niquests.Session,)``.
 You may apply it to ``requests_oauthlib.OAuth1Session`` too.
+
+vcrpy
+~~~~~
+
+.. note:: Classified as: Native
+
+`vcrpy`_ records and replays HTTP interactions as cassettes, making tests
+deterministic and fast.  It works with Niquests out of the box because it
+hooks into urllib3 at the connection-pool level.
+
+.. _vcrpy: https://github.com/kevin1024/vcrpy
+
+Basic synchronous usage requires no special setup::
+
+    import niquests
+    import vcr
+
+    with vcr.VCR().use_cassette("cassette.yaml"):
+        r = niquests.get("https://example.com/path")
+
+Enabling async support
+""""""""""""""""""""""
+
+vcrpy does not patch ``AsyncHTTPConnectionPool`` shipped by urllib3.future.
+The fixture below extends every cassette context so that async calls are
+also played back and recorded.
+
+Add the following to your ``conftest.py``:
+
+.. code-block:: python
+
+    import functools
+    import itertools
+    import logging
+    from unittest import mock
+
+    import pytest
+    from urllib3 import AsyncHTTPConnectionPool, AsyncHTTPResponse, HTTPHeaderDict
+    from vcr.errors import CannotOverwriteExistingCassetteException
+    from vcr.patch import CassettePatcherBuilder
+    from vcr.request import Request
+
+    log = logging.getLogger(__name__)
+
+    _original_async_urlopen = AsyncHTTPConnectionPool.urlopen
+    _original_build = CassettePatcherBuilder.build
+
+    _DEFAULT_PORTS = {"https": 443, "http": 80}
+
+
+    def _serialize_headers(headers) -> dict[str, list[str]]:
+        out: dict[str, list[str]] = {}
+        for key, val in headers.items():
+            out.setdefault(key, []).append(val)
+        return out
+
+
+    def _deserialize_headers(headers: dict[str, list[str]]) -> HTTPHeaderDict:
+        hd = HTTPHeaderDict()
+        for key, values in headers.items():
+            if isinstance(values, list):
+                for v in values:
+                    hd.add(key, v)
+            else:
+                hd.add(key, values)
+        return hd
+
+
+    def _reconstruct_uri(pool, url: str) -> str:
+        if url.startswith(("http://", "https://")):
+            return url
+        scheme = pool.scheme or "http"
+        host = pool.host
+        port = pool.port
+        port_postfix = f":{port}" if port and port != _DEFAULT_PORTS.get(scheme) else ""
+        return f"{scheme}://{host}{port_postfix}{url}"
+
+
+    def _build_async_response(vcr_response) -> AsyncHTTPResponse:
+        headers = dict(vcr_response.get("headers", {}))
+        for k in [h for h in headers if h.lower() == "transfer-encoding"]:
+            del headers[k]
+        body = vcr_response.get("body", {}).get("string", b"")
+        if isinstance(body, str):
+            body = body.encode("utf-8")
+        return AsyncHTTPResponse(
+            body=body,
+            status=vcr_response["status"]["code"],
+            reason=vcr_response["status"]["message"],
+            headers=_deserialize_headers(headers),
+            preload_content=True,
+        )
+
+
+    def _make_async_urlopen(cassette):
+        @functools.wraps(_original_async_urlopen)
+        async def vcr_async_urlopen(self, method, url, body=None, headers=None, **kw):
+            if headers is None:
+                headers = {}
+            uri = _reconstruct_uri(self, url)
+            vcr_request = Request(method, uri, body, _serialize_headers(headers))
+
+            if cassette.can_play_response_for(vcr_request):
+                log.info("Playing response for %s from cassette", vcr_request)
+                return _build_async_response(cassette.play_response(vcr_request))
+
+            if cassette.write_protected and cassette.filter_request(vcr_request):
+                raise CannotOverwriteExistingCassetteException(
+                    cassette=cassette, failed_request=vcr_request,
+                )
+
+            log.info("%s not in cassette, sending to real server", vcr_request)
+            response = await _original_async_urlopen(
+                self, method, url, body=body, headers=headers, **kw
+            )
+            resp_body = response._body
+            if resp_body is None:
+                resp_body = await response.data
+            if isinstance(resp_body, str):
+                resp_body = resp_body.encode("utf-8")
+            cassette.append(vcr_request, {
+                "status": {"code": response.status, "message": response.reason or ""},
+                "headers": _serialize_headers(response.headers),
+                "body": {"string": resp_body or b""},
+            })
+            return response
+
+        return vcr_async_urlopen
+
+
+    def _patched_build(self):
+        return itertools.chain(
+            _original_build(self),
+            (mock.patch.object(
+                AsyncHTTPConnectionPool, "urlopen",
+                _make_async_urlopen(self._cassette),
+            ),),
+        )
+
+
+    @pytest.fixture(scope="session", autouse=True)
+    def _vcr_async_urllib3():
+        """Monkey-patch vcrpy so cassettes also cover async urllib3."""
+        CassettePatcherBuilder.build = _patched_build
+        yield
+        CassettePatcherBuilder.build = _original_build
+
+Then use it in your async tests as you would normally:
+
+.. code-block:: python
+
+    import vcr
+
+    @vcr.use_cassette("cassette.yaml")
+    async def test_async_request():
+        async with niquests.AsyncSession() as s:
+            r = await s.get("https://example.com/path")
+            assert r.status_code == 200
 
