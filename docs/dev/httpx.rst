@@ -299,7 +299,7 @@ Caching
 -------
 
 - HTTPX: Hishel (https://hishel.com)  
-- Niquests: cachecontrol (https://github.com/cachecontrol/cachecontrol) or requests-cache (https://github.com/requests-cache/requests-cache)
+- Niquests: cachecontrol (https://github.com/psf/cachecontrol) or requests-cache (https://github.com/requests-cache/requests-cache)
 
 .. note:: See the migration guide for cachecontrol or requests-cache in extensions.
 
