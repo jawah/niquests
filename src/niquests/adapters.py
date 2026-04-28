@@ -16,7 +16,6 @@ import typing
 import warnings
 from datetime import timedelta
 from http.cookiejar import CookieJar
-from threading import RLock
 
 if sys.platform != "emscripten":
     import wassima
@@ -349,11 +348,13 @@ class HTTPAdapter(BaseAdapter):
         self._keepalive_delay = keepalive_delay
         self._keepalive_idle_window = keepalive_idle_window
 
-        #: we keep a list of pending (lazy) response
-        self._promises: dict[str, Response] = {}
-        self._orphaned: list[BaseHTTPResponse] = []
-        self._max_in_flight_multiplexed = max_in_flight_multiplexed
-        self._promise_lock = RLock()
+        if max_in_flight_multiplexed is not None:
+            warnings.warn(
+                "max_in_flight_multiplexed is deprecated and will be removed in a future version. "
+                "Backpressure is now handled automatically via connection pool saturation indicator.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
 
         self._ocsp_cache: typing.Any | None = None
         self._crl_cache: typing.Any | None = None
@@ -672,8 +673,7 @@ class HTTPAdapter(BaseAdapter):
             # Add new cookies from the server.
             extract_cookies_to_jar(response.cookies, req, resp)  # type: ignore[arg-type]
         else:
-            with self._promise_lock:
-                self._promises[resp.uid] = response  # type: ignore[union-attr]
+            resp.set_parameter("niquests_response", response)
 
         # Give the Response some context.
         response.request = req
@@ -820,16 +820,35 @@ class HTTPAdapter(BaseAdapter):
             "Tried to send a non-initialized PreparedRequest"
         )
 
-        # We enforce a limit to avoid burning out our connection pool.
-        if multiplexed and self._max_in_flight_multiplexed is not None:
-            with self._promise_lock:
-                if len(self._promises) >= self._max_in_flight_multiplexed:
-                    self.gather()
-
         try:
             conn = self.get_connection(request.url, proxies)
         except LocationValueError as e:
             raise InvalidURL(e, request=request)
+
+        # We enforce a check to avoid running out of capacity.
+        if multiplexed and conn.is_saturated:
+            # the pool is saturated = no more stream can be opened
+            while not conn.is_idle:  # we resolve everything pending
+                low_resp = conn.get_response()
+
+                if low_resp is not None:
+                    assert (
+                        low_resp._fp is not None
+                        and hasattr(low_resp._fp, "from_promise")
+                        and low_resp._fp.from_promise is not None
+                    )
+
+                    proxy = select_proxy(request.url, proxies)
+
+                    if proxy is not None:
+                        self.proxy_manager[proxy].pools.forget(low_resp._fp.from_promise)
+                    else:
+                        self.poolmanager.pools.forget(low_resp._fp.from_promise)
+
+                    response = low_resp._fp.from_promise.get_parameter("niquests_response")
+
+                    if response is not None:
+                        self._future_handler(response, low_resp)
 
         if isinstance(conn, HTTPSConnectionPool):
             self.cert_verify(conn, request.url, verify, cert)
@@ -1001,7 +1020,9 @@ class HTTPAdapter(BaseAdapter):
         extract_cookies_to_jar(response.cookies, req, low_resp)
         extract_cookies_to_jar(session_cookies, req, low_resp)
 
-        promise_ctx_backup = {k: v for k, v in response_promise._parameters.items() if k.startswith("niquests_")}
+        promise_ctx_backup = {
+            k: v for k, v in response_promise._parameters.items() if k.startswith("niquests_") and k != "niquests_response"
+        }
 
         if allow_redirects:
             next_request = response._resolve_redirect(response, req)
@@ -1011,7 +1032,6 @@ class HTTPAdapter(BaseAdapter):
                 raise TooManyRedirects(f"Exceeded {max_redirect} redirects", request=next_request)
 
             if next_request:
-                del self._promises[response_promise.uid]
 
                 def on_post_connection(conn_info: ConnectionInfo) -> None:
                     """This function will be called by urllib3.future just after establishing the connection."""
@@ -1147,185 +1167,163 @@ class HTTPAdapter(BaseAdapter):
             if response.extension is None:
                 response.content
 
-        del self._promises[response_promise.uid]
-
         return None
 
     def gather(self, *responses: Response, max_fetch: int | None = None) -> None:
-        with self._promise_lock:
-            if not self._promises:
-                return
+        mgrs: list[PoolManager | ProxyManager] = [
+            self.poolmanager,
+            *[pm for pm in self.proxy_manager.values()],
+        ]
 
-            mgrs: list[PoolManager | ProxyManager] = [
-                self.poolmanager,
-                *[pm for pm in self.proxy_manager.values()],
-            ]
+        if not any(mgr.pools.beacon(ResponsePromise) for mgr in mgrs):
+            return
 
-            # Either we did not have a list of promises to fulfill...
-            if not responses:
-                while True:
-                    if max_fetch is not None and max_fetch == 0:
-                        return
+        # Either we did not have a list of promises to fulfill...
+        if not responses:
+            while True:
+                if max_fetch is not None and max_fetch == 0:
+                    return
 
-                    low_resp = None
+                low_resp = None
 
-                    if self._orphaned:
-                        for orphan in self._orphaned:
-                            try:
-                                if orphan._fp.from_promise.uid in self._promises:  # type: ignore[union-attr]
-                                    low_resp = orphan
-                                    break
-                            except AttributeError:
-                                continue
+                try:
+                    for src in mgrs:
+                        low_resp = src.get_response()
                         if low_resp is not None:
-                            self._orphaned.remove(low_resp)
+                            break
+                except (ProtocolError, OSError) as err:
+                    raise ConnectionError(err)
 
-                    if low_resp is None:
-                        try:
-                            for src in mgrs:
-                                low_resp = src.get_response()
-                                if low_resp is not None:
-                                    break
-                        except (ProtocolError, OSError) as err:
-                            raise ConnectionError(err)
+                except MaxRetryError as e:
+                    if isinstance(e.reason, ConnectTimeoutError):
+                        # TODO: Remove this in 3.0.0: see #2811
+                        if not isinstance(e.reason, NewConnectionError):
+                            raise ConnectTimeout(e)
 
-                        except MaxRetryError as e:
-                            if isinstance(e.reason, ConnectTimeoutError):
-                                # TODO: Remove this in 3.0.0: see #2811
-                                if not isinstance(e.reason, NewConnectionError):
-                                    raise ConnectTimeout(e)
+                    if isinstance(e.reason, ResponseError):
+                        raise RetryError(e)
 
-                            if isinstance(e.reason, ResponseError):
-                                raise RetryError(e)
-
-                            if isinstance(e.reason, _ProxyError):
-                                raise ProxyError(e)
-
-                            if isinstance(e.reason, _SSLError):
-                                # This branch is for urllib3 v1.22 and later.
-                                raise SSLError(e)
-
-                            raise ConnectionError(e)
-
-                        except _ProxyError as e:
-                            raise ProxyError(e)
-
-                        except (_SSLError, _HTTPError) as e:
-                            if isinstance(e, _SSLError):
-                                # This branch is for urllib3 versions earlier than v1.22
-                                raise SSLError(e)
-                            elif isinstance(e, ReadTimeoutError):
-                                raise ReadTimeout(e)
-                            elif isinstance(e, _InvalidHeader):
-                                raise InvalidHeader(e)
-                            else:
-                                raise
-
-                    if low_resp is None:
-                        break
-
-                    if max_fetch is not None:
-                        max_fetch -= 1
-
-                    assert (
-                        low_resp._fp is not None
-                        and hasattr(low_resp._fp, "from_promise")
-                        and low_resp._fp.from_promise is not None
-                    )
-
-                    response = (
-                        self._promises[low_resp._fp.from_promise.uid]
-                        if low_resp._fp.from_promise.uid in self._promises
-                        else None
-                    )
-
-                    if response is None:
-                        self._orphaned.append(low_resp)
-                        continue
-
-                    self._future_handler(response, low_resp)
-            else:
-                still_redirects = []
-
-                # ...Or we have a list on which we should focus.
-                for response in responses:
-                    if max_fetch is not None and max_fetch == 0:
-                        return
-
-                    req = response.request
-
-                    assert req is not None
-
-                    if not hasattr(response, "_promise"):
-                        continue
-
-                    try:
-                        for src in mgrs:
-                            try:
-                                low_resp = src.get_response(promise=response._promise)
-                            except ValueError:
-                                low_resp = None
-
-                            if low_resp is not None:
-                                break
-                    except (ProtocolError, OSError) as err:
-                        raise ConnectionError(err)
-
-                    except MaxRetryError as e:
-                        if isinstance(e.reason, ConnectTimeoutError):
-                            # TODO: Remove this in 3.0.0: see #2811
-                            if not isinstance(e.reason, NewConnectionError):
-                                raise ConnectTimeout(e)
-
-                        if isinstance(e.reason, ResponseError):
-                            raise RetryError(e)
-
-                        if isinstance(e.reason, _ProxyError):
-                            raise ProxyError(e)
-
-                        if isinstance(e.reason, _SSLError):
-                            # This branch is for urllib3 v1.22 and later.
-                            raise SSLError(e)
-
-                        raise ConnectionError(e)
-
-                    except _ProxyError as e:
+                    if isinstance(e.reason, _ProxyError):
                         raise ProxyError(e)
 
-                    except (_SSLError, _HTTPError) as e:
-                        if isinstance(e, _SSLError):
-                            # This branch is for urllib3 versions earlier than v1.22
-                            raise SSLError(e)
-                        elif isinstance(e, ReadTimeoutError):
-                            raise ReadTimeout(e)
-                        elif isinstance(e, _InvalidHeader):
-                            raise InvalidHeader(e)
-                        else:
-                            raise
+                    if isinstance(e.reason, _SSLError):
+                        # This branch is for urllib3 v1.22 and later.
+                        raise SSLError(e)
 
-                    if low_resp is None:
-                        raise MultiplexingError(
-                            "Underlying library did not recognize our promise when asked to retrieve it. "
-                            "Did you close the session too early?"
-                        )
+                    raise ConnectionError(e)
 
-                    if max_fetch is not None:
-                        max_fetch -= 1
+                except _ProxyError as e:
+                    raise ProxyError(e)
 
-                    next_resp = self._future_handler(response, low_resp)
+                except (_SSLError, _HTTPError) as e:
+                    if isinstance(e, _SSLError):
+                        # This branch is for urllib3 versions earlier than v1.22
+                        raise SSLError(e)
+                    elif isinstance(e, ReadTimeoutError):
+                        raise ReadTimeout(e)
+                    elif isinstance(e, _InvalidHeader):
+                        raise InvalidHeader(e)
+                    else:
+                        raise
 
-                    if next_resp is not None:
-                        still_redirects.append(next_resp)
+                if low_resp is None:
+                    break
 
-                if still_redirects:
-                    self.gather(*still_redirects)
+                if max_fetch is not None:
+                    max_fetch -= 1
 
-                return
+                assert (
+                    low_resp._fp is not None and hasattr(low_resp._fp, "from_promise") and low_resp._fp.from_promise is not None
+                )
 
-            if not self._promises:
-                return
+                response = low_resp._fp.from_promise.get_parameter("niquests_response")
 
-            self.gather()
+                if response is None:
+                    continue
+
+                self._future_handler(response, low_resp)
+        else:
+            still_redirects = []
+
+            # ...Or we have a list on which we should focus.
+            for response in responses:
+                if max_fetch is not None and max_fetch == 0:
+                    return
+
+                req = response.request
+
+                assert req is not None
+
+                if not hasattr(response, "_promise"):
+                    continue
+
+                try:
+                    for src in mgrs:
+                        try:
+                            low_resp = src.get_response(promise=response._promise)
+                        except ValueError:
+                            low_resp = None
+
+                        if low_resp is not None:
+                            break
+                except (ProtocolError, OSError) as err:
+                    raise ConnectionError(err)
+
+                except MaxRetryError as e:
+                    if isinstance(e.reason, ConnectTimeoutError):
+                        # TODO: Remove this in 3.0.0: see #2811
+                        if not isinstance(e.reason, NewConnectionError):
+                            raise ConnectTimeout(e)
+
+                    if isinstance(e.reason, ResponseError):
+                        raise RetryError(e)
+
+                    if isinstance(e.reason, _ProxyError):
+                        raise ProxyError(e)
+
+                    if isinstance(e.reason, _SSLError):
+                        # This branch is for urllib3 v1.22 and later.
+                        raise SSLError(e)
+
+                    raise ConnectionError(e)
+
+                except _ProxyError as e:
+                    raise ProxyError(e)
+
+                except (_SSLError, _HTTPError) as e:
+                    if isinstance(e, _SSLError):
+                        # This branch is for urllib3 versions earlier than v1.22
+                        raise SSLError(e)
+                    elif isinstance(e, ReadTimeoutError):
+                        raise ReadTimeout(e)
+                    elif isinstance(e, _InvalidHeader):
+                        raise InvalidHeader(e)
+                    else:
+                        raise
+
+                if low_resp is None:
+                    raise MultiplexingError(
+                        "Underlying library did not recognize our promise when asked to retrieve it. "
+                        "Did you close the session too early?"
+                    )
+
+                if max_fetch is not None:
+                    max_fetch -= 1
+
+                next_resp = self._future_handler(response, low_resp)
+
+                if next_resp is not None:
+                    still_redirects.append(next_resp)
+
+            if still_redirects:
+                self.gather(*still_redirects)
+
+            return
+
+        if not any(mgr.pools.beacon(ResponsePromise) for mgr in mgrs):
+            return
+
+        self.gather()
 
 
 class AsyncHTTPAdapter(AsyncBaseAdapter):
@@ -1427,10 +1425,13 @@ class AsyncHTTPAdapter(AsyncBaseAdapter):
         self._keepalive_delay = keepalive_delay
         self._keepalive_idle_window = keepalive_idle_window
 
-        #: we keep a list of pending (lazy) response
-        self._promises: dict[str, Response | AsyncResponse] = {}
-        self._orphaned: list[BaseAsyncHTTPResponse] = []
-        self._max_in_flight_multiplexed = max_in_flight_multiplexed
+        if max_in_flight_multiplexed is not None:
+            warnings.warn(
+                "max_in_flight_multiplexed is deprecated and will be removed in a future version. "
+                "Backpressure is now handled automatically via connection pool saturation.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
 
         self._ocsp_cache: typing.Any | None = None
         self._crl_cache: typing.Any | None = None
@@ -1741,7 +1742,7 @@ class AsyncHTTPAdapter(AsyncBaseAdapter):
             # Add new cookies from the server.
             extract_cookies_to_jar(response.cookies, req, resp)  # type: ignore[arg-type]
         else:
-            self._promises[resp.uid] = response  # type: ignore[union-attr]
+            resp.set_parameter("niquests_response", response)
 
         # Give the Response some context.
         response.request = req
@@ -1888,15 +1889,35 @@ class AsyncHTTPAdapter(AsyncBaseAdapter):
             "Tried to send a non-initialized PreparedRequest"
         )
 
-        # We enforce a limit to avoid burning out our connection pool.
-        if multiplexed and self._max_in_flight_multiplexed is not None:
-            if len(self._promises) >= self._max_in_flight_multiplexed:
-                await self.gather()
-
         try:
             conn = await self.get_connection(request.url, proxies)
         except LocationValueError as e:
             raise InvalidURL(e, request=request)
+
+        # We enforce a check to avoid running out of capacity.
+        if multiplexed and conn.is_saturated:
+            # the pool is saturated = no more stream can be opened
+            while not conn.is_idle:  # we resolve everything pending
+                low_resp = await conn.get_response()
+
+                if low_resp is not None:
+                    assert (
+                        low_resp._fp is not None
+                        and hasattr(low_resp._fp, "from_promise")
+                        and low_resp._fp.from_promise is not None
+                    )
+
+                    proxy = select_proxy(request.url, proxies)
+
+                    if proxy is not None:
+                        self.proxy_manager[proxy].pools.forget(low_resp._fp.from_promise)
+                    else:
+                        self.poolmanager.pools.forget(low_resp._fp.from_promise)
+
+                    response = low_resp._fp.from_promise.get_parameter("niquests_response")
+
+                    if response is not None:
+                        await self._future_handler(response, low_resp)
 
         if isinstance(conn, AsyncHTTPSConnectionPool):
             need_reboot = self.cert_verify(conn, request.url, verify, cert)
@@ -2083,7 +2104,9 @@ class AsyncHTTPAdapter(AsyncBaseAdapter):
         extract_cookies_to_jar(response.cookies, req, low_resp)
         extract_cookies_to_jar(session_cookies, req, low_resp)
 
-        promise_ctx_backup = {k: v for k, v in response_promise._parameters.items() if k.startswith("niquests_")}
+        promise_ctx_backup = {
+            k: v for k, v in response_promise._parameters.items() if k.startswith("niquests_") and k != "niquests_response"
+        }
 
         if allow_redirects:
             next_request = await response._resolve_redirect(response, req)
@@ -2093,7 +2116,6 @@ class AsyncHTTPAdapter(AsyncBaseAdapter):
                 raise TooManyRedirects(f"Exceeded {max_redirect} redirects", request=next_request)
 
             if next_request:
-                del self._promises[response_promise.uid]
 
                 async def on_post_connection(conn_info: ConnectionInfo) -> None:
                     """This function will be called by urllib3.future just after establishing the connection."""
@@ -2234,18 +2256,21 @@ class AsyncHTTPAdapter(AsyncBaseAdapter):
                 await response.content  # type: ignore[misc]
             _swap_context(response)
 
-        del self._promises[response_promise.uid]
-
         return None
 
     async def gather(self, *responses: Response | AsyncResponse, max_fetch: int | None = None) -> None:
-        if not self._promises:
-            return
-
         mgrs: list[AsyncPoolManager | AsyncProxyManager] = [
             self.poolmanager,
             *[pm for pm in self.proxy_manager.values()],
         ]
+
+        has_pending = False
+        for mgr in mgrs:
+            if await mgr.pools.beacon(ResponsePromise):
+                has_pending = True
+                break
+        if not has_pending:
+            return
 
         # Either we did not have a list of promises to fulfill...
         if not responses:
@@ -2255,57 +2280,45 @@ class AsyncHTTPAdapter(AsyncBaseAdapter):
 
                 low_resp = None
 
-                if self._orphaned:
-                    for orphan in self._orphaned:
-                        try:
-                            if orphan._fp.from_promise.uid in self._promises:  # type: ignore[union-attr]
-                                low_resp = orphan
-                                break
-                        except AttributeError:
-                            continue
-                    if low_resp is not None:
-                        self._orphaned.remove(low_resp)
+                try:
+                    for src in mgrs:
+                        low_resp = await src.get_response()
+                        if low_resp is not None:
+                            break
+                except (ProtocolError, OSError) as err:
+                    raise ConnectionError(err)
 
-                if low_resp is None:
-                    try:
-                        for src in mgrs:
-                            low_resp = await src.get_response()
-                            if low_resp is not None:
-                                break
-                    except (ProtocolError, OSError) as err:
-                        raise ConnectionError(err)
+                except MaxRetryError as e:
+                    if isinstance(e.reason, ConnectTimeoutError):
+                        # TODO: Remove this in 3.0.0: see #2811
+                        if not isinstance(e.reason, NewConnectionError):
+                            raise ConnectTimeout(e)
 
-                    except MaxRetryError as e:
-                        if isinstance(e.reason, ConnectTimeoutError):
-                            # TODO: Remove this in 3.0.0: see #2811
-                            if not isinstance(e.reason, NewConnectionError):
-                                raise ConnectTimeout(e)
+                    if isinstance(e.reason, ResponseError):
+                        raise RetryError(e)
 
-                        if isinstance(e.reason, ResponseError):
-                            raise RetryError(e)
-
-                        if isinstance(e.reason, _ProxyError):
-                            raise ProxyError(e)
-
-                        if isinstance(e.reason, _SSLError):
-                            # This branch is for urllib3 v1.22 and later.
-                            raise SSLError(e)
-
-                        raise ConnectionError(e)
-
-                    except _ProxyError as e:
+                    if isinstance(e.reason, _ProxyError):
                         raise ProxyError(e)
 
-                    except (_SSLError, _HTTPError) as e:
-                        if isinstance(e, _SSLError):
-                            # This branch is for urllib3 versions earlier than v1.22
-                            raise SSLError(e)
-                        elif isinstance(e, ReadTimeoutError):
-                            raise ReadTimeout(e)
-                        elif isinstance(e, _InvalidHeader):
-                            raise InvalidHeader(e)
-                        else:
-                            raise
+                    if isinstance(e.reason, _SSLError):
+                        # This branch is for urllib3 v1.22 and later.
+                        raise SSLError(e)
+
+                    raise ConnectionError(e)
+
+                except _ProxyError as e:
+                    raise ProxyError(e)
+
+                except (_SSLError, _HTTPError) as e:
+                    if isinstance(e, _SSLError):
+                        # This branch is for urllib3 versions earlier than v1.22
+                        raise SSLError(e)
+                    elif isinstance(e, ReadTimeoutError):
+                        raise ReadTimeout(e)
+                    elif isinstance(e, _InvalidHeader):
+                        raise InvalidHeader(e)
+                    else:
+                        raise
 
                 if low_resp is None:
                     break
@@ -2317,12 +2330,9 @@ class AsyncHTTPAdapter(AsyncBaseAdapter):
                     low_resp._fp is not None and hasattr(low_resp._fp, "from_promise") and low_resp._fp.from_promise is not None
                 )
 
-                response = (
-                    self._promises[low_resp._fp.from_promise.uid] if low_resp._fp.from_promise.uid in self._promises else None
-                )
+                response = low_resp._fp.from_promise.get_parameter("niquests_response")
 
                 if response is None:
-                    self._orphaned.append(low_resp)
                     continue
 
                 await self._future_handler(response, low_resp)
@@ -2404,7 +2414,12 @@ class AsyncHTTPAdapter(AsyncBaseAdapter):
 
             return
 
-        if not self._promises:
+        has_pending = False
+        for mgr in mgrs:
+            if await mgr.pools.beacon(ResponsePromise):
+                has_pending = True
+                break
+        if not has_pending:
             return
 
         await self.gather()
