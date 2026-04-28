@@ -1,6 +1,12 @@
 Release History
 ===============
 
+3.18.7 (2026-04-28)
+-------------------
+
+**Fixed**
+- Session/AsyncSession with `multiplexed=True` (i.e. lazy response resolution) performance improvement. Up to 20% gain.
+
 3.18.6 (2026-04-13)
 -------------------
 
