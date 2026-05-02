@@ -82,10 +82,10 @@ _GET https://httpbingo.org/get_
 :tada: Niquests can easily bring you twice the throughput if you migrated today. Join us today!
 
 </details>
-
+ 
 ```python
->>> import niquests
->>> r = niquests.get('https://one.one.one.one')
+>>> import niquests, certifi
+>>> r = niquests.get("https://one.one.one.one", verify=certifi.where())
 >>> r.status_code
 200
 >>> r.headers['content-type']
