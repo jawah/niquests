@@ -56,7 +56,7 @@ class TestLiveStandardCase:
     @pytest.mark.skipif(qh3 is None, reason="qh3 unavailable")
     def test_ensure_http3_default(self) -> None:
         with Session(resolver="doh+cloudflare://") as s:
-            r = s.get("https://1.1.1.1")
+            r = s.get("https://one.one.one.one")
             assert r.conn_info.http_version is not None
             assert r.conn_info.http_version == HttpVersion.h3
 
