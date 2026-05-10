@@ -1161,14 +1161,16 @@ class Response:
 
     @typing.overload
     def iter_content(
-        self, chunk_size: int = ..., decode_unicode: Literal[False] = ...
+        self, chunk_size: int | None = ..., decode_unicode: Literal[False] = ...
     ) -> typing.Generator[bytes, None, None]: ...
 
     @typing.overload
-    def iter_content(self, chunk_size: int = ..., *, decode_unicode: Literal[True]) -> typing.Generator[str, None, None]: ...
+    def iter_content(
+        self, chunk_size: int | None = ..., *, decode_unicode: Literal[True]
+    ) -> typing.Generator[str, None, None]: ...
 
     def iter_content(
-        self, chunk_size: int = ITER_CHUNK_SIZE, decode_unicode: bool = False
+        self, chunk_size: int | None = ITER_CHUNK_SIZE, decode_unicode: bool = False
     ) -> typing.Generator[bytes | str, None, None]:
         """Iterates over the response data.  When stream=True is set on the
         request, this avoids reading the content at once into memory for
@@ -1707,16 +1709,16 @@ class AsyncResponse(Response):
 
     @typing.overload  # type: ignore[override]
     async def iter_content(
-        self, chunk_size: int = ..., decode_unicode: Literal[False] = ...
+        self, chunk_size: int | None = ..., decode_unicode: Literal[False] = ...
     ) -> typing.AsyncGenerator[bytes, None]: ...
 
     @typing.overload  # type: ignore[override]
     async def iter_content(
-        self, chunk_size: int = ..., *, decode_unicode: Literal[True]
+        self, chunk_size: int | None = ..., *, decode_unicode: Literal[True]
     ) -> typing.AsyncGenerator[str, None]: ...
 
     async def iter_content(  # type: ignore[override]
-        self, chunk_size: int = ITER_CHUNK_SIZE, decode_unicode: bool = False
+        self, chunk_size: int | None = ITER_CHUNK_SIZE, decode_unicode: bool = False
     ) -> typing.AsyncGenerator[bytes | str, None]:
         if self.lazy:
             await self._gather()
