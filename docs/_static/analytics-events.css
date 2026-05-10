@@ -1,0 +1,67 @@
+/* "Was this helpful?" widget injected by analytics-events.js */
+.niq-feedback {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin: 1.5rem 0 0.5rem;
+    padding: 0.5rem 0.75rem;
+    border-top: 1px solid var(--color-background-border, rgba(128, 128, 128, 0.25));
+    font-size: 0.85rem;
+    color: var(--color-foreground-muted, #666);
+    flex-wrap: wrap;
+}
+
+.niq-feedback__label {
+    margin-right: 0.25rem;
+}
+
+.niq-feedback__btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 2rem;
+    height: 1.75rem;
+    padding: 0 0.5rem;
+    border: 1px solid var(--color-background-border, rgba(128, 128, 128, 0.35));
+    border-radius: 999px;
+    background: transparent;
+    color: inherit;
+    font-size: 1rem;
+    line-height: 1;
+    cursor: pointer;
+    transition: background-color 120ms ease, border-color 120ms ease, transform 120ms ease;
+}
+
+.niq-feedback__btn:hover {
+    background: var(--color-background-hover, rgba(124, 77, 255, 0.08));
+    border-color: var(--color-brand-primary, #7C4DFF);
+    transform: translateY(-1px);
+}
+
+.niq-feedback__btn:focus-visible {
+    outline: 2px solid var(--color-brand-primary, #7C4DFF);
+    outline-offset: 2px;
+}
+
+.niq-feedback__ack {
+    margin-left: 0.5rem;
+    font-style: italic;
+    opacity: 0;
+    transition: opacity 200ms ease;
+}
+
+.niq-feedback--voted .niq-feedback__ack {
+    opacity: 1;
+}
+
+.niq-feedback--voted .niq-feedback__btn {
+    cursor: default;
+    opacity: 0.55;
+}
+
+.niq-feedback--up .niq-feedback__btn--up,
+.niq-feedback--down .niq-feedback__btn--down {
+    opacity: 1;
+    border-color: var(--color-brand-primary, #7C4DFF);
+    background: var(--color-background-hover, rgba(124, 77, 255, 0.12));
+}
