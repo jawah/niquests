@@ -159,7 +159,9 @@ async def request(
     # By using the 'with' statement we are sure the session is closed, thus we
     # avoid leaving sockets open which can trigger a ResourceWarning in some
     # cases, and look like a memory leak in others.
-    async with AsyncSession(quic_cache_layer=_SHARED_QUIC_CACHE, retries=retries) as session:
+    async with AsyncSession(
+        quic_cache_layer=_SHARED_QUIC_CACHE, retries=retries, keepalive_delay=None, keepalive_idle_window=None
+    ) as session:
         session._ocsp_cache = _SHARED_OCSP_CACHE.get()
         session._crl_cache = _SHARED_CRL_CACHE.get()
         try:

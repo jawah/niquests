@@ -156,7 +156,12 @@ html_theme_options = {
 }
 
 html_js_files = [
-    'https://unpkg.com/@terminhtml/bootstrap@1.x/dist/@terminhtml-bootstrap.umd.js'
+    'https://unpkg.com/@terminhtml/bootstrap@1.x/dist/@terminhtml-bootstrap.umd.js',
+    'analytics-events.js',
+]
+
+html_css_files = [
+    'analytics-events.css',
 ]
 
 googleanalytics_id = "G-F8C2DJ1CJN"

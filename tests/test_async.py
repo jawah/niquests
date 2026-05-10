@@ -155,6 +155,33 @@ class TestAsyncWithoutMultiplex:
 
                 assert r.request._body_position == 0
 
+    async def test_pre_request_fired_on_send(self):
+        """Regression: pre_request must also fire when calling
+        AsyncSession.send() directly with a manually-prepared PreparedRequest
+        (jawah/niquests#389)."""
+        import niquests
+
+        call_count = 0
+
+        def hook(*args, **kwargs):
+            nonlocal call_count
+            call_count += 1
+
+        async with AsyncSession() as s:
+            req = niquests.Request(
+                "GET",
+                "https://httpbingo.org/get",
+                hooks={"pre_request": [hook]},
+            )
+            await s.send(req.prepare())
+
+            assert call_count == 1
+
+            # Ensure no double-dispatch through the high-level API.
+            call_count = 0
+            await s.get("https://httpbingo.org/get", hooks={"pre_request": [hook]})
+            assert call_count == 1
+
 
 @pytest.mark.usefixtures("requires_wan")
 @pytest.mark.asyncio

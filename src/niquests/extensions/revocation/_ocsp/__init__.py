@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import contextlib
 import datetime
-import ipaddress
 import ssl
 import threading
 import typing
@@ -26,6 +25,7 @@ from ....packages.urllib3 import ConnectionInfo
 from ....packages.urllib3.contrib.resolver import BaseResolver
 from ....packages.urllib3.exceptions import SecurityWarning
 from ....typing import ProxyType
+from ....utils import is_private_ip
 
 
 @lru_cache(maxsize=64)
@@ -255,7 +255,7 @@ def verify(
     # they use a cert that IS NOT in the chain
     # to sign the response. It's weird but true.
     # see https://github.com/jawah/niquests/issues/274
-    ignore_signature_without_strict = ipaddress.ip_address(conn_info.destination_address[0]).is_private or bool(proxies)
+    ignore_signature_without_strict = is_private_ip(conn_info.destination_address[0]) or bool(proxies)
     verify_signature = strict is True or ignore_signature_without_strict is False
 
     peer_certificate = _parse_x509_der_cached(conn_info.certificate_der)

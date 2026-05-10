@@ -1,6 +1,15 @@
 Release History
 ===============
 
+3.18.8 (2026-05-10)
+-------------------
+
+**Fixed**
+- Avoid starting the background idle watcher/task in session-less requests.
+- `pre_request` hook not dispatched when passing through `Session.send`. (#389)
+- Repeated/redundant "is_ip_private" in CRL/OCSP algorithm. Now cached.
+- `Response.iter_content` inline typing definition missed allowing `None`. (#392)
+
 3.18.7 (2026-04-28)
 -------------------
 

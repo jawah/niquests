@@ -113,7 +113,9 @@ def request(
     # avoid leaving sockets open which can trigger a ResourceWarning in some
     # cases, and look like a memory leak in others.
     global _SHARED_OCSP_CACHE, _SHARED_CRL_CACHE
-    with sessions.Session(quic_cache_layer=_SHARED_QUIC_CACHE, retries=retries) as session:
+    with sessions.Session(
+        quic_cache_layer=_SHARED_QUIC_CACHE, retries=retries, keepalive_delay=None, keepalive_idle_window=None
+    ) as session:
         session._ocsp_cache = _SHARED_OCSP_CACHE
         session._crl_cache = _SHARED_CRL_CACHE
         try:

@@ -511,6 +511,16 @@ class AsyncSession(Session):
         stream = kwargs.get("stream")
         hooks = request.hooks
 
+        # Dispatch the pre_request hook here so it fires regardless of whether
+        # the user came in through AsyncSession.request() or called
+        # AsyncSession.send() directly with a manually prepared PreparedRequest.
+        # see https://github.com/jawah/niquests/issues/389
+        request = await async_dispatch_hook(  # type: ignore[assignment]
+            "pre_request",
+            hooks,  # type: ignore[arg-type]
+            request,
+        )
+
         ptr_request = request
 
         async def on_post_connection(conn_info: ConnectionInfo) -> None:
@@ -1053,12 +1063,6 @@ class AsyncSession(Session):
                 prep._body_position = await prep.body.tell()
             except OSError:
                 pass
-
-        prep = await async_dispatch_hook(
-            "pre_request",
-            prep.hooks,  # type: ignore[arg-type]
-            prep,
-        )
 
         assert prep.url is not None
 

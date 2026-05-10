@@ -1173,6 +1173,28 @@ class TestRequests:
 
         assert hook_called
 
+    def test_session_pre_request_fired_on_send(self, httpbin):
+        """Regression: pre_request must also fire when calling Session.send()
+        directly with a manually-prepared PreparedRequest (jawah/niquests#389)."""
+        call_count = 0
+
+        def hook(*args, **kwargs):
+            nonlocal call_count
+            call_count += 1
+
+        s = niquests.Session()
+
+        req = niquests.Request("GET", httpbin(), hooks={"pre_request": [hook]})
+        s.send(req.prepare())
+
+        assert call_count == 1
+
+        # And ensure it still fires exactly once through the high-level API
+        # (i.e. no double-dispatch regression).
+        call_count = 0
+        s.get(httpbin(), hooks={"pre_request": [hook]})
+        assert call_count == 1
+
     def test_session_hooks_are_overridden_by_request_hooks(self, httpbin):
         def hook1(*args, **kwargs):
             pass
