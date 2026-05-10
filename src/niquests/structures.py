@@ -80,6 +80,8 @@ class CaseInsensitiveDict(MutableMapping):
 
     def __init__(self, data=None, **kwargs) -> None:
         self._store: MutableMapping[bytes | str, tuple[bytes | str, ...]] = {}
+        if data is None and not kwargs:
+            return
         if data is None:
             data = {}
 
@@ -88,15 +90,14 @@ class CaseInsensitiveDict(MutableMapping):
             self._store = data._container.copy()
         elif isinstance(data, CaseInsensitiveDict):
             self._store = data._store.copy()  # type: ignore[attr-defined]
-        else:  # otherwise, we must ensure given iterable contains type we can rely on
-            if data or kwargs:
-                if hasattr(data, "items"):
-                    self.update(data, **kwargs)
-                else:
-                    self.update(
-                        {k: v for k, v in data},
-                        **kwargs,
-                    )
+        elif data or kwargs:  # otherwise, we must ensure given iterable contains type we can rely on
+            if hasattr(data, "items"):
+                self.update(data, **kwargs)
+            else:
+                self.update(
+                    {k: v for k, v in data},
+                    **kwargs,
+                )
 
     def __setitem__(self, key: str | bytes, value: str | bytes) -> None:
         # Use the lowercased key for lookups, but store the actual
