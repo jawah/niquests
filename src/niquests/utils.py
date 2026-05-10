@@ -12,6 +12,7 @@ import asyncio
 import codecs
 import contextlib
 import io
+import ipaddress
 import os
 import re
 import socket
@@ -578,6 +579,13 @@ def _get_mask_bits(mask: int, totalbits: int = 32) -> int:
     bits = ((1 << mask) - 1) << (totalbits - mask)
 
     return bits
+
+
+@lru_cache(maxsize=256)
+def is_private_ip(addr: str) -> bool:
+    """Cached check for whether an IP address is private. Avoids repeated
+    ``ipaddress.ip_address()`` construction which is expensive, especially for IPv6."""
+    return ipaddress.ip_address(addr).is_private
 
 
 def address_in_network(ip: str, net: str) -> bool:

@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import asyncio
 import datetime
-import ipaddress
 import ssl
 import typing
 import warnings
@@ -23,7 +22,7 @@ from .....packages.urllib3 import ConnectionInfo
 from .....packages.urllib3.contrib.resolver._async import AsyncBaseResolver
 from .....packages.urllib3.exceptions import SecurityWarning
 from .....typing import ProxyType
-from .....utils import is_cancelled_error_root_cause
+from .....utils import is_cancelled_error_root_cause, is_private_ip
 from .. import (
     _parse_x509_der_cached,
     _str_fingerprint_of,
@@ -265,7 +264,7 @@ async def verify(
         # they use a cert that IS NOT in the chain
         # to sign the response. It's weird but true.
         # see https://github.com/jawah/niquests/issues/274
-        ignore_signature_without_strict = ipaddress.ip_address(conn_info.destination_address[0]).is_private or bool(proxies)
+        ignore_signature_without_strict = is_private_ip(conn_info.destination_address[0]) or bool(proxies)
         verify_signature = strict is True or ignore_signature_without_strict is False
 
         # why are we doing this twice?
