@@ -118,6 +118,55 @@ ETag/Last-Modified revalidation, and more), see the `niquests-cache documentatio
 .. _niquests-cache: https://pypi.org/project/niquests-cache/
 .. _niquests-cache documentation: https://niquests-cache.readthedocs.io/en/latest/
 
+niquests-mock
+~~~~~~~~~~~~~
+
+`niquests-mock`_ is a RESPX-style HTTP mocking library built specifically for
+Niquests. It provides pytest fixtures, decorators, and context managers for
+mocking Niquests calls without importing Requests or patching the Requests
+ecosystem.
+
+Install it from PyPI:
+
+.. code-block:: bash
+
+    pip install niquests-mock
+
+The pytest plugin exposes a ``niquests_mock`` fixture:
+
+.. code:: python
+
+    import niquests
+
+
+    def test_fixture_style(niquests_mock):
+        route = niquests_mock.get("https://example.org/")
+        route.respond(status_code=200)
+
+        response = niquests.get("https://example.org/")
+
+        assert route.called
+        assert response.status_code == 200
+
+It can also be used as a decorator:
+
+.. code:: python
+
+    import niquests
+    import niquests_mock as nmock
+
+
+    @nmock.mock
+    def test_decorator_style():
+        route = nmock.get("https://example.org/", name="homepage").respond(status_code=200)
+        response = niquests.get("https://example.org/")
+
+        route.assert_called_once()
+        assert nmock.lookup("homepage") is route
+        assert response.status_code == 200
+
+.. _niquests-mock: https://pypi.org/project/niquests-mock/
+
 Extensions from Requests to Niquests
 -------------------------------------
 
@@ -732,4 +781,3 @@ Then use it in your async tests as you would normally:
         async with niquests.AsyncSession() as s:
             r = await s.get("https://example.com/path")
             assert r.status_code == 200
-
