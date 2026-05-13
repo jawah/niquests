@@ -1618,12 +1618,12 @@ We will use a Thread for the reads and the main thread for write operations.
 
 .. note:: The given example are really basic ones. You may adjust at will the settings and algorithm to match your requisites.
 
-Server Side Event (SSE)
+Server Sent Event (SSE)
 -----------------------
 
 .. note:: Available since version 3.11.2+
 
-Server side event or widely known with its acronym SSE is a extremely popular method to stream continuously event
+Server sent event or widely known with its acronym SSE is a extremely popular method to stream continuously event
 from the server to the client in real time.
 
 Before this built-in feature, most way to leverage this were to induce a bit of hacks into your http client.
