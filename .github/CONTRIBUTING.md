@@ -1,7 +1,7 @@
 # Contribution Guidelines
 
 Before opening any issues or proposing any pull requests, please read
-our [Contributor's Guide](https://requests.readthedocs.io/en/latest/dev/contributing/).
+our [Contributor's Guide](https://niquests.readthedocs.io/en/latest/dev/contributing.html).
 
 To get the greatest chance of helpful responses, please also observe the
 following additional notes.
@@ -9,9 +9,9 @@ following additional notes.
 ## Questions
 
 The GitHub issue tracker is for *bug reports* and *feature requests*. Please do
-not use it to ask questions about how to use Requests. These questions should
+not use it to ask questions about how to use Niquests. These questions should
 instead be directed to [Stack Overflow](https://stackoverflow.com/). Make sure
-that your question is tagged with the `python-requests` tag when asking it on
+that your question is tagged with the `python`, `python-niquests` and/or `python-requests` tags when asking it on
 Stack Overflow, to ensure that it is answered promptly and accurately.
 
 ## Good Bug Reports
@@ -44,9 +44,9 @@ Please be aware of the following things when filing bug reports:
      doesn't work" or "it fails". Tell us *how* it fails: do you get an
      exception? A hang? A non-200 status code? How was the actual result
      different from your expected result?
-   - Tell us **what version of Requests you're using**, and
-     **how you installed it**. Different versions of Requests behave
-     differently and have different bugs, and some distributors of Requests
+   - Tell us **what version of Niquests you're using**, and
+     **how you installed it**. Different versions of Niquests behave
+     differently and have different bugs, and some distributors of Niquests
      ship patches on top of the code we supply.
 
    If you do not provide all of these things, it will take us much longer to
