@@ -2942,3 +2942,30 @@ class TestPreparingURLs:
         r = niquests.get(httpbin("get"))
         assert r.http_version is not None
         assert r.http_version == 11
+
+
+    def test_encode_params_supports_int_values(self):
+        assert PreparedRequest._encode_params({"key": 42}) == "key=42"
+
+    def test_encode_params_supports_float_values(self):
+        assert PreparedRequest._encode_params({"key": 4.2}) == "key=4.2"
+
+    def test_encode_params_supports_bool_values(self):
+        assert PreparedRequest._encode_params({"key": True}) == "key=True"
+
+
+    def test_prepare_url_supports_int_params(self):
+        p = PreparedRequest()
+        p.prepare_url("https://example.com", {"key": 42})
+        assert p.url == "https://example.com/?key=42"
+
+    def test_prepare_url_supports_float_params(self):
+        p = PreparedRequest()
+        p.prepare_url("https://example.com", {"key": 4.2})
+        assert p.url == "https://example.com/?key=4.2"
+
+    def test_prepare_url_supports_bool_params(self):
+        p = PreparedRequest()
+        p.prepare_url("https://example.com", {"key": True})
+        assert p.url == "https://example.com/?key=True"
+
