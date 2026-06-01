@@ -197,6 +197,7 @@ class Request:
         hooks: HookType | AsyncHookType | None = None,
         json: typing.Any | None = None,
         base_url: str | None = None,
+        override_scheme: str | None = None,
     ):
         # Default empty dicts for dict params.
         data = [] if data is None else data
@@ -219,6 +220,7 @@ class Request:
         self.auth = auth
         self.cookies = cookies
         self.base_url = base_url
+        self.override_scheme = override_scheme
 
     @property
     def oheaders(self) -> Headers:
@@ -269,6 +271,7 @@ class Request:
             cookies=self.cookies,
             hooks=self.hooks,
             base_url=self.base_url,
+            override_scheme=self.override_scheme,
         )
 
         return p
@@ -339,11 +342,12 @@ class PreparedRequest:
         hooks: HookType[Response | PreparedRequest] | None = None,
         json: typing.Any | None = None,
         base_url: str | None = None,
+        override_scheme: str | None = None,
     ) -> None:
         """Prepares the entire request with the given parameters."""
 
         self.prepare_method(method)
-        self.prepare_url(url, params, base_url=base_url)
+        self.prepare_url(url, params, base_url=base_url, override_scheme=override_scheme)
         self.prepare_headers(headers)
         self.prepare_cookies(cookies)
         self.prepare_body(data, files, json)
@@ -379,6 +383,7 @@ class PreparedRequest:
         params: QueryParameterType | None,
         *,
         base_url: str | None = None,
+        override_scheme: str | None = None,
     ) -> None:
         """Prepares the given HTTP URL."""
         assert url is not None, "Missing URL in PreparedRequest"
@@ -421,13 +426,20 @@ class PreparedRequest:
         except LocationParseError as e:
             raise InvalidURL(*e.args)
 
+        # Override the scheme of the (base_url-)merged URL. This is only meaningful when a base_url
+        # is set, otherwise the user already fully controls the URL (and its scheme). The URL is then
+        # rebuilt below from its components, so we just swap the scheme here.
+        override_applied = base_url is not None and override_scheme is not None
+        if override_applied:
+            scheme = override_scheme
+
         if not host:
             raise InvalidURL(f"Invalid URL {url!r}: No host supplied")
 
         if host.startswith(("*", ".")):
             raise InvalidURL("URL has an invalid label.")
 
-        if (not path or "%" not in path) and not auth and not params and not host.startswith("xn--"):
+        if not override_applied and (not path or "%" not in path) and not auth and not params and not host.startswith("xn--"):
             self.url = url
             return
 

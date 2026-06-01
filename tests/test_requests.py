@@ -69,6 +69,10 @@ TARPIT = "http://10.255.255.1"
 INVALID_PROXY = "http://localhost:1"
 
 
+class _StopSend(Exception):
+    """Sentinel raised from a patched ``Session.send`` to capture the prepared URL without I/O."""
+
+
 class TestRequests:
     digest_auth_algo = ("MD5", "SHA-256", "SHA-512")
 
@@ -2654,6 +2658,7 @@ class RedirectSession(Session):
         self.max_redirects = 30
         self.cookies = {}
         self.trust_env = False
+        self.allow_incoming_cookies = True
 
     def send(self, *args, **kwargs):
         self.calls.append(SendCall(args, kwargs))
@@ -2934,6 +2939,47 @@ class TestPreparingURLs:
         prepared = r.prepare()
 
         assert prepared.url == "https://google.com"
+
+    @pytest.mark.parametrize(
+        "base_url, url, override_scheme, expected",
+        [
+            ("http://localhost:8080", "/events", "sse", "sse://localhost:8080/events"),
+            ("https://example.com", "/ws", "wss", "wss://example.com/ws"),
+            (
+                "http+unix://%2Ftmp%2Fx.sock",
+                "/events",
+                "sse+unix",
+                "sse+unix://%2Ftmp%2Fx.sock/events",
+            ),
+        ],
+    )
+    def test_override_scheme_with_base_url(self, base_url, url, override_scheme, expected):
+        s = niquests.Session(base_url=base_url)
+        captured = {}
+
+        def fake_send(prep, **kwargs):
+            captured["url"] = prep.url
+            raise _StopSend
+
+        s.send = fake_send
+        with pytest.raises(_StopSend):
+            s.get(url, override_scheme=override_scheme)
+
+        assert captured["url"] == expected
+
+    def test_override_scheme_ignored_without_base_url(self):
+        s = niquests.Session()
+        captured = {}
+
+        def fake_send(prep, **kwargs):
+            captured["url"] = prep.url
+            raise _StopSend
+
+        s.send = fake_send
+        with pytest.raises(_StopSend):
+            s.get("http://localhost:8080/events", override_scheme="sse")
+
+        assert captured["url"] == "http://localhost:8080/events"
 
     @pytest.mark.parametrize("url, exception", (("http://localhost:-1", InvalidURL),))
     def test_redirecting_to_bad_url(self, httpbin, url, exception):

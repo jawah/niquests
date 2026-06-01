@@ -1005,6 +1005,7 @@ class AsyncSession(Session):
         verify: TLSVerifyType | None = ...,
         cert: TLSClientCertType | None = ...,
         json: typing.Any | None = ...,
+        override_scheme: str | None = ...,
     ) -> Response: ...
 
     @typing.overload  # type: ignore[override]
@@ -1026,6 +1027,7 @@ class AsyncSession(Session):
         verify: TLSVerifyType | None = ...,
         cert: TLSClientCertType | None = ...,
         json: typing.Any | None = ...,
+        override_scheme: str | None = ...,
     ) -> AsyncResponse: ...
 
     async def request(  # type: ignore[override]
@@ -1046,6 +1048,7 @@ class AsyncSession(Session):
         verify: TLSVerifyType | None = None,
         cert: TLSClientCertType | None = None,
         json: typing.Any | None = None,
+        override_scheme: str | None = None,
     ) -> Response | AsyncResponse:
         if method.isupper() is False:
             method = method.upper()
@@ -1063,6 +1066,7 @@ class AsyncSession(Session):
             cookies=cookies,
             hooks=hooks,
             base_url=self.base_url,
+            override_scheme=override_scheme,
         )
 
         prep: PreparedRequest = self.prepare_request(req)

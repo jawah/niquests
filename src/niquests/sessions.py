@@ -583,6 +583,7 @@ class Session:
             cookies=merged_cookies,
             hooks=merge_hooks(request.hooks, self.hooks),
             base_url=self.base_url,
+            override_scheme=request.override_scheme,
         )
         return p
 
@@ -604,6 +605,7 @@ class Session:
         verify: TLSVerifyType | None = None,
         cert: TLSClientCertType | None = None,
         json: typing.Any | None = None,
+        override_scheme: str | None = None,
     ) -> Response:
         """Constructs a :class:`Request <Request>`, prepares it and sends it.
         Returns :class:`Response <Response>` object.
@@ -645,6 +647,10 @@ class Session:
             It is also possible to put the certificates (directly) in a string or bytes.
         :param cert: (optional) if String, path to ssl client cert file (.pem).
             If Tuple, ('cert', 'key') pair, or ('cert', 'key', 'key_password').
+        :param override_scheme: (optional) Override the scheme of the final URL just before picking
+            the adapter. Only applied when a ``base_url`` is set on the Session. Useful to target a
+            different scheme (e.g. ``sse`` or ``ws``/``wss``, optionally with an implementation suffix
+            like ``sse+unix``) than the one carried by ``base_url`` without retyping the full URL.
         """
         # Kept for BC-purposes. One may use lowercase http verb.
         if method.isupper() is False:
@@ -663,6 +669,7 @@ class Session:
             cookies=cookies,
             hooks=hooks,
             base_url=self.base_url,
+            override_scheme=override_scheme,
         )
 
         prep: PreparedRequest = self.prepare_request(req)
