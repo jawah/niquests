@@ -310,6 +310,7 @@ class WebServerGatewayInterface(BaseAdapter):
 
         if request.headers:
             for key, value in request.headers.items():
+                key = key if isinstance(key, str) else key.decode("latin-1")
                 key_upper = key.upper().replace("-", "_")
                 if key_upper == "CONTENT_TYPE":
                     environ["CONTENT_TYPE"] = value

@@ -269,7 +269,9 @@ class AsyncPyodideAdapter(AsyncBaseAdapter):
             for key, value in request.headers.items():
                 # Skip headers that browsers don't allow to be set
                 if key.lower() not in ("host", "content-length", "connection", "transfer-encoding"):
-                    headers_dict[key] = value
+                    headers_dict[key if isinstance(key, str) else key.decode("latin-1")] = (
+                        value if isinstance(value, str) else value.decode("latin-1")
+                    )
 
         # Prepare body
         body = request.body
@@ -329,7 +331,9 @@ class AsyncPyodideAdapter(AsyncBaseAdapter):
                 js_headers = js_response.headers
                 if hasattr(js_headers, "items"):
                     for key, value in js_headers.items():
-                        response_headers[key] = value
+                        response_headers[key if isinstance(key, str) else key.decode("latin-1")] = (
+                            value if isinstance(value, str) else value.decode("latin-1")
+                        )
                 elif hasattr(js_headers, "entries"):
                     # JavaScript Headers.entries() returns an iterator
                     for entry in js_headers.entries():
@@ -417,7 +421,9 @@ class AsyncPyodideAdapter(AsyncBaseAdapter):
         if request.headers:
             for key, value in request.headers.items():
                 if key.lower() not in ("host", "content-length", "connection"):
-                    headers_dict[key] = value
+                    headers_dict[key if isinstance(key, str) else key.decode("latin-1")] = (
+                        value if isinstance(value, str) else value.decode("latin-1")
+                    )
 
         ext = AsyncPyodideSSEExtension()
 

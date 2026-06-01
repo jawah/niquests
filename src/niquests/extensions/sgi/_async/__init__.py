@@ -492,7 +492,13 @@ class AsyncServerGatewayInterface(AsyncBaseAdapter):
         headers: list[tuple[bytes, bytes]] = []
         if request.headers:
             for key, value in request.headers.items():
-                headers.append((key.lower().encode("latin-1"), value.encode("latin-1")))
+                key = key if isinstance(key, str) else key.decode("latin-1")
+                headers.append(
+                    (
+                        key.lower().encode("latin-1"),
+                        value.encode("latin-1") if isinstance(value, str) else value,
+                    )
+                )
 
         scope: dict[str, typing.Any] = {
             "type": "http",
@@ -523,7 +529,13 @@ class AsyncServerGatewayInterface(AsyncBaseAdapter):
         headers: list[tuple[bytes, bytes]] = []
         if request.headers:
             for key, value in request.headers.items():
-                headers.append((key.lower().encode("latin-1"), value.encode("latin-1")))
+                key = key if isinstance(key, str) else key.decode("latin-1")
+                headers.append(
+                    (
+                        key.lower().encode("latin-1"),
+                        value.encode("latin-1") if isinstance(value, str) else value,
+                    )
+                )
 
         scheme = "wss" if parsed.scheme == "wss" else "ws"
 

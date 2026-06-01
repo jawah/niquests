@@ -303,7 +303,7 @@ class PreparedRequest:
         #: HTTP URL to send the request to.
         self.url: str | None = None
         #: dictionary of HTTP headers.
-        self.headers: CaseInsensitiveDict | None = None
+        self.headers: CaseInsensitiveDict[str | bytes, str | bytes] | None = None
         # The `CookieJar` used to create the Cookie header will be stored here
         # after prepare_cookies is called
         self._cookies: RequestsCookieJar | cookielib.CookieJar | None = None
@@ -956,11 +956,11 @@ class Response:
         #: Case-insensitive Dictionary of Response Headers.
         #: For example, ``headers['content-encoding']`` will return the
         #: value of a ``'Content-Encoding'`` response header.
-        self.headers: CaseInsensitiveDict = CaseInsensitiveDict()
+        self.headers: CaseInsensitiveDict[str, str] = CaseInsensitiveDict()
 
         #: Case-insensitive Dictionary of Response Trailer Headers.
         #: This can only be filled after response consumption.
-        self.trailers: CaseInsensitiveDict = CaseInsensitiveDict()
+        self.trailers: CaseInsensitiveDict[str, str] = CaseInsensitiveDict()
 
         #: File-like object representation of response (for advanced usage).
         #: Use of ``raw`` requires that ``stream=True`` be set on the request.
