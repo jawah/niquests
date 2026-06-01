@@ -6,12 +6,15 @@ import json
 import platform
 
 try:
-    import rtls as ssl
+    from .packages.urllib3.contrib.anytls import ssl
 except ImportError:
     try:
-        import ssl  # type: ignore[no-redef]
+        import rtls as ssl  # type: ignore[no-redef]
     except ImportError:
-        ssl = None  # type: ignore
+        try:
+            import ssl  # type: ignore[no-redef]
+        except ImportError:
+            ssl = None  # type: ignore
 
 import sys
 import warnings

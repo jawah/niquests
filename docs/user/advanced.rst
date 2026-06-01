@@ -2033,18 +2033,26 @@ Here is a simple example::
 
 .. warning:: Supported fingerprinting algorithms are sha256, and sha1. The prefix is mandatory.
 
-TLS Fingerprint (like JA3)
+TLS Fingerprint (like JA3/JA4)
 --------------------------
 
-Some of you seems to be interested in that topic, at least according to the statistics presented to me.
-Niquests is dedicated to providing a software that present a unique and close enough signature (against modern browser)
-that you should be protected against TLS censorship / blocking technics.
+.. versionadded:: 3.19.0
 
-We are actively working toward a way to permanently improving this.
-To help us fighting toward the greater good, feel free to sponsor us and/or speaking out loud about your
-experiences, whether about a specific country practices or global ISP/Cloud provider ones.
+If you want to be able to be seen as a browser like Google Chrome to avoid being blocked from certain services,
+Niquests support swappable TLS backend, and in those backends we support BoringSSL via ``utls``.
 
-.. note:: If you are getting blocked, come and get in touch with us through our Github issues.
+All that is needed for you to "impersonate" a modern browser is to install Niquests with::
+
+    pip install niquests[utls]
+
+To know which backend is effective, run::
+
+    python -m niquests.help
+
+If you see the TLS backend being "BoringSSL (OpenSSL 1.1.1 compatible)" then you're in!
+
+.. note:: If you are getting blocked, come and get in touch with us through our Github issues. We'll help unblock the situation.
+.. warning:: Being able to unblock access via a proper TLS fingerprint does not prevent you from being IP blacklisted. Providers are smart, they know some services can't exceed 1 RPS. You'll need proxies to extend RPS targets.
 
 Tracking the real download speed
 --------------------------------
