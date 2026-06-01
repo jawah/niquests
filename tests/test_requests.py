@@ -370,6 +370,32 @@ class TestRequests:
         s.get(url)
         assert s.cookies["foo"] == "bar"
 
+    def test_allow_incoming_cookies_default_keeps_incoming(self, httpbin):
+        s = niquests.Session()
+        assert s.allow_incoming_cookies is True
+        s.get(httpbin("cookies/set?foo=bar"), allow_redirects=False)
+        assert s.cookies["foo"] == "bar"
+
+    def test_allow_incoming_cookies_false_ignores_incoming(self, httpbin):
+        s = niquests.Session(allow_incoming_cookies=False)
+        assert s.allow_incoming_cookies is False
+        r = s.get(httpbin("cookies/set?foo=bar"), allow_redirects=False)
+        # incoming cookies are not merged into the session jar
+        assert "foo" not in s.cookies
+        # but the server cookies are still reported on the response
+        assert r.cookies["foo"] == "bar"
+
+    def test_allow_incoming_cookies_false_still_sends_outgoing(self, httpbin):
+        s = niquests.Session(allow_incoming_cookies=False)
+        s.cookies.set("foo", "bar")
+        r = s.get(httpbin("cookies"))
+        assert r.json()["cookies"] == {"foo": "bar"}
+
+    def test_allow_incoming_cookies_false_on_redirect(self, httpbin):
+        s = niquests.Session(allow_incoming_cookies=False)
+        s.get(httpbin("cookies/set?foo=bar"))  # sets cookie then redirects
+        assert "foo" not in s.cookies
+
     def test_cookie_sent_on_redirect(self, httpbin):
         s = niquests.Session()
         r = s.get(httpbin("cookies/set?foo=bar"))

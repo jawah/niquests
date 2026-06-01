@@ -218,6 +218,7 @@ class Session:
         "headers",
         "cookies",
         "auth",
+        "allow_incoming_cookies",
         "proxies",
         "hooks",
         "params",
@@ -275,6 +276,7 @@ class Session:
         proxies: ProxyType | None = None,
         verify: TLSVerifyType | None = None,
         cert: TLSClientCertType | None = None,
+        allow_incoming_cookies: bool = True,
     ):
         """
         :param resolver: Specify a DNS resolver that should be used within this Session.
@@ -312,6 +314,9 @@ class Session:
         :param proxies: Default proxies mapping to be used on every request emitted.
         :param verify: Default TLS verification policy to be used on every request emitted.
         :param cert: Default TLS client certificate to be used on every request emitted.
+        :param allow_incoming_cookies: Toggle whether cookies sent by the remote peer (via ``Set-Cookie``)
+            should be extracted and merged into this Session. Set it to ``False`` to ignore every incoming
+            cookie. Outgoing cookies you set yourself are still sent. Defaults to ``True``.
         """
         if [disable_ipv4, disable_ipv6].count(True) == 2:
             raise RuntimeError("Cannot disable both IPv4 and IPv6")
@@ -416,6 +421,11 @@ class Session:
         #: native ``cookielib.CookieJar`` passed at construction time is silently coerced.
         self.cookies: RequestsCookieJar = coerce_to_requests_cookiejar(cookies)
 
+        #: Toggle whether cookies sent by the remote peer (``Set-Cookie``) are extracted and merged
+        #: into this Session. When ``False``, every incoming cookie is ignored while outgoing cookies
+        #: set by the user are still emitted.
+        self.allow_incoming_cookies: bool = allow_incoming_cookies
+
         #: A simple dict that allows us to persist which server support QUIC
         #: It is simply forwarded to urllib3.future that handle the caching logic.
         #: Can be any mutable mapping.
@@ -455,6 +465,7 @@ class Session:
                     keepalive_delay=keepalive_delay,
                     keepalive_idle_window=keepalive_idle_window,
                     revocation_configuration=revocation_configuration,
+                    allow_incoming_cookies=allow_incoming_cookies,
                 ),
             )
             self.mount(
@@ -474,6 +485,7 @@ class Session:
                     keepalive_delay=keepalive_delay,
                     keepalive_idle_window=keepalive_idle_window,
                     revocation_configuration=revocation_configuration,
+                    allow_incoming_cookies=allow_incoming_cookies,
                 ),
             )
             self.mount(
@@ -493,6 +505,7 @@ class Session:
                     keepalive_delay=keepalive_delay,
                     keepalive_idle_window=keepalive_idle_window,
                     revocation_configuration=revocation_configuration,
+                    allow_incoming_cookies=allow_incoming_cookies,
                 ),
             )
         else:
@@ -1357,6 +1370,7 @@ class Session:
                     keepalive_delay=self._keepalive_delay,
                     keepalive_idle_window=self._keepalive_idle_window,
                     revocation_configuration=self._revocation_configuration,
+                    allow_incoming_cookies=self.allow_incoming_cookies,
                 ),
             )
             self.mount(
@@ -1376,6 +1390,7 @@ class Session:
                     keepalive_delay=self._keepalive_delay,
                     keepalive_idle_window=self._keepalive_idle_window,
                     revocation_configuration=self._revocation_configuration,
+                    allow_incoming_cookies=self.allow_incoming_cookies,
                 ),
             )
             self.mount(
@@ -1395,6 +1410,7 @@ class Session:
                     keepalive_delay=self._keepalive_delay,
                     keepalive_idle_window=self._keepalive_idle_window,
                     revocation_configuration=self._revocation_configuration,
+                    allow_incoming_cookies=self.allow_incoming_cookies,
                 ),
             )
 
@@ -1468,12 +1484,13 @@ class Session:
         r = dispatch_hook("response", hooks, r, **kwargs)  # type: ignore[arg-type]
 
         # Persist cookies
-        if r.history:
-            # If the hooks create history then we want those cookies too
-            for resp in r.history:
-                extract_cookies_to_jar(self.cookies, resp.request, resp.raw)
+        if self.allow_incoming_cookies:
+            if r.history:
+                # If the hooks create history then we want those cookies too
+                for resp in r.history:
+                    extract_cookies_to_jar(self.cookies, resp.request, resp.raw)
 
-        extract_cookies_to_jar(self.cookies, request, r.raw)
+            extract_cookies_to_jar(self.cookies, request, r.raw)
 
         # Resolve redirects if allowed.
         if allow_redirects:
@@ -1649,6 +1666,7 @@ class Session:
                 keepalive_delay=self._keepalive_delay,
                 keepalive_idle_window=self._keepalive_idle_window,
                 revocation_configuration=self._revocation_configuration,
+                allow_incoming_cookies=self.allow_incoming_cookies,
             ),
         )
         self.mount(
@@ -1668,6 +1686,7 @@ class Session:
                 keepalive_delay=self._keepalive_delay,
                 keepalive_idle_window=self._keepalive_idle_window,
                 revocation_configuration=self._revocation_configuration,
+                allow_incoming_cookies=self.allow_incoming_cookies,
             ),
         )
         self.mount(
@@ -1687,6 +1706,7 @@ class Session:
                 keepalive_delay=self._keepalive_delay,
                 keepalive_idle_window=self._keepalive_idle_window,
                 revocation_configuration=self._revocation_configuration,
+                allow_incoming_cookies=self.allow_incoming_cookies,
             ),
         )
         for adapter in self.adapters.values():
@@ -1843,7 +1863,8 @@ class Session:
             # Extract any cookies sent on the response to the cookiejar
             # in the new request. Because we've mutated our copied prepared
             # request, use the old one that we haven't yet touched.
-            extract_cookies_to_jar(prepared_request._cookies, req, resp.raw)
+            if self.allow_incoming_cookies:
+                extract_cookies_to_jar(prepared_request._cookies, req, resp.raw)
             merge_cookies(prepared_request._cookies, self.cookies)
             prepared_request.prepare_cookies(prepared_request._cookies)
 
@@ -1888,7 +1909,8 @@ class Session:
                 if hasattr(resp, "lazy") and resp.lazy:
                     resp.status_code
 
-                extract_cookies_to_jar(self.cookies, prepared_request, resp.raw)
+                if self.allow_incoming_cookies:
+                    extract_cookies_to_jar(self.cookies, prepared_request, resp.raw)
 
                 # extract redirect url, if any, for the next loop
                 url = self.get_redirect_target(resp)
