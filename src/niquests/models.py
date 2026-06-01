@@ -28,7 +28,6 @@ if typing.TYPE_CHECKING:
 
 from collections.abc import Mapping
 from http import cookiejar as cookielib
-from http.cookiejar import CookieJar
 from io import UnsupportedOperation
 from urllib.parse import urlencode, urlsplit, urlunparse
 
@@ -40,6 +39,7 @@ from .auth import BearerTokenAuth, HTTPBasicAuth
 from .cookies import (
     RequestsCookieJar,
     _copy_cookie_jar,
+    coerce_to_requests_cookiejar,
     cookiejar_from_dict,
     get_cookie_header,
 )
@@ -306,7 +306,7 @@ class PreparedRequest:
         self.headers: CaseInsensitiveDict | None = None
         # The `CookieJar` used to create the Cookie header will be stored here
         # after prepare_cookies is called
-        self._cookies: RequestsCookieJar | CookieJar | None = None
+        self._cookies: RequestsCookieJar | cookielib.CookieJar | None = None
         #: request body to send to the server.
         self.body: BodyType | AsyncBodyType | None = None
         #: dictionary of callback hooks, for internal usage.
@@ -666,7 +666,14 @@ class PreparedRequest:
         """
         assert self.headers is not None, "method prepare_cookies must be invoked after prepare_headers"
 
-        if isinstance(cookies, cookielib.CookieJar):
+        if type(cookies) is cookielib.CookieJar:
+            # A plain stdlib CookieJar carries no special behavior, so we coerce it into a
+            # RequestsCookieJar to expose the convenient mapping interface.
+            self._cookies = coerce_to_requests_cookiejar(cookies)
+        elif isinstance(cookies, cookielib.CookieJar):
+            # A RequestsCookieJar or an unknown CookieJar subclass (e.g. MozillaCookieJar or any
+            # file-backed/custom jar) is left untouched: converting it could drop its specific
+            # behavior and break the write-back of response cookies into the caller's own jar.
             self._cookies = cookies
         else:
             self._cookies = cookiejar_from_dict(cookies)
@@ -975,7 +982,7 @@ class Response:
         self.reason: str | None = None
 
         #: A CookieJar of Cookies the server sent back.
-        self.cookies: CookieJar = cookiejar_from_dict({})
+        self.cookies: RequestsCookieJar = RequestsCookieJar()
 
         #: The amount of time elapsed between sending the request
         #: and the arrival of the response (as a timedelta).

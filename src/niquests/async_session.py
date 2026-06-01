@@ -7,7 +7,6 @@ import typing
 import warnings
 from collections import OrderedDict
 from datetime import timedelta
-from http.cookiejar import CookieJar
 from urllib.parse import urljoin, urlparse
 
 from .status_codes import codes
@@ -25,7 +24,7 @@ from ._constant import (
 from .adapters import AsyncBaseAdapter, AsyncHTTPAdapter
 from .cookies import (
     RequestsCookieJar,
-    cookiejar_from_dict,
+    coerce_to_requests_cookiejar,
     extract_cookies_to_jar,
     merge_cookies,
 )
@@ -44,8 +43,6 @@ try:
 except ImportError:
     AsyncPyodideAdapter = None  # type: ignore[assignment,misc]
     if sys.platform == "emscripten":
-        import warnings
-
         warnings.warn(
             "unable to load native WASM adapter for AsyncSession. HTTP requests may fail in async.",
             UserWarning,
@@ -150,6 +147,11 @@ class AsyncSession(Session):
         hooks: AsyncHookType[PreparedRequest | Response | AsyncResponse] | None = None,
         revocation_configuration: RevocationConfiguration | None = DEFAULT_STRATEGY,
         app: ASGIApp | None = None,
+        params: QueryParameterType | None = None,
+        cookies: CookiesType | None = None,
+        proxies: ProxyType | None = None,
+        verify: TLSVerifyType | None = None,
+        cert: TLSClientCertType | None = None,
     ):
         if [disable_ipv4, disable_ipv6].count(True) == 2:
             raise RuntimeError("Cannot disable both IPv4 and IPv6")
@@ -177,7 +179,7 @@ class AsyncSession(Session):
         #: Dictionary mapping protocol or protocol and host to the URL of the proxy
         #: (e.g. {'http': 'foo.bar:3128', 'http://host.name': 'foo.bar:4012'}) to
         #: be used on each :class:`Request <Request>`.
-        self.proxies: ProxyType = {}
+        self.proxies: ProxyType = proxies if proxies is not None else {}
 
         #: Event-handling hooks.
         self.hooks: AsyncHookType[PreparedRequest | Response | AsyncResponse] = (
@@ -189,7 +191,7 @@ class AsyncSession(Session):
         #: Dictionary of querystring data to attach to each
         #: :class:`Request <Request>`. The dictionary values may be lists for
         #: representing multivalued query parameters.
-        self.params: QueryParameterType = {}
+        self.params: QueryParameterType = params if params is not None else {}
 
         #: Stream response content default.
         self.stream = False
@@ -231,11 +233,11 @@ class AsyncSession(Session):
         #: expired certificates, which will make your application vulnerable to
         #: man-in-the-middle (MitM) attacks.
         #: Only set this to `False` for testing.
-        self.verify: TLSVerifyType = True
+        self.verify: TLSVerifyType = verify if verify is not None else True
 
         #: SSL client certificate default, if String, path to ssl client
         #: cert file (.pem). If Tuple, ('cert', 'key') pair, or ('cert', 'key', 'key_password').
-        self.cert: TLSClientCertType | None = None
+        self.cert: TLSClientCertType | None = cert
 
         #: Maximum number of redirects allowed. If the request exceeds this
         #: limit, a :class:`TooManyRedirects` exception is raised.
@@ -251,10 +253,10 @@ class AsyncSession(Session):
         self.base_url: str | None = base_url
 
         #: A CookieJar containing all currently outstanding cookies set on this
-        #: session. By default it is a
-        #: :class:`RequestsCookieJar <requests.cookies.RequestsCookieJar>`, but
-        #: may be any other ``cookielib.CookieJar`` compatible object.
-        self.cookies: RequestsCookieJar | CookieJar = cookiejar_from_dict({}, thread_free=True)
+        #: session. It is always a
+        #: :class:`RequestsCookieJar <requests.cookies.RequestsCookieJar>`. A mapping or a
+        #: native ``cookielib.CookieJar`` passed at construction time is silently coerced.
+        self.cookies: RequestsCookieJar = coerce_to_requests_cookiejar(cookies, thread_free=True)
 
         #: A simple dict that allows us to persist which server support QUIC
         #: It is simply forwarded to urllib3.future that handle the caching logic.
