@@ -145,7 +145,7 @@ html_theme_options = {
     },
     "announcement": """
         <a style=\"text-decoration: none; color: white;\"
-           href=\"https://github.com/jawah/Niquests\">
+           href=\"https://github.com/jawah/niquests/releases\">
             ⭐ Niquests 3.19 is out! Browser TLS impersonation is supported.
         </a>
         <iframe src="https://ghbtns.com/github-btn.html?user=jawah&repo=niquests&type=star&count=true&size=large" frameborder="0" scrolling="0" width="170" height="30" title="GitHub"></iframe>
