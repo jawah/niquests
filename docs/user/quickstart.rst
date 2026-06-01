@@ -669,10 +669,30 @@ also be passed in to requests:
     >>> jar.set('tasty_cookie', 'yum', domain='httpbin.org', path='/cookies')
     >>> jar.set('gross_cookie', 'blech', domain='httpbin.org', path='/elsewhere')
     >>> url = 'https://httpbin.org/cookies'
-    >>> r = niquests.get(url, cookies=jar)
-    >>> r.text
-    '{"cookies": {"tasty_cookie": "yum"}}'
-   </pre>
+     >>> r = niquests.get(url, cookies=jar)
+     >>> r.text
+     '{"cookies": {"tasty_cookie": "yum"}}'
+    </pre>
+
+.. note::
+
+    ``Response.cookies``, ``Session.cookies`` and ``AsyncSession.cookies`` are always typed as
+    :class:`~niquests.cookies.RequestsCookieJar`. This means you can use them directly as a mapping
+    (e.g. ``session.cookies.set(...)`` or ``response.cookies['name']``) without first asserting or
+    casting the type, which static type checkers like mypy used to require.
+
+    This is **not** a runtime breaking change. Any ``http.cookiejar.CookieJar`` (or plain mapping)
+    you *pass in* is still accepted: a plain ``CookieJar`` is silently coerced to a
+    :class:`~niquests.cookies.RequestsCookieJar`, while a custom subclass (such as ``http.cookiejar.MozillaCookieJar`` and
+    other file-backed jars) is left untouched at the request level so it keeps its behavior.
+
+    The only trade-off is that *assigning* a non-:class:`~niquests.cookies.RequestsCookieJar` jar directly to the attribute,
+    for instance::
+
+        session.cookies = MozillaCookieJar("cookies.txt")  # type: ignore[assignment]
+
+    will now be flagged by type checkers. The assignment keeps working at runtime; add a
+    ``# type: ignore[assignment]`` (or a ``typing.cast``) if you rely on that pattern.
 
 Redirection and History
 -----------------------
@@ -761,7 +781,7 @@ this parameter in nearly all requests. By default GET, HEAD, OPTIONS ships with 
 
 .. tip::
 
-    Set ``happy_eyeballs=True`` when constructing your ``Session`` to try all endpoints simultaneously.
+    Set ``happy_eyeballs=True`` when constructing your :class:`~niquests.Session` to try all endpoints simultaneously.
     This will help you circumvent most of the connectivity issues.
 
 .. warning::
@@ -830,15 +850,15 @@ Starting from Niquests 3.2 you can issue concurrent requests without having mult
 It can leverage multiplexing when your remote peer support either HTTP/2, or HTTP/3.
 
 The only thing you will ever have to do to get started is to specify ``multiplexed=True`` from
-within your ``Session`` constructor.
+within your :class:`~niquests.Session` constructor.
 
-Any ``Response`` returned by get, post, put, etc... will be a lazy instance of ``Response``.
+Any :class:`~niquests.Response` returned by get, post, put, etc... will be a lazy instance of :class:`~niquests.Response`.
 
 .. note::
 
    An important note about using ``Session(multiplexed=True)`` is that, in order to be efficient
    and actually leverage its perks, you will have to issue multiple concurrent request before
-   actually trying to access any ``Response`` methods or attributes.
+   actually trying to access any :class:`~niquests.Response` methods or attributes.
 
 Modern browsers like Firefox, and Chrome utilize something really like ``multiplexed=True`` mode!
 It's a bit like if we have a controlled concurrent environment.
@@ -929,7 +949,7 @@ The possible algorithms are actually nearly limitless, and you may arrange/write
 Session Gather
 --------------
 
-The ``Session`` instance expose a method called ``gather(*responses, max_fetch = None)``, you may call it to
+The :class:`~niquests.Session` instance expose a method called ``gather(*responses, max_fetch = None)``, you may call it to
 improve the efficiency of resolving your _lazy_ responses.
 
 Here are the possible outcome of invocation:
@@ -960,7 +980,7 @@ Async session
 -------------
 
 You may have a program that require ``awaitable`` HTTP request. You are in luck as **Niquests** ships with
-an implementation of ``Session`` that support **async**.
+an implementation of :class:`~niquests.Session` that support **async**.
 
 All known methods remain the same at the sole difference that it return a coroutine.
 
@@ -1028,7 +1048,7 @@ Look at this basic sample::
         asyncio.run(main())
 
 
-.. warning:: Combining AsyncSession with ``multiplexed=True`` and passing ``stream=True`` produces ``AsyncResponse``, make sure to call ``await session.gather()`` before trying to access directly the lazy instance of response.
+.. warning:: Combining AsyncSession with ``multiplexed=True`` and passing ``stream=True`` produces :class:`~niquests.AsyncResponse`, make sure to call ``await session.gather()`` before trying to access directly the lazy instance of response.
 
 AsyncResponse for streams
 -------------------------
@@ -1081,7 +1101,7 @@ Or simply by doing::
 
         asyncio.run(main())
 
-When you specify ``stream=True`` within a ``AsyncSession``, the returned object will be of type ``AsyncResponse``.
+When you specify ``stream=True`` within a :class:`~niquests.AsyncSession`, the returned object will be of type :class:`~niquests.AsyncResponse`.
 So that the following methods and properties will be coroutines (aka. awaitable):
 
 - iter_content(...)
@@ -1126,7 +1146,7 @@ Here is a basic example of how you would do it::
 
         asyncio.run(main())
 
-.. warning:: Accessing (non awaitable attribute or method) of a lazy ``AsyncResponse`` without a call to ``s.gather()`` will raise an error.
+.. warning:: Accessing (non awaitable attribute or method) of a lazy :class:`~niquests.AsyncResponse` without a call to ``s.gather()`` will raise an error.
 
 Scale your Session / Pool
 -------------------------
@@ -1198,7 +1218,7 @@ DNSSEC in additions to specifics security perks on chosen protocol.
 Specify your own resolver
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
-In order to specify a resolver, you have to use a ``Session``. Each ``Session`` can have a different resolver.
+In order to specify a resolver, you have to use a :class:`~niquests.Session`. Each :class:`~niquests.Session` can have a different resolver.
 Here is a basic example that leverage Google public DNS over HTTPS.
 
 .. tab:: 🔂 Sync
@@ -1328,7 +1348,7 @@ This will prevent any DNS resolution that last longer to a second.
 Happy Eyeballs
 --------------
 
-.. note:: Available since version 3.5.5+
+.. versionadded:: 3.5.5
 
 Thanks to the underlying library (urllib3.future) we are able to serve the Happy Eyeballs feature, one toggle away.
 
@@ -1369,7 +1389,8 @@ OCSP requests (certificate revocation checks) will follow given ``happy_eyeballs
 WebSockets
 ----------
 
-.. note:: Available since version 3.9+ and requires to install an extra. ``pip install niquests[ws]``.
+.. versionadded:: 3.9
+   Requires to install an extra. ``pip install niquests[ws]``.
 
 It is undeniable that WebSockets are a vital part of the web ecosystem along with HTTP. We noticed that
 most users met frictions when trying to deal with a WebSocket server for the first time, that is why
@@ -1621,7 +1642,7 @@ We will use a Thread for the reads and the main thread for write operations.
 Server Sent Event (SSE)
 -----------------------
 
-.. note:: Available since version 3.11.2+
+.. versionadded:: 3.11.2
 
 Server sent event or widely known with its acronym SSE is a extremely popular method to stream continuously event
 from the server to the client in real time.
@@ -2106,7 +2127,7 @@ Running in the Browser (Pyodide)
 .. versionadded:: 3.18.0
 
 Niquests runs natively in `Pyodide <https://pyodide.org>`_ with zero configuration changes.
-Your existing code: HTTP requests, WebSocket, and SSE works identically using ``Session``, or ``AsyncSession``,
+Your existing code: HTTP requests, WebSocket, and SSE works identically using :class:`~niquests.Session`, or :class:`~niquests.AsyncSession`,
 and ``resp.extension``. The adapter is selected automatically when Pyodide is detected.
 
 .. warning:: The sync interfaces requires a JSPI capable browser or Node interpreter. Modern build of Firefox, Chrome and Node support it.

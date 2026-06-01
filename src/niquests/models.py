@@ -28,7 +28,6 @@ if typing.TYPE_CHECKING:
 
 from collections.abc import Mapping
 from http import cookiejar as cookielib
-from http.cookiejar import CookieJar
 from io import UnsupportedOperation
 from urllib.parse import urlencode, urlsplit, urlunparse
 
@@ -40,6 +39,7 @@ from .auth import BearerTokenAuth, HTTPBasicAuth
 from .cookies import (
     RequestsCookieJar,
     _copy_cookie_jar,
+    coerce_to_requests_cookiejar,
     cookiejar_from_dict,
     get_cookie_header,
 )
@@ -197,6 +197,7 @@ class Request:
         hooks: HookType | AsyncHookType | None = None,
         json: typing.Any | None = None,
         base_url: str | None = None,
+        override_scheme: str | None = None,
     ):
         # Default empty dicts for dict params.
         data = [] if data is None else data
@@ -219,6 +220,7 @@ class Request:
         self.auth = auth
         self.cookies = cookies
         self.base_url = base_url
+        self.override_scheme = override_scheme
 
     @property
     def oheaders(self) -> Headers:
@@ -269,6 +271,7 @@ class Request:
             cookies=self.cookies,
             hooks=self.hooks,
             base_url=self.base_url,
+            override_scheme=self.override_scheme,
         )
 
         return p
@@ -303,10 +306,10 @@ class PreparedRequest:
         #: HTTP URL to send the request to.
         self.url: str | None = None
         #: dictionary of HTTP headers.
-        self.headers: CaseInsensitiveDict | None = None
+        self.headers: CaseInsensitiveDict[str | bytes, str | bytes] | None = None
         # The `CookieJar` used to create the Cookie header will be stored here
         # after prepare_cookies is called
-        self._cookies: RequestsCookieJar | CookieJar | None = None
+        self._cookies: RequestsCookieJar | cookielib.CookieJar | None = None
         #: request body to send to the server.
         self.body: BodyType | AsyncBodyType | None = None
         #: dictionary of callback hooks, for internal usage.
@@ -339,11 +342,12 @@ class PreparedRequest:
         hooks: HookType[Response | PreparedRequest] | None = None,
         json: typing.Any | None = None,
         base_url: str | None = None,
+        override_scheme: str | None = None,
     ) -> None:
         """Prepares the entire request with the given parameters."""
 
         self.prepare_method(method)
-        self.prepare_url(url, params, base_url=base_url)
+        self.prepare_url(url, params, base_url=base_url, override_scheme=override_scheme)
         self.prepare_headers(headers)
         self.prepare_cookies(cookies)
         self.prepare_body(data, files, json)
@@ -379,6 +383,7 @@ class PreparedRequest:
         params: QueryParameterType | None,
         *,
         base_url: str | None = None,
+        override_scheme: str | None = None,
     ) -> None:
         """Prepares the given HTTP URL."""
         assert url is not None, "Missing URL in PreparedRequest"
@@ -421,13 +426,20 @@ class PreparedRequest:
         except LocationParseError as e:
             raise InvalidURL(*e.args)
 
+        # Override the scheme of the (base_url-)merged URL. This is only meaningful when a base_url
+        # is set, otherwise the user already fully controls the URL (and its scheme). The URL is then
+        # rebuilt below from its components, so we just swap the scheme here.
+        override_applied = base_url is not None and override_scheme is not None
+        if override_applied:
+            scheme = override_scheme
+
         if not host:
             raise InvalidURL(f"Invalid URL {url!r}: No host supplied")
 
         if host.startswith(("*", ".")):
             raise InvalidURL("URL has an invalid label.")
 
-        if (not path or "%" not in path) and not auth and not params and not host.startswith("xn--"):
+        if not override_applied and (not path or "%" not in path) and not auth and not params and not host.startswith("xn--"):
             self.url = url
             return
 
@@ -666,7 +678,14 @@ class PreparedRequest:
         """
         assert self.headers is not None, "method prepare_cookies must be invoked after prepare_headers"
 
-        if isinstance(cookies, cookielib.CookieJar):
+        if type(cookies) is cookielib.CookieJar:
+            # A plain stdlib CookieJar carries no special behavior, so we coerce it into a
+            # RequestsCookieJar to expose the convenient mapping interface.
+            self._cookies = coerce_to_requests_cookiejar(cookies)
+        elif isinstance(cookies, cookielib.CookieJar):
+            # A RequestsCookieJar or an unknown CookieJar subclass (e.g. MozillaCookieJar or any
+            # file-backed/custom jar) is left untouched: converting it could drop its specific
+            # behavior and break the write-back of response cookies into the caller's own jar.
             self._cookies = cookies
         else:
             self._cookies = cookiejar_from_dict(cookies)
@@ -949,11 +968,11 @@ class Response:
         #: Case-insensitive Dictionary of Response Headers.
         #: For example, ``headers['content-encoding']`` will return the
         #: value of a ``'Content-Encoding'`` response header.
-        self.headers: CaseInsensitiveDict = CaseInsensitiveDict()
+        self.headers: CaseInsensitiveDict[str, str] = CaseInsensitiveDict()
 
         #: Case-insensitive Dictionary of Response Trailer Headers.
         #: This can only be filled after response consumption.
-        self.trailers: CaseInsensitiveDict = CaseInsensitiveDict()
+        self.trailers: CaseInsensitiveDict[str, str] = CaseInsensitiveDict()
 
         #: File-like object representation of response (for advanced usage).
         #: Use of ``raw`` requires that ``stream=True`` be set on the request.
@@ -975,7 +994,7 @@ class Response:
         self.reason: str | None = None
 
         #: A CookieJar of Cookies the server sent back.
-        self.cookies: CookieJar = cookiejar_from_dict({})
+        self.cookies: RequestsCookieJar = RequestsCookieJar()
 
         #: The amount of time elapsed between sending the request
         #: and the arrival of the response (as a timedelta).

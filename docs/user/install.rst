@@ -86,6 +86,12 @@ Immediately swap your OpenSSL/LibreSSL default for a state-of-the-art, and memor
 
     $ python -m pip install niquests[rtls]
 
+- **utls**
+
+Immediately swap your OpenSSL/LibreSSL default for a known BoringSSL backend, used by major player like Google Chrome::
+
+    $ python -m pip install niquests[utls]
+
 - **Brotli**, **Zstandard** (zstd) and **orjson**
 
 Niquests can run significantly faster when your environment is capable of decompressing Brotli, and Zstd.
@@ -123,6 +129,8 @@ If by any chance you wanted to get the full list of (extra) features, you may in
     $ python -m pip install niquests[full]
 
 Instead of joining the long list of extras like ``zstd,socks,ws`` for example.
+
+.. note:: **full** does not include ``utls``.
 
 Get the Source Code
 -------------------

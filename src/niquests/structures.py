@@ -50,8 +50,17 @@ def _ensure_str_or_bytes(key: typing.Any, value: typing.Any) -> tuple[bytes | st
 
 _T = typing.TypeVar("_T")
 
+if typing.TYPE_CHECKING:
+    from typing_extensions import TypeVar
 
-class CaseInsensitiveDict(MutableMapping):
+    _KT = TypeVar("_KT", default="str | bytes")
+    _VT = TypeVar("_VT", default="str | bytes")
+else:
+    _KT = typing.TypeVar("_KT")
+    _VT = typing.TypeVar("_VT")
+
+
+class CaseInsensitiveDict(MutableMapping, typing.Generic[_KT, _VT]):
     """A case-insensitive ``dict``-like object.
 
     Implements all methods and operations of
@@ -99,57 +108,54 @@ class CaseInsensitiveDict(MutableMapping):
                     **kwargs,
                 )
 
-    def __setitem__(self, key: str | bytes, value: str | bytes) -> None:
+    def __setitem__(self, key: _KT, value: _VT) -> None:
         # Use the lowercased key for lookups, but store the actual
         # key alongside the value.
         self._store[_lower_wrapper(key)] = _ensure_str_or_bytes(key, value)
 
-    def __getitem__(self, key) -> bytes | str:
+    def __getitem__(self, key: _KT) -> _VT:
         e = self._store[_lower_wrapper(key)]
         if len(e) == 2:
-            return e[1]
+            return e[1]  # type: ignore[return-value]
         # this path should always be list[str] (if coming from urllib3.HTTPHeaderDict!)
         try:
-            return ", ".join(e[1:]) if isinstance(e[1], str) else b", ".join(e[1:])  # type: ignore[arg-type]
+            return ", ".join(e[1:]) if isinstance(e[1], str) else b", ".join(e[1:])  # type: ignore[arg-type,return-value]
         except TypeError:  # worst case scenario...
-            return ", ".join(v.decode() if isinstance(v, bytes) else v for v in e[1:])
+            return ", ".join(v.decode() if isinstance(v, bytes) else v for v in e[1:])  # type: ignore[return-value]
 
     @typing.overload  # type: ignore[override]
-    def get(self, key: str | bytes) -> str | bytes | None: ...
+    def get(self, key: _KT) -> _VT | None: ...
 
     @typing.overload
-    def get(self, key: str | bytes, default: str | bytes) -> str | bytes: ...
+    def get(self, key: _KT, default: _VT | _T) -> _VT | _T: ...
 
-    @typing.overload
-    def get(self, key: str | bytes, default: _T) -> str | bytes | _T: ...
-
-    def get(self, key: str | bytes, default: str | bytes | _T | None = None) -> str | bytes | _T | None:
+    def get(self, key: _KT, default: _VT | _T | None = None) -> _VT | _T | None:
         return super().get(key, default=default)
 
     def __delitem__(self, key) -> None:
         del self._store[_lower_wrapper(key)]
 
-    def __iter__(self) -> typing.Iterator[str | bytes]:
+    def __iter__(self) -> typing.Iterator[_KT]:
         for key_ci in self._store:
-            yield self._store[key_ci][0]
+            yield self._store[key_ci][0]  # type: ignore[misc]
 
     def __len__(self) -> int:
         return len(self._store)
 
-    def lower_items(self) -> typing.Iterator[tuple[bytes | str, bytes | str]]:
+    def lower_items(self) -> typing.Iterator[tuple[_KT, _VT]]:
         """Like iteritems(), but with all lowercase keys."""
-        return ((lowerkey, keyval[1]) for (lowerkey, keyval) in self._store.items())
+        return ((lowerkey, keyval[1]) for (lowerkey, keyval) in self._store.items())  # type: ignore[misc]
 
-    def items(self):
+    def items(self) -> typing.Iterator[tuple[_KT, _VT]]:  # type: ignore[override]
         for k in self._store:
             t = self._store[k]
             if len(t) == 2:
-                yield tuple(t)
+                yield tuple(t)  # type: ignore[misc]
             else:  # this case happen due to copying "_container" from HTTPHeaderDict!
                 try:
-                    yield t[0], ", ".join(t[1:])  # type: ignore[arg-type]
+                    yield t[0], ", ".join(t[1:])  # type: ignore[arg-type,misc]
                 except TypeError:
-                    yield (
+                    yield (  # type: ignore[misc]
                         t[0],
                         ", ".join(v.decode() if isinstance(v, bytes) else v for v in t[1:]),
                     )
@@ -163,14 +169,39 @@ class CaseInsensitiveDict(MutableMapping):
         return dict(self.lower_items()) == dict(other.lower_items())
 
     # Copy is required
-    def copy(self) -> CaseInsensitiveDict:
+    def copy(self) -> CaseInsensitiveDict[_KT, _VT]:
         return CaseInsensitiveDict(self)
 
     def __repr__(self) -> str:
         return str(dict(self.items()))
 
-    def __contains__(self, item: str) -> bool:  # type: ignore[override]
+    def __contains__(self, item: _KT) -> bool:  # type: ignore[override]
         return _lower_wrapper(item) in self._store
+
+    if typing.TYPE_CHECKING:
+
+        @typing.overload  # type: ignore[override,no-overload-impl]
+        def pop(self, key: _KT) -> _VT: ...
+        @typing.overload
+        def pop(self, key: _KT, default: _VT) -> _VT: ...
+        @typing.overload
+        def pop(self, key: _KT, default: _T) -> _VT | _T: ...
+
+        @typing.overload  # type: ignore[override,no-overload-impl]
+        def setdefault(self, key: _KT) -> _VT | None: ...
+        @typing.overload
+        def setdefault(self, key: _KT, default: _VT) -> _VT: ...
+
+        def popitem(self) -> tuple[_KT, _VT]: ...
+        def keys(self) -> typing.KeysView[_KT]: ...
+        def values(self) -> typing.ValuesView[_VT]: ...
+
+        @typing.overload  # type: ignore[override,no-overload-impl]
+        def update(self, m: typing.Mapping[_KT, _VT], **kwargs: _VT) -> None: ...
+        @typing.overload
+        def update(self, m: typing.Iterable[tuple[_KT, _VT]], **kwargs: _VT) -> None: ...
+        @typing.overload
+        def update(self, **kwargs: _VT) -> None: ...
 
 
 class LookupDict(dict):

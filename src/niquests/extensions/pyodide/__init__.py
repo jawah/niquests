@@ -239,7 +239,9 @@ class PyodideAdapter(BaseAdapter):
         if request.headers:
             for key, value in request.headers.items():
                 if key.lower() not in ("host", "content-length", "connection", "transfer-encoding"):
-                    headers_dict[key] = value
+                    headers_dict[key if isinstance(key, str) else key.decode("latin-1")] = (
+                        value if isinstance(value, str) else value.decode("latin-1")
+                    )
 
         # Prepare body
         body = request.body
@@ -288,7 +290,9 @@ class PyodideAdapter(BaseAdapter):
                 js_headers = js_response.headers
                 if hasattr(js_headers, "items"):
                     for key, value in js_headers.items():
-                        response_headers[key] = value
+                        response_headers[key if isinstance(key, str) else key.decode("latin-1")] = (
+                            value if isinstance(value, str) else value.decode("latin-1")
+                        )
                 elif hasattr(js_headers, "entries"):
                     for entry in js_headers.entries():
                         response_headers[entry[0]] = entry[1]
@@ -364,7 +368,9 @@ class PyodideAdapter(BaseAdapter):
         if request.headers:
             for key, value in request.headers.items():
                 if key.lower() not in ("host", "content-length", "connection"):
-                    headers_dict[key] = value
+                    headers_dict[key if isinstance(key, str) else key.decode("latin-1")] = (
+                        value if isinstance(value, str) else value.decode("latin-1")
+                    )
 
         try:
             ext = PyodideSSEExtension(http_url, headers=headers_dict)

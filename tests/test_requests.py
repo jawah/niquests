@@ -69,6 +69,10 @@ TARPIT = "http://10.255.255.1"
 INVALID_PROXY = "http://localhost:1"
 
 
+class _StopSend(Exception):
+    """Sentinel raised from a patched ``Session.send`` to capture the prepared URL without I/O."""
+
+
 class TestRequests:
     digest_auth_algo = ("MD5", "SHA-256", "SHA-512")
 
@@ -370,6 +374,32 @@ class TestRequests:
         s.get(url)
         assert s.cookies["foo"] == "bar"
 
+    def test_allow_incoming_cookies_default_keeps_incoming(self, httpbin):
+        s = niquests.Session()
+        assert s.allow_incoming_cookies is True
+        s.get(httpbin("cookies/set?foo=bar"), allow_redirects=False)
+        assert s.cookies["foo"] == "bar"
+
+    def test_allow_incoming_cookies_false_ignores_incoming(self, httpbin):
+        s = niquests.Session(allow_incoming_cookies=False)
+        assert s.allow_incoming_cookies is False
+        r = s.get(httpbin("cookies/set?foo=bar"), allow_redirects=False)
+        # incoming cookies are not merged into the session jar
+        assert "foo" not in s.cookies
+        # but the server cookies are still reported on the response
+        assert r.cookies["foo"] == "bar"
+
+    def test_allow_incoming_cookies_false_still_sends_outgoing(self, httpbin):
+        s = niquests.Session(allow_incoming_cookies=False)
+        s.cookies.set("foo", "bar")
+        r = s.get(httpbin("cookies"))
+        assert r.json()["cookies"] == {"foo": "bar"}
+
+    def test_allow_incoming_cookies_false_on_redirect(self, httpbin):
+        s = niquests.Session(allow_incoming_cookies=False)
+        s.get(httpbin("cookies/set?foo=bar"))  # sets cookie then redirects
+        assert "foo" not in s.cookies
+
     def test_cookie_sent_on_redirect(self, httpbin):
         s = niquests.Session()
         r = s.get(httpbin("cookies/set?foo=bar"))
@@ -432,11 +462,18 @@ class TestRequests:
 
     def test_cookielib_cookiejar_on_redirect(self, httpbin):
         """Tests resolve_redirect doesn't fail when merging cookies
-        with non-RequestsCookieJar cookiejar.
+        with a non-RequestsCookieJar cookiejar.
 
         See GH #3579
+
+        An unknown CookieJar subclass must be preserved as-is (not coerced into a
+        RequestsCookieJar) so that file-backed/custom jars keep their behavior.
         """
-        cj = cookiejar_from_dict({"foo": "bar"}, cookielib.CookieJar())
+
+        class CustomCookieJar(cookielib.CookieJar):
+            pass
+
+        cj = cookiejar_from_dict({"foo": "bar"}, CustomCookieJar())
         s = niquests.Session()
         s.cookies = cookiejar_from_dict({"cookie": "tasty"})
 
@@ -451,8 +488,8 @@ class TestRequests:
         redirects = s.resolve_redirects(resp, prep_req)
         resp = next(redirects)
 
-        # Verify CookieJar isn't being converted to RequestsCookieJar
-        assert isinstance(prep_req._cookies, cookielib.CookieJar)
+        # Verify the unknown CookieJar subclass isn't being converted to RequestsCookieJar
+        assert isinstance(prep_req._cookies, CustomCookieJar)
         assert isinstance(resp.request._cookies, cookielib.CookieJar)
         assert not isinstance(resp.request._cookies, niquests.cookies.RequestsCookieJar)
 
@@ -461,6 +498,17 @@ class TestRequests:
             cookies[c.name] = c.value
         assert cookies["foo"] == "bar"
         assert cookies["cookie"] == "tasty"
+
+    def test_plain_cookiejar_is_coerced_on_prepare(self):
+        """A plain stdlib CookieJar passed at request level is coerced (GH #401/#404)."""
+        cj = cookiejar_from_dict({"foo": "bar"}, cookielib.CookieJar())
+        assert type(cj) is cookielib.CookieJar
+
+        req = niquests.Request("GET", "http://example.com", cookies=cj)
+        prep = req.prepare()
+
+        assert isinstance(prep._cookies, niquests.cookies.RequestsCookieJar)
+        assert prep._cookies.get("foo") == "bar"
 
     def test_requests_in_history_are_not_overridden(self, httpbin):
         resp = niquests.get(httpbin("redirect/3"))
@@ -536,6 +584,59 @@ class TestRequests:
         """AsyncSession accepts custom auth at initialization."""
         s = niquests.AsyncSession(auth=init_auth)
         assert s.auth == expected_auth
+
+    @pytest.mark.parametrize("session_cls", (niquests.Session, niquests.AsyncSession))
+    def test_session_init_params(self, session_cls):
+        """Session/AsyncSession accept default params at initialization (issue #400)."""
+        s = session_cls(params={"foo": "bar"})
+        assert s.params == {"foo": "bar"}
+        # default stays an empty dict when not provided
+        assert session_cls().params == {}
+
+    @pytest.mark.parametrize("session_cls", (niquests.Session, niquests.AsyncSession))
+    def test_session_init_proxies(self, session_cls):
+        """Session/AsyncSession accept default proxies at initialization (issue #400)."""
+        s = session_cls(proxies={"https": "http://localhost:3128"})
+        assert s.proxies == {"https": "http://localhost:3128"}
+        assert session_cls().proxies == {}
+
+    @pytest.mark.parametrize("session_cls", (niquests.Session, niquests.AsyncSession))
+    def test_session_init_verify_and_cert(self, session_cls):
+        """Session/AsyncSession accept default verify/cert at initialization (issue #400)."""
+        s = session_cls(verify=False, cert="/tmp/client.pem")
+        assert s.verify is False
+        assert s.cert == "/tmp/client.pem"
+        # defaults are preserved when not provided
+        default = session_cls()
+        assert default.verify is True
+        assert default.cert is None
+
+    @pytest.mark.parametrize("session_cls", (niquests.Session, niquests.AsyncSession))
+    def test_session_init_cookies_from_dict(self, session_cls):
+        """Session/AsyncSession accept default cookies as a mapping (issue #400/#401)."""
+        s = session_cls(cookies={"foo": "bar"})
+        assert isinstance(s.cookies, niquests.cookies.RequestsCookieJar)
+        assert s.cookies.get("foo") == "bar"
+
+    @pytest.mark.parametrize("session_cls", (niquests.Session, niquests.AsyncSession))
+    def test_session_init_cookies_coerce_native_jar(self, session_cls):
+        """A native CookieJar passed at init is silently coerced (issue #401/#404)."""
+        cj = cookiejar_from_dict({"foo": "bar"}, cookielib.CookieJar())
+        s = session_cls(cookies=cj)
+        # always exposed as a RequestsCookieJar so .get/.set work like a mapping
+        assert isinstance(s.cookies, niquests.cookies.RequestsCookieJar)
+        assert s.cookies.get("foo") == "bar"
+        # the mapping/method API is now available (issue #404)
+        s.cookies.set("baz", "qux")
+        assert s.cookies.get("baz") == "qux"
+
+    @pytest.mark.parametrize("session_cls", (niquests.Session, niquests.AsyncSession))
+    def test_session_init_cookies_passthrough_requests_jar(self, session_cls):
+        """A RequestsCookieJar passed at init is used as-is."""
+        jar = niquests.cookies.RequestsCookieJar()
+        jar.set("foo", "bar")
+        s = session_cls(cookies=jar)
+        assert s.cookies is jar
 
     @pytest.mark.parametrize("key", ("User-agent", "user-agent"))
     def test_user_agent_transfers(self, httpbin, key):
@@ -2557,6 +2658,7 @@ class RedirectSession(Session):
         self.max_redirects = 30
         self.cookies = {}
         self.trust_env = False
+        self.allow_incoming_cookies = True
 
     def send(self, *args, **kwargs):
         self.calls.append(SendCall(args, kwargs))
@@ -2837,6 +2939,47 @@ class TestPreparingURLs:
         prepared = r.prepare()
 
         assert prepared.url == "https://google.com"
+
+    @pytest.mark.parametrize(
+        "base_url, url, override_scheme, expected",
+        [
+            ("http://localhost:8080", "/events", "sse", "sse://localhost:8080/events"),
+            ("https://example.com", "/ws", "wss", "wss://example.com/ws"),
+            (
+                "http+unix://%2Ftmp%2Fx.sock",
+                "/events",
+                "sse+unix",
+                "sse+unix://%2Ftmp%2Fx.sock/events",
+            ),
+        ],
+    )
+    def test_override_scheme_with_base_url(self, base_url, url, override_scheme, expected):
+        s = niquests.Session(base_url=base_url)
+        captured = {}
+
+        def fake_send(prep, **kwargs):
+            captured["url"] = prep.url
+            raise _StopSend
+
+        s.send = fake_send
+        with pytest.raises(_StopSend):
+            s.get(url, override_scheme=override_scheme)
+
+        assert captured["url"] == expected
+
+    def test_override_scheme_ignored_without_base_url(self):
+        s = niquests.Session()
+        captured = {}
+
+        def fake_send(prep, **kwargs):
+            captured["url"] = prep.url
+            raise _StopSend
+
+        s.send = fake_send
+        with pytest.raises(_StopSend):
+            s.get("http://localhost:8080/events", override_scheme="sse")
+
+        assert captured["url"] == "http://localhost:8080/events"
 
     @pytest.mark.parametrize("url, exception", (("http://localhost:-1", InvalidURL),))
     def test_redirecting_to_bad_url(self, httpbin, url, exception):

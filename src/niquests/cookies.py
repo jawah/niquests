@@ -568,6 +568,26 @@ def cookiejar_from_dict(
     return cookiejar
 
 
+def coerce_to_requests_cookiejar(
+    cookies: typing.MutableMapping[str, str] | cookielib.CookieJar | None,
+    thread_free: bool = False,
+) -> RequestsCookieJar:
+    """Coerce a user provided cookies value into a ``RequestsCookieJar``."""
+    if isinstance(cookies, RequestsCookieJar):
+        return cookies
+
+    jar = RequestsCookieJar(thread_free=thread_free)
+
+    if cookies is None:
+        return jar
+
+    if isinstance(cookies, cookielib.CookieJar):
+        jar.update(cookies)
+        return jar
+
+    return cookiejar_from_dict(cookies, cookiejar=jar)  # type: ignore[return-value]
+
+
 def merge_cookies(
     cookiejar: RequestsCookieJar | cookielib.CookieJar,
     cookies: typing.Mapping[str, str] | RequestsCookieJar | CookieJar,

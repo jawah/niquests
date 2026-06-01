@@ -17,7 +17,6 @@ from collections import OrderedDict
 from collections.abc import Mapping
 from datetime import timedelta
 from http import cookiejar as cookielib
-from http.cookiejar import CookieJar
 from urllib.parse import urljoin, urlparse
 
 from ._compat import HAS_LEGACY_URLLIB3, iscoroutinefunction, urllib3_ensure_type
@@ -31,6 +30,7 @@ from .adapters import BaseAdapter, HTTPAdapter
 from .auth import _basic_auth_str
 from .cookies import (
     RequestsCookieJar,
+    coerce_to_requests_cookiejar,
     cookiejar_from_dict,
     extract_cookies_to_jar,
     merge_cookies,
@@ -218,6 +218,7 @@ class Session:
         "headers",
         "cookies",
         "auth",
+        "allow_incoming_cookies",
         "proxies",
         "hooks",
         "params",
@@ -270,6 +271,12 @@ class Session:
         hooks: HookType[PreparedRequest | Response] | None = None,
         revocation_configuration: RevocationConfiguration | None = DEFAULT_STRATEGY,
         app: WSGIApp | ASGIApp | None = None,
+        params: QueryParameterType | None = None,
+        cookies: CookiesType | None = None,
+        proxies: ProxyType | None = None,
+        verify: TLSVerifyType | None = None,
+        cert: TLSClientCertType | None = None,
+        allow_incoming_cookies: bool = True,
     ):
         """
         :param resolver: Specify a DNS resolver that should be used within this Session.
@@ -301,6 +308,15 @@ class Session:
         :param revocation_configuration: How should that session do the certificate revocation check. Set it as None to disable
             this additional security measure.
         :param app: A WSGI (e.g. Flask) or ASGI (e.g. FastAPI) app to be mounted automatically.
+        :param params: Default query string parameters to be merged into every request emitted.
+        :param cookies: Default cookies to attach to every request emitted. A mapping or any
+            ``http.cookiejar.CookieJar`` is accepted and silently coerced to a ``RequestsCookieJar``.
+        :param proxies: Default proxies mapping to be used on every request emitted.
+        :param verify: Default TLS verification policy to be used on every request emitted.
+        :param cert: Default TLS client certificate to be used on every request emitted.
+        :param allow_incoming_cookies: Toggle whether cookies sent by the remote peer (via ``Set-Cookie``)
+            should be extracted and merged into this Session. Set it to ``False`` to ignore every incoming
+            cookie. Outgoing cookies you set yourself are still sent. Defaults to ``True``.
         """
         if [disable_ipv4, disable_ipv6].count(True) == 2:
             raise RuntimeError("Cannot disable both IPv4 and IPv6")
@@ -328,7 +344,7 @@ class Session:
         #: Dictionary mapping protocol or protocol and host to the URL of the proxy
         #: (e.g. {'http': 'foo.bar:3128', 'http://host.name': 'foo.bar:4012'}) to
         #: be used on each :class:`Request <Request>`.
-        self.proxies: ProxyType = {}
+        self.proxies: ProxyType = proxies if proxies is not None else {}
 
         #: Event-handling hooks.
         self.hooks: HookType[PreparedRequest | Response] = (
@@ -338,7 +354,7 @@ class Session:
         #: Dictionary of querystring data to attach to each
         #: :class:`Request <Request>`. The dictionary values may be lists for
         #: representing multivalued query parameters.
-        self.params: QueryParameterType = {}
+        self.params: QueryParameterType = params if params is not None else {}
 
         #: Stream response content default.
         self.stream = False
@@ -380,11 +396,11 @@ class Session:
         #: expired certificates, which will make your application vulnerable to
         #: man-in-the-middle (MitM) attacks.
         #: Only set this to `False` for testing.
-        self.verify: TLSVerifyType = True
+        self.verify: TLSVerifyType = verify if verify is not None else True
 
         #: SSL client certificate default, if String, path to ssl client
         #: cert file (.pem). If Tuple, ('cert', 'key') pair, or ('cert', 'key', 'key_password').
-        self.cert: TLSClientCertType | None = None
+        self.cert: TLSClientCertType | None = cert
 
         #: Maximum number of redirects allowed. If the request exceeds this
         #: limit, a :class:`TooManyRedirects` exception is raised.
@@ -400,10 +416,15 @@ class Session:
         self.base_url: str | None = base_url
 
         #: A CookieJar containing all currently outstanding cookies set on this
-        #: session. By default it is a
-        #: :class:`RequestsCookieJar <requests.cookies.RequestsCookieJar>`, but
-        #: may be any other ``cookielib.CookieJar`` compatible object.
-        self.cookies: RequestsCookieJar | CookieJar = cookiejar_from_dict({})
+        #: session. It is always a
+        #: :class:`RequestsCookieJar <requests.cookies.RequestsCookieJar>`. A mapping or a
+        #: native ``cookielib.CookieJar`` passed at construction time is silently coerced.
+        self.cookies: RequestsCookieJar = coerce_to_requests_cookiejar(cookies)
+
+        #: Toggle whether cookies sent by the remote peer (``Set-Cookie``) are extracted and merged
+        #: into this Session. When ``False``, every incoming cookie is ignored while outgoing cookies
+        #: set by the user are still emitted.
+        self.allow_incoming_cookies: bool = allow_incoming_cookies
 
         #: A simple dict that allows us to persist which server support QUIC
         #: It is simply forwarded to urllib3.future that handle the caching logic.
@@ -444,6 +465,7 @@ class Session:
                     keepalive_delay=keepalive_delay,
                     keepalive_idle_window=keepalive_idle_window,
                     revocation_configuration=revocation_configuration,
+                    allow_incoming_cookies=allow_incoming_cookies,
                 ),
             )
             self.mount(
@@ -463,6 +485,7 @@ class Session:
                     keepalive_delay=keepalive_delay,
                     keepalive_idle_window=keepalive_idle_window,
                     revocation_configuration=revocation_configuration,
+                    allow_incoming_cookies=allow_incoming_cookies,
                 ),
             )
             self.mount(
@@ -482,6 +505,7 @@ class Session:
                     keepalive_delay=keepalive_delay,
                     keepalive_idle_window=keepalive_idle_window,
                     revocation_configuration=revocation_configuration,
+                    allow_incoming_cookies=allow_incoming_cookies,
                 ),
             )
         else:
@@ -559,6 +583,7 @@ class Session:
             cookies=merged_cookies,
             hooks=merge_hooks(request.hooks, self.hooks),
             base_url=self.base_url,
+            override_scheme=request.override_scheme,
         )
         return p
 
@@ -580,6 +605,7 @@ class Session:
         verify: TLSVerifyType | None = None,
         cert: TLSClientCertType | None = None,
         json: typing.Any | None = None,
+        override_scheme: str | None = None,
     ) -> Response:
         """Constructs a :class:`Request <Request>`, prepares it and sends it.
         Returns :class:`Response <Response>` object.
@@ -621,6 +647,10 @@ class Session:
             It is also possible to put the certificates (directly) in a string or bytes.
         :param cert: (optional) if String, path to ssl client cert file (.pem).
             If Tuple, ('cert', 'key') pair, or ('cert', 'key', 'key_password').
+        :param override_scheme: (optional) Override the scheme of the final URL just before picking
+            the adapter. Only applied when a ``base_url`` is set on the Session. Useful to target a
+            different scheme (e.g. ``sse`` or ``ws``/``wss``, optionally with an implementation suffix
+            like ``sse+unix``) than the one carried by ``base_url`` without retyping the full URL.
         """
         # Kept for BC-purposes. One may use lowercase http verb.
         if method.isupper() is False:
@@ -639,6 +669,7 @@ class Session:
             cookies=cookies,
             hooks=hooks,
             base_url=self.base_url,
+            override_scheme=override_scheme,
         )
 
         prep: PreparedRequest = self.prepare_request(req)
@@ -1346,6 +1377,7 @@ class Session:
                     keepalive_delay=self._keepalive_delay,
                     keepalive_idle_window=self._keepalive_idle_window,
                     revocation_configuration=self._revocation_configuration,
+                    allow_incoming_cookies=self.allow_incoming_cookies,
                 ),
             )
             self.mount(
@@ -1365,6 +1397,7 @@ class Session:
                     keepalive_delay=self._keepalive_delay,
                     keepalive_idle_window=self._keepalive_idle_window,
                     revocation_configuration=self._revocation_configuration,
+                    allow_incoming_cookies=self.allow_incoming_cookies,
                 ),
             )
             self.mount(
@@ -1384,6 +1417,7 @@ class Session:
                     keepalive_delay=self._keepalive_delay,
                     keepalive_idle_window=self._keepalive_idle_window,
                     revocation_configuration=self._revocation_configuration,
+                    allow_incoming_cookies=self.allow_incoming_cookies,
                 ),
             )
 
@@ -1457,12 +1491,13 @@ class Session:
         r = dispatch_hook("response", hooks, r, **kwargs)  # type: ignore[arg-type]
 
         # Persist cookies
-        if r.history:
-            # If the hooks create history then we want those cookies too
-            for resp in r.history:
-                extract_cookies_to_jar(self.cookies, resp.request, resp.raw)
+        if self.allow_incoming_cookies:
+            if r.history:
+                # If the hooks create history then we want those cookies too
+                for resp in r.history:
+                    extract_cookies_to_jar(self.cookies, resp.request, resp.raw)
 
-        extract_cookies_to_jar(self.cookies, request, r.raw)
+            extract_cookies_to_jar(self.cookies, request, r.raw)
 
         # Resolve redirects if allowed.
         if allow_redirects:
@@ -1638,6 +1673,7 @@ class Session:
                 keepalive_delay=self._keepalive_delay,
                 keepalive_idle_window=self._keepalive_idle_window,
                 revocation_configuration=self._revocation_configuration,
+                allow_incoming_cookies=self.allow_incoming_cookies,
             ),
         )
         self.mount(
@@ -1657,6 +1693,7 @@ class Session:
                 keepalive_delay=self._keepalive_delay,
                 keepalive_idle_window=self._keepalive_idle_window,
                 revocation_configuration=self._revocation_configuration,
+                allow_incoming_cookies=self.allow_incoming_cookies,
             ),
         )
         self.mount(
@@ -1676,6 +1713,7 @@ class Session:
                 keepalive_delay=self._keepalive_delay,
                 keepalive_idle_window=self._keepalive_idle_window,
                 revocation_configuration=self._revocation_configuration,
+                allow_incoming_cookies=self.allow_incoming_cookies,
             ),
         )
         for adapter in self.adapters.values():
@@ -1832,7 +1870,8 @@ class Session:
             # Extract any cookies sent on the response to the cookiejar
             # in the new request. Because we've mutated our copied prepared
             # request, use the old one that we haven't yet touched.
-            extract_cookies_to_jar(prepared_request._cookies, req, resp.raw)
+            if self.allow_incoming_cookies:
+                extract_cookies_to_jar(prepared_request._cookies, req, resp.raw)
             merge_cookies(prepared_request._cookies, self.cookies)
             prepared_request.prepare_cookies(prepared_request._cookies)
 
@@ -1877,7 +1916,8 @@ class Session:
                 if hasattr(resp, "lazy") and resp.lazy:
                     resp.status_code
 
-                extract_cookies_to_jar(self.cookies, prepared_request, resp.raw)
+                if self.allow_incoming_cookies:
+                    extract_cookies_to_jar(self.cookies, prepared_request, resp.raw)
 
                 # extract redirect url, if any, for the next loop
                 url = self.get_redirect_target(resp)

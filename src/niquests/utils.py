@@ -61,6 +61,11 @@ from .packages.urllib3.contrib.webextensions._async import AsyncExtensionFromHTT
 from .packages.urllib3.util import make_headers, parse_url
 from .structures import CaseInsensitiveDict
 
+try:
+    from .packages.urllib3.contrib.anytls import BACKEND
+except ImportError:
+    BACKEND = "ssl"
+
 if typing.TYPE_CHECKING:
     from .cookies import RequestsCookieJar
     from .models import AsyncResponse, PreparedRequest, Request, Response
@@ -860,11 +865,20 @@ def default_user_agent(name: str = "niquests") -> str:
 
 
 def default_headers() -> CaseInsensitiveDict:
+    # utls backend = BoringSSL = Google Chrome target
+    # we shall not interfere with predefined headers from
+    # low-level ctx.
+    if BACKEND != "utls":
+        return CaseInsensitiveDict(
+            {
+                "User-Agent": default_user_agent(),
+                "Accept-Encoding": DEFAULT_ACCEPT_ENCODING,
+                "Accept": "*/*",
+                "Connection": "keep-alive",
+            }
+        )
     return CaseInsensitiveDict(
         {
-            "User-Agent": default_user_agent(),
-            "Accept-Encoding": DEFAULT_ACCEPT_ENCODING,
-            "Accept": "*/*",
             "Connection": "keep-alive",
         }
     )

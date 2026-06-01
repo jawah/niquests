@@ -70,6 +70,23 @@ is done by providing data to the properties on a Session object:
         # both 'x-test' and 'x-test2' are sent
         await s.get('https://httpbin.org/headers', headers={'x-test2': 'true'})
 
+.. versionadded:: 3.19
+
+    You may also pass those defaults directly to the constructor, the same way as ``headers``::
+
+        s = niquests.Session(
+            params={'page': '1'},
+            headers={'x-test': 'true'},
+            cookies={'from-my': 'browser'},
+            auth=('user', 'pass'),
+            proxies={'https': 'http://localhost:3128'},
+            verify=True,
+        )
+
+    A native ``http.cookiejar.CookieJar`` (or a plain mapping) given to ``cookies`` is silently
+    converted to a :class:`~niquests.cookies.RequestsCookieJar`, so ``s.cookies`` always exposes the convenient mapping
+    interface (e.g. ``s.cookies.set(...)``).
+
 
 Any dictionaries that you pass to a request method will be merged with the
 session-level values that are set. The method-level parameters override session
@@ -140,7 +157,7 @@ exited, even if unhandled exceptions occurred.
 All values that are contained within a session are directly available to you.
 See the :ref:`Session API Docs <sessionapi>` to learn more.
 
-The ``Session`` class takes several (optional) named arguments for your convenience.
+The :class:`~niquests.Session` class takes several (optional) named arguments for your convenience.
 
 - `resolver`
   Specify a DNS resolver that should be used within this Session.
@@ -152,7 +169,7 @@ The ``Session`` class takes several (optional) named arguments for your convenie
   Specify a `MutableMapping` that can memorize Alt-Svc capabilities (when a server is HTTP/3 compatible).
 
 - `retries`
-  Determine the retry strategy across the ``Session`` lifetime. See :class:`~niquests.RetryConfiguration`.
+  Determine the retry strategy across the :class:`~niquests.Session` lifetime. See :class:`~niquests.RetryConfiguration`.
 
 - `multiplexed`
   Enable or disable concurrent requests when the remote host supports HTTP/2 onward.
@@ -200,7 +217,7 @@ The ``Session`` class takes several (optional) named arguments for your convenie
   Default authentication tuple or object to attach to every request emitted.
 
 - `hooks`
-  Specify default hooks to be applied to all requests made with this session. Can be a dictionary of hook names to callables, or a :class:`~niquests.hooks.LifeCycleHook` instance (or :class:`~niquests.hooks.AsyncLifeCycleHook` for ``AsyncSession``).
+  Specify default hooks to be applied to all requests made with this session. Can be a dictionary of hook names to callables, or a :class:`~niquests.hooks.LifeCycleHook` instance (or :class:`~niquests.hooks.AsyncLifeCycleHook` for :class:`~niquests.AsyncSession`).
 
 - `revocation_configuration`
   How should the session do the certificate revocation check. Set it to ``None`` to disable this additional security measure.
@@ -234,15 +251,44 @@ Setup it like follow:
         async with niquests.AsyncSession(base_url="https://httpbin.org") as s:
             await s.get('/headers')  # internally will become "https://httpbin.org/headers"
 
+Overriding the Scheme per Request
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. note:: Available in version 3.19+
+
+When a ``base_url`` is set, every request reuses its scheme. Sometimes you need to reach
+the same host with a different scheme (e.g. an SSE or WebSocket endpoint) without retyping
+the full URL. Pass ``override_scheme`` to any request method to swap the scheme of the final
+(``base_url``-merged) URL, just before the adapter is picked.
+
+It is only honored when a ``base_url`` is configured; otherwise you already control the full
+URL (and its scheme), so it is ignored.
+
+.. tab:: 🔂 Sync
+
+    .. code:: python
+
+        with niquests.Session(base_url="https://httpbingo.org") as s:
+            # internally targets "sse://httpbin.org/events"
+            s.get('/sse', override_scheme="sse")
+
+.. tab:: 🔀 Async
+
+    .. code:: python
+
+        async with niquests.AsyncSession(base_url="https://httpbingo.org") as s:
+            # internally targets "sse://httpbin.org/events"
+            await s.get('/sse', override_scheme="sse")
+
 Request and Response Objects
 ----------------------------
 
 Whenever a call is made to ``niquests.get()`` and friends, you are doing two
-major things. First, you are constructing a ``Request`` object which will be
-sent off to a server to request or query some resource. Second, a ``Response``
+major things. First, you are constructing a :class:`~niquests.Request` object which will be
+sent off to a server to request or query some resource. Second, a :class:`~niquests.Response`
 object is generated once Niquests gets a response back from the server.
-The ``Response`` object contains all of the information returned by the server and
-also contains the ``Request`` object you created originally. Here is a simple
+The :class:`~niquests.Response` object contains all of the information returned by the server and
+also contains the :class:`~niquests.Request` object you created originally. Here is a simple
 request to get some very important information from Wikipedia's servers::
 
     >>> r = niquests.get('https://en.wikipedia.org/wiki/Monty_Python')
@@ -273,7 +319,7 @@ Prepared Requests
 
 Whenever you receive a :class:`Response <niquests.Response>` object
 from an API call or a Session call, the ``request`` attribute is actually the
-``PreparedRequest`` that was used. In some cases you may wish to do some extra
+:class:`~niquests.PreparedRequest` that was used. In some cases you may wish to do some extra
 work to the body or headers (or anything else really) before sending a
 request. The simple recipe for this is the following:
 
@@ -331,8 +377,8 @@ request. The simple recipe for this is the following:
 
         print(resp.status_code)
 
-Since you are not doing anything special with the ``Request`` object, you
-prepare it immediately and modify the ``PreparedRequest`` object. You then
+Since you are not doing anything special with the :class:`~niquests.Request` object, you
+prepare it immediately and modify the :class:`~niquests.PreparedRequest` object. You then
 send that with the other parameters you would have sent to ``niquests.*`` or
 ``Session.*``.
 
@@ -612,9 +658,10 @@ connection!
 
 Note that connections are only released back to the pool for reuse once all body
 data has been read; be sure to either set ``stream`` to ``False`` or read the
-``content`` property of the ``Response`` object.
+``content`` property of the :class:`~niquests.Response` object.
 
-.. note:: Available since Niquests v3.10 and before this only HTTP/1.1 were kept alive properly.
+.. versionadded:: 3.10
+   Before this only HTTP/1.1 were kept alive properly.
 
 Niquests can automatically make sure that your HTTP connection is kept alive
 no matter the used protocol using a discrete scheduled task for each host.
@@ -733,7 +780,7 @@ case you can iterate chunk-by-chunk by calling ``iter_content`` with a ``chunk_s
 parameter of ``None``. If you want to set a maximum size of the chunk,
 you can set a ``chunk_size`` parameter to any integer.
 
-.. note:: Since Niquests v3.7.1+ we support having async iterable passed down to ``data=...`` via your ``AsyncSession``.
+.. note:: Since Niquests v3.7.1+ we support having async iterable passed down to ``data=...`` via your :class:`~niquests.AsyncSession`.
 
 .. _multipart:
 
@@ -825,7 +872,7 @@ You can add multiple hooks to a single request.  Let's call two hooks at once::
     >>> r.hook_called
     True
 
-You can also add hooks to a ``Session`` instance.  Any hooks you add will then
+You can also add hooks to a :class:`~niquests.Session` instance.  Any hooks you add will then
 be called on every request made to the session.  For example::
 
    >>> s = niquests.Session()
@@ -834,14 +881,14 @@ be called on every request made to the session.  For example::
     https://httpbin.org/
     <Response HTTP/2 [200]>
 
-A ``Session`` can have multiple hooks, which will be called in the order
+A :class:`~niquests.Session` can have multiple hooks, which will be called in the order
 they are added.
 
 You can find a example of how to retrieve the connection information just before the request is sent::
 
     >>> r = niquests.get("https://1.1.1.1", hooks={"pre_send": [lambda r: print(r.conn_info)]}
 
-Here, ``r`` is the ``PreparedRequest`` and ``conn_info`` contains a ``ConnectionInfo``.
+Here, ``r`` is the :class:`~niquests.PreparedRequest` and ``conn_info`` contains a ``ConnectionInfo``.
 You can explore the following data in it.
 
 - **certificate_der**: The peer certificate in DER format (binary)
@@ -886,7 +933,7 @@ In addition to dictionary-based hooks, Niquests supports class-based hooks via :
 Single Middleware
 ~~~~~~~~~~~~~~~~~
 
-You can define a custom middleware by subclassing ``AsyncLifeCycleHook`` (or ``LifeCycleHook`` for synchronous contexts) and overriding the specific event methods you need.
+You can define a custom middleware by subclassing :class:`~niquests.hooks.AsyncLifeCycleHook` (or :class:`~niquests.hooks.LifeCycleHook` for synchronous contexts) and overriding the specific event methods you need.
 
 .. code-block:: python
 
@@ -942,7 +989,7 @@ Middleware classes can be combined using the ``+`` operator. This allows you to 
         asyncio.run(main())
 
 
-.. danger:: In synchronous multi-threaded mode, using ``LifeCycleHook`` must be safe to use, you are responsible to ensure safety via proper locking if you intend to share properties/states between threads.
+.. danger:: In synchronous multi-threaded mode, using :class:`~niquests.hooks.LifeCycleHook` must be safe to use, you are responsible to ensure safety via proper locking if you intend to share properties/states between threads.
 
 Rate Limiting
 ~~~~~~~~~~~~~
@@ -1068,7 +1115,7 @@ Track upload progress
 ---------------------
 
 You may use the ``on_upload`` hook to track the upload progress of a request.
-The callable will receive the ``PreparedRequest`` that will contain a property named ``upload_progress``.
+The callable will receive the :class:`~niquests.PreparedRequest` that will contain a property named ``upload_progress``.
 
 .. note:: ``upload_progress`` is a ``TransferProgress`` instance.
 
@@ -1395,7 +1442,7 @@ manually set the :attr:`Response.encoding <niquests.Response.encoding>`
 property, or use the raw :attr:`Response.content <niquests.Response.content>`.
 
 You should keep in mind that if Niquests fail to choose a suitable encoding,
-the ``text`` method from ``Response`` will return ``None``. This is the default
+the ``text`` method from :class:`~niquests.Response` will return ``None``. This is the default
 since the version 3.
 We choose to return None in those cases because of numerous things, like for example:
 
@@ -1739,8 +1786,8 @@ In HTTP/2 onward, non-consumed response (body, aka. stream=True) will no longer 
 But if you leverage a full multiplexed connection, Niquests no longer block your synchronous
 loop. You are free of the IO blocking per request.
 
-You may also use the ``AsyncSession`` that provide you with the same methods as the regular
-``Session`` but with asyncio support.
+You may also use the :class:`~niquests.AsyncSession` that provide you with the same methods as the regular
+:class:`~niquests.Session` but with asyncio support.
 
 Header Ordering
 ---------------
@@ -1833,7 +1880,7 @@ a plain ``http`` proxy. This is meant for people who want privacy.
 This feature may not be available if the ``qh3`` package is missing from your environment.
 Verify the availability by running ``python -m niquests.help``.
 
-.. note:: Access property ``ocsp_verified`` in both ``PreparedRequest``, and ``Response`` to have information about this post handshake verification.
+.. note:: Access property ``ocsp_verified`` in both :class:`~niquests.PreparedRequest`, and :class:`~niquests.Response` to have information about this post handshake verification.
 
 .. warning:: You may be interested in caching and restoring the OCSP/CRL validator state in between runs for performance concerns. To achieve that you are invited to pickle and restore your ``niquests.Session`` object.
 
@@ -1902,7 +1949,7 @@ Disable HTTP/1.1, HTTP/2, and/or HTTP/3
 ---------------------------------------
 
 You can at your own discretion disable a protocol by passing ``disable_http2=True`` or
-``disable_http3=True`` within your ``Session`` constructor.
+``disable_http3=True`` within your :class:`~niquests.Session` constructor.
 
 Having a session without HTTP/2 enabled should be done that way::
 
@@ -1959,7 +2006,7 @@ Disable either IPv4 or IPv6
 ---------------------------
 
 You may be interested in controlling what kind of address you would accept connecting to.
-Since Niquests 3.4+, you can configure that aspect per ``Session`` instance.
+Since Niquests 3.4+, you can configure that aspect per :class:`~niquests.Session` instance.
 
 Having a session without IPv6 enabled should be done that way::
 
@@ -1973,7 +2020,7 @@ Setting the source network adapter
 ----------------------------------
 
 In a complex scenario, you could face the following: "I have multiple network adapters, some can access this and other that.."
-Since Niquests 3.4+, you can configure that aspect per ``Session`` instance.
+Since Niquests 3.4+, you can configure that aspect per :class:`~niquests.Session` instance.
 
 Having a session that explicitly bind to "10.10.4.1" on port 4444 should be done that way::
 
@@ -2019,7 +2066,7 @@ attributes is listed on the Hook bottom section.
 Verify Certificate Fingerprint
 ------------------------------
 
-.. note:: Available since Niquests 3.5.4
+.. versionadded:: 3.5.4
 
 An alternative to the certificate verification can be asserting its fingerprint. We (absolutely) do
 not recommend using it unless you are left with no other alternative.
@@ -2033,18 +2080,26 @@ Here is a simple example::
 
 .. warning:: Supported fingerprinting algorithms are sha256, and sha1. The prefix is mandatory.
 
-TLS Fingerprint (like JA3)
---------------------------
+TLS Fingerprint (like JA3/JA4)
+------------------------------
 
-Some of you seems to be interested in that topic, at least according to the statistics presented to me.
-Niquests is dedicated to providing a software that present a unique and close enough signature (against modern browser)
-that you should be protected against TLS censorship / blocking technics.
+.. versionadded:: 3.19.0
 
-We are actively working toward a way to permanently improving this.
-To help us fighting toward the greater good, feel free to sponsor us and/or speaking out loud about your
-experiences, whether about a specific country practices or global ISP/Cloud provider ones.
+If you want to be able to be seen as a browser like Google Chrome to avoid being blocked from certain services,
+Niquests support swappable TLS backend, and in those backends we support BoringSSL via ``utls``.
 
-.. note:: If you are getting blocked, come and get in touch with us through our Github issues.
+All that is needed for you to "impersonate" a modern browser is to install Niquests with::
+
+    pip install niquests[utls]
+
+To know which backend is effective, run::
+
+    python -m niquests.help
+
+If you see the TLS backend being "BoringSSL (OpenSSL 1.1.1 compatible)" then you're in!
+
+.. note:: If you are getting blocked, come and get in touch with us through our Github issues. We'll help unblock the situation. We usually keep updating ``utls`` regularly to ensure we are up-to-date with latest browsers.
+.. warning:: Being able to unblock access via a proper TLS fingerprint does not prevent you from being IP blacklisted. Providers are smart, they know some services can't exceed 1 RPS. You'll need proxies to extend RPS targets.
 
 Tracking the real download speed
 --------------------------------
@@ -2055,7 +2110,7 @@ remote server applying a "transfer-encoding" or also know as compressing (zstd, 
 Niquests automatically decompress response bodies, so doing a call to ``iter_content`` is not going to yield
 the size actually extracted from the socket but rather from the decompressor algorithm.
 
-To remediate this issue we've implemented a new property into your ``Response`` object. Named ``download_progress``
+To remediate this issue we've implemented a new property into your :class:`~niquests.Response` object. Named ``download_progress``
 that is a ``TransferProgress`` instance.
 
 .. warning:: This feature is enabled when ``stream=True``.
@@ -2074,7 +2129,7 @@ Here is a basic example of how you would proceed::
 HTTP Trailers
 -------------
 
-.. note:: Available since Niquests 3.8+
+.. versionadded:: 3.8
 
 HTTP response may contain one or several trailer headers. Those special headers are received
 after the reception of the body. Before this, those headers were unreachable and dropped silently.
@@ -2125,7 +2180,7 @@ Revocation Configuration
 When Niquests acquire a new HTTPS connection, it defend you against revoked TLS certificate the best it can.
 Sometimes, the default behavior does not suit your environment. (e.g. corporate environment with very particular restrictions)
 
-You can alter the configuration by passing an extra parameter to your ``Session`` or ``AsyncSession`` constructor.
+You can alter the configuration by passing an extra parameter to your :class:`~niquests.Session` or :class:`~niquests.AsyncSession` constructor.
 
 .. code-block:: python
 
@@ -2167,7 +2222,7 @@ Inspecting Pooling State or Connections
 
 .. versionadded:: 3.16.0
 
-In tough situation, you may want to be able to see what's really inside of ``Session`` or ``AsyncSession``
+In tough situation, you may want to be able to see what's really inside of :class:`~niquests.Session` or :class:`~niquests.AsyncSession`
 to answer the typical questions:
 
 - How many connection do I have open?

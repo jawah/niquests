@@ -294,6 +294,7 @@ class HTTPAdapter(BaseAdapter):
         "_keepalive_delay",
         "_keepalive_idle_window",
         "_revocation_configuration",
+        "_allow_incoming_cookies",
     ]
 
     def __init__(
@@ -316,6 +317,7 @@ class HTTPAdapter(BaseAdapter):
         keepalive_delay: float | int | None = 600.0,
         keepalive_idle_window: float | int | None = 60.0,
         revocation_configuration: RevocationConfiguration | None = DEFAULT_STRATEGY,
+        allow_incoming_cookies: bool = True,
     ):
         if isinstance(max_retries, bool):
             self.max_retries: RetryType = False
@@ -360,6 +362,8 @@ class HTTPAdapter(BaseAdapter):
         self._crl_cache: typing.Any | None = None
 
         self._revocation_configuration: RevocationConfiguration | None = revocation_configuration
+
+        self._allow_incoming_cookies: bool = allow_incoming_cookies
 
         disabled_svn = set()
 
@@ -982,6 +986,7 @@ class HTTPAdapter(BaseAdapter):
 
         hooks: HookType = response._promise.get_parameter("niquests_hooks")  # type: ignore[assignment]
         session_cookies: CookieJar = response._promise.get_parameter("niquests_cookies")  # type: ignore[assignment]
+        allow_incoming_cookies: bool = self._allow_incoming_cookies
         allow_redirects: bool = response._promise.get_parameter(  # type: ignore[assignment]
             "niquests_allow_redirect"
         )
@@ -1018,7 +1023,8 @@ class HTTPAdapter(BaseAdapter):
 
         # Add new cookies from the server.
         extract_cookies_to_jar(response.cookies, req, low_resp)
-        extract_cookies_to_jar(session_cookies, req, low_resp)
+        if allow_incoming_cookies:
+            extract_cookies_to_jar(session_cookies, req, low_resp)
 
         promise_ctx_backup = {
             k: v for k, v in response_promise._parameters.items() if k.startswith("niquests_") and k != "niquests_response"
@@ -1161,7 +1167,8 @@ class HTTPAdapter(BaseAdapter):
         if response.history:
             # If the hooks create history then we want those cookies too
             for sub_resp in response.history:
-                extract_cookies_to_jar(session_cookies, sub_resp.request, sub_resp.raw)
+                if allow_incoming_cookies:
+                    extract_cookies_to_jar(session_cookies, sub_resp.request, sub_resp.raw)
 
         if not stream:
             if response.extension is None:
@@ -1370,6 +1377,7 @@ class AsyncHTTPAdapter(AsyncBaseAdapter):
         "_keepalive_delay",
         "_keepalive_idle_window",
         "_revocation_configuration",
+        "_allow_incoming_cookies",
     ]
 
     def __init__(
@@ -1392,6 +1400,7 @@ class AsyncHTTPAdapter(AsyncBaseAdapter):
         keepalive_delay: float | int | None = 600.0,
         keepalive_idle_window: float | int | None = 60.0,
         revocation_configuration: RevocationConfiguration | None = DEFAULT_STRATEGY,
+        allow_incoming_cookies: bool = True,
     ):
         if isinstance(max_retries, bool):
             self.max_retries: RetryType = False
@@ -1437,6 +1446,8 @@ class AsyncHTTPAdapter(AsyncBaseAdapter):
         self._crl_cache: typing.Any | None = None
 
         self._revocation_configuration: RevocationConfiguration | None = revocation_configuration
+
+        self._allow_incoming_cookies: bool = allow_incoming_cookies
 
         disabled_svn = set()
 
@@ -2066,6 +2077,7 @@ class AsyncHTTPAdapter(AsyncBaseAdapter):
         start: float = response._promise.get_parameter("niquests_start")  # type: ignore[assignment]
         hooks: HookType = response._promise.get_parameter("niquests_hooks")  # type: ignore[assignment]
         session_cookies: CookieJar = response._promise.get_parameter("niquests_cookies")  # type: ignore[assignment]
+        allow_incoming_cookies: bool = self._allow_incoming_cookies
         allow_redirects: bool = response._promise.get_parameter(  # type: ignore[assignment]
             "niquests_allow_redirect"
         )
@@ -2102,7 +2114,8 @@ class AsyncHTTPAdapter(AsyncBaseAdapter):
 
         # Add new cookies from the server.
         extract_cookies_to_jar(response.cookies, req, low_resp)
-        extract_cookies_to_jar(session_cookies, req, low_resp)
+        if allow_incoming_cookies:
+            extract_cookies_to_jar(session_cookies, req, low_resp)
 
         promise_ctx_backup = {
             k: v for k, v in response_promise._parameters.items() if k.startswith("niquests_") and k != "niquests_response"
@@ -2249,7 +2262,8 @@ class AsyncHTTPAdapter(AsyncBaseAdapter):
         if response.history:
             # If the hooks create history then we want those cookies too
             for sub_resp in response.history:
-                extract_cookies_to_jar(session_cookies, sub_resp.request, sub_resp.raw)
+                if allow_incoming_cookies:
+                    extract_cookies_to_jar(session_cookies, sub_resp.request, sub_resp.raw)
 
         if not stream:
             if response.extension is None:

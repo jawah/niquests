@@ -34,7 +34,7 @@ for using it::
     <Response HTTP/2 [200]>
 
 Providing the credentials in a tuple like this is exactly the same as the
-``HTTPBasicAuth`` example above.
+:class:`~niquests.auth.HTTPBasicAuth` example above.
 
 For DNS
 ~~~~~~~

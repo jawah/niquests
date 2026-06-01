@@ -1,6 +1,55 @@
 Release History
 ===============
 
+3.19.0 (2026-06-01)
+-------------------
+
+**Added**
+- `Session` and `AsyncSession` constructors now accept `params`, `cookies`, `proxies`, `verify` and `cert`
+  so that per-request defaults can be configured at initialization, consistently with `headers` and `auth`. (#400)
+  Ease forward the migration from httpx for interested users.
+- A plain `http.cookiejar.CookieJar` (or a mapping) provided as `cookies` is now coerced into a
+  `RequestsCookieJar`. The `Session`/`AsyncSession` constructor always coerces (so `session.cookies.set(...)`
+  works), while at the request level an unknown `CookieJar` subclass (e.g. `MozillaCookieJar` or any
+  file-backed/custom jar) is left untouched to preserve its behavior. (#401, #404)
+- Support for the alternative TLS backend BoringSSL via the `utls` extra.
+  Niquests now offer a first-class TLS browser impersonation without ever-changing your http client.
+  It is automatically done (e.g. negotiated) once the extra is installed. You will need to keep it
+  regularly updated so that you have the latest TLS specs of modern browsers.
+- `Session` and `AsyncSession` constructors now accept `allow_incoming_cookies` (defaults to `True`).
+  Set it to `False` to ignore every cookie sent by the remote peer (via `Set-Cookie`) so that nothing
+  is merged into the session jar, including cookies carried across redirect hops. Outgoing cookies you
+  set yourself are still emitted.
+- `Session.request`/`AsyncSession.request` (and the verb shortcuts) now accept an `override_scheme`
+  keyword argument. When a `base_url` is set on the Session, it override the scheme of the final
+  (merged) URL just before the adapter is picked, so you can target a different scheme (e.g. `sse`,
+  `ws`/`wss`, optionally with an implementation suffix like `sse+unix`) without retyping the full URL. (#325)
+
+**Changed**
+- The `cookies` attribute of `Session`, `AsyncSession` and `Response` is now always typed as
+  `RequestsCookieJar` instead of `RequestsCookieJar | CookieJar`. This restores the ergonomic mapping
+  interface (e.g. `session.cookies.set(...)`) when using static type checkers. (#401, #404)
+
+  This is **not** a runtime breaking change: reading `.cookies` is unchanged, and a native `CookieJar`
+  is still accepted everywhere it is passed as an argument (it is coerced when relevant). We do,
+  however, acknowledge a static-typing trade-off: assigning a custom/non-`RequestsCookieJar` jar
+  directly to the attribute (e.g. `session.cookies = MozillaCookieJar(...)`) now makes type checkers
+  such as mypy complain, since the attribute is annotated as `RequestsCookieJar`. The assignment keeps
+  working at runtime; if you rely on it, add a `# type: ignore`. We chose narrowing on
+  purpose the predominant path is that `RequestsCookieJar` is expected while subclasses (custom implementation)
+  are a niche usage.
+- `CaseInsensitiveDict` is now generic over its key and value types (`CaseInsensitiveDict[_KT, _VT]`,
+  mirroring `dict`/`Mapping`), and `Response.headers`/`Response.trailers` are typed as
+  `CaseInsensitiveDict[str, str]`. Reading a response header (e.g. `response.headers["Content-Type"]`)
+  now yields `str` instead of `str | bytes`, removing the need for a `cast`/`assert` to use the headers
+  as a plain string mapping with static type checkers. (#401)
+
+  This is purely a typing improvement with **no runtime change**: the class still subclasses
+  `collections.abc.MutableMapping` (it merely also gains `typing.Generic`), so the Python 3.7 floor and
+  the existing behavior are preserved, and no new dependency is introduced. Unsubscripted
+  `CaseInsensitiveDict` keeps its historical `str | bytes` key/value types, so existing annotations are
+  unaffected.
+
 3.18.8 (2026-05-10)
 -------------------
 
