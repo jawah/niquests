@@ -8,7 +8,7 @@ import pytest
 from fastapi import FastAPI, Request, WebSocket
 from fastapi.responses import JSONResponse
 from niquests.packages.urllib3.contrib.webextensions.sse import ServerSentEvent
-from starlette.responses import StreamingResponse
+from starlette.responses import RedirectResponse, StreamingResponse
 
 from niquests import AsyncSession, RetryConfiguration, Session
 
@@ -81,6 +81,16 @@ async def echo(request: Request):
         "body": body,
         "headers": dict(request.headers),
     }
+
+
+@app.get("/redirect-me")
+async def redirect_me():
+    return RedirectResponse(url="/path/to/home", status_code=302)
+
+
+@app.get("/path/to/home")
+async def home():
+    return {"message": "home"}
 
 
 @pytest.mark.asyncio
@@ -319,3 +329,23 @@ def test_thread_asgi_sse_send_forbidden():
             ext.send_payload("nope")
 
         ext.close()
+
+
+@pytest.mark.asyncio
+async def test_asgi_relative_redirect_not_followed():
+    # Regression for jawah/niquests#406: a relative Location with an asgi://
+    # base url used to raise MissingSchema even when allow_redirects=False.
+    async with AsyncSession(app=app) as s:
+        resp = await s.get("/redirect-me", allow_redirects=False)
+        assert resp.status_code == 302
+        assert resp.headers.get("location") == "/path/to/home"
+
+
+@pytest.mark.asyncio
+async def test_asgi_relative_redirect_followed():
+    async with AsyncSession(app=app) as s:
+        resp = await s.get("/redirect-me", allow_redirects=True)
+        assert resp.status_code == 200
+        assert resp.json()["message"] == "home"
+        assert len(resp.history) == 1
+        assert resp.url == "asgi://default/path/to/home"

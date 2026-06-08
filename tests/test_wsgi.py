@@ -62,6 +62,16 @@ def echo():
     )
 
 
+@app.route("/redirect-me")
+def redirect_me():
+    return FlaskResponse(status=302, headers={"Location": "/path/to/home"})
+
+
+@app.route("/path/to/home")
+def home():
+    return jsonify({"message": "home"})
+
+
 def test_wsgi_basic():
     with Session(app=app) as s:
         resp = s.get("/hello?foo=bar")
@@ -154,3 +164,21 @@ def test_wsgi_websocket_not_supported():
             s.get("ws://default/ws-echo")
         assert isinstance(exc_info.value.reason, NotImplementedError)
         assert "WebSocket is not supported over WSGI" in str(exc_info.value.reason)
+
+
+def test_wsgi_relative_redirect_not_followed():
+    # Regression for jawah/niquests#406: a relative Location with a wsgi://
+    # base url used to raise MissingSchema even when allow_redirects=False.
+    with Session(app=app) as s:
+        resp = s.get("/redirect-me", allow_redirects=False)
+        assert resp.status_code == 302
+        assert resp.headers.get("location") == "/path/to/home"
+
+
+def test_wsgi_relative_redirect_followed():
+    with Session(app=app) as s:
+        resp = s.get("/redirect-me", allow_redirects=True)
+        assert resp.status_code == 200
+        assert resp.json()["message"] == "home"
+        assert len(resp.history) == 1
+        assert resp.url == "wsgi://default/path/to/home"

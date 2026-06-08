@@ -1,6 +1,13 @@
 Release History
 ===============
 
+3.19.1 (2026-06-08)
+-------------------
+
+**Fixed**
+- Relative `Location` redirects no longer raise `MissingSchema` when the request targets a
+  synthetic scheme such as `wsgi://` or `asgi://`. (#406)
+
 3.19.0 (2026-06-01)
 -------------------
 

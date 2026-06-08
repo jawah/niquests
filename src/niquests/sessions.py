@@ -17,7 +17,7 @@ from collections import OrderedDict
 from collections.abc import Mapping
 from datetime import timedelta
 from http import cookiejar as cookielib
-from urllib.parse import urljoin, urlparse
+from urllib.parse import urlparse
 
 from ._compat import HAS_LEGACY_URLLIB3, iscoroutinefunction, urllib3_ensure_type
 from ._constant import (
@@ -109,6 +109,7 @@ from .utils import (  # noqa: F401
     should_check_crl,
     should_check_ocsp,
     to_key_val_list,
+    urljoin_safe,
 )
 
 # Preferred clock, based on which one is more accurate on a given system.
@@ -1837,7 +1838,7 @@ class Session:
             # (e.g. '/path/to/resource' instead of 'http://domain.tld/path/to/resource')
             # Compliant with RFC3986, we percent encode the url.
             if not parsed.netloc:
-                url = urljoin(resp.url, requote_uri(url))  # type: ignore[type-var]
+                url = urljoin_safe(resp.url, requote_uri(url))  # type: ignore[type-var,arg-type]
                 assert isinstance(url, str), f"urljoin produced {type(url)} instead of str"
             else:
                 url = requote_uri(url)
