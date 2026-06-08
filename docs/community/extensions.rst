@@ -167,6 +167,62 @@ It can also be used as a decorator:
 
 .. _niquests-mock: https://pypi.org/project/niquests-mock/
 
+.. _opentelemetry-instrumentation-niquests:
+
+opentelemetry-instrumentation-niquests
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+`opentelemetry-instrumentation-niquests`_ brings **OpenTelemetry tracing and metrics** to
+Niquests. It instruments both synchronous (:py:class:`niquests.Session`) and asynchronous
+(:py:class:`niquests.AsyncSession`) requests, and follows the standard
+``opentelemetry.instrumentation.*`` layout, so OpenTelemetry auto-instrumentation picks it up
+out of the box with no manual wiring.
+
+Beyond the usual HTTP client spans and request duration metrics, it reports Niquests-specific
+data taken from ``conn_info``: TLS version and cipher, OCSP revocation status, destination IP and
+port, and per-phase connection timings (DNS resolution, TCP establishment, TLS handshake, and
+request send).
+
+Install it from PyPI:
+
+.. code-block:: bash
+
+    pip install opentelemetry-instrumentation-niquests
+
+.. tab:: 🔂 Sync
+
+   .. code:: python
+
+        import niquests
+        from opentelemetry.instrumentation.niquests import NiquestsInstrumentor
+
+        NiquestsInstrumentor().instrument()
+        niquests.get("https://www.example.org/")
+
+.. tab:: 🔀 Async
+
+   .. code:: python
+
+        import asyncio
+
+        import niquests
+        from opentelemetry.instrumentation.niquests import NiquestsInstrumentor
+
+        NiquestsInstrumentor().instrument()
+
+
+        async def main() -> None:
+            async with niquests.AsyncSession() as session:
+                await session.get("https://www.example.org/")
+
+
+        asyncio.run(main())
+
+Lazy responses (``Session(multiplexed=True)``) get a span and connection-level attributes, but
+the status code and response headers are not captured since they are not available at send time.
+
+.. _opentelemetry-instrumentation-niquests: https://pypi.org/project/opentelemetry-instrumentation-niquests/
+
 Extensions from Requests to Niquests
 -------------------------------------
 
