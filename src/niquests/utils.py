@@ -24,7 +24,7 @@ from collections import OrderedDict
 from functools import lru_cache
 from http.cookiejar import CookieJar
 from netrc import NetrcParseError, netrc
-from urllib.parse import quote, unquote, urlparse, urlunparse
+from urllib.parse import quote, unquote, urljoin, urlparse, urlunparse, uses_relative
 from urllib.request import (  # type: ignore[attr-defined]  # type: ignore[attr-defined]
     getproxies,
     getproxies_environment,
@@ -1185,6 +1185,29 @@ def parse_scheme(url: str, default: str | None = None, max_length: int = 11) -> 
         raise MissingSchema(f"Invalid URL {url!r}: No scheme supplied. Perhaps you meant https://{url}?") from e
 
     return scheme.lower()
+
+
+def urljoin_safe(base: str, url: str) -> str:
+    """RFC 3986 relative join that also works for niquests' synthetic schemes."""
+    scheme = parse_scheme(base, default="")
+
+    # see https://github.com/jawah/niquests/issues/406
+    # to learn about origin story!
+    if not scheme or scheme in uses_relative:
+        return urljoin(base, url)
+
+    # The scheme is always a literal prefix of ``base``; swap it for one that
+    # urljoin understands.
+    temp = "https" + base[len(scheme) :]
+    joined = urljoin(temp, url)
+
+    # Only restore the scheme when the join produced a relative resolution.
+    # An absolute target (e.g. ``mailto:``, ``data:``) keeps its own scheme and
+    # must pass through untouched.
+    if joined.startswith("https://"):
+        return scheme + joined[len("https") :]
+
+    return joined
 
 
 def is_ocsp_capable(conn_info: ConnectionInfo | None) -> bool:

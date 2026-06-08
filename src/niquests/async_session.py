@@ -7,7 +7,7 @@ import typing
 import warnings
 from collections import OrderedDict
 from datetime import timedelta
-from urllib.parse import urljoin, urlparse
+from urllib.parse import urlparse
 
 from .status_codes import codes
 
@@ -94,6 +94,7 @@ from .utils import (
     rewind_body,
     should_check_crl,
     should_check_ocsp,
+    urljoin_safe,
 )
 
 # Preferred clock, based on which one is more accurate on a given system.
@@ -892,7 +893,7 @@ class AsyncSession(Session):
             # (e.g. '/path/to/resource' instead of 'http://domain.tld/path/to/resource')
             # Compliant with RFC3986, we percent encode the url.
             if not parsed.netloc:
-                url = urljoin(resp.url, requote_uri(url))  # type: ignore[type-var]
+                url = urljoin_safe(resp.url, requote_uri(url))  # type: ignore[type-var]
                 assert isinstance(url, str), f"urljoin produced {type(url)} instead of str"
             else:
                 url = requote_uri(url)
