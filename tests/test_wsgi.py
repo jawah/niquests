@@ -182,4 +182,3 @@ def test_wsgi_relative_redirect_followed():
         assert resp.json()["message"] == "home"
         assert len(resp.history) == 1
         assert resp.url == "wsgi://default/path/to/home"
-

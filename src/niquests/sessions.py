@@ -1838,7 +1838,7 @@ class Session:
             # (e.g. '/path/to/resource' instead of 'http://domain.tld/path/to/resource')
             # Compliant with RFC3986, we percent encode the url.
             if not parsed.netloc:
-                url = urljoin_safe(resp.url, requote_uri(url))  # type: ignore[type-var]
+                url = urljoin_safe(resp.url, requote_uri(url))  # type: ignore[type-var,arg-type]
                 assert isinstance(url, str), f"urljoin produced {type(url)} instead of str"
             else:
                 url = requote_uri(url)
