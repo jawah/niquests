@@ -713,6 +713,7 @@ Add the following to your ``conftest.py``:
     import functools
     import itertools
     import logging
+    from io import BytesIO
     from unittest import mock
 
     import pytest
@@ -765,7 +766,7 @@ Add the following to your ``conftest.py``:
         if isinstance(body, str):
             body = body.encode("utf-8")
         return AsyncHTTPResponse(
-            body=body,
+            body=BytesIO(body),
             status=vcr_response["status"]["code"],
             reason=vcr_response["status"]["message"],
             headers=_deserialize_headers(headers),
