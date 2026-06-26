@@ -36,6 +36,7 @@ from .exceptions import (
 )
 from .extensions.revocation import DEFAULT_STRATEGY, RevocationConfiguration
 from .extensions.sgi._async import AsyncServerGatewayInterface
+from .extensions.tls import TLSConfiguration
 from .extensions.unixsocket._async import AsyncUnixAdapter
 
 try:
@@ -154,6 +155,7 @@ class AsyncSession(Session):
         verify: TLSVerifyType | None = None,
         cert: TLSClientCertType | None = None,
         allow_incoming_cookies: bool = True,
+        tls_configuration: TLSConfiguration | None = None,
     ):
         if [disable_ipv4, disable_ipv6].count(True) == 2:
             raise RuntimeError("Cannot disable both IPv4 and IPv6")
@@ -283,6 +285,9 @@ class AsyncSession(Session):
         #: How we should handle the revocation check for TLS newly acquired connection.
         self._revocation_configuration: RevocationConfiguration | None = revocation_configuration
 
+        #: Fine-grained TLS configuration (backend, min/max version, ciphers) propagated to adapters.
+        self._tls_configuration: TLSConfiguration | None = tls_configuration
+
         # Default connection adapters.
         self.adapters: OrderedDict[str, AsyncBaseAdapter] = OrderedDict()  # type: ignore[assignment]
 
@@ -306,6 +311,7 @@ class AsyncSession(Session):
                     keepalive_idle_window=keepalive_idle_window,
                     revocation_configuration=revocation_configuration,
                     allow_incoming_cookies=allow_incoming_cookies,
+                    tls_configuration=tls_configuration,
                 ),
             )
             self.mount(
@@ -326,6 +332,7 @@ class AsyncSession(Session):
                     keepalive_idle_window=keepalive_idle_window,
                     revocation_configuration=revocation_configuration,
                     allow_incoming_cookies=allow_incoming_cookies,
+                    tls_configuration=tls_configuration,
                 ),
             )
             self.mount(
@@ -346,6 +353,7 @@ class AsyncSession(Session):
                     keepalive_idle_window=keepalive_idle_window,
                     revocation_configuration=revocation_configuration,
                     allow_incoming_cookies=allow_incoming_cookies,
+                    tls_configuration=tls_configuration,
                 ),
             )
         else:
@@ -404,6 +412,7 @@ class AsyncSession(Session):
                 keepalive_idle_window=self._keepalive_idle_window,
                 revocation_configuration=self._revocation_configuration,
                 allow_incoming_cookies=self.allow_incoming_cookies,
+                tls_configuration=self._tls_configuration,
             ),
         )
         self.mount(
@@ -424,6 +433,7 @@ class AsyncSession(Session):
                 keepalive_idle_window=self._keepalive_idle_window,
                 revocation_configuration=self._revocation_configuration,
                 allow_incoming_cookies=self.allow_incoming_cookies,
+                tls_configuration=self._tls_configuration,
             ),
         )
         self.mount(
@@ -667,6 +677,7 @@ class AsyncSession(Session):
                     keepalive_idle_window=self._keepalive_idle_window,
                     revocation_configuration=self._revocation_configuration,
                     allow_incoming_cookies=self.allow_incoming_cookies,
+                    tls_configuration=self._tls_configuration,
                 ),
             )
             self.mount(
@@ -687,6 +698,7 @@ class AsyncSession(Session):
                     keepalive_idle_window=self._keepalive_idle_window,
                     revocation_configuration=self._revocation_configuration,
                     allow_incoming_cookies=self.allow_incoming_cookies,
+                    tls_configuration=self._tls_configuration,
                 ),
             )
             self.mount(

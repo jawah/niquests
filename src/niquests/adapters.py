@@ -48,6 +48,7 @@ from .exceptions import (
     TooManyRedirects,
 )
 from .extensions.revocation import DEFAULT_STRATEGY, RevocationConfiguration
+from .extensions.tls import TLSConfiguration
 from .hooks import async_dispatch_hook, dispatch_hook
 from .models import AsyncResponse, PreparedRequest, Response
 from .packages.urllib3 import (
@@ -129,6 +130,7 @@ from .utils import (
     select_proxy,
     should_check_crl,
     should_check_ocsp,
+    tls_configuration_to_pool_kwargs,
     urldefragauth,
     wrap_extension_for_http,
 )
@@ -295,6 +297,7 @@ class HTTPAdapter(BaseAdapter):
         "_keepalive_idle_window",
         "_revocation_configuration",
         "_allow_incoming_cookies",
+        "_tls_configuration",
     ]
 
     def __init__(
@@ -318,6 +321,7 @@ class HTTPAdapter(BaseAdapter):
         keepalive_idle_window: float | int | None = 60.0,
         revocation_configuration: RevocationConfiguration | None = DEFAULT_STRATEGY,
         allow_incoming_cookies: bool = True,
+        tls_configuration: TLSConfiguration | None = None,
     ):
         if isinstance(max_retries, bool):
             self.max_retries: RetryType = False
@@ -364,6 +368,8 @@ class HTTPAdapter(BaseAdapter):
         self._revocation_configuration: RevocationConfiguration | None = revocation_configuration
 
         self._allow_incoming_cookies: bool = allow_incoming_cookies
+
+        self._tls_configuration: TLSConfiguration | None = tls_configuration
 
         disabled_svn = set()
 
@@ -455,6 +461,9 @@ class HTTPAdapter(BaseAdapter):
         self._pool_block = block
         self._quic_cache_layer = quic_cache_layer
 
+        for key, value in tls_configuration_to_pool_kwargs(getattr(self, "_tls_configuration", None)).items():
+            pool_kwargs.setdefault(key, value)
+
         self.poolmanager = PoolManager(
             num_pools=connections,
             maxsize=maxsize,
@@ -481,6 +490,9 @@ class HTTPAdapter(BaseAdapter):
 
         if self._source_address and "source_address" not in proxy_kwargs:
             proxy_kwargs["source_address"] = self._source_address
+
+        for key, value in tls_configuration_to_pool_kwargs(getattr(self, "_tls_configuration", None)).items():
+            proxy_kwargs.setdefault(key, value)
 
         if proxy in self.proxy_manager:
             manager = self.proxy_manager[proxy]
@@ -1378,6 +1390,7 @@ class AsyncHTTPAdapter(AsyncBaseAdapter):
         "_keepalive_idle_window",
         "_revocation_configuration",
         "_allow_incoming_cookies",
+        "_tls_configuration",
     ]
 
     def __init__(
@@ -1401,6 +1414,7 @@ class AsyncHTTPAdapter(AsyncBaseAdapter):
         keepalive_idle_window: float | int | None = 60.0,
         revocation_configuration: RevocationConfiguration | None = DEFAULT_STRATEGY,
         allow_incoming_cookies: bool = True,
+        tls_configuration: TLSConfiguration | None = None,
     ):
         if isinstance(max_retries, bool):
             self.max_retries: RetryType = False
@@ -1448,6 +1462,8 @@ class AsyncHTTPAdapter(AsyncBaseAdapter):
         self._revocation_configuration: RevocationConfiguration | None = revocation_configuration
 
         self._allow_incoming_cookies: bool = allow_incoming_cookies
+
+        self._tls_configuration: TLSConfiguration | None = tls_configuration
 
         disabled_svn = set()
 
@@ -1539,6 +1555,9 @@ class AsyncHTTPAdapter(AsyncBaseAdapter):
         self._pool_block = block
         self._quic_cache_layer = quic_cache_layer
 
+        for key, value in tls_configuration_to_pool_kwargs(getattr(self, "_tls_configuration", None)).items():
+            pool_kwargs.setdefault(key, value)
+
         self.poolmanager = AsyncPoolManager(
             num_pools=connections,
             maxsize=maxsize,
@@ -1565,6 +1584,9 @@ class AsyncHTTPAdapter(AsyncBaseAdapter):
 
         if self._source_address and "source_address" not in proxy_kwargs:
             proxy_kwargs["source_address"] = self._source_address
+
+        for key, value in tls_configuration_to_pool_kwargs(getattr(self, "_tls_configuration", None)).items():
+            proxy_kwargs.setdefault(key, value)
 
         if proxy in self.proxy_manager:
             manager = self.proxy_manager[proxy]

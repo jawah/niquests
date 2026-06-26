@@ -20,6 +20,7 @@ import struct
 import sys
 import tempfile
 import typing
+import warnings
 from collections import OrderedDict
 from functools import lru_cache
 from http.cookiejar import CookieJar
@@ -44,6 +45,7 @@ from .__version__ import __version__
 from ._compat import iscoroutinefunction
 from .exceptions import InvalidURL, MissingSchema, UnrewindableBodyError
 from .extensions.revocation import RevocationConfiguration, RevocationStrategy
+from .extensions.tls import TLSConfiguration
 from .packages.urllib3 import ConnectionInfo
 from .packages.urllib3.contrib.resolver import (
     BaseResolver,
@@ -1518,3 +1520,52 @@ def merge_base_url(base_url: str | None, url: str | None) -> str | None:
         return base_url + url
 
     return url
+
+
+@lru_cache()
+def _supports_ssl_backend() -> bool:
+    """The ``ssl_backend`` keyword argument is only available since urllib3-future 2.22.900.
+
+    We deliberately avoid raising the lower bound for this optional feature, so we have to
+    detect at runtime whether the installed urllib3-future is recent enough.
+    """
+    from .packages.urllib3 import __version__ as urllib3_version
+
+    try:
+        major, minor, patch = (int(part) for part in urllib3_version.split(".")[:3])
+    except (ValueError, TypeError):  # Defensive: unexpected version string
+        return False
+
+    return (major, minor, patch) >= (2, 22, 900)
+
+
+def tls_configuration_to_pool_kwargs(configuration: TLSConfiguration | None) -> dict[str, typing.Any]:
+    """Translate a :class:`TLSConfiguration` into PoolManager/ProxyManager keyword arguments.
+
+    The ``ssl_backend`` keyword argument is guarded: if the installed urllib3-future is older
+    than 2.22.900, we emit a warning and drop the ``backend`` setting instead of passing an
+    unsupported keyword argument down to the connection pool.
+    """
+    if configuration is None:
+        return {}
+
+    pool_kwargs: dict[str, typing.Any] = {}
+
+    if configuration.min_version is not None:
+        pool_kwargs["ssl_minimum_version"] = configuration.min_version
+    if configuration.max_version is not None:
+        pool_kwargs["ssl_maximum_version"] = configuration.max_version
+    if configuration.ciphers is not None:
+        pool_kwargs["ciphers"] = configuration.ciphers
+    if configuration.backend is not None:
+        if _supports_ssl_backend():
+            pool_kwargs["ssl_backend"] = configuration.backend
+        else:
+            warnings.warn(
+                "TLSConfiguration.backend (ssl_backend) requires urllib3-future 2.22.900 or later. "
+                "The installed version is too old, so the requested TLS backend is ignored. "
+                "Upgrade urllib3-future to enable this feature.",
+                stacklevel=2,
+            )
+
+    return pool_kwargs
