@@ -1,6 +1,15 @@
 Release History
 ===============
 
+3.20.0 (2026-06-26)
+-------------------
+
+**Added**
+- Method/Verb `QUERY` as one of the promoted HTTP verb and available through top level function shortcuts and `Session`/`AsyncSession` methods.
+  This is following the RFC 10008. A long awaited standardized verb. Any other non-standard verb is still supported through manual `request(...)` calls.
+- A `TLSConfiguration` object to let you take a deeper control over the TLS configuration.
+  This object will allow you to change min, max TLS version, as the cipher list and finally the desired TLS backend.
+
 3.19.1 (2026-06-08)
 -------------------
 
