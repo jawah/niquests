@@ -47,6 +47,7 @@ from logging import NullHandler
 
 from ._compat import HAS_LEGACY_URLLIB3
 from .extensions.revocation import RevocationConfiguration, RevocationStrategy
+from .extensions.tls import TLSConfiguration
 from .packages.urllib3 import (
     Retry as RetryConfiguration,
 )
@@ -73,7 +74,7 @@ from .__version__ import (
     __url__,
     __version__,
 )
-from .api import delete, get, head, options, patch, post, put, request
+from .api import delete, get, head, options, patch, post, put, query, request
 from .async_api import (
     delete as adelete,
 )
@@ -94,6 +95,9 @@ from .async_api import (
 )
 from .async_api import (
     put as aput,
+)
+from .async_api import (
+    query as aquery,
 )
 from .async_api import (
     request as arequest,
@@ -146,6 +150,7 @@ __all__ = (
     "patch",
     "post",
     "put",
+    "query",
     "request",
     "adelete",
     "aget",
@@ -154,6 +159,7 @@ __all__ = (
     "apatch",
     "apost",
     "aput",
+    "aquery",
     "arequest",
     "ConnectionError",
     "ConnectTimeout",
@@ -184,4 +190,5 @@ __all__ = (
     "RevocationConfiguration",
     "RevocationStrategy",
     "ServerSentEvent",
+    "TLSConfiguration",
 )

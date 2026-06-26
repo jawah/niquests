@@ -36,6 +36,7 @@ from .exceptions import (
 )
 from .extensions.revocation import DEFAULT_STRATEGY, RevocationConfiguration
 from .extensions.sgi._async import AsyncServerGatewayInterface
+from .extensions.tls import TLSConfiguration
 from .extensions.unixsocket._async import AsyncUnixAdapter
 
 try:
@@ -154,6 +155,7 @@ class AsyncSession(Session):
         verify: TLSVerifyType | None = None,
         cert: TLSClientCertType | None = None,
         allow_incoming_cookies: bool = True,
+        tls_configuration: TLSConfiguration | None = None,
     ):
         if [disable_ipv4, disable_ipv6].count(True) == 2:
             raise RuntimeError("Cannot disable both IPv4 and IPv6")
@@ -283,6 +285,9 @@ class AsyncSession(Session):
         #: How we should handle the revocation check for TLS newly acquired connection.
         self._revocation_configuration: RevocationConfiguration | None = revocation_configuration
 
+        #: Fine-grained TLS configuration (backend, min/max version, ciphers) propagated to adapters.
+        self._tls_configuration: TLSConfiguration | None = tls_configuration
+
         # Default connection adapters.
         self.adapters: OrderedDict[str, AsyncBaseAdapter] = OrderedDict()  # type: ignore[assignment]
 
@@ -306,6 +311,7 @@ class AsyncSession(Session):
                     keepalive_idle_window=keepalive_idle_window,
                     revocation_configuration=revocation_configuration,
                     allow_incoming_cookies=allow_incoming_cookies,
+                    tls_configuration=tls_configuration,
                 ),
             )
             self.mount(
@@ -326,6 +332,7 @@ class AsyncSession(Session):
                     keepalive_idle_window=keepalive_idle_window,
                     revocation_configuration=revocation_configuration,
                     allow_incoming_cookies=allow_incoming_cookies,
+                    tls_configuration=tls_configuration,
                 ),
             )
             self.mount(
@@ -346,6 +353,7 @@ class AsyncSession(Session):
                     keepalive_idle_window=keepalive_idle_window,
                     revocation_configuration=revocation_configuration,
                     allow_incoming_cookies=allow_incoming_cookies,
+                    tls_configuration=tls_configuration,
                 ),
             )
         else:
@@ -404,6 +412,7 @@ class AsyncSession(Session):
                 keepalive_idle_window=self._keepalive_idle_window,
                 revocation_configuration=self._revocation_configuration,
                 allow_incoming_cookies=self.allow_incoming_cookies,
+                tls_configuration=self._tls_configuration,
             ),
         )
         self.mount(
@@ -424,6 +433,7 @@ class AsyncSession(Session):
                 keepalive_idle_window=self._keepalive_idle_window,
                 revocation_configuration=self._revocation_configuration,
                 allow_incoming_cookies=self.allow_incoming_cookies,
+                tls_configuration=self._tls_configuration,
             ),
         )
         self.mount(
@@ -667,6 +677,7 @@ class AsyncSession(Session):
                     keepalive_idle_window=self._keepalive_idle_window,
                     revocation_configuration=self._revocation_configuration,
                     allow_incoming_cookies=self.allow_incoming_cookies,
+                    tls_configuration=self._tls_configuration,
                 ),
             )
             self.mount(
@@ -687,6 +698,7 @@ class AsyncSession(Session):
                     keepalive_idle_window=self._keepalive_idle_window,
                     revocation_configuration=self._revocation_configuration,
                     allow_incoming_cookies=self.allow_incoming_cookies,
+                    tls_configuration=self._tls_configuration,
                 ),
             )
             self.mount(
@@ -1105,7 +1117,7 @@ class AsyncSession(Session):
         # Ensuring we always apply a default timeout as per Niquests policy.
         if send_kwargs["timeout"] is None:
             send_kwargs["timeout"] = (
-                WRITE_DEFAULT_TIMEOUT if method in {"POST", "PUT", "DELETE", "PATCH"} else READ_DEFAULT_TIMEOUT
+                WRITE_DEFAULT_TIMEOUT if method in {"POST", "PUT", "DELETE", "PATCH", "QUERY"} else READ_DEFAULT_TIMEOUT
             )
 
         return await self.send(prep, **send_kwargs)
@@ -1636,6 +1648,86 @@ class AsyncSession(Session):
             stream=stream,  # type: ignore[arg-type]
             cert=cert,
             **kwargs,
+        )
+
+    @typing.overload  # type: ignore[override]
+    async def query(
+        self,
+        url: str,
+        data: BodyType | AsyncBodyType | None = ...,
+        json: typing.Any | None = ...,
+        *,
+        params: QueryParameterType | None = ...,
+        headers: HeadersType | None = ...,
+        cookies: CookiesType | None = ...,
+        files: MultiPartFilesType | MultiPartFilesAltType | None = ...,
+        auth: HttpAuthenticationType | AsyncHttpAuthenticationType | None = ...,
+        timeout: TimeoutType | None = ...,
+        allow_redirects: bool = ...,
+        proxies: ProxyType | None = ...,
+        hooks: AsyncHookType[PreparedRequest | Response] | None = ...,
+        verify: TLSVerifyType | None = ...,
+        stream: Literal[False] | Literal[None] = ...,
+        cert: TLSClientCertType | None = ...,
+    ) -> Response: ...
+
+    @typing.overload  # type: ignore[override]
+    async def query(
+        self,
+        url: str,
+        data: BodyType | AsyncBodyType | None = ...,
+        json: typing.Any | None = ...,
+        *,
+        params: QueryParameterType | None = ...,
+        headers: HeadersType | None = ...,
+        cookies: CookiesType | None = ...,
+        files: MultiPartFilesType | MultiPartFilesAltType | None = ...,
+        auth: HttpAuthenticationType | AsyncHttpAuthenticationType | None = ...,
+        timeout: TimeoutType | None = ...,
+        allow_redirects: bool = ...,
+        proxies: ProxyType | None = ...,
+        hooks: AsyncHookType[PreparedRequest | Response] | None = ...,
+        verify: TLSVerifyType | None = ...,
+        stream: Literal[True],
+        cert: TLSClientCertType | None = ...,
+    ) -> AsyncResponse: ...
+
+    async def query(  # type: ignore[override]
+        self,
+        url: str,
+        data: BodyType | AsyncBodyType | None = None,
+        json: typing.Any | None = None,
+        *,
+        params: QueryParameterType | None = None,
+        headers: HeadersType | None = None,
+        cookies: CookiesType | None = None,
+        files: MultiPartFilesType | MultiPartFilesAltType | None = None,
+        auth: HttpAuthenticationType | AsyncHttpAuthenticationType | None = None,
+        timeout: TimeoutType | None = None,
+        allow_redirects: bool = True,
+        proxies: ProxyType | None = None,
+        hooks: AsyncHookType[PreparedRequest | Response] | None = None,
+        verify: TLSVerifyType | None = None,
+        stream: bool | None = None,
+        cert: TLSClientCertType | None = None,
+    ) -> Response | AsyncResponse:
+        return await self.request(  # type: ignore[call-overload,misc]
+            "QUERY",
+            url,
+            data=data,
+            json=json,
+            params=params,
+            headers=headers,
+            cookies=cookies,
+            files=files,
+            auth=auth,
+            timeout=timeout,
+            allow_redirects=allow_redirects,
+            proxies=proxies,
+            hooks=hooks,
+            verify=verify,
+            stream=stream,  # type: ignore[arg-type]
+            cert=cert,
         )
 
     async def gather(self, *responses: Response, max_fetch: int | None = None) -> None:  # type: ignore[override]

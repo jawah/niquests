@@ -596,6 +596,35 @@ to not care about root CAs. By default it is expected to use your operating syst
 You have nothing to do. If we were unable to access your OS truststore natively, (e.g. not Windows, not MacOS, not Linux), then
 we will fallback on the ``certifi`` bundle.
 
+.. _tls-configuration:
+
+TLS Configuration
+-----------------
+
+.. versionadded:: 3.20.0
+
+For a finer control over the TLS layer, you may pass a :class:`~niquests.TLSConfiguration` to your
+:class:`~niquests.Session`. It lets you pick the desired TLS backend, restrict the negotiated TLS
+version, and tune the cipher list::
+
+    from niquests import Session, TLSConfiguration
+    from niquests.packages.urllib3.contrib.anytls import ssl
+
+    tls_config = TLSConfiguration(
+        backend="ssl",  # one of "ssl", "utls", or "rtls"
+        min_version=ssl.TLSVersion.TLSv1_2,
+        max_version=ssl.TLSVersion.TLSv1_3,
+        # also "ciphers" arg is available..!
+    )
+
+    with Session(tls_configuration=tls_config) as s:
+        s.get("https://1.1.1.1")
+
+Every field is optional; leave it to ``None`` to keep the default behavior.
+
+.. note:: Selecting ``backend`` requires urllib3-future 2.22.900 or later. With an older version the
+  setting is ignored and a warning is emitted; the other options remain effective.
+
 .. _HTTP persistent connection: https://en.wikipedia.org/wiki/HTTP_persistent_connection
 .. _connection pooling: https://urllib3.readthedocs.io/en/latest/reference/index.html#module-urllib3.connectionpool
 .. _wassima: https://github.com/jawah/wassima
@@ -2101,6 +2130,16 @@ If you see the TLS backend being "BoringSSL (OpenSSL 1.1.1 compatible)" then you
 .. note:: If you are getting blocked, come and get in touch with us through our Github issues. We'll help unblock the situation. We usually keep updating ``utls`` regularly to ensure we are up-to-date with latest browsers.
 .. warning:: Being able to unblock access via a proper TLS fingerprint does not prevent you from being IP blacklisted. Providers are smart, they know some services can't exceed 1 RPS. You'll need proxies to extend RPS targets.
 
+.. versionadded:: 3.20.0
+
+You can enforce a specific TLS backend through Niquests ``tls_configuration`` kwargs in ``Session`` or ``AsyncSession``.
+Following this example::
+
+    import niquests
+
+    s = niquests.Session(tls_configuration=niquests.TLSConfiguration(backend="utls"))
+    s.get("https://my-hard-to-access-url.tld/")  # should be okay now
+
 Tracking the real download speed
 --------------------------------
 
@@ -2267,6 +2306,16 @@ against aws-lc-rs.
 
 It's a memory-safe TLS backend. To learn more about it, visit https://github.com/jawah/rtls
 Any issue encountered with it should be reported directly to the linked repository.
+
+.. versionadded:: 3.20.0
+
+Following this example, you can programmatically enforce a specific TLS backend::
+
+    import niquests
+
+    s = niquests.Session(tls_configuration=niquests.TLSConfiguration(backend="rtls"))
+
+.. note:: This is useful when the user may have multiple TLS backends installed in the environment.
 
 Encrypted Client Hello
 ----------------------
