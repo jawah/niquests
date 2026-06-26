@@ -2101,6 +2101,16 @@ If you see the TLS backend being "BoringSSL (OpenSSL 1.1.1 compatible)" then you
 .. note:: If you are getting blocked, come and get in touch with us through our Github issues. We'll help unblock the situation. We usually keep updating ``utls`` regularly to ensure we are up-to-date with latest browsers.
 .. warning:: Being able to unblock access via a proper TLS fingerprint does not prevent you from being IP blacklisted. Providers are smart, they know some services can't exceed 1 RPS. You'll need proxies to extend RPS targets.
 
+.. versionadded:: 3.20.0
+
+You can enforce a specific TLS backend through Niquests ``tls_configuration`` kwargs in ``Session`` or ``AsyncSession``.
+Following this example::
+
+    import niquests
+
+    s = niquests.Session(tls_configuration=niquests.TLSConfiguration(backend="utls"))
+    s.get("https://my-hard-to-access-url.tld/")  # should be okay now
+
 Tracking the real download speed
 --------------------------------
 
@@ -2267,6 +2277,16 @@ against aws-lc-rs.
 
 It's a memory-safe TLS backend. To learn more about it, visit https://github.com/jawah/rtls
 Any issue encountered with it should be reported directly to the linked repository.
+
+.. versionadded:: 3.20.0
+
+Following this example, you can programmatically enforce a specific TLS backend::
+
+    import niquests
+
+    s = niquests.Session(tls_configuration=niquests.TLSConfiguration(backend="rtls"))
+
+.. note:: This is useful when the user may have multiple TLS backends installed in the environment.
 
 Encrypted Client Hello
 ----------------------
