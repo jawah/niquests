@@ -1850,7 +1850,7 @@ class AsyncResponse(Response):
         return generate()
 
     @typing.overload  # type: ignore[override]
-    async def iter_lines(
+    def iter_lines(
         self,
         chunk_size: int = ...,
         decode_unicode: Literal[False] = ...,
@@ -1858,7 +1858,7 @@ class AsyncResponse(Response):
     ) -> typing.AsyncGenerator[bytes, None]: ...
 
     @typing.overload  # type: ignore[override]
-    async def iter_lines(
+    def iter_lines(
         self,
         chunk_size: int = ...,
         *,
