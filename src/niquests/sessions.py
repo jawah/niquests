@@ -690,7 +690,7 @@ class Session:
 
         if send_kwargs["timeout"] is None:
             send_kwargs["timeout"] = (
-                WRITE_DEFAULT_TIMEOUT if method in {"POST", "PUT", "DELETE", "PATCH"} else READ_DEFAULT_TIMEOUT
+                WRITE_DEFAULT_TIMEOUT if method in {"POST", "PUT", "DELETE", "PATCH", "QUERY"} else READ_DEFAULT_TIMEOUT
             )
 
         resp = self.send(prep, **send_kwargs)
@@ -1208,6 +1208,91 @@ class Session:
             stream=stream,
             cert=cert,
             **kwargs,
+        )
+
+    def query(
+        self,
+        url: str,
+        data: BodyType | None = None,
+        json: typing.Any | None = None,
+        *,
+        params: QueryParameterType | None = None,
+        headers: HeadersType | None = None,
+        cookies: CookiesType | None = None,
+        files: MultiPartFilesType | MultiPartFilesAltType | None = None,
+        auth: HttpAuthenticationType | None = None,
+        timeout: TimeoutType | None = None,
+        allow_redirects: bool = True,
+        proxies: ProxyType | None = None,
+        hooks: HookType[PreparedRequest | Response] | None = None,
+        verify: TLSVerifyType | None = None,
+        stream: bool | None = None,
+        cert: TLSClientCertType | None = None,
+    ) -> Response:
+        r"""Sends a QUERY request. Returns :class:`Response` object.
+
+        The QUERY method (:rfc:`10008`) requests that the server process the
+        enclosed content as a query and respond with the result. It is similar
+        to POST in that the query is carried in the request body, but unlike
+        POST it is safe and idempotent, allowing requests to be cached and
+        automatically retried.
+
+        :param url: URL for the new :class:`Request` object.
+        :param params: (optional) Dictionary or bytes to be sent in the query
+            string for the :class:`Request`.
+        :param data: (optional) Dictionary, list of tuples, bytes, or file-like
+            object to send in the body of the :class:`Request`.
+        :param json: (optional) json to send in the body of the
+            :class:`Request`.
+        :param headers: (optional) Dictionary of HTTP Headers to send with the
+            :class:`Request`.
+        :param cookies: (optional) Dict or CookieJar object to send with the
+            :class:`Request`.
+        :param files: (optional) Dictionary of ``'filename': file-like-objects``
+            for multipart encoding upload.
+        :param auth: (optional) Auth tuple or callable to enable
+            Basic/Digest/Custom HTTP Auth.
+        :param timeout: (optional) How long to wait for the server to send
+            data before giving up, as a float, or a :ref:`(connect timeout,
+            read timeout) <timeouts>` tuple.
+        :param allow_redirects: (optional) Set to True by default.
+        :param proxies: (optional) Dictionary mapping protocol or protocol and
+            hostname to the URL of the proxy.
+        :param hooks: (optional) Dictionary mapping hook name to one event or
+            list of events, event must be callable.
+        :param stream: (optional) whether to immediately download the response
+            content. Defaults to ``False``.
+        :param verify: (optional) Either a boolean, in which case it controls whether we verify
+            the server's TLS certificate, or a path passed as a string or os.Pathlike object,
+            in which case it must be a path to a CA bundle to use.
+            Defaults to ``True``. When set to
+            ``False``, requests will accept any TLS certificate presented by
+            the server, and will ignore hostname mismatches and/or expired
+            certificates, which will make your application vulnerable to
+            man-in-the-middle (MitM) attacks. Setting verify to ``False``
+            may be useful during local development or testing.
+            It is also possible to put the certificates (directly) in a string or bytes.
+        :param cert: (optional) if String, path to ssl client cert file (.pem).
+            If Tuple, ('cert', 'key') pair, or ('cert', 'key', 'key_password').
+        """
+
+        return self.request(
+            "QUERY",
+            url,
+            data=data,
+            json=json,
+            params=params,
+            headers=headers,
+            cookies=cookies,
+            files=files,
+            auth=auth,
+            timeout=timeout,
+            allow_redirects=allow_redirects,
+            proxies=proxies,
+            hooks=hooks,
+            verify=verify,
+            stream=stream,
+            cert=cert,
         )
 
     def send(self, request: PreparedRequest, **kwargs: typing.Any) -> Response:
