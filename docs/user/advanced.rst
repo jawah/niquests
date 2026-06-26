@@ -596,6 +596,35 @@ to not care about root CAs. By default it is expected to use your operating syst
 You have nothing to do. If we were unable to access your OS truststore natively, (e.g. not Windows, not MacOS, not Linux), then
 we will fallback on the ``certifi`` bundle.
 
+.. _tls-configuration:
+
+TLS Configuration
+-----------------
+
+.. versionadded:: 3.20.0
+
+For a finer control over the TLS layer, you may pass a :class:`~niquests.TLSConfiguration` to your
+:class:`~niquests.Session`. It lets you pick the desired TLS backend, restrict the negotiated TLS
+version, and tune the cipher list::
+
+    from niquests import Session, TLSConfiguration
+    from niquests.packages.urllib3.contrib.anytls import ssl
+
+    tls_config = TLSConfiguration(
+        backend="ssl",  # one of "ssl", "utls", or "rtls"
+        min_version=ssl.TLSVersion.TLSv1_2,
+        max_version=ssl.TLSVersion.TLSv1_3,
+        # also "ciphers" arg is available..!
+    )
+
+    with Session(tls_configuration=tls_config) as s:
+        s.get("https://1.1.1.1")
+
+Every field is optional; leave it to ``None`` to keep the default behavior.
+
+.. note:: Selecting ``backend`` requires urllib3-future 2.22.900 or later. With an older version the
+  setting is ignored and a warning is emitted; the other options remain effective.
+
 .. _HTTP persistent connection: https://en.wikipedia.org/wiki/HTTP_persistent_connection
 .. _connection pooling: https://urllib3.readthedocs.io/en/latest/reference/index.html#module-urllib3.connectionpool
 .. _wassima: https://github.com/jawah/wassima
