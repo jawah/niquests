@@ -10,6 +10,9 @@ Release History
 - A `TLSConfiguration` object to let you take a deeper control over the TLS configuration.
   This object will allow you to change min, max TLS version, as the cipher list and finally the desired TLS backend.
 
+**Fixed**
+- Typing overload for `AsyncResponse` iter_lines method. (#413)
+
 3.19.1 (2026-06-08)
 -------------------
 
