@@ -167,8 +167,6 @@ It can also be used as a decorator:
 
 .. _niquests-mock: https://pypi.org/project/niquests-mock/
 
-.. _opentelemetry-instrumentation-niquests:
-
 opentelemetry-instrumentation-niquests
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
