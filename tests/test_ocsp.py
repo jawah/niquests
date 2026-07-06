@@ -53,14 +53,17 @@ class TestOnlineCertificateRevocationProtocol:
         with Session() as s:
             assert s._ocsp_cache is None
             s.get("https://conda-forge.org/blog/2020/10/02/versions/", timeout=OCSP_MAX_DELAY_WAIT)
+            assert s._crl_cache is not None
+            assert hasattr(s._crl_cache, "_store")
+            assert isinstance(s._crl_cache._store, dict)
+            assert len(s._crl_cache._store) == 1
+            s.get("https://pypi.org/pypi/niquests/json", timeout=OCSP_MAX_DELAY_WAIT)
             assert s._ocsp_cache is not None
             assert hasattr(s._ocsp_cache, "_store")
             assert isinstance(s._ocsp_cache._store, dict)
             assert len(s._ocsp_cache._store) == 1
-            s.get("https://pypi.org/pypi/niquests/json", timeout=OCSP_MAX_DELAY_WAIT)
-            assert len(s._ocsp_cache._store) == 2
             s.get("https://one.one.one.one", timeout=OCSP_MAX_DELAY_WAIT)
-            assert len(s._ocsp_cache._store) == 3
+            assert len(s._ocsp_cache._store) == 2
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize(
@@ -94,11 +97,14 @@ class TestOnlineCertificateRevocationProtocol:
         async with AsyncSession() as s:
             assert s._ocsp_cache is None
             await s.get("https://conda-forge.org/blog/2020/10/02/versions/", timeout=OCSP_MAX_DELAY_WAIT)
+            assert s._crl_cache is not None
+            assert hasattr(s._crl_cache, "_store")
+            assert isinstance(s._crl_cache._store, dict)
+            assert len(s._crl_cache._store) == 1
+            await s.get("https://pypi.org/pypi/niquests/json", timeout=OCSP_MAX_DELAY_WAIT)
             assert s._ocsp_cache is not None
             assert hasattr(s._ocsp_cache, "_store")
             assert isinstance(s._ocsp_cache._store, dict)
             assert len(s._ocsp_cache._store) == 1
-            await s.get("https://pypi.org/pypi/niquests/json", timeout=OCSP_MAX_DELAY_WAIT)
-            assert len(s._ocsp_cache._store) == 2
             await s.get("https://one.one.one.one/", timeout=OCSP_MAX_DELAY_WAIT)
-            assert len(s._ocsp_cache._store) == 3
+            assert len(s._ocsp_cache._store) == 2
