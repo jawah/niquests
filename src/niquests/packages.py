@@ -82,13 +82,44 @@ for package in (
 
 
 class _AliasModuleLoader(importlib.abc.Loader):
-    """A loader that returns an already-imported module without re-executing it."""
+    """A loader that imports the real module and hands it back for the alias name.
 
-    def __init__(self, real_module: typing.Any) -> None:
-        self._real_module = real_module
+    The real import MUST happen here and not in find_spec: the import
+    machinery invokes meta path finders while holding the interpreter-wide
+    import lock. See https://github.com/jawah/niquests/issues/415
+    """
+
+    def __init__(self, real_name: str, alias_root: str, real_root: str) -> None:
+        self._real_name = real_name
+        self._alias_root = alias_root
+        self._real_root = real_root
 
     def create_module(self, spec: importlib.machinery.ModuleSpec) -> typing.Any:
-        return self._real_module
+        real_module = importlib.import_module(self._real_name)
+
+        # Adjust the alias spec before the import machinery initializes the
+        # (real) module attributes with it.
+        spec.origin = getattr(real_module, "__file__", None)
+        if hasattr(real_module, "__path__"):
+            spec.submodule_search_locations = list(real_module.__path__)
+        else:
+            spec.submodule_search_locations = None
+
+        # Eagerly alias every submodule of the real package loaded so far,
+        # this avoid duplicate refs for same target.
+        real_root_dot = self._real_root + "."
+        for mod_name in list(sys.modules):
+            if mod_name == self._real_root or mod_name.startswith(real_root_dot):
+                alias_mod_name = self._alias_root + mod_name[len(self._real_root) :]
+                if alias_mod_name not in sys.modules:
+                    try:
+                        sys.modules[alias_mod_name] = sys.modules[mod_name]
+                    except KeyError:
+                        continue
+
+        # _load_unlocked/module_from_spec reuse this module object for the
+        # alias instead of creating (and executing) a blank one.
+        return real_module
 
     def exec_module(self, module: typing.Any) -> None:
         pass
@@ -103,9 +134,7 @@ class _NiquestsPackagesAliasImporter(importlib.abc.MetaPathFinder):
         path: typing.Any = None,
         target: typing.Any = None,
     ) -> importlib.machinery.ModuleSpec | None:
-        if fullname in sys.modules:
-            return None
-
+        # The actual import is deferred to _AliasModuleLoader.create_module.
         real_name: str | None = None
         alias_root: str | None = None
         real_root: str | None = None
@@ -120,36 +149,12 @@ class _NiquestsPackagesAliasImporter(importlib.abc.MetaPathFinder):
         if real_name is None or alias_root is None or real_root is None:
             return None
 
-        # Snapshot the set of loaded module names so that we can detect any
-        # submodules pulled in as side-effects of importing ``real_name``.
-        before_keys = set(sys.modules.keys())
-
-        # Import the real module first, then point the alias at it.
-        real_module = importlib.import_module(real_name)
-        sys.modules[fullname] = real_module
-
-        # Eagerly alias every submodule that was loaded as a side-effect of
-        # importing the real module.  This is essential to avoid duplicates.
-        real_root_dot = real_root + "."
-        for new_mod_name in list(sys.modules):
-            if new_mod_name not in before_keys and new_mod_name.startswith(real_root_dot):
-                alias_mod_name = alias_root + new_mod_name[len(real_root) :]
-                if alias_mod_name not in sys.modules:
-                    sys.modules[alias_mod_name] = sys.modules[new_mod_name]
-
-        # Return a spec with a loader that hands back the already-imported
-        # module so that _load_unlocked / module_from_spec reuse the
-        # real module object instead of creating a blank one.
-        is_package = hasattr(real_module, "__path__")
-        spec = importlib.machinery.ModuleSpec(
+        # The spec is deliberately created without knowing whether the target
+        # is a package.
+        return importlib.machinery.ModuleSpec(
             fullname,
-            _AliasModuleLoader(real_module),
-            origin=getattr(real_module, "__file__", None),
-            is_package=is_package,
+            _AliasModuleLoader(real_name, alias_root, real_root),
         )
-        if is_package:
-            spec.submodule_search_locations = list(real_module.__path__)
-        return spec
 
 
 # Insert at front so we intercept before the default PathFinder.
