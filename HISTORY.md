@@ -1,6 +1,13 @@
 Release History
 ===============
 
+3.20.1 (2026-07-09)
+-------------------
+
+**Fixed**
+- A session initialized with `multiplexed=True` can starve the event loop when responses are pending read (i.e. no promise left, only stream data read).
+- Importing Niquests in a thread while another thread import any of our dependencies (e.g. h11) may result in a deadlock. (#415)
+
 3.20.0 (2026-06-26)
 -------------------
 
