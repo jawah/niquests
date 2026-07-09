@@ -8,6 +8,7 @@ and maintain connections.
 
 from __future__ import annotations
 
+import asyncio
 import os.path
 import socket  # noqa: F401
 import sys
@@ -865,6 +866,10 @@ class HTTPAdapter(BaseAdapter):
 
                     if response is not None:
                         self._future_handler(response, low_resp)
+                else:
+                    # we'll take any room available right away.
+                    if not conn.is_saturated:
+                        break
 
         if isinstance(conn, HTTPSConnectionPool):
             self.cert_verify(conn, request.url, verify, cert)
@@ -1951,6 +1956,17 @@ class AsyncHTTPAdapter(AsyncBaseAdapter):
 
                     if response is not None:
                         await self._future_handler(response, low_resp)
+                else:
+                    # yield control to another task
+                    # we're in the situation where no ResponsePromise
+                    # is pending but all responses are pending drain.
+                    # the user is responsible from draining their
+                    # pending response streams.
+                    await asyncio.sleep(0)
+
+                    # we'll take any room available right away.
+                    if not conn.is_saturated:
+                        break
 
         if isinstance(conn, AsyncHTTPSConnectionPool):
             need_reboot = self.cert_verify(conn, request.url, verify, cert)
