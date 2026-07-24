@@ -3085,3 +3085,25 @@ class TestPreparingURLs:
         r = niquests.get(httpbin("get"))
         assert r.http_version is not None
         assert r.http_version == 11
+
+
+@pytest.mark.parametrize(
+    "disable_kwarg, attr",
+    [
+        ("disable_http1", "_disable_http1"),
+        ("disable_http2", "_disable_http2"),
+        ("disable_http3", "_disable_http3"),
+    ],
+)
+class TestDisableProtocolFlags:
+    def test_flag_on_session(self, disable_kwarg, attr):
+        s = niquests.Session(**{disable_kwarg: True})
+        assert getattr(s, attr) is True
+
+    def test_flag_on_async_session(self, disable_kwarg, attr):
+        s = niquests.AsyncSession(**{disable_kwarg: True})
+        assert getattr(s, attr) is True
+
+    def test_flag_defaults_false(self, disable_kwarg, attr):
+        s = niquests.Session()
+        assert getattr(s, attr) is False

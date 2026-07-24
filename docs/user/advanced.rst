@@ -176,12 +176,15 @@ The :class:`~niquests.Session` class takes several (optional) named arguments fo
 
 - `disable_http1`
   Toggle to disable negotiating HTTP/1 with remote peers. Set it to ``True`` to force HTTP/2 over cleartext (h2c).
+  Defaults to the ``NIQUESTS_DISABLE_HTTP1`` environment variable if set to anything but ``0``.
 
 - `disable_http2`
   Toggle to disable negotiating HTTP/2 with remote peers.
+  Defaults to the ``NIQUESTS_DISABLE_HTTP2`` environment variable if set to anything but ``0``.
 
 - `disable_http3`
   Toggle to disable negotiating HTTP/3 with remote peers.
+  Defaults to the ``NIQUESTS_DISABLE_HTTP3`` environment variable if set to anything but ``0``.
 
 - `disable_ipv6`
   Toggle to disable using IPv6 even if the remote host supports it.
@@ -1986,6 +1989,15 @@ Having a session without HTTP/2 enabled should be done that way::
 
     session = niquests.Session(disable_http2=True)
 
+You can also set this globally via environment variables so that every :class:`~niquests.Session`
+defaults to the desired behavior without changing code::
+
+    export NIQUESTS_DISABLE_HTTP1=1
+    export NIQUESTS_DISABLE_HTTP2=1
+    export NIQUESTS_DISABLE_HTTP3=1
+
+Set any of them to anything but ``0`` to disable the corresponding protocol. A value passed
+explicitly to the constructor always takes precedence.
 
 HTTP/2 with prior knowledge
 ---------------------------
