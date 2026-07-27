@@ -13,6 +13,7 @@ class TLSConfiguration:
     min_version: ssl.TLSVersion | None = None
     max_version: ssl.TLSVersion | None = None
     ciphers: str | None = None
+    assert_hostname: bool | None = None
 
 
 __all__ = ("TLSConfiguration",)

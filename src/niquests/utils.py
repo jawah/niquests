@@ -1557,6 +1557,8 @@ def tls_configuration_to_pool_kwargs(configuration: TLSConfiguration | None) -> 
         pool_kwargs["ssl_maximum_version"] = configuration.max_version
     if configuration.ciphers is not None:
         pool_kwargs["ciphers"] = configuration.ciphers
+    if configuration.assert_hostname is not None:
+        pool_kwargs["assert_hostname"] = configuration.assert_hostname
     if configuration.backend is not None:
         if _supports_ssl_backend():
             pool_kwargs["ssl_backend"] = configuration.backend
