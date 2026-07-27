@@ -11,6 +11,7 @@ from random import randint
 from qh3._hazmat import (
     Certificate,
     CertificateRevocationList,
+    CryptoError,
 )
 
 from ....exceptions import RequestException, SSLError
@@ -312,7 +313,7 @@ def verify(
 
                 try:
                     crl = CertificateRevocationList(crl_http_response.content)
-                except ValueError:
+                except (ValueError, CryptoError):
                     if strict:
                         warnings.warn(
                             (

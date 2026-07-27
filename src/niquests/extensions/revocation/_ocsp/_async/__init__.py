@@ -13,7 +13,7 @@ from qh3._hazmat import (
     OCSPCertStatus,
     OCSPRequest,
     OCSPResponse,
-    OCSPResponseStatus,
+    OCSPResponseStatus, CryptoError,
 )
 
 from .....exceptions import RequestException, SSLError
@@ -411,7 +411,7 @@ async def verify(
 
                 try:
                     ocsp_resp = OCSPResponse(ocsp_http_response.content)
-                except ValueError:
+                except (ValueError, CryptoError):
                     if strict:
                         warnings.warn(
                             (

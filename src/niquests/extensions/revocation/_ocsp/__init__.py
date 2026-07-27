@@ -16,7 +16,7 @@ from qh3._hazmat import (
     OCSPRequest,
     OCSPResponse,
     OCSPResponseStatus,
-    ReasonFlags,
+    ReasonFlags, CryptoError,
 )
 
 from ....exceptions import RequestException, SSLError
@@ -398,7 +398,7 @@ def verify(
 
                 try:
                     ocsp_resp = OCSPResponse(ocsp_http_response.content)
-                except ValueError:
+                except (ValueError, CryptoError):
                     if strict:
                         warnings.warn(
                             (
