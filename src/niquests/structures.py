@@ -289,6 +289,13 @@ class QuicSharedCache(SharableLimitedDict):
 
             self._store[key] = value
 
+    def __delitem__(self, key):
+        with self._lock:
+            super().__delitem__(key)
+
+            domain, port = key
+            self.exclude_domain(domain, port)
+
 
 class AsyncQuicSharedCache(QuicSharedCache):
     def __init__(self, max_size: int | None) -> None:
