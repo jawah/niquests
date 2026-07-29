@@ -6,7 +6,6 @@ from pathlib import Path
 
 import pytest
 
-
 _ARTIFACTS = os.environ.get("NIQUESTS_WASI_ARTIFACTS")
 _WASMTIME = os.environ.get("NIQUESTS_WASMTIME")
 _ROOT = os.environ.get("NIQUESTS_WASI_ROOT")

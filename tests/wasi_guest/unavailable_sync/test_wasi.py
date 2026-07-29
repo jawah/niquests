@@ -1,5 +1,8 @@
-import niquests
+from __future__ import annotations
+
 import pytest
+
+import niquests
 from niquests.exceptions import InvalidSchema
 from niquests.extensions.wasi import _capabilities as capabilities
 

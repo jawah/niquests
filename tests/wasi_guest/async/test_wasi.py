@@ -2,11 +2,12 @@ from __future__ import annotations
 
 import json
 
-import niquests
 import pytest
 from edge_cases import run_async_edges
-from niquests.exceptions import InvalidSchema, ReadTimeout, SSLError
 from niquests.packages.urllib3.exceptions import MaxRetryError
+
+import niquests
+from niquests.exceptions import InvalidSchema, ReadTimeout, SSLError
 
 
 async def test_buffered_get() -> None:
@@ -171,7 +172,10 @@ async def test_sse() -> None:
 
 
 async def test_sse_edge_formatting() -> None:
-    payload = "OiBjb21tZW50DQoNCnJldHJ5OiBub3BlDQoNCmV2ZW50OiBjdXN0b20NCmlkOiA3DQpyZXRyeTogMTUwMA0KZGF0YTogZmlyc3QNCmRhdGE6IHNlY29uZA0KDQpkYXRhOiBmaW5hbA=="
+    payload = (
+        "OiBjb21tZW50DQoNCnJldHJ5OiBub3BlDQoNCmV2ZW50OiBjdXN0b20NCmlkOiA3DQpyZXRyeTog"
+        "MTUwMA0KZGF0YTogZmlyc3QNCmRhdGE6IHNlY29uZA0KDQpkYXRhOiBmaW5hbA=="
+    )
     async with niquests.AsyncSession() as session:
         response = await session.get(f"sse://httpbingo.org/base64/{payload}?content-type=text%2Fevent-stream")
         event = await response.extension.next_payload()

@@ -1,17 +1,15 @@
 from __future__ import annotations
 
+import encodings.unicode_escape  # noqa: F401
 import importlib
 import os
 import pkgutil
-import encodings.unicode_escape  # noqa: F401
 
 import _pytest
-import coverage
 import packaging
 import pytest
-from wit_world import exports
-
 from coverage_runner import new_coverage, save_coverage
+from wit_world import exports
 
 _import_coverage = new_coverage()
 _import_coverage.start()

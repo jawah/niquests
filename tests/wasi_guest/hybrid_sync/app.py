@@ -8,9 +8,8 @@ import pkgutil
 import _pytest
 import packaging
 import pytest
-from wit_world import exports
-
 from coverage_runner import new_coverage, save_coverage
+from wit_world import exports
 
 _import_coverage = new_coverage()
 _import_coverage.start()

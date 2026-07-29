@@ -4,6 +4,7 @@ import typing
 from contextlib import contextmanager
 
 from componentize_py_types import Err as _Err  # type: ignore[import-not-found]
+
 from ...exceptions import ConnectionError, ConnectTimeout, InvalidSchema, InvalidURL, ReadTimeout, SSLError
 from ...packages.urllib3._collections import HTTPHeaderDict
 from ...packages.urllib3.util import parse_url
@@ -114,6 +115,7 @@ def wasi_exception_mapping(url: str, *, reading: bool = False) -> typing.Iterato
         value = exc.value  # type: ignore[attr-defined]
         name = type(value).__name__.lower().replace("_", "").replace("-", "")
         detail = str(value) or type(value).__name__
+        mapped: BaseException
         if "tlscertificate" in name or "tlsprotocol" in name or "tlsalert" in name:
             mapped = SSLError(f"WASI TLS failure for {url}: {detail}")
         elif "dnstimeout" in name or "connectiontimeout" in name:

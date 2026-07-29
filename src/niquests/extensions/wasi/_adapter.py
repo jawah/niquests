@@ -8,19 +8,21 @@ from ..._constant import DEFAULT_RETRIES
 from ...adapters import BaseAdapter
 from ...exceptions import InvalidSchema, SSLError
 from ...models import PreparedRequest, Response
+from ...packages.urllib3._collections import HTTPHeaderDict
 from ...packages.urllib3._constant import DEFAULT_BLOCKSIZE
 from ...packages.urllib3._constant import responses as status_reasons
 from ...packages.urllib3.backend import LowLevelResponse
-from ...packages.urllib3._collections import HTTPHeaderDict
-from ...packages.urllib3.response import HTTPResponse as BaseHTTPResponse
 from ...packages.urllib3.exceptions import MaxRetryError
+from ...packages.urllib3.response import HTTPResponse as BaseHTTPResponse
 from ...packages.urllib3.util import Timeout as TimeoutSauce
 from ...packages.urllib3.util.request import body_to_chunks
 from ...packages.urllib3.util.retry import Retry
 from ...structures import CaseInsensitiveDict
 from ...utils import get_encoding_from_headers, rewind_body
+from . import _capabilities
 from ._sse import WASISSEExtension
 from ._utils import (
+    _WASIProxyError,
     close_resource,
     decode_field_value,
     method_variant,
@@ -30,9 +32,7 @@ from ._utils import (
     set_timeouts,
     validate_transport_options,
     wasi_exception_mapping,
-    _WASIProxyError,
 )
-from . import _capabilities
 
 if typing.TYPE_CHECKING:
     from ...typing import ProxyType, RetryType, TLSClientCertType, TLSVerifyType
@@ -281,7 +281,7 @@ class WASIAdapter(BaseAdapter):
             if outgoing_body is not None:
                 output = outgoing_body.write()
                 sent = 0
-                content_length = request.headers.get("Content-Length")
+                content_length = request.headers.get("Content-Length") if request.headers is not None else None
                 try:
                     total = int(content_length) if content_length is not None else prepared_body.content_length
                 except (TypeError, ValueError):  # Defensive: PreparedRequest emits a valid length

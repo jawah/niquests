@@ -9,20 +9,20 @@ from ...._constant import DEFAULT_RETRIES
 from ....adapters import AsyncBaseAdapter
 from ....exceptions import InvalidSchema, SSLError
 from ....models import AsyncResponse, PreparedRequest, Response
+from ....packages.urllib3._async.response import AsyncHTTPResponse as BaseAsyncHTTPResponse
+from ....packages.urllib3._collections import HTTPHeaderDict
 from ....packages.urllib3._constant import DEFAULT_BLOCKSIZE
 from ....packages.urllib3._constant import responses as status_reasons
-from ....packages.urllib3._collections import HTTPHeaderDict
 from ....packages.urllib3.backend._async import AsyncLowLevelResponse
-from ....packages.urllib3._async.response import AsyncHTTPResponse as BaseAsyncHTTPResponse
 from ....packages.urllib3.exceptions import MaxRetryError
 from ....packages.urllib3.util import Timeout as TimeoutSauce
 from ....packages.urllib3.util.request import body_to_chunks
 from ....packages.urllib3.util.retry import Retry
 from ....structures import CaseInsensitiveDict
 from ....utils import _swap_context, arewind_body, get_encoding_from_headers, rewind_body
-from ._sse import AsyncWASISSEExtension
 from .. import _capabilities
 from .._utils import (
+    _WASIProxyError,
     close_resource,
     decode_field_value,
     method_variant,
@@ -32,16 +32,15 @@ from .._utils import (
     set_timeouts,
     validate_transport_options,
     wasi_exception_mapping,
-    _WASIProxyError,
 )
+from ._sse import AsyncWASISSEExtension
 
 if typing.TYPE_CHECKING:
     from ....typing import ProxyType, RetryType, TLSClientCertType, TLSVerifyType
 
 if not _capabilities.HAS_WASI_P3_HTTP:
     raise ImportError(
-        "The asynchronous WASI HTTP adapter requires wasi:http/types@0.3.0 and "
-        "wasi:http/client@0.3.0 in the component world."
+        "The asynchronous WASI HTTP adapter requires wasi:http/types@0.3.0 and wasi:http/client@0.3.0 in the component world."
     )
 
 import componentize_py_async_support as _async_support  # type: ignore[import-not-found]  # noqa: E402
@@ -55,9 +54,7 @@ _CLIENT = typing.cast(typing.Any, _capabilities._WASI_P3_HTTP_CLIENT)
 
 async def _rewind_body_for_retry(request: PreparedRequest) -> None:
     if request.body is None or not (
-        request._body_position is not None
-        or hasattr(request.body, "__next__")
-        or hasattr(request.body, "__anext__")
+        request._body_position is not None or hasattr(request.body, "__next__") or hasattr(request.body, "__anext__")
     ):
         return
     if hasattr(request.body, "seek") and iscoroutinefunction(request.body.seek):
@@ -165,9 +162,7 @@ class _AsyncWASILowLevelResponse(AsyncLowLevelResponse):
             self._trailers_future = self._request_done = None
         return trailers_dict
 
-    async def _read_body(
-        self, amount: int | None, stream_id: int | None
-    ) -> tuple[list[bytes], bool, HTTPHeaderDict | None]:
+    async def _read_body(self, amount: int | None, stream_id: int | None) -> tuple[list[bytes], bool, HTTPHeaderDict | None]:
         chunks: list[bytes] = []
         while True:
             with wasi_exception_mapping(self._url, reading=True):
@@ -293,12 +288,10 @@ class AsyncWASIAdapter(AsyncBaseAdapter):
         if body is not None:
             prepared_body = body_to_chunks(body, request.method or "GET", DEFAULT_BLOCKSIZE, force=True)
             assert prepared_body.chunks is not None
-            content_length_header = request.headers.get("Content-Length")
+            content_length_header = request.headers.get("Content-Length") if request.headers is not None else None
             try:
                 content_length = (
-                    int(content_length_header)
-                    if content_length_header is not None
-                    else prepared_body.content_length
+                    int(content_length_header) if content_length_header is not None else prepared_body.content_length
                 )
             except (TypeError, ValueError):  # Defensive: PreparedRequest emits a valid length
                 content_length = prepared_body.content_length

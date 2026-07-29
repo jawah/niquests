@@ -2,13 +2,13 @@ from __future__ import annotations
 
 from io import BytesIO
 
-import niquests.extensions.wasi._async._adapter as wasi
 from componentize_py_types import Err, Ok
+from niquests.packages.urllib3._collections import HTTPHeaderDict
+from niquests.packages.urllib3.util.retry import Retry
+
+import niquests.extensions.wasi._async._adapter as wasi
 from niquests.exceptions import ConnectionError, ReadTimeout
 from niquests.models import AsyncResponse, PreparedRequest
-from niquests.packages.urllib3._collections import HTTPHeaderDict
-from niquests.packages.urllib3.exceptions import MaxRetryError
-from niquests.packages.urllib3.util.retry import Retry
 
 
 class Resource:
@@ -161,9 +161,22 @@ class Types:
     RequestOptions = Options
     Request = Request
     Response = ResponseType
-    Method_Get = Method_Post = lambda: object()
-    Method_Other = lambda value: value
-    Scheme_Http = Scheme_Https = lambda: object()
+
+    @staticmethod
+    def Method_Get():
+        return object()
+
+    Method_Post = Method_Get
+
+    @staticmethod
+    def Method_Other(value):
+        return value
+
+    @staticmethod
+    def Scheme_Http():
+        return object()
+
+    Scheme_Https = Scheme_Http
 
 
 class WitWorld:
@@ -275,14 +288,10 @@ async def low_level_cases():
     assert await waits.read(1) == b"x"
     assert await waits.read(1) == b""
 
-    no_futures = wasi._AsyncWASILowLevelResponse(
-        "GET", 200, "OK", HTTPHeaderDict(), Reader([b""]), None, None, "url"
-    )
+    no_futures = wasi._AsyncWASILowLevelResponse("GET", 200, "OK", HTTPHeaderDict(), Reader([b""]), None, None, "url")
     assert await no_futures.read(1) == b""
 
-    failed = wasi._AsyncWASILowLevelResponse(
-        "GET", 200, "OK", HTTPHeaderDict(), Reader([Err(Failed())]), None, None, "url"
-    )
+    failed = wasi._AsyncWASILowLevelResponse("GET", 200, "OK", HTTPHeaderDict(), Reader([Err(Failed())]), None, None, "url")
     try:
         await failed.read(1)
     except ReadTimeout:
@@ -382,9 +391,7 @@ async def retry_and_adapter_cases():
     await wasi._rewind_body_for_retry(body_request)
     assert async_body.read() == b"payload"
 
-    exhausted = wasi.AsyncWASIAdapter(
-        max_retries=Retry(total=0, status=0, status_forcelist={500}, raise_on_status=False)
-    )
+    exhausted = wasi.AsyncWASIAdapter(max_retries=Retry(total=0, status=0, status_forcelist={500}, raise_on_status=False))
 
     async def status_once(*args, **kwargs):
         response = AsyncResponse()
@@ -396,7 +403,6 @@ async def retry_and_adapter_cases():
 
     exhausted._send_once = status_once
     assert (await exhausted.send(prepared())).status_code == 500
-
 
 
 async def sse_cases():

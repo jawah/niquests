@@ -9,9 +9,8 @@ import sys
 import _pytest
 import packaging
 import pytest  # noqa: F401
-from wit_world import exports
-
 from coverage_runner import new_coverage, save_coverage
+from wit_world import exports
 
 _import_coverage = new_coverage()
 _import_coverage.start()
@@ -23,8 +22,9 @@ for package in (_pytest, packaging):
         except ImportError:
             pass
 
-import niquests  # noqa: E402, F401
 from test_wasi import CASES  # noqa: E402
+
+import niquests  # noqa: E402, F401
 
 _import_coverage.stop()
 os.environ["PYTEST_DISABLE_PLUGIN_AUTOLOAD"] = "1"

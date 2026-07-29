@@ -3,10 +3,11 @@ from __future__ import annotations
 import json
 import time
 
-import niquests
 import pytest
-from niquests.exceptions import InvalidSchema, SSLError
 from niquests.packages.urllib3.exceptions import MaxRetryError
+
+import niquests
+from niquests.exceptions import InvalidSchema, SSLError
 
 
 def test_buffered_get():
@@ -142,7 +143,10 @@ def test_sse():
 
 
 def test_sse_edge_formatting():
-    payload = "OiBjb21tZW50DQoNCnJldHJ5OiBub3BlDQoNCmV2ZW50OiBjdXN0b20NCmlkOiA3DQpyZXRyeTogMTUwMA0KZGF0YTogZmlyc3QNCmRhdGE6IHNlY29uZA0KDQpkYXRhOiBmaW5hbA=="
+    payload = (
+        "OiBjb21tZW50DQoNCnJldHJ5OiBub3BlDQoNCmV2ZW50OiBjdXN0b20NCmlkOiA3DQpyZXRyeTog"
+        "MTUwMA0KZGF0YTogZmlyc3QNCmRhdGE6IHNlY29uZA0KDQpkYXRhOiBmaW5hbA=="
+    )
     response = niquests.get(f"sse://httpbingo.org/base64/{payload}?content-type=text%2Fevent-stream")
     event = response.extension.next_payload()
     assert event.event == "custom"

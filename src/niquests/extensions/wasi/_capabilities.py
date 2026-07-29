@@ -6,7 +6,6 @@ from contextlib import suppress
 
 from ...utils import BACKEND, _can_support_wasi_native
 
-
 _IS_WASI = sys.platform == "wasi"
 _HAS_NATIVE_SOCKET_SUPPORT = _IS_WASI and _can_support_wasi_native()
 
@@ -20,19 +19,19 @@ _WASI_P3_HTTP_CLIENT: typing.Any | None = None
 
 if _HAS_NATIVE_SOCKET_SUPPORT:
     with suppress(ImportError):
-        from ...packages.urllib3.contrib.wasi import socket as _WASI_P2_SOCKET
+        from ...packages.urllib3.contrib.wasi import socket as _WASI_P2_SOCKET  # type: ignore[no-redef]
 
     with suppress(ImportError):
-        from ...packages.urllib3.contrib.wasi._async import socket as _WASI_P3_SOCKET
+        from ...packages.urllib3.contrib.wasi._async import socket as _WASI_P3_SOCKET  # type: ignore[no-redef]
 
 
 if _IS_WASI:  # pragma: no branch - generated WIT bindings only exist on WASI
     # Combined worlds receive version-qualified names.
     with suppress(ImportError):
-        from wit_world.imports import wasi_http_types_0_2_0 as _WASI_P2_HTTP_TYPES  # type: ignore[import-not-found]
+        from wit_world.imports import wasi_http_types_0_2_0 as _WASI_P2_HTTP_TYPES  # type: ignore[import-not-found,no-redef]
 
     with suppress(ImportError):
-        from wit_world.imports import wasi_http_types_0_3_0 as _WASI_P3_HTTP_TYPES  # type: ignore[import-not-found]
+        from wit_world.imports import wasi_http_types_0_3_0 as _WASI_P3_HTTP_TYPES  # type: ignore[import-not-found,no-redef]
 
     # A world containing only one HTTP version may receive an unqualified
     # package name, or simply `types`. Classify it by its request resource.
@@ -55,20 +54,20 @@ if _IS_WASI:  # pragma: no branch - generated WIT bindings only exist on WASI
             _WASI_P3_HTTP_TYPES = _http_types
 
     with suppress(ImportError):
-        from wit_world.imports import outgoing_handler as _WASI_P2_HTTP_HANDLER  # type: ignore[import-not-found]
+        from wit_world.imports import outgoing_handler as _WASI_P2_HTTP_HANDLER  # type: ignore[import-not-found,no-redef]
 
     if _WASI_P2_HTTP_HANDLER is None:
         with suppress(ImportError):
-            from wit_world.imports import (  # type: ignore[import-not-found]
+            from wit_world.imports import (  # type: ignore[import-not-found,no-redef]
                 wasi_http_outgoing_handler_0_2_0 as _WASI_P2_HTTP_HANDLER,
             )
 
     with suppress(ImportError):
-        from wit_world.imports import client as _WASI_P3_HTTP_CLIENT  # type: ignore[import-not-found]
+        from wit_world.imports import client as _WASI_P3_HTTP_CLIENT  # type: ignore[import-not-found,no-redef]
 
     if _WASI_P3_HTTP_CLIENT is None:
         with suppress(ImportError):
-            from wit_world.imports import (  # type: ignore[import-not-found]
+            from wit_world.imports import (  # type: ignore[import-not-found,no-redef]
                 wasi_http_client_0_3_0 as _WASI_P3_HTTP_CLIENT,
             )
 

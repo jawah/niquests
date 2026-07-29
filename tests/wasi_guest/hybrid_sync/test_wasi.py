@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import niquests
 from niquests.adapters import HTTPAdapter
 from niquests.extensions.wasi import _capabilities as capabilities

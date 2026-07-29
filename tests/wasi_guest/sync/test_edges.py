@@ -3,15 +3,15 @@ from __future__ import annotations
 from io import BytesIO
 from types import SimpleNamespace
 
-import niquests.extensions.wasi._adapter as wasi
-import niquests.extensions.wasi._utils as common
 import pytest
 from componentize_py_types import Err, Ok
+from niquests.packages.urllib3._collections import HTTPHeaderDict
+from niquests.packages.urllib3.util.retry import Retry
+
+import niquests.extensions.wasi._adapter as wasi
+import niquests.extensions.wasi._utils as common
 from niquests.exceptions import ConnectionError, ConnectTimeout, InvalidSchema, InvalidURL, ReadTimeout, SSLError
 from niquests.models import PreparedRequest, Response
-from niquests.packages.urllib3._collections import HTTPHeaderDict
-from niquests.packages.urllib3.exceptions import MaxRetryError
-from niquests.packages.urllib3.util.retry import Retry
 
 
 class Resource:
@@ -109,10 +109,21 @@ class Options:
 
 
 class Variants:
-    Method_Get = lambda: "get"
-    Method_Other = lambda value: value
-    Scheme_Http = lambda: "http"
-    Scheme_Https = lambda: "https"
+    @staticmethod
+    def Method_Get():
+        return "get"
+
+    @staticmethod
+    def Method_Other(value):
+        return value
+
+    @staticmethod
+    def Scheme_Http():
+        return "http"
+
+    @staticmethod
+    def Scheme_Https():
+        return "https"
 
 
 class Raw:
@@ -202,9 +213,22 @@ class FakeTypes:
     RequestOptions = FakeOptions
     IncomingBody = IncomingBody
     OutgoingBody = SimpleNamespace(finish=lambda body, trailers: None)
-    Method_Get = Method_Post = lambda: object()
-    Method_Other = lambda value: value
-    Scheme_Http = Scheme_Https = lambda: object()
+
+    @staticmethod
+    def Method_Get():
+        return object()
+
+    Method_Post = Method_Get
+
+    @staticmethod
+    def Method_Other(value):
+        return value
+
+    @staticmethod
+    def Scheme_Http():
+        return object()
+
+    Scheme_Https = Scheme_Http
 
 
 def prepared(url="https://example.test", method="GET"):
@@ -318,17 +342,13 @@ def test_low_level_read_finish_abort_and_errors():
     wasi._StreamErrorClosed = Closed
     future = Future([None, Ok(Ok(Trailer()))])
     IncomingBody.future = future
-    low = wasi._WASILowLevelResponse(
-        "GET", 200, "OK", HTTPHeaderDict(), Body(), Stream([b"", b"x", Err(Closed())]), "url"
-    )
+    low = wasi._WASILowLevelResponse("GET", 200, "OK", HTTPHeaderDict(), Body(), Stream([b"", b"x", Err(Closed())]), "url")
     assert low.read(1) == b"x"
     assert low.read(1) == b""
     assert low.trailers["x-trailer"] == "done"
     assert future.closed
 
-    failed = wasi._WASILowLevelResponse(
-        "GET", 200, "OK", HTTPHeaderDict(), Body(), Stream([Err(Failed())]), "url"
-    )
+    failed = wasi._WASILowLevelResponse("GET", 200, "OK", HTTPHeaderDict(), Body(), Stream([Err(Failed())]), "url")
     with pytest.raises(ReadTimeout):
         failed.read(1)
     unexpected_read = wasi._WASILowLevelResponse(
@@ -338,43 +358,31 @@ def test_low_level_read_finish_abort_and_errors():
         unexpected_read.read(1)
 
     wasi._TYPES = SimpleNamespace(IncomingBody=BrokenIncomingBody)
-    broken = wasi._WASILowLevelResponse(
-        "GET", 200, "OK", HTTPHeaderDict(), Body(), Stream([Err(Closed())]), "url"
-    )
+    broken = wasi._WASILowLevelResponse("GET", 200, "OK", HTTPHeaderDict(), Body(), Stream([Err(Closed())]), "url")
     with pytest.raises(ReadTimeout):
         broken.read(1)
     wasi._TYPES = SimpleNamespace(IncomingBody=UnexpectedIncomingBody)
-    unexpected_finish = wasi._WASILowLevelResponse(
-        "GET", 200, "OK", HTTPHeaderDict(), Body(), Stream([Err(Closed())]), "url"
-    )
+    unexpected_finish = wasi._WASILowLevelResponse("GET", 200, "OK", HTTPHeaderDict(), Body(), Stream([Err(Closed())]), "url")
     with pytest.raises(ValueError):
         unexpected_finish.read(1)
 
     wasi._TYPES = SimpleNamespace(IncomingBody=IncomingBody)
     IncomingBody.future = Future([Ok(Ok(None))])
-    no_body = wasi._WASILowLevelResponse(
-        "GET", 200, "OK", HTTPHeaderDict(), None, Stream([Err(Closed())]), "url"
-    )
+    no_body = wasi._WASILowLevelResponse("GET", 200, "OK", HTTPHeaderDict(), None, Stream([Err(Closed())]), "url")
     assert no_body.read(1) == b""
 
     IncomingBody.future = Future([Ok(Ok(None))])
-    cancellable = wasi._WASILowLevelResponse(
-        "GET", 200, "OK", HTTPHeaderDict(), Body(), Stream([b"pending"]), "url"
-    )
+    cancellable = wasi._WASILowLevelResponse("GET", 200, "OK", HTTPHeaderDict(), Body(), Stream([b"pending"]), "url")
     response = wasi._WASIHTTPResponse(body=cancellable, headers={}, preload_content=False)
     response.close()
     response.close()
     assert cancellable.closed and cancellable._stream is None
     wasi._WASIHTTPResponse(body=b"done").close()
 
-    no_body_abort = wasi._WASILowLevelResponse(
-        "GET", 200, "OK", HTTPHeaderDict(), None, Stream([b"pending"]), "url"
-    )
+    no_body_abort = wasi._WASILowLevelResponse("GET", 200, "OK", HTTPHeaderDict(), None, Stream([b"pending"]), "url")
     no_body_abort.abort()
     wasi._TYPES = SimpleNamespace(IncomingBody=BrokenIncomingBody)
-    error_abort = wasi._WASILowLevelResponse(
-        "GET", 200, "OK", HTTPHeaderDict(), Body(), Stream([b"pending"]), "url"
-    )
+    error_abort = wasi._WASILowLevelResponse("GET", 200, "OK", HTTPHeaderDict(), Body(), Stream([b"pending"]), "url")
     error_abort.abort()
     wasi._TYPES, wasi._Ok, wasi._Err, wasi._StreamErrorClosed = original
 
@@ -433,9 +441,7 @@ def test_transport_retry_and_status_exhaustion_branches():
     assert adapter.send(body_request).status_code == 200
     assert payloads == [b"payload", b"payload"]
 
-    exhausted = wasi.WASIAdapter(
-        max_retries=Retry(total=0, status=0, status_forcelist={500}, raise_on_status=False)
-    )
+    exhausted = wasi.WASIAdapter(max_retries=Retry(total=0, status=0, status_forcelist={500}, raise_on_status=False))
 
     def status_once(*args, **kwargs):
         response = Response()
