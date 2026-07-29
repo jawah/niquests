@@ -12,6 +12,7 @@ from random import randint
 
 from qh3._hazmat import (
     Certificate,
+    CryptoError,
     OCSPCertStatus,
     OCSPRequest,
     OCSPResponse,
@@ -398,7 +399,7 @@ def verify(
 
                 try:
                     ocsp_resp = OCSPResponse(ocsp_http_response.content)
-                except ValueError:
+                except (ValueError, CryptoError):
                     if strict:
                         warnings.warn(
                             (

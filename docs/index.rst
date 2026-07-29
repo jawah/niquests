@@ -104,9 +104,11 @@ Niquests is ready for today's web.
 - Trailers!
 - DNSSEC!
 - Async!
+- WASI!
 - SSE!
 
-Niquests officially supports Python 3.7+, and runs great on PyPy and Pyodide.
+Niquests officially supports Python 3.7+, and runs great on PyPy, Pyodide and WASI.
+One library that runs everywhere you need.
 
 
 The User Guide

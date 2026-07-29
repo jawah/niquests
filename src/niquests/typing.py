@@ -77,12 +77,12 @@ else:
 TLSClientCertType: typing.TypeAlias = typing.Union[str, typing.Tuple[str, str], typing.Tuple[str, str, str]]
 #: All accepted ways to describe desired timeout.
 TimeoutType: typing.TypeAlias = typing.Union[
-    int,  # TotalTimeout
-    float,  # TotalTimeout
-    typing.Tuple[typing.Union[int, float], typing.Union[int, float]],  # note: TotalTimeout, ConnectTimeout
+    int,  # ConnectTimeout and ReadTimeout
+    float,  # ConnectTimeout and ReadTimeout
+    typing.Tuple[typing.Union[int, float], typing.Union[int, float]],  # note: ConnectTimeout, ReadTimeout
     typing.Tuple[
         typing.Union[int, float], typing.Union[int, float], typing.Union[int, float]
-    ],  # note: TotalTimeout, ConnectTimeout, ReadTimeout
+    ],  # note: ConnectTimeout, ReadTimeout, TotalTimeout
     Timeout,
 ]
 #: Specify (BasicAuth) authentication by passing a tuple of user, and password.

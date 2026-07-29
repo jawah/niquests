@@ -1,0 +1,4 @@
+componentize-py==0.25.0
+coverage==7.15.2
+pytest>=9,<10
+urllib3.future[rtls]==2.24.900

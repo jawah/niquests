@@ -8,7 +8,7 @@ description = "Niquests is a simple, yet elegant, HTTP library. It is a drop-in 
 readme = "README.md"
 license-files = { paths = ["LICENSE"] }
 license = "Apache-2.0"
-keywords = ["requests", "http2", "http3", "QUIC", "http", "https", "http client", "http/1.1", "ocsp", "crl", "revocation", "tls", "multiplexed", "dns-over-quic", "doq", "dns-over-tls", "dot", "dns-over-https", "doh", "dnssec", "websocket", "sse"]
+keywords = ["requests", "http2", "http3", "QUIC", "http", "https", "http client", "http/1.1", "ocsp", "crl", "revocation", "tls", "multiplexed", "dns-over-quic", "doq", "dns-over-tls", "dot", "dns-over-https", "doh", "dnssec", "websocket", "sse", "wasi", "wasmtime"]
 authors = [
   {name = "Kenneth Reitz", email = "me@kennethreitz.org"}
 ]
@@ -32,12 +32,16 @@ classifiers = [
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
     "Programming Language :: Python :: 3.14",
+    "Programming Language :: Python :: 3.15",
     "Programming Language :: Python :: 3 :: Only",
     "Programming Language :: Python :: Implementation :: CPython",
     "Programming Language :: Python :: Implementation :: PyPy",
     "Topic :: Internet :: WWW/HTTP",
     "Topic :: Software Development :: Libraries",
-    "Programming Language :: Python :: Free Threading :: 2 - Beta",
+    "Programming Language :: Python :: Free Threading :: 4 - Resilient",
+    "Environment :: WebAssembly",
+    "Environment :: WebAssembly :: WASI",
+    "Environment :: WebAssembly :: Emscripten",
 ]
 requires-python = ">=3.7"
 dynamic = ["version"]
@@ -96,6 +100,8 @@ include = [
     "/src",
     "/tests",
     "/requirements-dev.txt",
+    "/requirements-wasi.txt",
+    "/requirements-wasm.txt",
     "/HISTORY.md",
     "/README.md",
     "/SECURITY.md",
@@ -151,7 +157,8 @@ filterwarnings = [
     '''ignore:.*get_event_loop.*:DeprecationWarning''',
     '''ignore:.*set_event_loop.*:DeprecationWarning''',
     '''ignore:.*EventLoopPolicy.*:DeprecationWarning''',
+    '''ignore:Module globals; __loader__ != __spec__\.loader:DeprecationWarning''',
 ]
 
 [tool.codespell]
-ignore-words-list = "fo"
+ignore-words-list = "fo,wit"

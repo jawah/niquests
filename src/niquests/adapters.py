@@ -21,7 +21,7 @@ from http.cookiejar import CookieJar
 if sys.platform != "emscripten":
     import wassima
 else:
-    wassima = None
+    wassima = None  # type: ignore[assignment]
 
 # Preferred clock, based on which one is more accurate on a given system.
 if sys.platform == "win32":

@@ -1,6 +1,51 @@
 Release History
 ===============
 
+3.21.0 (2026-07-29)
+-------------------
+
+**Added**
+- First-class support for the WebAssembly System Interface (WASI) Component Model. (#364)
+
+  Niquests can now run inside sandboxed WebAssembly components using the same
+  Requests-compatible API available on native Python. This enables HTTP clients for
+  edge functions, plug-ins, agent runtimes, and other capability-constrained
+  applications without requiring application-specific adapters.
+
+  Niquests automatically discovers the interfaces imported by the component and
+  selects the most capable available transport. Synchronous applications can use
+  native WASI Preview 2 sockets, while asynchronous applications can use Preview 3
+  sockets. The socket transports retain urllib3.future's native behavior, including
+  connection pooling, HTTP/2 multiplexing, streaming, trailers, WebSocket, SSE,
+  redirects, retries, cookies, and timeout handling.
+
+  Components that intentionally omit raw socket authority can instead use the
+  host-managed `wasi:http` interfaces: HTTP 0.2 for synchronous applications and
+  HTTP 0.3 for asynchronous applications. This provides a narrower capability surface
+  in which the host controls DNS, TCP, TLS, certificate trust, protocol negotiation,
+  and connection reuse. Niquests also supports hybrid worlds, using sockets where
+  possible and WIT HTTP where host-managed TLS is required.
+
+  No network or filesystem authority is ambient under WASI. A component's WIT world
+  declares which interfaces it can access, while the runtime independently decides
+  which capabilities to grant. Native hostname resolution therefore requires an
+  explicit DNS grant, and host filesystem access remains unavailable unless a
+  directory is deliberately preopened.
+
+  HTTPS over native WASI sockets requires the `rtls` extra and urllib3.future
+  2.24.900 or newer. When using WIT HTTP, TLS is provided according to the host's
+  security policy instead.
+
+  With this release, Niquests supports native Python, browser-side WebAssembly through
+  Pyodide, and server-side WebAssembly through WASI while preserving the same familiar
+  request API. See the WASI quickstart and advanced capability guide for deployment
+  examples and transport-specific constraints.
+- Explicit support for Python 3.15
+
+**Fixed**
+- CRL or OCSP unparsable/corrupted may raise CryptoError. (#430)
+- A demoted (i.e. failed) HTTP/3 upgrade attempt could be retried when it should be permanently disabled. (#431)
+
 3.20.1 (2026-07-09)
 -------------------
 

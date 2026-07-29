@@ -37,7 +37,7 @@ from urllib.request import parse_http_list as _parse_list_header
 if sys.platform != "emscripten":
     import wassima
 else:
-    wassima = None
+    wassima = None  # type: ignore[assignment]
 
 from charset_normalizer import from_bytes
 
@@ -58,6 +58,8 @@ from .packages.urllib3.contrib.resolver._async import (
     AsyncManyResolver,
     AsyncResolverDescription,
 )
+from .packages.urllib3.contrib.resolver._async.null import NullResolver as AsyncNullResolver
+from .packages.urllib3.contrib.resolver.null import NullResolver
 from .packages.urllib3.contrib.webextensions import ExtensionFromHTTP, load_extension
 from .packages.urllib3.contrib.webextensions._async import AsyncExtensionFromHTTP
 from .packages.urllib3.util import make_headers, parse_url
@@ -1010,6 +1012,11 @@ async def arewind_body(prepared_request: PreparedRequest) -> None:
 
 def create_resolver(definition: ResolverType | None) -> BaseResolver:
     """Instantiate a unique resolver, reusable across the Session scope."""
+    if sys.platform == "wasi":
+        from .extensions.wasi._capabilities import HAS_WASI_P1_SOCKETS, HAS_WASI_P2_SOCKETS
+
+        if not (HAS_WASI_P2_SOCKETS or HAS_WASI_P1_SOCKETS):
+            return NullResolver()
     if definition is None:
         overrule_dns = os.environ.get("NIQUESTS_DNS_URL", None)
         if overrule_dns is not None:
@@ -1074,6 +1081,11 @@ def create_resolver(definition: ResolverType | None) -> BaseResolver:
 
 def create_async_resolver(definition: AsyncResolverType | None) -> AsyncBaseResolver:
     """Instantiate a unique resolver, reusable across the Session scope."""
+    if sys.platform == "wasi":
+        from .extensions.wasi._capabilities import HAS_WASI_P3_SOCKETS
+
+        if not HAS_WASI_P3_SOCKETS:
+            return AsyncNullResolver()
     if definition is None:
         overrule_dns = os.environ.get("NIQUESTS_DNS_URL", None)
         if overrule_dns is not None:
@@ -1523,6 +1535,19 @@ def merge_base_url(base_url: str | None, url: str | None) -> str | None:
 
 
 @lru_cache()
+def _can_support_wasi_native() -> bool:
+    """Determine whether urllib3-future includes native WASI socket support."""
+    from .packages.urllib3 import __version__ as urllib3_version
+
+    try:
+        major, minor, patch = (int(part) for part in urllib3_version.split(".")[:3])
+    except (ValueError, TypeError):
+        return False
+
+    return (major, minor, patch) >= (2, 24, 900)
+
+
+@lru_cache()
 def _supports_ssl_backend() -> bool:
     """The ``ssl_backend`` keyword argument is only available since urllib3-future 2.22.900.
 
@@ -1557,6 +1582,8 @@ def tls_configuration_to_pool_kwargs(configuration: TLSConfiguration | None) -> 
         pool_kwargs["ssl_maximum_version"] = configuration.max_version
     if configuration.ciphers is not None:
         pool_kwargs["ciphers"] = configuration.ciphers
+    if configuration.assert_hostname is not None:
+        pool_kwargs["assert_hostname"] = configuration.assert_hostname
     if configuration.backend is not None:
         if _supports_ssl_backend():
             pool_kwargs["ssl_backend"] = configuration.backend
