@@ -2121,6 +2121,127 @@ SSE works with WSGI applications using the same interface as the main HTTP part.
 
 .. warning:: WebSocket is not supported over WSGI as it is a request/response-only protocol. Use an ASGI application for WebSocket testing.
 
+Running as a WASI Component
+---------------------------
+
+.. versionadded:: 3.21.0
+
+WASI is an excellent fit for sandboxed applications, plug-ins, serverless functions,
+and edge deployments. A component starts without ambient access to the network or
+filesystem: its WIT world declares what it can use, and the host decides which of
+those capabilities to grant when it runs the component. The same component can
+therefore be deployed under different security policies without changing its Python
+code.
+
+.. tip:: At Niquests, we strongly believe that WASI will play a key role into deploying agents at scale.
+    We recommend using a library such as padwan-llm https://github.com/polarsen-io/padwan-llm to be able to
+    create your first agentic loops under a safe and constrained WASI runtime.
+
+For the most complete Niquests experience, prefer the WASI socket interfaces. Use
+Preview 2 sockets for synchronous code and Preview 3 sockets for asynchronous code.
+The matching ``wasi:cli/command`` world supplied with componentize-py includes those
+interfaces.
+
+Install Niquests with the Rustls backend so that HTTPS can run over WASI sockets::
+
+    python -m pip install "niquests[rtls]" componentize-py
+
+Choose the execution model for your component:
+
+.. tab:: 🔂 Sync
+
+    Use Preview 2 sockets for a synchronous component:
+
+    .. code:: python
+
+        import niquests
+        from wit_world import exports
+
+
+        class Run(exports.Run):
+            def run(self) -> None:
+                response = niquests.get("https://httpbingo.org/get", timeout=10)
+                print(response.status_code)
+
+    Build against the Preview 2 command world, then grant network and DNS access:
+
+    .. code:: console
+
+        $ componentize-py -w wasi:cli/command@0.2.0 componentize app -o app.wasm
+        $ wasmtime run -Sinherit-network -Sallow-ip-name-lookup=y app.wasm
+
+.. tab:: 🔀 Async
+
+    Use Preview 3 sockets for an asynchronous component:
+
+    .. code:: python
+
+        import niquests
+        from wit_world import exports
+
+
+        class Run(exports.Run):
+            async def run(self) -> None:
+                response = await niquests.aget("https://httpbingo.org/get", timeout=10)
+                print(response.status_code)
+
+    Build against the Preview 3 command world, then enable Preview 3, network, and DNS access:
+
+    .. code:: console
+
+        $ componentize-py -w wasi:cli/command@0.3.0 componentize app -o app.wasm
+        $ wasmtime run -Sp3 -Sinherit-network -Sallow-ip-name-lookup=y app.wasm
+
+.. warning::
+
+    Request timeouts are currently not enforced when combining Preview 3 sockets with
+    componentize-py. Async cancellation is not implemented by componentize-py, so a
+    ``timeout`` value is accepted silently but does not interrupt the request or raise
+    a timeout exception. This limitation does not apply to WASI HTTP 0.3: its host
+    request options enforce connect, first-byte, and between-byte timeouts normally.
+
+.. important::
+
+    ``-Sallow-ip-name-lookup=y`` is the DNS permission for WASI sockets. Without it,
+    ``inherit-network`` still exposes sockets, but URLs containing hostnames such as
+    ``httpbingo.org`` cannot be resolved. It is not required by a WIT HTTP-only
+    component: under ``-Shttp``, the host HTTP service performs DNS on the component's
+    behalf.
+
+.. tip::
+
+    You can omit ``-Sallow-ip-name-lookup=y`` when using a custom Niquests resolver.
+    That permission specifically exposes name resolution through the host or parent
+    environment; it is not required for DNS carried over the component's permitted
+    network sockets. This distinction matters for sandboxed workloads: parent DNS may
+    reveal private names and addresses from an internal namespace, such as Kubernetes
+    cluster DNS, even when the application only needs public Internet destinations.
+
+    In that situation, deny host name lookup and configure an explicit external
+    resolver, such as DNS over HTTPS or TLS. Ensure that the resolver can be
+    bootstrapped without host DNS, for example by addressing a trusted resolver by IP
+    or supplying an otherwise pre-resolved endpoint. You may also use the in-memory
+    resolver if that's simpler.
+
+The example grants network access and permission to resolve names, but no host
+directory is preopened. Do not add ``--dir`` unless the application genuinely needs
+host files. Be aware that Wasmtime's ``inherit-network`` grant is intentionally broad:
+it exposes the host network namespace rather than only the URL shown above. In
+production, prefer a host-level destination allowlist over unrestricted inherited
+network access when your runtime supports one.
+
+Niquests selects the available WASI transport automatically; application code does
+not mount an adapter. Socket WIT provides native connection pooling, protocol
+negotiation, WebSocket, SSE, redirects, and the usual Session behavior. A host-managed
+WASI HTTP interface is also supported as a constrained fallback. See
+:ref:`wasi-advanced` before choosing that contract or designing a least-authority
+deployment.
+
+.. note::
+
+    Preview 3 and its componentize-py integration are still evolving. Pin your
+    component toolchain and runtime together for reproducible deployments.
+
 Running in the Browser (Pyodide)
 --------------------------------
 

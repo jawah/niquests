@@ -146,7 +146,7 @@ html_theme_options = {
     "announcement": """
         <a style=\"text-decoration: none; color: white;\"
            href=\"https://github.com/jawah/niquests/releases\">
-            ⭐ Niquests 3.20 is out! Zero-config browser TLS impersonation supported.
+            ⭐ Niquests 3.21 is out! Native WASI support.
         </a>
         <iframe src="https://ghbtns.com/github-btn.html?user=jawah&repo=niquests&type=star&count=true&size=large" frameborder="0" scrolling="0" width="170" height="30" title="GitHub"></iframe>
         """,

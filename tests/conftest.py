@@ -13,6 +13,8 @@ from urllib.parse import urljoin
 
 import pytest
 
+collect_ignore_glob = ["wasi_guest/**/*.py"]
+
 
 def prepare_url(value):
     # Issue #1483: Make sure the URL always has a trailing slash

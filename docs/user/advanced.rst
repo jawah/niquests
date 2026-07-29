@@ -2211,6 +2211,180 @@ Isn't it easy and pleasant to write ?
 
 .. warning:: Some servers choose to enable it in HTTP/2, and HTTP/3 but not in HTTP/1.1 for security concerns. But rest assured that Niquests support this no matter the protocol.
 
+.. _wasi-advanced:
+
+WASI Transports and Capabilities
+--------------------------------
+
+.. versionadded:: 3.21.0
+
+WASI separates a component's *static contract* from the host's *runtime grant*.
+Importing a socket or HTTP interface in a WIT world makes that operation representable;
+it does not grant ambient authority. Conversely, a host network flag cannot help a
+component whose world omitted the corresponding interface. A successful deployment
+needs both halves.
+
+Niquests performs capability discovery from the generated ``wit_world`` bindings and
+selects a transport without exposing WASI-specific application APIs:
+
+* A synchronous :class:`~niquests.Session` prefers Preview 2 sockets. Preview 1
+  socket compatibility remains available as a legacy heuristic, but should not be
+  selected for new components.
+* An asynchronous :class:`~niquests.AsyncSession` prefers Preview 3 sockets.
+* If matching sockets are absent, synchronous code can use ``wasi:http@0.2.0`` and
+  asynchronous code can use ``wasi:http@0.3.0``.
+* When sockets are present without a usable Rustls backend, Niquests can use sockets
+  for plaintext HTTP and the matching WIT HTTP interface for HTTPS. This hybrid
+  arrangement lets the host retain TLS authority.
+
+Native socket support requires urllib3.future 2.24.900 or newer. HTTPS over those
+sockets additionally requires ``niquests[rtls]``. If neither a usable socket contract
+nor a matching WIT HTTP contract is present, requests fail with
+:exc:`~niquests.exceptions.InvalidSchema` rather than silently escaping the sandbox.
+
+Socket WIT
+~~~~~~~~~~
+
+For componentize-py applications, these command worlds are the recommended starting
+point:
+
+.. code:: text
+
+    package example:client;
+
+    world sync-client {
+        include wasi:cli/command@0.2.0;
+    }
+
+    world async-client {
+        include wasi:cli/command@0.3.0;
+    }
+
+The command worlds provide the matching socket, polling, clock, random, CLI, and
+filesystem interfaces expected by the Python runtime and urllib3.future. Interface
+presence is not equivalent to host filesystem access: files remain inaccessible until
+a directory is explicitly preopened.
+
+With Wasmtime, a typical socket grant is:
+
+.. code:: console
+
+    $ wasmtime run -Sinherit-network -Sallow-ip-name-lookup=y component.wasm
+
+Add ``-Sp3`` for a Preview 3 component. ``inherit-network`` is broad authority: it
+allows the guest to use the host network namespace. Prefer runtime-specific address,
+port, and DNS allowlists where available. ``allow-ip-name-lookup`` permits host name
+resolution; omitting it is useful for components restricted to literal addresses, but
+normal HTTPS URLs will generally require it.
+
+The socket path preserves the native urllib3.future transport model. Its practical
+properties include:
+
+* DNS and connection establishment occur through WASI sockets.
+* Sessions pool and reuse connections and can multiplex HTTP/2 streams.
+* HTTP version controls, source addresses, custom resolvers, proxies, WebSocket, SSE,
+  response trailers, and connection metadata remain available when their own
+  dependencies and permissions are present.
+* TLS executes inside the component through Rustls. Certificate bundles, client
+  certificates, and verification policy therefore belong to the guest rather than
+  the host HTTP service.
+* Pool sizing and keep-alive settings consume component resources and can increase the
+  number of simultaneously open host sockets.
+
+WIT HTTP
+~~~~~~~~
+
+WIT HTTP is a higher-level capability. Instead of receiving TCP sockets, the component
+submits an HTTP request resource to the host. A minimal HTTP-oriented world adds the
+following imports to the CLI, clock, random, filesystem, and I/O interfaces required by
+the Python runtime:
+
+.. code:: text
+
+    // Synchronous Preview 2
+    import wasi:http/types@0.2.0;
+    import wasi:http/outgoing-handler@0.2.0;
+
+    // Asynchronous Preview 3
+    import wasi:http/types@0.3.0;
+    import wasi:http/client@0.3.0;
+
+The corresponding Wasmtime grant is ``-Shttp``; Preview 3 additionally needs
+``-Sp3``. No inherited socket permission is required. This is a smaller and often more
+appropriate authority surface for untrusted plug-ins and edge functions that only
+need outbound HTTP. ``-Sallow-ip-name-lookup=y`` is also unnecessary on this path:
+the component passes an authority to the host HTTP service, which performs DNS under
+the host's own policy.
+
+The reduction in authority intentionally moves transport policy to the host:
+
+* The host owns DNS, TCP, TLS, certificate trust, and protocol negotiation.
+  ``verify=False``, custom CA bundles, and TLS client certificates are consequently
+  rejected.
+* Custom DNS resolvers, source-address binding, SOCKS/HTTP proxies, and raw WebSocket
+  upgrades are unavailable because the component never receives a socket.
+* The negotiated HTTP version and low-level connection information are not exposed by
+  the WIT contract. ``response.http_version`` and ``response.conn_info`` should not be
+  used for transport decisions on this path.
+* Connection reuse, multiplexing, and maximum concurrency are host concerns. Pool
+  sizing and HTTP-version toggles cannot compel the host to change its behavior.
+* WASI HTTP has no intermediate-response channel, so the ``early_response`` hook does
+  not observe informational 1xx responses.
+* Request and response body streaming, SSE, retries, cookies, redirects, upload
+  progress, trailers, and ``allow_redirects=False`` remain managed by Niquests where
+  the WIT version exposes the necessary resources.
+* Connect, first-byte, and between-byte timeout values are passed to WIT request
+  options. Enforcement and error timing ultimately belong to the host implementation.
+
+Host behavior is implementation-specific. For example, Wasmtime's stock WASI HTTP
+service currently uses HTTP/1.1 and may establish a fresh DNS/TCP/TLS path per request;
+another host may pool or route requests differently. Code using WIT HTTP should treat
+those details as opaque.
+
+Permission Design
+~~~~~~~~~~~~~~~~~
+
+Use the narrowest contract that still provides the semantics your application needs:
+
+.. list-table::
+   :header-rows: 1
+   :widths: 22 24 25 29
+
+   * - Requirement
+     - WIT contract
+     - Typical Wasmtime grant
+     - Security and behavior impact
+   * - Outbound HTTP only
+     - ``wasi:http`` 0.2 or 0.3
+     - ``-Shttp``
+     - Host mediates DNS, TLS, protocols, and destinations.
+   * - Native synchronous networking
+     - Preview 2 sockets
+     - ``-Sinherit-network -Sallow-ip-name-lookup=y``
+     - Guest controls pooling and transport; receives broad socket authority.
+   * - Native asynchronous networking
+     - Preview 3 sockets
+     - ``-Sp3 -Sinherit-network -Sallow-ip-name-lookup=y``
+     - Same transport control with the evolving P3 async ABI.
+   * - Host files
+     - Filesystem interfaces plus preopens
+     - ``--dir host::/guest``
+     - Exposes the selected host subtree; unrelated to basic network access.
+   * - HTTPS over sockets
+     - P2/P3 sockets plus Rustls
+     - ``-Sinherit-network -Sallow-ip-name-lookup=y``
+     - TLS keys, trust, and verification execute inside the guest.
+   * - HTTPS through the host
+     - Matching WIT HTTP
+     - ``-Shttp``
+     - Host trust policy is mandatory; guest TLS customization is unavailable.
+
+Avoid importing both transports merely as a precaution. Socket capability takes
+precedence, so adding socket WIT and broad network grants changes both the authority
+surface and the selected implementation. Include both only for a deliberate hybrid or
+portable world, and test each host policy independently.
+
+
 Revocation Configuration
 ------------------------
 

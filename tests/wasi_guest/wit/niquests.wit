@@ -1,0 +1,81 @@
+package niquests:test;
+
+world sync-empty-command {
+  include wasi:clocks/imports@0.2.0;
+  include wasi:filesystem/imports@0.2.0;
+  include wasi:random/imports@0.2.0;
+  include wasi:io/imports@0.2.0;
+  import wasi:cli/environment@0.2.0;
+  import wasi:cli/exit@0.2.0;
+  import wasi:cli/stdin@0.2.0;
+  import wasi:cli/stdout@0.2.0;
+  import wasi:cli/stderr@0.2.0;
+  import wasi:cli/terminal-input@0.2.0;
+  import wasi:cli/terminal-output@0.2.0;
+  import wasi:cli/terminal-stdin@0.2.0;
+  import wasi:cli/terminal-stdout@0.2.0;
+  import wasi:cli/terminal-stderr@0.2.0;
+  export wasi:cli/run@0.2.0;
+}
+
+world sync-http-command {
+  include sync-empty-command;
+  import wasi:http/types@0.2.0;
+  import wasi:http/outgoing-handler@0.2.0;
+}
+
+world async-empty-command {
+  import wasi:cli/environment@0.3.0;
+  import wasi:cli/exit@0.3.0;
+  import wasi:cli/types@0.3.0;
+  import wasi:cli/stdin@0.3.0;
+  import wasi:cli/stdout@0.3.0;
+  import wasi:cli/stderr@0.3.0;
+  import wasi:cli/terminal-input@0.3.0;
+  import wasi:cli/terminal-output@0.3.0;
+  import wasi:cli/terminal-stdin@0.3.0;
+  import wasi:cli/terminal-stdout@0.3.0;
+  import wasi:cli/terminal-stderr@0.3.0;
+  import wasi:clocks/types@0.3.0;
+  import wasi:clocks/monotonic-clock@0.3.0;
+  import wasi:clocks/system-clock@0.3.0;
+  import wasi:filesystem/types@0.3.0;
+  import wasi:filesystem/preopens@0.3.0;
+  import wasi:random/random@0.3.0;
+  import wasi:random/insecure@0.3.0;
+  import wasi:random/insecure-seed@0.3.0;
+  export wasi:cli/run@0.3.0;
+}
+
+world async-http-command {
+  include async-empty-command;
+  import wasi:http/types@0.3.0;
+  import wasi:http/client@0.3.0;
+}
+
+world sync-hybrid-command {
+  include wasi:cli/command@0.2.0;
+  import wasi:http/types@0.2.0;
+  import wasi:http/outgoing-handler@0.2.0;
+}
+
+world async-hybrid-command {
+  include wasi:cli/command@0.3.0;
+  import wasi:http/types@0.3.0;
+  import wasi:http/client@0.3.0;
+}
+
+world combined-command {
+  include wasi:cli/command@0.3.0;
+  include wasi:io/imports@0.2.0;
+  include wasi:clocks/imports@0.2.0;
+  import wasi:sockets/network@0.2.0;
+  import wasi:sockets/instance-network@0.2.0;
+  import wasi:sockets/ip-name-lookup@0.2.0;
+  import wasi:sockets/tcp@0.2.0;
+  import wasi:sockets/tcp-create-socket@0.2.0;
+  import wasi:http/types@0.2.0;
+  import wasi:http/outgoing-handler@0.2.0;
+  import wasi:http/types@0.3.0;
+  import wasi:http/client@0.3.0;
+}

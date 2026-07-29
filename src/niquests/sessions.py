@@ -47,17 +47,6 @@ from .extensions.sgi import WebServerGatewayInterface
 from .extensions.sgi._async import ThreadAsyncServerGatewayInterface
 from .extensions.tls import TLSConfiguration
 from .extensions.unixsocket import UnixAdapter
-
-try:
-    from .extensions.pyodide import PyodideAdapter
-except ImportError:
-    PyodideAdapter = None  # type: ignore[assignment,misc]
-
-    if sys.platform == "emscripten":
-        warnings.warn(
-            "Unable to load native WASM adapter for Session. HTTP requests may fail in sync. Did you forget to enable JSPI?",
-            UserWarning,
-        )
 from .hooks import HOOKS, default_hooks, dispatch_hook
 
 # formerly defined here, reexposed here for backward compatibility
@@ -112,6 +101,31 @@ from .utils import (  # noqa: F401
     to_key_val_list,
     urljoin_safe,
 )
+
+PyodideAdapter = None
+WASIHTTPAdapter = None
+HAS_WASI_P1_SOCKETS = False
+HAS_WASI_P2_SOCKETS = False
+HAS_WASI_TLS_SUPPORT = False
+
+if sys.platform == "wasi":
+    try:
+        from .extensions.wasi._adapter import WASIAdapter as WASIHTTPAdapter
+    except ImportError:
+        pass
+    from .extensions.wasi._capabilities import (  # type: ignore[no-redef]
+        HAS_WASI_P1_SOCKETS,
+        HAS_WASI_P2_SOCKETS,
+        HAS_WASI_TLS_SUPPORT,
+    )
+elif sys.platform == "emscripten":
+    try:
+        from .extensions.pyodide import PyodideAdapter
+    except ImportError:
+        warnings.warn(
+            "Unable to load native WASM adapter for Session. HTTP requests may fail in sync. Did you forget to enable JSPI?",
+            UserWarning,
+        )
 
 # Preferred clock, based on which one is more accurate on a given system.
 if sys.platform == "win32":
@@ -455,7 +469,69 @@ class Session:
 
         # Default connection adapters.
         self.adapters: OrderedDict[str, BaseAdapter] = OrderedDict()
-        if PyodideAdapter is None:
+
+        if PyodideAdapter is not None:
+            wasm_adapter = PyodideAdapter(
+                max_retries=retries,
+            )
+            for supported_scheme in ["http", "https", "sse", "psse", "ws", "wss"]:
+                self.mount(f"{supported_scheme}://", wasm_adapter)
+        elif sys.platform == "wasi":
+            has_sockets = HAS_WASI_P2_SOCKETS or HAS_WASI_P1_SOCKETS
+            if has_sockets:
+                self.mount(
+                    "http://",
+                    HTTPAdapter(
+                        max_retries=retries,
+                        resolver=resolver,
+                        source_address=source_address,
+                        disable_http1=disable_http1,
+                        disable_http2=disable_http2,
+                        disable_http3=disable_http3,
+                        disable_ipv4=disable_ipv4,
+                        disable_ipv6=disable_ipv6,
+                        pool_connections=pool_connections,
+                        pool_maxsize=pool_maxsize,
+                        happy_eyeballs=happy_eyeballs,
+                        keepalive_delay=keepalive_delay,
+                        keepalive_idle_window=keepalive_idle_window,
+                        revocation_configuration=revocation_configuration,
+                        allow_incoming_cookies=allow_incoming_cookies,
+                        tls_configuration=tls_configuration,
+                    ),
+                )
+                if HAS_WASI_TLS_SUPPORT:
+                    self.mount(
+                        "https://",
+                        HTTPAdapter(
+                            quic_cache_layer=self.quic_cache_layer,
+                            max_retries=retries,
+                            disable_http1=disable_http1,
+                            disable_http2=disable_http2,
+                            disable_http3=disable_http3,
+                            resolver=resolver,
+                            source_address=source_address,
+                            disable_ipv4=disable_ipv4,
+                            disable_ipv6=disable_ipv6,
+                            pool_connections=pool_connections,
+                            pool_maxsize=pool_maxsize,
+                            happy_eyeballs=happy_eyeballs,
+                            keepalive_delay=keepalive_delay,
+                            keepalive_idle_window=keepalive_idle_window,
+                            revocation_configuration=revocation_configuration,
+                            allow_incoming_cookies=allow_incoming_cookies,
+                            tls_configuration=tls_configuration,
+                        ),
+                    )
+                elif WASIHTTPAdapter is not None:
+                    fallback = WASIHTTPAdapter(max_retries=retries)
+                    for scheme in ("https", "sse", "wss"):
+                        self.mount(f"{scheme}://", fallback)
+            elif WASIHTTPAdapter is not None:
+                fallback = WASIHTTPAdapter(max_retries=retries)
+                for scheme in ("http", "https", "sse", "psse", "ws", "wss"):
+                    self.mount(f"{scheme}://", fallback)
+        else:
             self.mount(
                 "https://",
                 HTTPAdapter(
@@ -520,12 +596,6 @@ class Session:
                     tls_configuration=tls_configuration,
                 ),
             )
-        else:
-            wasm_adapter = PyodideAdapter(
-                max_retries=retries,
-            )
-            for supported_scheme in ["http", "https", "sse", "psse", "ws", "wss"]:
-                self.mount(f"{supported_scheme}://", wasm_adapter)
         if app is not None:
             if hasattr(app, "__call__") and iscoroutinefunction(app.__call__):
                 adapter = ThreadAsyncServerGatewayInterface(
@@ -1754,6 +1824,67 @@ class Session:
         self._own_resolver = True
 
         self.adapters = OrderedDict()
+        if sys.platform == "wasi":
+            has_sockets = HAS_WASI_P2_SOCKETS or HAS_WASI_P1_SOCKETS
+            if has_sockets:
+                self.mount(
+                    "http://",
+                    HTTPAdapter(
+                        max_retries=self.retries,
+                        resolver=self.resolver,
+                        source_address=self.source_address,
+                        disable_http1=self._disable_http1,
+                        disable_http2=self._disable_http2,
+                        disable_http3=self._disable_http3,
+                        disable_ipv4=self._disable_ipv4,
+                        disable_ipv6=self._disable_ipv6,
+                        pool_connections=self._pool_connections,
+                        pool_maxsize=self._pool_maxsize,
+                        happy_eyeballs=self._happy_eyeballs,
+                        keepalive_delay=self._keepalive_delay,
+                        keepalive_idle_window=self._keepalive_idle_window,
+                        revocation_configuration=self._revocation_configuration,
+                        allow_incoming_cookies=self.allow_incoming_cookies,
+                        tls_configuration=self._tls_configuration,
+                    ),
+                )
+                if HAS_WASI_TLS_SUPPORT:
+                    self.mount(
+                        "https://",
+                        HTTPAdapter(
+                            quic_cache_layer=self.quic_cache_layer,
+                            max_retries=self.retries,
+                            disable_http1=self._disable_http1,
+                            disable_http2=self._disable_http2,
+                            disable_http3=self._disable_http3,
+                            source_address=self.source_address,
+                            disable_ipv4=self._disable_ipv4,
+                            disable_ipv6=self._disable_ipv6,
+                            resolver=self.resolver,
+                            pool_connections=self._pool_connections,
+                            pool_maxsize=self._pool_maxsize,
+                            happy_eyeballs=self._happy_eyeballs,
+                            keepalive_delay=self._keepalive_delay,
+                            keepalive_idle_window=self._keepalive_idle_window,
+                            revocation_configuration=self._revocation_configuration,
+                            allow_incoming_cookies=self.allow_incoming_cookies,
+                            tls_configuration=self._tls_configuration,
+                        ),
+                    )
+                elif WASIHTTPAdapter is not None:
+                    fallback = WASIHTTPAdapter(max_retries=self.retries)
+                    for scheme in ("https", "sse", "wss"):
+                        self.mount(f"{scheme}://", fallback)
+            elif WASIHTTPAdapter is not None:
+                fallback = WASIHTTPAdapter(max_retries=self.retries)
+                for scheme in ("http", "https", "sse", "psse", "ws", "wss"):
+                    self.mount(f"{scheme}://", fallback)
+            for adapter in self.adapters.values():
+                if hasattr(adapter, "_ocsp_cache"):
+                    adapter._ocsp_cache = self._ocsp_cache
+                if hasattr(adapter, "_crl_cache"):
+                    adapter._crl_cache = self._crl_cache
+            return
         self.mount(
             "https://",
             HTTPAdapter(

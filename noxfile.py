@@ -1,7 +1,10 @@
 from __future__ import annotations
 
+import json
 import os
 import shutil
+import tarfile
+import urllib.request
 from pathlib import Path
 
 import nox
@@ -205,4 +208,314 @@ def emscripten(session: nox.Session, runner: str) -> None:
             "-v",
         ],
         override_dev_deps="requirements-wasm.txt",
+    )
+
+
+@nox.session(python="3.13")
+def wasi(session: nox.Session) -> None:
+    """Build and execute the WASI HTTP 0.2/0.3 component tests under Wasmtime."""
+    session.install("-r", "requirements-wasi.txt")
+    session.install(".")
+
+    componentize_version = "0.25.0"
+    componentize_source_override = os.environ.get("COMPONENTIZE_SOURCE")
+    componentize_source = (
+        Path(componentize_source_override)
+        if componentize_source_override
+        else Path(session.cache_dir) / f"componentize-py-{componentize_version}-source"
+    )
+    if not componentize_source.exists():
+        metadata_url = f"https://pypi.org/pypi/componentize-py/{componentize_version}/json"
+        with urllib.request.urlopen(metadata_url) as response:
+            metadata = json.load(response)
+        source_url = next(item["url"] for item in metadata["urls"] if item["packagetype"] == "sdist")
+        archive = Path(session.cache_dir) / f"componentize-py-{componentize_version}.tar.gz"
+        urllib.request.urlretrieve(source_url, archive)
+        extract_root = Path(session.cache_dir) / f"componentize-py-{componentize_version}-extract"
+        extract_root.mkdir(exist_ok=True)
+        with tarfile.open(archive) as source:
+            source.extractall(extract_root, filter="data")
+        extracted = next(path for path in extract_root.iterdir() if (path / "wit").is_dir())
+        shutil.move(extracted, componentize_source)
+
+    wasmtime = os.environ.get("WASMTIME", str(Path.home() / ".wasmtime" / "bin" / "wasmtime"))
+    if not Path(wasmtime).is_file():
+        session.error(f"Wasmtime was not found at {wasmtime!r}; set WASMTIME to its executable path")
+
+    site_packages = session.run(
+        "python",
+        "-c",
+        "import site; print(site.getsitepackages()[0])",
+        silent=True,
+    )
+    assert site_packages
+    root = Path.cwd().resolve()
+    guest = root / "tests" / "wasi_guest"
+    artifacts = Path(session.cache_dir) / "wasi-dist"
+    if artifacts.exists():
+        shutil.rmtree(artifacts)
+    artifacts.mkdir()
+    wasi_coverage = root / ".coverage.wasi"
+    wasi_coverage.unlink(missing_ok=True)
+    old_site_packages = Path(session.cache_dir) / "wasi-urllib3-2.23.900"
+    if old_site_packages.exists():
+        shutil.rmtree(old_site_packages)
+    session.run(
+        "python",
+        "-m",
+        "pip",
+        "install",
+        "--target",
+        str(old_site_packages),
+        "urllib3.future==2.23.900",
+    )
+    no_tls_site_packages = Path(session.cache_dir) / "wasi-no-tls"
+    if no_tls_site_packages.exists():
+        shutil.rmtree(no_tls_site_packages)
+    session.run(
+        "python",
+        "-m",
+        "pip",
+        "install",
+        "--target",
+        str(no_tls_site_packages),
+        "urllib3.future==2.24.900",
+        "charset-normalizer",
+        "wassima",
+        "pytest>=9,<10",
+        "coverage==7.15.2",
+        "packaging",
+    )
+
+    sync_component = artifacts / "niquests-sync-p2.wasm"
+    async_component = artifacts / "niquests-async-p3.wasm"
+    socket_sync_component = artifacts / "niquests-socket-sync-p2.wasm"
+    socket_async_component = artifacts / "niquests-socket-async-p3.wasm"
+    unavailable_sync_component = artifacts / "niquests-unavailable-sync-p2.wasm"
+    unavailable_async_component = artifacts / "niquests-unavailable-async-p3.wasm"
+    hybrid_sync_component = artifacts / "niquests-hybrid-sync-p2.wasm"
+    hybrid_async_component = artifacts / "niquests-hybrid-async-p3.wasm"
+    p1_sync_component = artifacts / "niquests-p1-sync.wasm"
+    combined_component = artifacts / "niquests-combined-p3.wasm"
+    common_componentize_args = [
+        "componentize",
+        "app",
+        "-p",
+        str(root / "src"),
+        "-p",
+        str(guest),
+        "-p",
+        site_packages.strip(),
+    ]
+
+    session.run(
+        "componentize-py",
+        "-d",
+        str(componentize_source / "wit"),
+        "-d",
+        str(guest / "wit"),
+        "-w",
+        "niquests:test/sync-http-command",
+        *common_componentize_args,
+        "-p",
+        str(guest / "sync"),
+        "-o",
+        str(sync_component),
+    )
+    session.run(
+        "componentize-py",
+        "-d",
+        str(componentize_source / "wit"),
+        "-d",
+        str(guest / "wit"),
+        "-w",
+        "niquests:test/async-http-command",
+        *common_componentize_args,
+        "-p",
+        str(guest / "async"),
+        "-o",
+        str(async_component),
+    )
+    session.run(
+        "componentize-py",
+        "-d",
+        str(componentize_source / "wit"),
+        "-w",
+        "wasi:cli/command@0.2.0",
+        *common_componentize_args,
+        "-p",
+        str(guest / "socket_sync"),
+        "-o",
+        str(socket_sync_component),
+    )
+    session.run(
+        "componentize-py",
+        "-d",
+        str(componentize_source / "wit"),
+        "-w",
+        "wasi:cli/command@0.3.0",
+        *common_componentize_args,
+        "-p",
+        str(guest / "socket_async"),
+        "-o",
+        str(socket_async_component),
+    )
+    for world, profile, output in (
+        ("niquests:test/sync-empty-command", "unavailable_sync", unavailable_sync_component),
+        ("niquests:test/async-empty-command", "unavailable_async", unavailable_async_component),
+    ):
+        session.run(
+            "componentize-py",
+            "-d",
+            str(componentize_source / "wit"),
+            "-d",
+            str(guest / "wit"),
+            "-w",
+            world,
+            "componentize",
+            "app",
+            "-p",
+            str(root / "src"),
+            "-p",
+            str(guest),
+            "-p",
+            str(old_site_packages),
+            "-p",
+            site_packages.strip(),
+            "-p",
+            str(guest / profile),
+            "-o",
+            str(output),
+            env={"VIRTUAL_ENV": ""},
+        )
+    session.run(
+        "componentize-py",
+        "-d",
+        str(componentize_source / "wit"),
+        "-d",
+        str(guest / "wit"),
+        "-w",
+        "niquests:test/sync-empty-command",
+        "componentize",
+        "app",
+        "-p",
+        str(root / "src"),
+        "-p",
+        str(guest),
+        "-p",
+        str(no_tls_site_packages),
+        "-p",
+        str(guest / "p1_sync"),
+        "-o",
+        str(p1_sync_component),
+        env={"VIRTUAL_ENV": ""},
+    )
+    session.run(
+        "componentize-py",
+        "-d",
+        str(componentize_source / "wit"),
+        "-d",
+        str(guest / "wit"),
+        "-w",
+        "niquests:test/combined-command",
+        *common_componentize_args,
+        "-p",
+        str(guest / "combined"),
+        "-o",
+        str(combined_component),
+    )
+    for world, profile, output in (
+        ("niquests:test/sync-hybrid-command", "hybrid_sync", hybrid_sync_component),
+        ("niquests:test/async-hybrid-command", "hybrid_async", hybrid_async_component),
+    ):
+        session.run(
+            "componentize-py",
+            "-d",
+            str(componentize_source / "wit"),
+            "-d",
+            str(guest / "wit"),
+            "-w",
+            world,
+            "componentize",
+            "app",
+            "-p",
+            str(root / "src"),
+            "-p",
+            str(guest),
+            "-p",
+            str(no_tls_site_packages),
+            "-p",
+            str(guest / profile),
+            "-o",
+            str(output),
+            env={"VIRTUAL_ENV": ""},
+        )
+
+    preopens = [
+        "--dir",
+        f"{root}::/workspace",
+        "--dir",
+        "/dev",
+        "--dir",
+        f"{artifacts}::/artifacts",
+    ]
+    session.run(wasmtime, "run", "-S", "http", *preopens, str(sync_component), external=True)
+    session.run(
+        wasmtime,
+        "run",
+        "-Sinherit-network",
+        "-Sallow-ip-name-lookup=y",
+        *preopens,
+        str(socket_sync_component),
+        external=True,
+    )
+    session.run(
+        wasmtime,
+        "run",
+        "-Sinherit-network",
+        "-Sallow-ip-name-lookup=y",
+        *preopens,
+        str(p1_sync_component),
+        external=True,
+    )
+    session.run(wasmtime, "run", *preopens, str(unavailable_sync_component), external=True)
+    session.run(
+        wasmtime,
+        "run",
+        "-Shttp",
+        "-Sinherit-network",
+        "-Sallow-ip-name-lookup=y",
+        *preopens,
+        str(hybrid_sync_component),
+        external=True,
+    )
+    session.run(
+        "python",
+        "-m",
+        "pytest",
+        "-v",
+        "-s",
+        "tests/test_wasi_async_components.py",
+        env={
+            "NIQUESTS_WASI_ARTIFACTS": str(artifacts),
+            "NIQUESTS_WASMTIME": wasmtime,
+            "NIQUESTS_WASI_ROOT": str(root),
+        },
+    )
+
+    coverage_env = {"COVERAGE_FILE": str(wasi_coverage)}
+    session.run(
+        "coverage",
+        "combine",
+        str(artifacts),
+        env=coverage_env,
+    )
+    session.run(
+        "coverage",
+        "report",
+        "--show-missing",
+        "--skip-covered",
+        "--include=src/niquests/extensions/wasi/*",
+        "--fail-under=100",
+        env=coverage_env,
     )

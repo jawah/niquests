@@ -62,6 +62,7 @@ Niquests, is the “**Safest**, **Fastest[^10]**, **Easiest**, and **Most advanc
 | `Automatic Connection Upgrade / Downgrade` |      ✅       |    N/A    |       ❌       | N/A           |
 | `Server Side Event (SSE)`                  |      ✅       |     ❌     |       ❌       | ❌             |
 | `WASM / Pyodide`                           |      ✅       |     ✅     |       ❌       | ❌             |
+| `WASM / WASI`                              |      ✅       |     ❌     |       ❌       | ❌             |
 | `Swappable TLS Backend`                    |      ✅       |     ❌     |       ❌       | ❌             |
 | `Browser TLS Impersonation`                |    ✅[^15]    |     ❌     |       ❌       | ❌             |
 </details>
@@ -142,7 +143,7 @@ Niquests is available on PyPI:
 $ python -m pip install niquests
 ```
 
-Niquests officially supports Python or PyPy 3.7+.
+Niquests officially supports Python or PyPy 3.7+. Even WASI or Pyodide!
 
 ## 🚀 Supported Features & Best–Practices
 
@@ -185,6 +186,7 @@ Niquests is ready for the demands of building scalable, robust and reliable HTTP
 - Trailers!
 - DNSSEC!
 - Async!
+- WASI!
 - SSE!
 - ECH!
 
