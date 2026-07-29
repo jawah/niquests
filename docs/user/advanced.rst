@@ -165,6 +165,9 @@ The :class:`~niquests.Session` class takes several (optional) named arguments fo
 - `source_address`
   Bind Session to a specific network adapter and/or port so that all outgoing requests use it.
 
+- `json_encoder`
+  Serialize objects passed through ``json=`` with a custom callable returning ``str`` or ``bytes``.
+
 - `quic_cache_layer`
   Specify a `MutableMapping` that can memorize Alt-Svc capabilities (when a server is HTTP/3 compatible).
 

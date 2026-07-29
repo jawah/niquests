@@ -15,6 +15,7 @@ import typing
 
 from ._constant import DEFAULT_RETRIES, READ_DEFAULT_TIMEOUT, WRITE_DEFAULT_TIMEOUT
 from .async_session import AsyncSession
+from .extensions.tls import TLSConfiguration
 from .models import AsyncResponse, PreparedRequest, Response
 from .structures import AsyncQuicSharedCache
 from .typing import (
@@ -27,6 +28,7 @@ from .typing import (
     HeadersType,
     HttpAuthenticationType,
     HttpMethodType,
+    JSONEncoderType,
     MultiPartFilesAltType,
     MultiPartFilesType,
     ProxyType,
@@ -62,6 +64,8 @@ async def request(
     cert: TLSClientCertType | None = ...,
     json: typing.Any | None = ...,
     retries: RetryType = ...,
+    json_encoder: JSONEncoderType | None = ...,
+    tls_configuration: TLSConfiguration | None = ...,
 ) -> Response: ...
 
 
@@ -85,6 +89,8 @@ async def request(
     cert: TLSClientCertType | None = ...,
     json: typing.Any | None = ...,
     retries: RetryType = ...,
+    json_encoder: JSONEncoderType | None = ...,
+    tls_configuration: TLSConfiguration | None = ...,
 ) -> AsyncResponse: ...
 
 
@@ -107,6 +113,8 @@ async def request(
     cert: TLSClientCertType | None = None,
     json: typing.Any | None = None,
     retries: RetryType = DEFAULT_RETRIES,
+    json_encoder: JSONEncoderType | None = None,
+    tls_configuration: TLSConfiguration | None = None,
 ) -> Response | AsyncResponse:
     """Constructs and sends a :class:`Request <Request>`. This does not keep the connection alive.
     Use an :class:`AsyncSession` to reuse the connection.
@@ -146,6 +154,8 @@ async def request(
     :param hooks: (optional) Register functions that should be called at very specific moment in the request lifecycle.
     :param retries: (optional) If integer, determine the number of retry in case of a timeout or connection error.
             Otherwise, for fine gained retry, use directly a ``Retry`` instance from urllib3.
+    :param json_encoder: (optional) Callable used to serialize objects passed through ``json=``.
+    :param tls_configuration: (optional) Fine-grained TLS configuration for the temporary session.
     :return: :class:`Response <Response>` object if stream=None or False. Otherwise :class:`AsyncResponse <AsyncResponse>`
 
     Usage::
@@ -160,7 +170,12 @@ async def request(
     # avoid leaving sockets open which can trigger a ResourceWarning in some
     # cases, and look like a memory leak in others.
     async with AsyncSession(
-        quic_cache_layer=_SHARED_QUIC_CACHE, retries=retries, keepalive_delay=None, keepalive_idle_window=None
+        quic_cache_layer=_SHARED_QUIC_CACHE,
+        retries=retries,
+        keepalive_delay=None,
+        keepalive_idle_window=None,
+        json_encoder=json_encoder,
+        tls_configuration=tls_configuration,
     ) as session:
         session._ocsp_cache = _SHARED_OCSP_CACHE.get()
         session._crl_cache = _SHARED_CRL_CACHE.get()
@@ -525,6 +540,8 @@ async def post(
     stream: typing.Literal[False] | typing.Literal[None] = ...,
     cert: TLSClientCertType | None = ...,
     retries: RetryType = ...,
+    json_encoder: JSONEncoderType | None = ...,
+    tls_configuration: TLSConfiguration | None = ...,
 ) -> Response: ...
 
 
@@ -547,6 +564,8 @@ async def post(
     stream: typing.Literal[True],
     cert: TLSClientCertType | None = ...,
     retries: RetryType = ...,
+    json_encoder: JSONEncoderType | None = ...,
+    tls_configuration: TLSConfiguration | None = ...,
 ) -> AsyncResponse: ...
 
 
@@ -568,6 +587,8 @@ async def post(
     stream: bool | None = None,
     cert: TLSClientCertType | None = None,
     retries: RetryType = DEFAULT_RETRIES,
+    json_encoder: JSONEncoderType | None = None,
+    tls_configuration: TLSConfiguration | None = None,
 ) -> Response | AsyncResponse:
     r"""Sends a POST request. This does not keep the connection alive. Use an :class:`AsyncSession` to reuse the connection.
 
@@ -625,6 +646,8 @@ async def post(
         cert=cert,
         hooks=hooks,
         retries=retries,
+        json_encoder=json_encoder,
+        tls_configuration=tls_configuration,
     )
 
 
@@ -647,6 +670,8 @@ async def put(
     stream: typing.Literal[False] | typing.Literal[None] = ...,
     cert: TLSClientCertType | None = ...,
     retries: RetryType = ...,
+    json_encoder: JSONEncoderType | None = ...,
+    tls_configuration: TLSConfiguration | None = ...,
 ) -> Response: ...
 
 
@@ -669,6 +694,8 @@ async def put(
     stream: typing.Literal[True],
     cert: TLSClientCertType | None = ...,
     retries: RetryType = ...,
+    json_encoder: JSONEncoderType | None = ...,
+    tls_configuration: TLSConfiguration | None = ...,
 ) -> AsyncResponse: ...
 
 
@@ -690,6 +717,8 @@ async def put(
     stream: bool | None = None,
     cert: TLSClientCertType | None = None,
     retries: RetryType = DEFAULT_RETRIES,
+    json_encoder: JSONEncoderType | None = None,
+    tls_configuration: TLSConfiguration | None = None,
 ) -> Response | AsyncResponse:
     r"""Sends a PUT request. This does not keep the connection alive. Use an :class:`AsyncSession` to reuse the connection.
 
@@ -747,6 +776,8 @@ async def put(
         cert=cert,
         hooks=hooks,
         retries=retries,
+        json_encoder=json_encoder,
+        tls_configuration=tls_configuration,
     )
 
 
@@ -769,6 +800,8 @@ async def patch(
     stream: typing.Literal[False] | typing.Literal[None] = ...,
     cert: TLSClientCertType | None = ...,
     retries: RetryType = ...,
+    json_encoder: JSONEncoderType | None = ...,
+    tls_configuration: TLSConfiguration | None = ...,
 ) -> Response: ...
 
 
@@ -791,6 +824,8 @@ async def patch(
     stream: typing.Literal[True],
     cert: TLSClientCertType | None = ...,
     retries: RetryType = ...,
+    json_encoder: JSONEncoderType | None = ...,
+    tls_configuration: TLSConfiguration | None = ...,
 ) -> AsyncResponse: ...
 
 
@@ -812,6 +847,8 @@ async def patch(
     stream: bool | None = None,
     cert: TLSClientCertType | None = None,
     retries: RetryType = DEFAULT_RETRIES,
+    json_encoder: JSONEncoderType | None = None,
+    tls_configuration: TLSConfiguration | None = None,
 ) -> Response | AsyncResponse:
     r"""Sends a PATCH request. This does not keep the connection alive. Use an :class:`AsyncSession` to reuse the connection.
 
@@ -869,6 +906,8 @@ async def patch(
         cert=cert,
         hooks=hooks,
         retries=retries,
+        json_encoder=json_encoder,
+        tls_configuration=tls_configuration,
     )
 
 
@@ -996,6 +1035,8 @@ async def query(
     stream: typing.Literal[False] | typing.Literal[None] = ...,
     cert: TLSClientCertType | None = ...,
     retries: RetryType = ...,
+    json_encoder: JSONEncoderType | None = ...,
+    tls_configuration: TLSConfiguration | None = ...,
 ) -> Response: ...
 
 
@@ -1018,6 +1059,8 @@ async def query(
     stream: typing.Literal[True],
     cert: TLSClientCertType | None = ...,
     retries: RetryType = ...,
+    json_encoder: JSONEncoderType | None = ...,
+    tls_configuration: TLSConfiguration | None = ...,
 ) -> AsyncResponse: ...
 
 
@@ -1039,6 +1082,8 @@ async def query(
     stream: bool | None = None,
     cert: TLSClientCertType | None = None,
     retries: RetryType = DEFAULT_RETRIES,
+    json_encoder: JSONEncoderType | None = None,
+    tls_configuration: TLSConfiguration | None = None,
 ) -> Response | AsyncResponse:
     r"""Sends a QUERY request. This does not keep the connection alive. Use an :class:`AsyncSession` to reuse the connection.
 
@@ -1100,4 +1145,6 @@ async def query(
         cert=cert,
         hooks=hooks,
         retries=retries,
+        json_encoder=json_encoder,
+        tls_configuration=tls_configuration,
     )

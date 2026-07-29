@@ -3,12 +3,66 @@ from __future__ import annotations
 import asyncio
 import json
 import os
+from unittest import mock
 
 import pytest
 from aiofiles.tempfile import NamedTemporaryFile
 
-from niquests import AsyncResponse, AsyncSession, Response
+import niquests
+from niquests import AsyncResponse, AsyncSession, Request, Response
 from niquests.exceptions import MultiplexingError
+
+
+@pytest.mark.asyncio
+async def test_async_session_json_encoder():
+    value = object()
+    encoded_values = []
+
+    def encoder(obj):
+        encoded_values.append(obj)
+        return b'{"id":2}'
+
+    async with AsyncSession(json_encoder=encoder) as session:
+        request = session.prepare_request(Request("POST", "https://example.test", json=value))
+
+    assert encoded_values == [value]
+    assert request.body == b'{"id":2}'
+    assert request.headers["Content-Type"] == "application/json;charset=utf-8"
+    assert request.headers["Content-Length"] == "8"
+
+
+@pytest.mark.asyncio
+async def test_top_level_async_json_encoder_and_tls_configuration():
+    captured = {}
+
+    def encoder(obj):
+        return b"{}"
+
+    class FakeAsyncSession:
+        def __init__(self, **kwargs):
+            captured.update(kwargs)
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, exc_type, exc_value, traceback):
+            pass
+
+        async def request(self, *args, **kwargs):
+            return object()
+
+    tls_configuration = niquests.TLSConfiguration()
+
+    with mock.patch("niquests.async_api.AsyncSession", FakeAsyncSession):
+        await niquests.apost(
+            "https://example.test",
+            json=object(),
+            json_encoder=encoder,
+            tls_configuration=tls_configuration,
+        )
+
+    assert captured["json_encoder"] is encoder
+    assert captured["tls_configuration"] is tls_configuration
 
 
 @pytest.mark.usefixtures("requires_wan")

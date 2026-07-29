@@ -52,6 +52,8 @@ AsyncBodyType: typing.TypeAlias = typing.Union[
     typing.AsyncIterable[bytes],
     typing.AsyncIterable[str],
 ]
+#: Callable used to serialize an object into a JSON string or bytes payload.
+JSONEncoderType: typing.TypeAlias = typing.Callable[[typing.Any], typing.Union[str, bytes]]
 #: HTTP Headers can be represented through three ways. 1) typical dict, 2) internal insensitive dict, and 3) list of tuple.
 HeadersType: typing.TypeAlias = typing.Union[
     typing.MutableMapping[typing.Union[str, bytes], typing.Union[str, bytes]],

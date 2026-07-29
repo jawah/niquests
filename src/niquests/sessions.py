@@ -71,6 +71,7 @@ from .typing import (
     HookType,
     HttpAuthenticationType,
     HttpMethodType,
+    JSONEncoderType,
     MultiPartFilesAltType,
     MultiPartFilesType,
     ProxyType,
@@ -261,6 +262,7 @@ class Session:
         "timeout",
         "_revocation_configuration",
         "_tls_configuration",
+        "json_encoder",
     ]
 
     def __init__(
@@ -295,6 +297,7 @@ class Session:
         cert: TLSClientCertType | None = None,
         allow_incoming_cookies: bool = True,
         tls_configuration: TLSConfiguration | None = None,
+        json_encoder: JSONEncoderType | None = None,
     ):
         """
         :param resolver: Specify a DNS resolver that should be used within this Session.
@@ -337,6 +340,8 @@ class Session:
             cookie. Outgoing cookies you set yourself are still sent. Defaults to ``True``.
         :param tls_configuration: Fine-grained TLS configuration (desired backend, minimum/maximum TLS
             version, and cipher list) propagated to every TLS-capable adapter mounted on this Session.
+        :param json_encoder: Callable used to serialize objects passed through ``json=`` into a JSON
+            string or bytes payload. The default encoder is used when omitted.
         """
         if [disable_ipv4, disable_ipv6].count(True) == 2:
             raise RuntimeError("Cannot disable both IPv4 and IPv6")
@@ -466,6 +471,9 @@ class Session:
 
         #: Fine-grained TLS configuration (backend, min/max version, ciphers) propagated to adapters.
         self._tls_configuration: TLSConfiguration | None = tls_configuration
+
+        #: Optional JSON serializer applied to objects passed through ``json=``.
+        self.json_encoder: JSONEncoderType | None = json_encoder
 
         # Default connection adapters.
         self.adapters: OrderedDict[str, BaseAdapter] = OrderedDict()
@@ -659,6 +667,7 @@ class Session:
             files=request.files,
             data=request.data,
             json=request.json,
+            json_encoder=self.json_encoder,
             headers=merge_setting(request.headers, self.headers, dict_class=CaseInsensitiveDict),
             params=merge_setting(request.params, self.params),
             auth=merge_setting(auth, self.auth),
@@ -1817,6 +1826,8 @@ class Session:
         return state
 
     def __setstate__(self, state):
+        if "json_encoder" not in state:
+            state["json_encoder"] = None
         for attr, value in state.items():
             setattr(self, attr, value)
 
