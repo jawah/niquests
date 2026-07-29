@@ -238,7 +238,7 @@ def wasi(session: nox.Session) -> None:
         extracted = next(path for path in extract_root.iterdir() if (path / "wit").is_dir())
         shutil.move(extracted, componentize_source)
 
-    wasmtime = os.environ.get("WASMTIME", str(Path.home() / ".wasmtime" / "bin" / "wasmtime"))
+    wasmtime = os.environ.get("WASMTIME") or shutil.which("wasmtime") or str(Path.home() / ".wasmtime" / "bin" / "wasmtime")
     if not Path(wasmtime).is_file():
         session.error(f"Wasmtime was not found at {wasmtime!r}; set WASMTIME to its executable path")
 
