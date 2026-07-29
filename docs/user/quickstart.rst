@@ -2139,12 +2139,23 @@ code.
 
 For the most complete Niquests experience, prefer the WASI socket interfaces. Use
 Preview 2 sockets for synchronous code and Preview 3 sockets for asynchronous code.
-The matching ``wasi:cli/command`` world supplied with componentize-py includes those
-interfaces.
+The matching ``wasi:cli/command`` world from the componentize-py source distribution
+includes those interfaces.
 
-Install Niquests with the Rustls backend so that HTTPS can run over WASI sockets::
+Install Niquests with the Rustls backend so that HTTPS can run over WASI sockets, then
+download the matching componentize-py source archive:
 
-    python -m pip install "niquests[rtls]" componentize-py
+.. code:: console
+
+    $ python -m pip install "niquests[rtls]" "componentize-py==0.25.0"
+    $ python -m pip download --no-deps --no-binary=:all: "componentize-py==0.25.0"
+    $ python -m tarfile -e componentize_py-0.25.0.tar.gz .
+
+.. note::
+
+    The PyPI wheel installs the ``componentize-py`` executable but does not include
+    its WASI WIT definitions. The source archive provides the required ``wit/``
+    directory; keep both at the same pinned version.
 
 Choose the execution model for your component:
 
@@ -2167,7 +2178,7 @@ Choose the execution model for your component:
 
     .. code:: console
 
-        $ componentize-py -w wasi:cli/command@0.2.0 componentize app -o app.wasm
+        $ componentize-py -d componentize_py-0.25.0/wit -w wasi:cli/command@0.2.0 componentize app -o app.wasm
         $ wasmtime run -Sinherit-network -Sallow-ip-name-lookup=y app.wasm
 
 .. tab:: 🔀 Async
@@ -2189,7 +2200,7 @@ Choose the execution model for your component:
 
     .. code:: console
 
-        $ componentize-py -w wasi:cli/command@0.3.0 componentize app -o app.wasm
+        $ componentize-py -d componentize_py-0.25.0/wit -w wasi:cli/command@0.3.0 componentize app -o app.wasm
         $ wasmtime run -Sp3 -Sinherit-network -Sallow-ip-name-lookup=y app.wasm
 
 .. warning::
