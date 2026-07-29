@@ -157,6 +157,7 @@ filterwarnings = [
     '''ignore:.*get_event_loop.*:DeprecationWarning''',
     '''ignore:.*set_event_loop.*:DeprecationWarning''',
     '''ignore:.*EventLoopPolicy.*:DeprecationWarning''',
+    '''ignore:Module globals; __loader__ != __spec__\.loader:DeprecationWarning''',
 ]
 
 [tool.codespell]
