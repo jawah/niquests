@@ -98,6 +98,7 @@ from .typing import (
     HookType,
     HttpAuthenticationType,
     HttpMethodType,
+    JSONEncoderType,
     MultiPartFilesAltType,
     MultiPartFilesType,
     QueryParameterType,
@@ -343,6 +344,7 @@ class PreparedRequest:
         json: typing.Any | None = None,
         base_url: str | None = None,
         override_scheme: str | None = None,
+        json_encoder: JSONEncoderType | None = None,
     ) -> None:
         """Prepares the entire request with the given parameters."""
 
@@ -350,7 +352,7 @@ class PreparedRequest:
         self.prepare_url(url, params, base_url=base_url, override_scheme=override_scheme)
         self.prepare_headers(headers)
         self.prepare_cookies(cookies)
-        self.prepare_body(data, files, json)
+        self.prepare_body(data, files, json, json_encoder)
         self.prepare_auth(auth)
 
         # Note that prepare_auth must be last to enable authentication schemes
@@ -490,6 +492,7 @@ class PreparedRequest:
         data: BodyType | AsyncBodyType | None,
         files: MultiPartFilesType | MultiPartFilesAltType | None,
         json: typing.Any | None = None,
+        json_encoder: JSONEncoderType | None = None,
     ) -> None:
         """Prepares the given HTTP body data."""
 
@@ -507,15 +510,22 @@ class PreparedRequest:
             # urllib3 requires a bytes-like body. Python 2's json.dumps
             # provides this natively, but Python 3 gives a Unicode string.
             content_type = "application/json;charset=utf-8"
-            json_kwargs = {}
+            if isinstance(json, bytes):
+                body = json
+            elif json_encoder is not None:
+                body = json_encoder(json)
+                if not isinstance(body, (str, bytes)):
+                    raise TypeError("The configured JSON encoder must return str or bytes.")
+            else:
+                json_kwargs = {}
 
-            if not hasattr(_json, "orjson"):
-                json_kwargs["allow_nan"] = False
+                if not hasattr(_json, "orjson"):
+                    json_kwargs["allow_nan"] = False
 
-            try:
-                body = _json.dumps(json, **json_kwargs)
-            except ValueError as ve:
-                raise InvalidJSONError(ve, request=self)
+                try:
+                    body = _json.dumps(json, **json_kwargs)
+                except ValueError as ve:
+                    raise InvalidJSONError(ve, request=self)
 
             if isinstance(body, str):
                 body = body.encode("utf-8")

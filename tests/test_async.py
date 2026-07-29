@@ -7,8 +7,26 @@ import os
 import pytest
 from aiofiles.tempfile import NamedTemporaryFile
 
-from niquests import AsyncResponse, AsyncSession, Response
+from niquests import AsyncResponse, AsyncSession, Request, Response
 from niquests.exceptions import MultiplexingError
+
+
+@pytest.mark.asyncio
+async def test_async_session_json_encoder():
+    value = object()
+    encoded_values = []
+
+    def encoder(obj):
+        encoded_values.append(obj)
+        return b'{"id":2}'
+
+    async with AsyncSession(json_encoder=encoder) as session:
+        request = session.prepare_request(Request("POST", "https://example.test", json=value))
+
+    assert encoded_values == [value]
+    assert request.body == b'{"id":2}'
+    assert request.headers["Content-Type"] == "application/json;charset=utf-8"
+    assert request.headers["Content-Length"] == "8"
 
 
 @pytest.mark.usefixtures("requires_wan")

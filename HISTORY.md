@@ -41,6 +41,7 @@ Release History
   request API. See the WASI quickstart and advanced capability guide for deployment
   examples and transport-specific constraints.
 - Explicit support for Python 3.15
+- Custom `json_encoder` in `Session` and `AsyncSession` for request bodies. (#437)
 
 **Fixed**
 - CRL or OCSP unparsable/corrupted may raise CryptoError. (#430)

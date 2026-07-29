@@ -63,6 +63,7 @@ from .typing import (
     HeadersType,
     HttpAuthenticationType,
     HttpMethodType,
+    JSONEncoderType,
     MultiPartFilesAltType,
     MultiPartFilesType,
     ProxyType,
@@ -168,6 +169,7 @@ class AsyncSession(Session):
         cert: TLSClientCertType | None = None,
         allow_incoming_cookies: bool = True,
         tls_configuration: TLSConfiguration | None = None,
+        json_encoder: JSONEncoderType | None = None,
     ):
         if [disable_ipv4, disable_ipv6].count(True) == 2:
             raise RuntimeError("Cannot disable both IPv4 and IPv6")
@@ -299,6 +301,9 @@ class AsyncSession(Session):
 
         #: Fine-grained TLS configuration (backend, min/max version, ciphers) propagated to adapters.
         self._tls_configuration: TLSConfiguration | None = tls_configuration
+
+        #: Optional JSON serializer applied to objects passed through ``json=``.
+        self.json_encoder: JSONEncoderType | None = json_encoder
 
         # Default connection adapters.
         self.adapters: OrderedDict[str, AsyncBaseAdapter] = OrderedDict()  # type: ignore[assignment]
@@ -452,6 +457,8 @@ class AsyncSession(Session):
         await self.close()
 
     def __setstate__(self, state):
+        if "json_encoder" not in state:
+            state["json_encoder"] = None
         for attr, value in state.items():
             setattr(self, attr, value)
 
