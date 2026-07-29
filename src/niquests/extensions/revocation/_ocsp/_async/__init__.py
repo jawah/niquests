@@ -10,10 +10,11 @@ from random import randint
 
 from qh3._hazmat import (
     Certificate,
+    CryptoError,
     OCSPCertStatus,
     OCSPRequest,
     OCSPResponse,
-    OCSPResponseStatus, CryptoError,
+    OCSPResponseStatus,
 )
 
 from .....exceptions import RequestException, SSLError
