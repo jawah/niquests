@@ -3083,6 +3083,22 @@ class TestPreparingURLs:
             with pytest.raises(TypeError, match="must return str or bytes"):
                 session.prepare_request(niquests.Request("POST", "https://example.test", json=object()))
 
+    def test_top_level_json_encoder_and_tls_configuration(self):
+        encoder = mock.Mock()
+        tls_configuration = niquests.TLSConfiguration()
+
+        with mock.patch("niquests.api.sessions.Session") as session_cls:
+            session_cls.return_value.__enter__.return_value.request.return_value = object()
+            niquests.post(
+                "https://example.test",
+                json=object(),
+                json_encoder=encoder,
+                tls_configuration=tls_configuration,
+            )
+
+        assert session_cls.call_args[1]["json_encoder"] is encoder
+        assert session_cls.call_args[1]["tls_configuration"] is tls_configuration
+
     @pytest.mark.xfail
     def test_json_decode_compatibility(self, httpbin):
         r = niquests.get(httpbin("bytes/20"))

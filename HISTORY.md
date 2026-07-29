@@ -42,6 +42,7 @@ Release History
   examples and transport-specific constraints.
 - Explicit support for Python 3.15
 - Custom `json_encoder` in `Session` and `AsyncSession` for request bodies. (#437)
+- Top-level request APIs accept custom JSON encoders and TLS configuration.
 
 **Fixed**
 - CRL or OCSP unparsable/corrupted may raise CryptoError. (#430)

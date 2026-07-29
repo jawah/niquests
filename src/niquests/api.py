@@ -15,6 +15,7 @@ import typing
 
 from . import sessions
 from ._constant import DEFAULT_RETRIES, READ_DEFAULT_TIMEOUT, WRITE_DEFAULT_TIMEOUT
+from .extensions.tls import TLSConfiguration
 from .models import PreparedRequest, Response
 from .structures import QuicSharedCache
 from .typing import (
@@ -25,6 +26,7 @@ from .typing import (
     HookType,
     HttpAuthenticationType,
     HttpMethodType,
+    JSONEncoderType,
     MultiPartFilesAltType,
     MultiPartFilesType,
     ProxyType,
@@ -60,6 +62,8 @@ def request(
     cert: TLSClientCertType | None = None,
     hooks: HookType[PreparedRequest | Response] | None = None,
     retries: RetryType = DEFAULT_RETRIES,
+    json_encoder: JSONEncoderType | None = None,
+    tls_configuration: TLSConfiguration | None = None,
 ) -> Response:
     """Constructs and sends a :class:`Request <Request>`.
 
@@ -99,6 +103,8 @@ def request(
     :param hooks: (optional) Register functions that should be called at very specific moment in the request lifecycle.
     :param retries: (optional) If integer, determine the number of retry in case of a timeout or connection error.
             Otherwise, for fine gained retry, use directly a ``Retry`` instance from urllib3.
+    :param json_encoder: (optional) Callable used to serialize objects passed through ``json=``.
+    :param tls_configuration: (optional) Fine-grained TLS configuration for the temporary session.
     :return: :class:`Response <Response>` object
 
     Usage::
@@ -114,7 +120,12 @@ def request(
     # cases, and look like a memory leak in others.
     global _SHARED_OCSP_CACHE, _SHARED_CRL_CACHE
     with sessions.Session(
-        quic_cache_layer=_SHARED_QUIC_CACHE, retries=retries, keepalive_delay=None, keepalive_idle_window=None
+        quic_cache_layer=_SHARED_QUIC_CACHE,
+        retries=retries,
+        keepalive_delay=None,
+        keepalive_idle_window=None,
+        json_encoder=json_encoder,
+        tls_configuration=tls_configuration,
     ) as session:
         session._ocsp_cache = _SHARED_OCSP_CACHE
         session._crl_cache = _SHARED_CRL_CACHE
@@ -359,6 +370,8 @@ def post(
     cert: TLSClientCertType | None = None,
     hooks: HookType[PreparedRequest | Response] | None = None,
     retries: RetryType = DEFAULT_RETRIES,
+    json_encoder: JSONEncoderType | None = None,
+    tls_configuration: TLSConfiguration | None = None,
 ) -> Response:
     r"""Sends a POST request. This does not keep the connection alive. Use a :class:`Session` to reuse the connection.
 
@@ -416,6 +429,8 @@ def post(
         cert=cert,
         hooks=hooks,
         retries=retries,
+        json_encoder=json_encoder,
+        tls_configuration=tls_configuration,
     )
 
 
@@ -437,6 +452,8 @@ def put(
     cert: TLSClientCertType | None = None,
     hooks: HookType[PreparedRequest | Response] | None = None,
     retries: RetryType = DEFAULT_RETRIES,
+    json_encoder: JSONEncoderType | None = None,
+    tls_configuration: TLSConfiguration | None = None,
 ) -> Response:
     r"""Sends a PUT request. This does not keep the connection alive. Use a :class:`Session` to reuse the connection.
 
@@ -494,6 +511,8 @@ def put(
         cert=cert,
         hooks=hooks,
         retries=retries,
+        json_encoder=json_encoder,
+        tls_configuration=tls_configuration,
     )
 
 
@@ -515,6 +534,8 @@ def patch(
     cert: TLSClientCertType | None = None,
     hooks: HookType[PreparedRequest | Response] | None = None,
     retries: RetryType = DEFAULT_RETRIES,
+    json_encoder: JSONEncoderType | None = None,
+    tls_configuration: TLSConfiguration | None = None,
 ) -> Response:
     r"""Sends a PATCH request. This does not keep the connection alive. Use a :class:`Session` to reuse the connection.
 
@@ -572,6 +593,8 @@ def patch(
         cert=cert,
         hooks=hooks,
         retries=retries,
+        json_encoder=json_encoder,
+        tls_configuration=tls_configuration,
     )
 
 
@@ -658,6 +681,8 @@ def query(
     cert: TLSClientCertType | None = None,
     hooks: HookType[PreparedRequest | Response] | None = None,
     retries: RetryType = DEFAULT_RETRIES,
+    json_encoder: JSONEncoderType | None = None,
+    tls_configuration: TLSConfiguration | None = None,
 ) -> Response:
     r"""Sends a QUERY request. This does not keep the connection alive. Use a :class:`Session` to reuse the connection.
 
@@ -719,4 +744,6 @@ def query(
         cert=cert,
         hooks=hooks,
         retries=retries,
+        json_encoder=json_encoder,
+        tls_configuration=tls_configuration,
     )
