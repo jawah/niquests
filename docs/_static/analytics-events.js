@@ -324,9 +324,15 @@
         // i.e. genuine content sections, not arbitrary anchored wrappers.
         var heading = section.querySelector(":scope > h2, :scope > h3");
         if (!heading) return;
+        if (section.querySelector(":scope > .niq-feedback")) return;
         var widget = build(section);
         if (!widget) return;
-        section.appendChild(widget);
+        var firstSubsection = section.querySelector(":scope > section[id]");
+        if (firstSubsection) {
+          section.insertBefore(widget, firstSubsection);
+        } else {
+          section.appendChild(widget);
+        }
       });
   }
 
