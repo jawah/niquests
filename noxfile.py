@@ -263,8 +263,6 @@ def tests_impl(
                 "NIQUESTS_STRICT_OCSP": "1",
                 "TRAEFIK_HTTPBIN_ENABLE": os.environ.get("TRAEFIK_HTTPBIN_ENABLE", "true"),
                 "TRAEFIK_HTTPBIN_IPV4": os.environ.get("TRAEFIK_HTTPBIN_IPV4", "127.0.0.1"),
-                "NO_PROXY": ".httpbin.local,localhost,127.0.0.1",
-                "no_proxy": ".httpbin.local,localhost,127.0.0.1",
             },
         )
 
@@ -344,7 +342,7 @@ def emscripten(session: nox.Session, runner: str) -> None:
             session.run("node", "--version", silent=True, external=True),
         )
 
-    session.install("build")
+    session.install("build", "trustme==1.2.1")
 
     # make sure we have a dist dir for pyodide
     pyodide_version = "0.28.1"

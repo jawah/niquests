@@ -6,7 +6,6 @@ import subprocess
 import sys
 from pathlib import Path
 
-
 ROOT = Path(__file__).resolve().parents[2]
 OUTPUT = ROOT / "traefik" / "revocation"
 CONFIG = Path(__file__).with_name("openssl.cnf")
@@ -27,6 +26,8 @@ def issue_leaf(name: str, extension: str) -> None:
     issued = OUTPUT / f"{name}.issued.pem"
     certificate = OUTPUT / f"{name}.pem"
     run("genrsa", "-out", str(key), "2048")
+    if extension != "ocsp_signer":
+        key.chmod(0o644)
     run("req", "-new", "-key", str(key), "-subj", f"/CN={name}.httpbin.local", "-out", str(csr))
     run(
         "ca",

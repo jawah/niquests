@@ -1198,10 +1198,16 @@ class TestRequests:
         request = niquests.Request("GET", url).prepare()
         connection = await adapter.get_connection(url, proxies)
 
+        async def get_connection(*args, **kwargs):
+            return connection
+
+        async def stop_urlopen(*args, **kwargs):
+            raise _StopSend
+
         try:
             with contextlib.ExitStack() as stack:
-                stack.enter_context(mock.patch.object(adapter, "get_connection", new=mock.AsyncMock(return_value=connection)))
-                stack.enter_context(mock.patch.object(connection, "urlopen", new=mock.AsyncMock(side_effect=_StopSend)))
+                stack.enter_context(mock.patch.object(adapter, "get_connection", new=get_connection))
+                stack.enter_context(mock.patch.object(connection, "urlopen", new=stop_urlopen))
                 stack.enter_context(pytest.raises(_StopSend))
                 await adapter.send(request, proxies=proxies, verify=False)
         finally:

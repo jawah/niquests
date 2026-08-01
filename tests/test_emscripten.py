@@ -351,10 +351,6 @@ async def _inner_test_sync_websocket(selenium_jspi, httpbin_target):
             assert ext is not None
             assert ext.closed is False
 
-            # Consume potential welcome/greeting message from the server
-            welcome = ext.next_payload()
-            assert isinstance(welcome, str)
-
             ext.send_payload("hello from niquests")
             msg = ext.next_payload()
             assert isinstance(msg, str)
@@ -402,9 +398,6 @@ async def _inner_test_sync_websocket_binary(selenium_jspi, httpbin_target):
             assert response.status_code == 101
 
             ext = response.extension
-
-            # Consume potential welcome/greeting message from the server
-            ext.next_payload()
 
             ext.send_payload(b"\x00\x01\x02\x03")
             msg = ext.next_payload()
@@ -498,10 +491,6 @@ async def _inner_test_async_websocket(selenium, httpbin_target):
             assert ext is not None
             assert ext.closed is False
 
-            # Consume potential welcome/greeting message from the server
-            welcome = await ext.next_payload()
-            assert isinstance(welcome, str)
-
             await ext.send_payload("hello from niquests async")
             msg = await ext.next_payload()
             assert isinstance(msg, str)
@@ -549,9 +538,6 @@ async def _inner_test_async_websocket_binary(selenium, httpbin_target):
             assert response.status_code == 101
 
             ext = response.extension
-
-            # Consume potential welcome/greeting message from the server
-            await ext.next_payload()
 
             await ext.send_payload(b"\x00\x01\x02\x03")
             msg = await ext.next_payload()
