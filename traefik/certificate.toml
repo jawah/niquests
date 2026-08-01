@@ -1,0 +1,19 @@
+[[tls.certificates]]
+  certFile = "/certs/httpbin.local.pem"
+  keyFile = "/certs/httpbin.local.pem.key"
+
+[[tls.certificates]]
+  certFile = "/certs/revocation/good-ocsp.fullchain.pem"
+  keyFile = "/certs/revocation/good-ocsp.key"
+
+[[tls.certificates]]
+  certFile = "/certs/revocation/revoked-ocsp.fullchain.pem"
+  keyFile = "/certs/revocation/revoked-ocsp.key"
+
+[[tls.certificates]]
+  certFile = "/certs/revocation/good-crl.fullchain.pem"
+  keyFile = "/certs/revocation/good-crl.key"
+
+[[tls.certificates]]
+  certFile = "/certs/revocation/revoked-crl.fullchain.pem"
+  keyFile = "/certs/revocation/revoked-crl.key"

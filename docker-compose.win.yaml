@@ -1,0 +1,77 @@
+services:
+  proxy:
+    image: traefik:v3.6.12-windowsservercore-ltsc2022
+    restart: unless-stopped
+    depends_on:
+      httpbin:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "traefik", "healthcheck", "--ping"]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+    ports:
+      - target: 8888
+        published: 8888
+        protocol: tcp
+        mode: host
+      - target: 4443
+        published: 4443
+        protocol: tcp
+        mode: host
+      - target: 4443
+        published: 4443
+        protocol: udp
+        mode: host
+      - target: 9999
+        published: 9999
+        protocol: tcp
+        mode: host
+      - target: 8754
+        published: 8754
+        protocol: tcp
+        mode: host
+    volumes:
+      - type: npipe
+        source: \\.\pipe\docker_engine
+        target: \\.\pipe\docker_engine
+      - ./traefik:c:/certs
+    command:
+      - --providers.docker
+      - --providers.docker.endpoint=npipe:////./pipe/docker_engine
+      - --providers.file.directory=c:/certs
+      - --providers.file.watch=true
+      - --providers.docker.exposedbydefault=false
+      - --entrypoints.http.address=:8888
+      - --entrypoints.https.address=:4443
+      - --entrypoints.alt-http.address=:9999
+      - --entrypoints.alt-https.address=:8754
+      - --entrypoints.https.http3=true
+      - --entrypoints.alt-https.http3=false
+      - --entrypoints.alt-https.transport.keepAliveMaxTime=5s
+      - --accesslog
+      - --log
+      - --api.dashboard=false
+      - --ping
+      - --log.level=ERROR
+
+  httpbin:
+    image: jawah/httpbin:windows
+    build:
+      context: ./go-httpbin
+      dockerfile: patched.Dockerfile
+    restart: unless-stopped
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.httpbin-http.rule=Host(`httpbin.local`) || Host(`alt.httpbin.local`) || Host(`localhost`) || Host(`127.0.0.1`) || Host(`good-ocsp.httpbin.local`) || Host(`revoked-ocsp.httpbin.local`) || Host(`good-crl.httpbin.local`) || Host(`revoked-crl.httpbin.local`)
+      - traefik.http.routers.httpbin-http.entrypoints=http,alt-http
+      - traefik.http.routers.httpbin-http.middlewares=httpbin-cors
+      - traefik.http.routers.httpbin-https.rule=Host(`httpbin.local`) || Host(`alt.httpbin.local`) || Host(`localhost`) || Host(`127.0.0.1`) || Host(`good-ocsp.httpbin.local`) || Host(`revoked-ocsp.httpbin.local`) || Host(`good-crl.httpbin.local`) || Host(`revoked-crl.httpbin.local`)
+      - traefik.http.routers.httpbin-https.entrypoints=https,alt-https
+      - traefik.http.routers.httpbin-https.middlewares=httpbin-cors
+      - traefik.http.routers.httpbin-https.tls=true
+      - traefik.http.middlewares.httpbin-cors.headers.accesscontrolalloworiginlist=*
+      - traefik.http.middlewares.httpbin-cors.headers.accesscontrolallowmethods=GET,POST,PUT,PATCH,DELETE,OPTIONS,HEAD
+      - traefik.http.middlewares.httpbin-cors.headers.accesscontrolallowheaders=*
+      - traefik.http.middlewares.httpbin-cors.headers.accesscontrolexposeheaders=*
+      - traefik.http.services.httpbin.loadbalancer.server.port=8080

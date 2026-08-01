@@ -36,7 +36,9 @@ class Run(exports.Run):
             raise RuntimeError(f"expected one of: {', '.join(CASES)}")
         case_id = sys.argv[1]
         os.chdir("/artifacts")
-        coverage = new_coverage(f".coverage.wasi.async.{case_id}")
+        target = os.environ.get("NIQUESTS_WASI_HTTP_TARGET")
+        target_suffix = f".{target}" if target else ""
+        coverage = new_coverage(f".coverage.wasi.async.{case_id}{target_suffix}")
         coverage.start()
         os.chdir("/workspace")
         try:

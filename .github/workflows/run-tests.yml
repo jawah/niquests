@@ -21,31 +21,37 @@ jobs:
       fail-fast: false
       matrix:
         python-version: ["3.7", "3.8", "3.9", "3.10", "3.11", "3.12", "3.13", "3.14", "3.15"]
-        os: [ubuntu-22.04, macos-14, windows-latest]
+        os: [ubuntu-22.04, macos-15-intel, windows-latest]
         nox-session: ['']
+        traefik-server: [false]
         include:
+          - python-version: "3.13"
+            os: ubuntu-22.04
+            nox-session: ''
+            traefik-server: true
           - python-version: "3.13"
             os: ubuntu-24.04
             nox-session: emscripten(node)
+            traefik-server: true
           - python-version: "3.13"
             os: ubuntu-24.04
             nox-session: emscripten(firefox)
+            traefik-server: true
           - python-version: "3.13"
             os: ubuntu-24.04
             nox-session: emscripten(chrome)
+            traefik-server: true
           - python-version: "3.13"
             os: ubuntu-24.04
             nox-session: wasi
           - python-version: "pypy-3.11"
             os: ubuntu-24.04
             nox-session: "test-pypy3.11"
-# todo: investigate the two failures later.
-#          - python-version: "pypy-3.11"
-#            os: windows-latest
-#            nox-session: "test-pypy3.11"
         exclude:
           - python-version: "3.7"
-            os: macos-14
+            os: macos-15-intel
+          - python-version: "3.8"
+            os: macos-15-intel
 
     steps:
     - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
@@ -86,12 +92,73 @@ jobs:
       if: ${{ matrix.nox-session == 'emscripten(node)' }}
       with:
         node-version: 24
+    - name: "Traefik: Setup Docker - Colima (MacOS)"
+      if: ${{ matrix.traefik-server && contains(matrix.os, 'mac') }}
+      uses: douglascamata/setup-docker-macos-action@d5ccc6aae0ce23e7700154f5e63cc53e6433ac48
+      with:
+        colima-network-address: true
+    - name: "Get Colima VM IP Address (MacOS)"
+      if: ${{ matrix.traefik-server && contains(matrix.os, 'mac') }}
+      id: colima-ip
+      run: |
+        # Get the IP address from colima list output
+        COLIMA_IP=$(colima list | grep -E "^\s*default\s+" | awk '{print $NF}')
+
+        # Fallback to default if not found
+        if [ -z "$COLIMA_IP" ]; then
+          echo "::warning: could not read IP address from 'colima list'"
+          colima list
+          COLIMA_IP="192.168.65.2"
+        fi
+
+        echo "autodiscover=$COLIMA_IP" >> $GITHUB_OUTPUT
+        echo "Colima VM IP: $COLIMA_IP"
+    - name: "Ensure Docker is ready (Windows)"
+      # Workaround for https://github.com/actions/runner-images/issues/13729
+      if: ${{ contains(matrix.os, 'windows') && matrix.traefik-server }}
+      shell: pwsh
+      run: |
+        $svc = Get-Service docker -ErrorAction SilentlyContinue
+        if (-not $svc) {
+          Write-Error "Docker service not found"
+          exit 1
+        }
+        if ($svc.Status -ne 'Running') {
+          Write-Host "Docker service status: $($svc.Status). Starting..."
+          Start-Service docker -ErrorAction Stop
+        }
+        $timeout = 120
+        while ($timeout -gt 0) {
+          & docker info >$null 2>&1
+          if ($LASTEXITCODE -eq 0) {
+            Write-Host "Docker is ready"
+            exit 0
+          }
+          Write-Host "Waiting for Docker daemon... (${timeout}s remaining)"
+          Start-Sleep -Seconds 3
+          $timeout -= 3
+        }
+        Write-Error "Docker daemon did not become ready within 120s"
+        exit 1
     - name: Install dependencies
       run: |
         pip install nox
+    - name: Start local protocol stack for WASI
+      if: ${{ matrix.nox-session == 'wasi' }}
+      run: nox -s local_server
+      env:
+        TRAEFIK_HTTPBIN_ENABLE: "true"
     - name: Run tests
+      # see https://github.com/actions/runner-images/issues/10924
+      # for context on why macOS runner need sudo(...)
       run: |
-        nox -s "${{ matrix.nox-session != '' && matrix.nox-session || format('test-{0}', matrix.python-version) }}"
+        ${{ contains(matrix.os, 'mac') && 'sudo -E' || '' }} nox -s "${{ matrix.nox-session != '' && matrix.nox-session || format('test-{0}', matrix.python-version) }}"
+      env:
+        TRAEFIK_HTTPBIN_ENABLE: ${{ matrix.traefik-server }}
+        TRAEFIK_HTTPBIN_IPV4: ${{ contains(matrix.os, 'mac') && steps.colima-ip.outputs.autodiscover || '127.0.0.1' }}
+    - name: Stop local protocol stack for WASI
+      if: ${{ always() && matrix.nox-session == 'wasi' }}
+      run: docker compose -f docker-compose.yaml stop
     - name: "Upload artifact"
       uses: "actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f"
       with:

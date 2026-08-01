@@ -31,7 +31,7 @@ else:
     from urllib3_future.util import Timeout as Urllib3Timeout
 
 import niquests
-from niquests.adapters import HTTPAdapter
+from niquests.adapters import AsyncHTTPAdapter, HTTPAdapter
 from niquests.auth import HTTPDigestAuth, _basic_auth_str
 from niquests.cookies import cookiejar_from_dict, morsel_to_cookie
 from niquests.exceptions import (
@@ -698,7 +698,7 @@ class TestRequests:
         "url, exception",
         (
             # Connecting to an unknown domain should raise a ConnectionError
-            ("http://doesnotexist.google.com", ConnectionError),
+            ("http://does-not-exist.invalid", ConnectionError),
             # Connecting to an invalid port should raise a ConnectionError
             ("http://localhost:1", ConnectionError),
             # Inputing a URL that cannot be parsed should raise an InvalidURL error
@@ -1127,6 +1127,89 @@ class TestRequests:
     def test_http_with_certificate(self, httpbin):
         r = niquests.get(httpbin(), cert=".")
         assert r.status_code == 200
+
+    @pytest.mark.parametrize(
+        "url, proxies, expected",
+        (
+            pytest.param("http://origin.test", {}, False, id="http"),
+            pytest.param("https://origin.test", {}, True, id="https"),
+            pytest.param("psse://origin.test", {}, False, id="psse"),
+            pytest.param("sse://origin.test", {}, True, id="sse"),
+            pytest.param("psse+native://origin.test", {}, False, id="psse-implementation"),
+            pytest.param("sse+native://origin.test", {}, True, id="sse-implementation"),
+            pytest.param(
+                "http://origin.test",
+                {"http": "https://proxy.test:8443"},
+                False,
+                id="http-via-https-proxy",
+            ),
+            pytest.param(
+                "https://origin.test",
+                {"https": "https://proxy.test:8443"},
+                True,
+                id="https-via-https-proxy",
+            ),
+        ),
+    )
+    def test_cert_verify_follows_destination_transport(self, url, proxies, expected):
+        adapter = HTTPAdapter()
+        request = niquests.Request("GET", url).prepare()
+        connection = adapter.get_connection(url, proxies)
+
+        try:
+            with contextlib.ExitStack() as stack:
+                stack.enter_context(mock.patch.object(adapter, "get_connection", return_value=connection))
+                stack.enter_context(mock.patch.object(connection, "urlopen", side_effect=_StopSend))
+                stack.enter_context(pytest.raises(_StopSend))
+                adapter.send(request, proxies=proxies, verify=False)
+        finally:
+            adapter.close()
+
+        assert hasattr(connection, "_niquests_verify") is expected
+        if expected:
+            assert connection._niquests_verify is False
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        "url, proxies, expected",
+        (
+            pytest.param("http://origin.test", {}, False, id="http"),
+            pytest.param("https://origin.test", {}, True, id="https"),
+            pytest.param("psse://origin.test", {}, False, id="psse"),
+            pytest.param("sse://origin.test", {}, True, id="sse"),
+            pytest.param("psse+native://origin.test", {}, False, id="psse-implementation"),
+            pytest.param("sse+native://origin.test", {}, True, id="sse-implementation"),
+            pytest.param(
+                "http://origin.test",
+                {"http": "https://proxy.test:8443"},
+                False,
+                id="http-via-https-proxy",
+            ),
+            pytest.param(
+                "https://origin.test",
+                {"https": "https://proxy.test:8443"},
+                True,
+                id="https-via-https-proxy",
+            ),
+        ),
+    )
+    async def test_async_cert_verify_follows_destination_transport(self, url, proxies, expected):
+        adapter = AsyncHTTPAdapter()
+        request = niquests.Request("GET", url).prepare()
+        connection = await adapter.get_connection(url, proxies)
+
+        try:
+            with contextlib.ExitStack() as stack:
+                stack.enter_context(mock.patch.object(adapter, "get_connection", new=mock.AsyncMock(return_value=connection)))
+                stack.enter_context(mock.patch.object(connection, "urlopen", new=mock.AsyncMock(side_effect=_StopSend)))
+                stack.enter_context(pytest.raises(_StopSend))
+                await adapter.send(request, proxies=proxies, verify=False)
+        finally:
+            await adapter.close()
+
+        assert hasattr(connection, "_niquests_verify") is expected
+        if expected:
+            assert connection._niquests_verify is False
 
     def test_certificate_failure(self, httpbin_secure):
         """

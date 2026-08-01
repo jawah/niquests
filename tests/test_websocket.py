@@ -10,12 +10,12 @@ except ImportError:
     wsproto = None
 
 
-@pytest.mark.usefixtures("requires_wan")
+@pytest.mark.usefixtures("requires_traefik_tls")
 @pytest.mark.skipif(wsproto is None, reason="wsproto unavailable")
 class TestLiveWebSocket:
-    def test_sync_websocket_basic_example(self) -> None:
-        with Session() as s:
-            resp = s.get("wss://httpbingo.org/websocket/echo")
+    def test_sync_websocket_basic_example(self, local_httpbin, traefik_resolver, traefik_ca_bundle) -> None:
+        with Session(resolver=traefik_resolver, verify=traefik_ca_bundle) as s:
+            resp = s.get(local_httpbin.websocket_url, verify=traefik_ca_bundle)
 
             assert resp.status_code == 101
             assert resp.extension is not None
@@ -36,9 +36,9 @@ class TestLiveWebSocket:
             assert resp.extension.closed is True
 
     @pytest.mark.asyncio
-    async def test_async_websocket_basic_example(self) -> None:
-        async with AsyncSession() as s:
-            resp = await s.get("wss://httpbingo.org/websocket/echo")
+    async def test_async_websocket_basic_example(self, local_httpbin, traefik_resolver, traefik_ca_bundle) -> None:
+        async with AsyncSession(resolver=traefik_resolver, verify=traefik_ca_bundle) as s:
+            resp = await s.get(local_httpbin.websocket_url, verify=traefik_ca_bundle)
 
             assert resp.status_code == 101
             assert resp.extension is not None
@@ -58,9 +58,9 @@ class TestLiveWebSocket:
             await resp.extension.close()
             assert resp.extension.closed is True
 
-    def test_sync_websocket_read_timeout(self) -> None:
-        with Session() as s:
-            resp = s.get("wss://httpbingo.org/websocket/echo", timeout=3)
+    def test_sync_websocket_read_timeout(self, local_httpbin, traefik_resolver, traefik_ca_bundle) -> None:
+        with Session(resolver=traefik_resolver, verify=traefik_ca_bundle) as s:
+            resp = s.get(local_httpbin.websocket_url, timeout=3, verify=traefik_ca_bundle)
 
             assert resp.status_code == 101
             assert resp.extension is not None
@@ -78,9 +78,9 @@ class TestLiveWebSocket:
             assert resp.extension.closed is True
 
     @pytest.mark.asyncio
-    async def test_async_websocket_read_timeout(self) -> None:
-        async with AsyncSession() as s:
-            resp = await s.get("wss://httpbingo.org/websocket/echo", timeout=3)
+    async def test_async_websocket_read_timeout(self, local_httpbin, traefik_resolver, traefik_ca_bundle) -> None:
+        async with AsyncSession(resolver=traefik_resolver, verify=traefik_ca_bundle) as s:
+            resp = await s.get(local_httpbin.websocket_url, timeout=3, verify=traefik_ca_bundle)
 
             assert resp.status_code == 101
             assert resp.extension is not None

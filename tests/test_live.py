@@ -21,8 +21,8 @@ except ImportError:
     qh3 = None
 
 
-@pytest.mark.usefixtures("requires_wan")
 class TestLiveStandardCase:
+    @pytest.mark.usefixtures("requires_wan")
     def test_ensure_ipv4(self) -> None:
         with Session(disable_ipv6=True, resolver="doh+google://") as s:
             r = s.get("https://httpbingo.org/get")
@@ -30,10 +30,11 @@ class TestLiveStandardCase:
             assert r.conn_info.destination_address is not None
             assert is_ipv4_address(r.conn_info.destination_address[0])
 
+    @pytest.mark.usefixtures("requires_wan")
     def test_ensure_ipv6(self) -> None:
         if os.environ.get("CI", None) is not None:
             # GitHub hosted runner can't reach external IPv6...
-            with pytest.raises(ConnectionError, match="No route to host|unreachable"):
+            with pytest.raises(ConnectionError, match="No route to host|unreachable|timed out"):
                 with Session(disable_ipv4=True, resolver="doh+google://") as s:
                     s.get("https://httpbingo.org/get")
             return
@@ -44,16 +45,22 @@ class TestLiveStandardCase:
             assert r.conn_info.destination_address is not None
             assert is_ipv6_address(r.conn_info.destination_address[0])
 
-    def test_ensure_http2(self) -> None:
-        with Session(disable_http3=True, base_url="https://httpbingo.org") as s:
+    def test_ensure_http2(self, local_httpbin, traefik_resolver, traefik_ca_bundle) -> None:
+        with Session(
+            disable_http3=True,
+            base_url=local_httpbin.https_url,
+            resolver=traefik_resolver,
+            verify=traefik_ca_bundle,
+        ) as s:
             r = s.get("/get")
             assert r.conn_info.http_version is not None
             assert r.conn_info.http_version == HttpVersion.h2
-            assert r.url == "https://httpbingo.org/get"
+            assert r.url == f"{local_httpbin.https_url}/get"
             r = s.get("")
-            assert r.url == "https://httpbingo.org"  # guard against trailing slash...
+            assert r.url == local_httpbin.https_url  # guard against trailing slash...
 
     @pytest.mark.skipif(qh3 is None, reason="qh3 unavailable")
+    @pytest.mark.usefixtures("requires_wan")
     def test_ensure_http3_default(self) -> None:
         with Session(resolver="doh+cloudflare://") as s:
             r = s.get("https://one.one.one.one")
@@ -72,6 +79,7 @@ class TestLiveStandardCase:
 
         assert getaddrinfo_mock.call_count
 
+    @pytest.mark.usefixtures("requires_wan")
     def test_not_owned_resolver(self) -> None:
         resolver = ResolverDescription.from_url("doh+cloudflare://").new()
 
@@ -82,6 +90,7 @@ class TestLiveStandardCase:
 
         assert resolver.is_available()
 
+    @pytest.mark.usefixtures("requires_wan")
     def test_owned_resolver_must_close(self) -> None:
         with Session(resolver="doh+cloudflare://") as s:
             s.get("https://httpbingo.org/get")
@@ -90,6 +99,7 @@ class TestLiveStandardCase:
 
         assert not s.resolver.is_available()
 
+    @pytest.mark.usefixtures("requires_wan")
     def test_owned_resolver_must_recycle(self) -> None:
         s = Session(resolver="doh+cloudflare://")
 
@@ -104,6 +114,7 @@ class TestLiveStandardCase:
         assert s.resolver.is_available()
 
     @pytest.mark.skipif(os.environ.get("CI") is None, reason="Worth nothing locally")
+    @pytest.mark.usefixtures("requires_wan")
     def test_happy_eyeballs(self) -> None:
         """A bit of context, this test, running it locally does not get us
         any confidence about Happy Eyeballs. This test is valuable in Github CI where IPv6 addresses are unreachable.
@@ -114,6 +125,7 @@ class TestLiveStandardCase:
 
             assert r.ok
 
+    @pytest.mark.usefixtures("requires_wan")
     def test_early_response(self) -> None:
         received_early_response: bool = False
 
@@ -132,28 +144,28 @@ class TestLiveStandardCase:
             assert received_early_response is True
 
     @pytest.mark.skipif(qh3 is None, reason="qh3 unavailable")
-    def test_preemptive_add_http3_domain(self) -> None:
-        with Session() as s:
-            s.quic_cache_layer.add_domain("one.one.one.one")
+    def test_preemptive_add_http3_domain(self, local_httpbin, traefik_resolver, traefik_ca_bundle) -> None:
+        with Session(resolver=traefik_resolver, verify=traefik_ca_bundle) as s:
+            s.quic_cache_layer.add_domain("httpbin.local", 4443)
 
-            resp = s.get("https://one.one.one.one")
+            resp = s.get(local_httpbin.https_url)
 
             assert resp.http_version == 30
 
     @pytest.mark.skipif(qh3 is None, reason="qh3 unavailable")
-    def test_preemptive_add_http3_domain_wrong_port(self) -> None:
-        with Session() as s:
-            s.quic_cache_layer.add_domain("one.one.one.one", 6666)
+    def test_preemptive_add_http3_domain_wrong_port(self, local_httpbin, traefik_resolver, traefik_ca_bundle) -> None:
+        with Session(resolver=traefik_resolver, verify=traefik_ca_bundle) as s:
+            s.quic_cache_layer.add_domain("httpbin.local", 6666)
 
-            resp = s.get("https://one.one.one.one")
+            resp = s.get(local_httpbin.https_url)
 
             assert resp.http_version == 20
 
     @pytest.mark.skipif(qh3 is None, reason="qh3 unavailable")
-    def test_preemptive_exclude_http3_domain(self) -> None:
-        with Session() as s:
-            s.quic_cache_layer.exclude_domain("one.one.one.one")
+    def test_preemptive_exclude_http3_domain(self, local_httpbin, traefik_resolver, traefik_ca_bundle) -> None:
+        with Session(resolver=traefik_resolver, verify=traefik_ca_bundle) as s:
+            s.quic_cache_layer.exclude_domain("httpbin.local", 4443)
 
             for _ in range(2):
-                resp = s.get("https://one.one.one.one")
+                resp = s.get(local_httpbin.https_url)
                 assert resp.http_version == 20

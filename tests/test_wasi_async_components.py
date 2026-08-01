@@ -63,15 +63,26 @@ _PROFILE_CASES = {
     ),
     "unavailable-async-p3": ("async-capabilities-are-unavailable",),
 }
-_CASES = tuple((profile, case_id) for profile, case_ids in _PROFILE_CASES.items() for case_id in case_ids)
+_CASES = tuple(
+    (profile, case_id, target)
+    for profile, case_ids in _PROFILE_CASES.items()
+    for case_id in case_ids
+    for target in (("local", "live") if profile == "async-p3" and case_id != "defensive-edges" else (None,))
+)
 
 
-@pytest.mark.parametrize(("profile", "case_id"), _CASES, ids=[f"{p}-{c}" for p, c in _CASES])
-def test_async_wasi_component(profile: str, case_id: str) -> None:
+@pytest.mark.parametrize(
+    ("profile", "case_id", "target"),
+    _CASES,
+    ids=["-".join(item for item in (profile, case_id, target) if item) for profile, case_id, target in _CASES],
+)
+def test_async_wasi_component(profile: str, case_id: str, target: str | None, request: pytest.FixtureRequest) -> None:
     assert _ARTIFACTS is not None
     assert _WASMTIME is not None
     assert _ROOT is not None
     component_name, features = _PROFILES[profile]
+    if target == "live":
+        request.getfixturevalue("requires_wan")
     artifacts = Path(_ARTIFACTS)
     command = [
         _WASMTIME,
@@ -83,6 +94,7 @@ def test_async_wasi_component(profile: str, case_id: str) -> None:
         "/dev",
         "--dir",
         f"{artifacts}::/artifacts",
+        *(["--env", f"NIQUESTS_WASI_HTTP_TARGET={target}"] if target else []),
         str(artifacts / component_name),
         case_id,
     ]
