@@ -15,6 +15,12 @@ concurrency:
 
 jobs:
   build:
+    name: >-
+      ${{ matrix.nox-session == 'wasi' && 'WASI · Wasmtime' ||
+          startsWith(matrix.nox-session, 'emscripten(') && format('Emscripten · {0}', fromJSON('{"emscripten(node)":"Node.js","emscripten(firefox)":"Firefox","emscripten(chrome)":"Chrome"}')[matrix.nox-session]) ||
+          matrix.python-version == 'pypy-3.11' && 'PyPy 3.11' ||
+          format('CPython {0}', matrix.python-version) }} ·
+      ${{ fromJSON('{"ubuntu-22.04":"Ubuntu 22.04","ubuntu-24.04":"Ubuntu 24.04","macos-15-intel":"macOS 15","windows-latest":"Windows"}')[matrix.os] }}
     runs-on: ${{ matrix.os }}
     timeout-minutes: 30
     strategy:
