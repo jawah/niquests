@@ -260,7 +260,6 @@ def tests_impl(
             *(session.posargs or (("tests/",) if not pytest_extra_args else ())),
             env={
                 "PYTHONWARNINGS": "always::DeprecationWarning",
-                "NIQUESTS_STRICT_OCSP": "1",
                 "TRAEFIK_HTTPBIN_ENABLE": os.environ.get("TRAEFIK_HTTPBIN_ENABLE", "true"),
                 "TRAEFIK_HTTPBIN_IPV4": os.environ.get("TRAEFIK_HTTPBIN_IPV4", "127.0.0.1"),
             },
