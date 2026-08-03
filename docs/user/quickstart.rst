@@ -234,8 +234,10 @@ The ``gzip`` and ``deflate`` content codings are automatically decoded for you.
 The ``br`` content coding is automatically decoded for you if a Brotli library
 like `brotli <https://pypi.org/project/brotli>`_ or `brotlicffi <https://pypi.org/project/brotlicffi>`_ is installed.
 
-The ``zstd`` content coding is automatically decoded for you if the
-`zstandard <https://pypi.org/project/zstandard>`_ library is installed.
+The ``zstd`` content coding is automatically decoded on Python 3.14 and later using
+the standard-library :mod:`compression.zstd` module. On older Python versions, install
+the `zstandard <https://pypi.org/project/zstandard>`_ library or the ``niquests[zstd]``
+extra to enable it.
 
 For example, to create an image from binary data returned by a request, you can
 use the following code::
@@ -528,7 +530,7 @@ objects directly to bytes:
             name: str
             active: bool
 
-        payload = User(name="Alice", active=True)
+        payload = User(name="Lina", active=True)
         encoder = msgspec.json.encode
         url = "https://httpbingo.org/post"
         r = niquests.post(url, json=payload, json_encoder=encoder)
@@ -547,7 +549,7 @@ objects directly to bytes:
             name: str
             active: bool
 
-        payload = User(name="Alice", active=True)
+        payload = User(name="Lina", active=True)
         encoder = msgspec.json.encode
         url = "https://httpbingo.org/post"
         r = await niquests.apost(url, json=payload, json_encoder=encoder)

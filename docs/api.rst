@@ -47,6 +47,7 @@ Exceptions
 
 .. autoexception:: niquests.RequestException
 .. autoexception:: niquests.ConnectionError
+.. autoexception:: niquests.exceptions.SSLError
 .. autoexception:: niquests.HTTPError
 .. autoexception:: niquests.URLRequired
 .. autoexception:: niquests.TooManyRedirects

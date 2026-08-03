@@ -1,3 +1,7 @@
+.. meta::
+   :description: Migrate from Requests to Niquests, a drop-in Python Requests replacement with HTTP/2, HTTP/3, async APIs, WebSocket, SSE, and modern networking.
+   :keywords: Requests replacement, Requests alternative, alternative to Requests, migrate from Requests, Python Requests drop-in replacement, Requests HTTP/2, Requests HTTP/3, async Requests, Niquests migration
+
 .. _migrate:
 
 Requests → Niquests guide

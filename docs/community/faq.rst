@@ -189,6 +189,12 @@ The implementation and its controls are public:
 - `Changelog <https://github.com/jawah/urllib3.future/blob/main/CHANGES.rst>`_
 - `Signed release artifacts and provenance <https://github.com/jawah/urllib3.future/releases>`_
 
+Google also includes urllib3-future in its `Assured Open Source Software premium-tier
+catalog <https://cloud.google.com/security-command-center/docs/aoss-supported-packages-premium>`_.
+Assured OSS provides Google-built and signed artifacts with provenance and security
+metadata. This applies to artifacts distributed through Google's service; it is not an
+endorsement of every project decision or a substitute for evaluating the PyPI release.
+
 .. _urllib3-future-cohabitation:
 
 Cohabitation

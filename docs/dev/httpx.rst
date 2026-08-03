@@ -1,3 +1,7 @@
+.. meta::
+   :description: Migrate from HTTPX to Niquests, a Python HTTPX alternative with sync and async APIs, HTTP/2, HTTP/3, WebSocket, SSE, and Requests compatibility.
+   :keywords: HTTPX alternative, alternative to HTTPX, migrate HTTPX, HTTPX vs Niquests, Python async HTTP client, Python HTTP/2 client, Python HTTP/3 client, Requests compatible HTTP client, Niquests
+
 .. _httpx-to-niquests-compatibility-guide:
 
 HTTPX → Niquests guide

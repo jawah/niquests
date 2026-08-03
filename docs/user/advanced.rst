@@ -567,7 +567,8 @@ or persistent::
     s = niquests.Session()
     s.cert = '/path/client.cert'
 
-If you specify a wrong path or an invalid cert, you'll get a SSLError::
+If you specify a wrong path or an invalid certificate, Niquests raises
+:class:`~niquests.exceptions.SSLError`::
 
     >>> niquests.get('https://service.example', cert='/wrong_path/client.pem')
     SSLError: [Errno 336265225] _ssl.c:347: error:140B0009:SSL routines:SSL_CTX_use_PrivateKey_file:PEM lib
