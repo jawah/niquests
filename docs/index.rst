@@ -65,7 +65,7 @@ There's no need to manually add query strings to your
 URLs, or to form-encode your POST data. Keep-alive and HTTP connection pooling
 are 100% automatic, thanks to `urllib3.future <https://github.com/jawah/urllib3.future>`_.
 
-Beloved Features
+Beloved features
 ----------------
 
 Niquests is ready for today's web.
@@ -111,7 +111,7 @@ Niquests officially supports Python 3.7+, and runs great on PyPy, Pyodide and WA
 One library that runs everywhere you need.
 
 
-The User Guide
+The user guide
 --------------
 
 This part of the documentation, which is mostly prose, begins with some
@@ -127,7 +127,7 @@ instructions for getting the most out of Niquests.
    user/authentication
 
 
-The Community Guide
+The community guide
 -------------------
 
 This part of the documentation, which is mostly prose, details the
@@ -149,7 +149,7 @@ Niquests ecosystem and community.
 
    community/updates
 
-The API Documentation / Guide
+The API documentation / guide
 -----------------------------
 
 If you are looking for information on a specific function, class, or method,
@@ -161,7 +161,7 @@ this part of the documentation is for you.
    api
 
 
-The Contributor Guide
+The contributor guide
 ---------------------
 
 If you want to contribute to the project, this part of the documentation is for

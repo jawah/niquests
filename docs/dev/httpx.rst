@@ -1,6 +1,6 @@
 .. _httpx-to-niquests-compatibility-guide:
 
-HTTPX → Niquests Guide
+HTTPX → Niquests guide
 ======================
 
 This guide shows how to take code written for HTTPX and migrate it to ``niquests`` API.
@@ -26,33 +26,36 @@ Or disable on a session::
     session = niquests.Session()
     session.max_redirects = 0  # will raise if any redirect is received
 
-Client/Session Instances
+Client/Session instances
 ------------------------
 
 In HTTPX, you use::
 
     client = httpx.Client(**kwargs)
 
-To migrate, swap to Niquests’ ``Session``::
+To migrate, swap to Niquests' :class:`~niquests.Session`::
 
     session = niquests.Session(**kwargs)
 
-Any keyword arguments that HTTPX supported on ``Client`` may not exist on ``Session``; check the Niquests docs for ``Session.__init__``.
+Any keyword arguments that HTTPX supported on ``Client`` may not exist on
+:class:`~niquests.Session`; check the Niquests docs for the
+:class:`Session constructor <niquests.Session>`.
 
 Response URLs
 -------------
 
 HTTPX’s ``response.url`` is a ``URL`` object.  
-In Niquests, ``response.url`` is already a string, so you can use it directly::
+In Niquests, :attr:`response.url <niquests.Response.url>` is already a string, so you can use it directly::
 
     # HTTPX → str(response.url)
     # Niquests → response.url  (no conversion needed)
     print(response.url)  # e.g. 'https://www.example.com/path?query=1'
 
-Determining the Next Redirect Request
+Determining the next redirect request
 -------------------------------------
 
-HTTPX exposes ``response.next_request``.  In Niquests the attribute is named ``response.next``::
+HTTPX exposes ``response.next_request``. In Niquests the attribute is named
+:attr:`response.next <niquests.Response.next>`::
 
     # HTTPX
     client = httpx.Client()
@@ -68,7 +71,7 @@ HTTPX exposes ``response.next_request``.  In Niquests the attribute is named ``r
         resp = session.send(prepared, allow_redirects=False)
         prepared = resp.next
 
-Raw Request Content vs Form Data
+Raw request content vs form data
 --------------------------------
 
 HTTPX distinguishes ``content=`` for raw bytes/text from ``data=`` for form submissions::
@@ -84,7 +87,7 @@ In Niquests, use::
 
 Note: Niquests has no separate ``content`` parameter.
 
-File Uploads
+File uploads
 ------------
 
 HTTPX enforces binary-mode file handles. Niquests is more lenient but still requires binary for non-text uploads::
@@ -97,7 +100,7 @@ HTTPX enforces binary-mode file handles. Niquests is more lenient but still requ
     with open('file.bin', 'rb') as f:
         niquests.post(url, files={'file': f})
 
-Content Encoding
+Content encoding
 ----------------
 
 Both HTTPX and Niquests encodes str bodies as UTF-8 by default::
@@ -125,7 +128,7 @@ Niquests also supports per-request cookies::
     # or per request:
     niquests.get(url, cookies={'a': '1'})
 
-Status Codes Constants
+Status codes constants
 ----------------------
 
 HTTPX provides ``codes.NOT_FOUND`` (upper-case) and ``codes.not_found`` (lower).  
@@ -136,7 +139,7 @@ Niquests only provides lower-case::
     if response.status_code == niquests.codes.not_found:
         ...
 
-Streaming Responses
+Streaming responses
 -------------------
 
 HTTPX uses a ``.stream()`` context::
@@ -151,7 +154,7 @@ In Niquests, pass ``stream=True`` to any existing methods and iterate::
         for chunk in resp.iter_content(chunk_size=-1):
             ...
 
-- ``resp.iter_content()`` ↔︎ ``resp.iter_bytes()``
+- :meth:`resp.iter_content() <niquests.Response.iter_content>` ↔︎ ``resp.iter_bytes()``
 - ``resp.iter_lines()`` exists in both
 
 Timeouts
@@ -172,9 +175,9 @@ You may now achieve the same using::
     with niquests.Session(timeout=niquests.TimeoutConfiguration(connect=10, total=60)) as s:
         ...
 
-.. note:: Instead of a ``TimeoutConfiguration`` you may pass a simple integer or float instead.
+.. note:: Instead of a :class:`~niquests.TimeoutConfiguration` you may pass a simple integer or float instead.
 
-Proxies / Mounts
+Proxies / mounts
 ----------------
 
 HTTPX uses ``mounts={...}`` with full URL schemes::
@@ -188,7 +191,7 @@ In Niquests, you use a ``proxies`` dict::
     # or per request:
     niquests.get(url, proxies={'http': '...', 'https': '...'})
 
-SSL Configuration
+SSL configuration
 -----------------
 
 HTTPX requires SSL settings on the client::
@@ -204,7 +207,7 @@ Niquests allows SSL args per-request or on a Session::
     session = niquests.Session()
     session.verify = '/path/to/ca.pem'
 
-Request Bodies on “Body-less” Methods
+Request bodies on “body-less” methods
 -------------------------------------
 
 HTTPX disallows ``content`` on methods like ``.get()``, recommending ``.request()``::
@@ -221,10 +224,11 @@ Niquests lets you pass a body directly::
 
 .. warning:: Passing bodies through DELETE, GET or HEAD is not recommended.
 
-Success Checks
+Success checks
 --------------
 
-HTTPX uses ``response.is_success``; Niquests has ``response.ok``::
+HTTPX uses ``response.is_success``; Niquests has
+:attr:`response.ok <niquests.Response.ok>`::
 
     # HTTPX
     if response.is_success:
@@ -234,12 +238,14 @@ HTTPX uses ``response.is_success``; Niquests has ``response.ok``::
     if response.ok:
         ...
 
-Note: Niquests’ ``ok`` is equivalent to checking ``200 <= status_code < 400``.
+Note: Niquests' :attr:`ok <niquests.Response.ok>` is equivalent to checking
+``200 <= status_code < 400``.
 
-Prepared Requests
+Prepared requests
 -----------------
 
-HTTPX’s ``Client.build_request`` replaces Niquests’ ``Request.prepare()``::
+HTTPX's ``Client.build_request`` replaces Niquests'
+:meth:`Request.prepare() <niquests.Request.prepare>`::
 
     # HTTPX
     req = client.build_request("GET", url)
@@ -287,7 +293,7 @@ Transforms to::
 
     resp = await niquests.aget(...)
 
-Mocking & Testing
+Mocking & testing
 -----------------
 
 - HTTPX: RESPX (https://github.com/lundberg/respx)  
@@ -303,13 +309,13 @@ Caching
 
 .. note:: See the migration guide for cachecontrol or requests-cache in extensions.
 
-Networking Layer
+Networking layer
 ----------------
 
 - HTTPX: uses HTTPCore under the hood  
 - Niquests: built atop urllib3-future (fork of known urllib3)
 
-Query Parameters & Form Data
+Query parameters & form data
 ----------------------------
 
 HTTPX requires explicit lists in dicts; it does **not** accept lists of tuples or omit ``None`` values.  Niquests supports both::
@@ -320,11 +326,12 @@ HTTPX requires explicit lists in dicts; it does **not** accept lists of tuples o
     # or omit None:
     niquests.get(url, params={'a':['1','2']})
 
-Event Hooks
+Event hooks
 -----------
 
 - HTTPX event hooks can **observe** but not **mutate**  
-- Niquests hooks can mutate both ``Request`` and ``Response``.
+- Niquests hooks can mutate both :class:`Request <niquests.Request>` and
+  :class:`Response <niquests.Response>`.
 
 .. code-block:: python
 
@@ -339,7 +346,7 @@ Whenever you see an HTTPX-specific parameter or method, look for its closest Niq
 Happy migrating!
 
 
-ASGI/WSGI Testing
+ASGI/WSGI testing
 -----------------
 
 .. versionadded:: 3.17.0
@@ -386,7 +393,9 @@ Now you can easily achieve the same with Niquests:
         assert r.status_code == 200
         assert r.text == "Hello World!"
 
-.. note:: The same goes for ASGI testing, but instead of using ``Session``, you'll use ``AsyncSession`` instead.
+.. note:: The same goes for ASGI testing, but instead of using
+   :class:`Session <niquests.Session>`, you'll use
+   :class:`AsyncSession <niquests.AsyncSession>` instead.
 
 .. warning:: ASGI lifespan startup/shutdown is not handled by Niquests (neither does httpx). You'll use something like asgi-lifespan (https://github.com/florimondmanca/asgi-lifespan#usage) to handle that part.
 

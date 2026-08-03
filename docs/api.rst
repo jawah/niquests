@@ -1,40 +1,46 @@
 .. meta::
-   :description: Classes, Functions and Methods API Documentation for Python Niquests. Session, AsyncSession, get, post, put, patch, delete, Response, Exceptions.
-   :keywords: Python Niquests API, API Docs Niquests, Requests API, Session, AsyncSession, get, post, put, patch, delete, async http, Timeout, ConnectionError, TooManyRedirects, Response, AsyncResponse
+   :description: Classes, functions, and methods API documentation for Python Niquests. Session, AsyncSession, synchronous and asynchronous request helpers, Response, configuration, and exceptions.
+   :keywords: Python Niquests API, API Docs Niquests, Requests API, Session, AsyncSession, request, get, options, head, post, put, patch, delete, query, async http, TLSConfiguration, Timeout, ConnectionError, TooManyRedirects, Response, AsyncResponse
 
 .. _api:
 
-Developer Interface
+Developer interface
 ===================
 
 .. module:: niquests
 
-This part of the documentation covers all the interfaces of Niquests. For
-parts where Niquests depends on external libraries, we document the most
-important right here and provide links to the canonical documentation.
+This part of the documentation covers Niquests' public interfaces. Where
+Niquests depends on external libraries, we document the most important parts
+here and provide links to the canonical documentation.
 
 
-Main Interface
+Main interface
 --------------
 
-All of Niquests' functionality can be accessed by these 7 methods.
-They all return an instance of the :class:`Response <Response>` object.
+Niquests provides synchronous and asynchronous convenience functions for its
+supported HTTP methods. Synchronous functions return a :class:`Response
+<Response>`. Awaited asynchronous functions return a :class:`Response
+<Response>`, or an :class:`AsyncResponse <AsyncResponse>` when streaming.
 
 .. autofunction:: request
+.. autofunction:: arequest
 
-.. autofunction:: head
 .. autofunction:: get
-.. autofunction:: post
-.. autofunction:: put
-.. autofunction:: patch
-.. autofunction:: delete
-
-.. autofunction:: ahead
 .. autofunction:: aget
+.. autofunction:: options
+.. autofunction:: aoptions
+.. autofunction:: head
+.. autofunction:: ahead
+.. autofunction:: post
 .. autofunction:: apost
+.. autofunction:: put
 .. autofunction:: aput
+.. autofunction:: patch
 .. autofunction:: apatch
+.. autofunction:: delete
 .. autofunction:: adelete
+.. autofunction:: query
+.. autofunction:: aquery
 
 Exceptions
 ----------
@@ -50,7 +56,7 @@ Exceptions
 .. autoexception:: niquests.JSONDecodeError
 
 
-Request Sessions
+Request sessions
 ----------------
 
 .. _sessionapi:
@@ -61,11 +67,15 @@ Request Sessions
 .. autoclass:: AsyncSession
    :inherited-members:
 
-Lower-Level Classes
+Lower-level classes
 -------------------
 
 .. autoclass:: niquests.Request
    :inherited-members:
+
+.. py:class:: niquests.structures.CaseInsensitiveDict
+
+   A mutable mapping that preserves keys while comparing them case-insensitively.
 
 .. autoclass:: Response
    :inherited-members:
@@ -73,7 +83,11 @@ Lower-Level Classes
 .. autoclass:: AsyncResponse
    :inherited-members:
 
-.. warning:: AsyncResponse are only to be expected in async mode when you specify ``stream=True``. Otherwise expect the typical Response instance.
+.. warning::
+
+   An :class:`AsyncResponse <niquests.AsyncResponse>` is returned only in asynchronous
+   mode when you specify ``stream=True``. Otherwise, expect a
+   :class:`Response <niquests.Response>` instance.
 
 .. autoclass:: RetryConfiguration
    :inherited-members:
@@ -81,7 +95,80 @@ Lower-Level Classes
 .. autoclass:: TimeoutConfiguration
    :inherited-members:
 
-Lower-Lower-Level Classes
+Configuration and reference types
+---------------------------------
+
+.. autoclass:: TLSConfiguration
+   :inherited-members:
+
+.. autoclass:: RevocationConfiguration
+   :inherited-members:
+
+.. autoclass:: RevocationStrategy
+   :inherited-members:
+
+.. autoclass:: niquests.models.TransferProgress
+   :inherited-members:
+
+Type aliases
+------------
+
+Reusable annotations for request values, hooks, resolvers, and gateway applications are
+available from :mod:`niquests.typing`.
+
+Request values
+~~~~~~~~~~~~~~
+
+.. autodata:: niquests.typing.HttpMethodType
+.. autodata:: niquests.typing.QueryParameterType
+.. autodata:: niquests.typing.BodyFormType
+.. autodata:: niquests.typing.BodyType
+.. autodata:: niquests.typing.AsyncBodyType
+.. autodata:: niquests.typing.JSONEncoderType
+.. autodata:: niquests.typing.HeadersType
+.. autodata:: niquests.typing.CookiesType
+.. autodata:: niquests.typing.TLSVerifyType
+.. autodata:: niquests.typing.TLSClientCertType
+.. autodata:: niquests.typing.TimeoutType
+.. autodata:: niquests.typing.HttpAuthenticationType
+.. autodata:: niquests.typing.AsyncHttpAuthenticationType
+.. autodata:: niquests.typing.ProxyType
+.. autodata:: niquests.typing.RetryType
+
+File uploads
+~~~~~~~~~~~~
+
+.. autodata:: niquests.typing.BodyFileType
+.. autodata:: niquests.typing.MultiPartFileType
+.. autodata:: niquests.typing.MultiPartFilesType
+.. autodata:: niquests.typing.MultiPartFilesAltType
+
+Hooks
+~~~~~
+
+.. autodata:: niquests.typing.HookCallableType
+.. autodata:: niquests.typing.HookType
+.. autodata:: niquests.typing.AsyncHookCallableType
+.. autodata:: niquests.typing.AsyncHookType
+
+Resolvers
+~~~~~~~~~
+
+.. autodata:: niquests.typing.ResolverType
+.. autodata:: niquests.typing.AsyncResolverType
+
+Gateway applications
+~~~~~~~~~~~~~~~~~~~~
+
+.. autodata:: niquests.typing.ASGIScope
+.. autodata:: niquests.typing.ASGIMessage
+.. autodata:: niquests.typing.ASGIReceive
+.. autodata:: niquests.typing.ASGISend
+.. autodata:: niquests.typing.ASGIApp
+.. autodata:: niquests.typing.WSGIStartResponse
+.. autodata:: niquests.typing.WSGIApp
+
+Lower-lower-level classes
 -------------------------
 
 .. autoclass:: niquests.PreparedRequest
@@ -99,7 +186,7 @@ Lower-Lower-Level Classes
 .. autoclass:: niquests.adapters.AsyncHTTPAdapter
    :inherited-members:
 
-Hooks and Middleware
+Hooks and middleware
 --------------------
 
 .. autoclass:: niquests.hooks.LifeCycleHook
@@ -131,6 +218,7 @@ Authentication
 .. autoclass:: niquests.auth.HTTPDigestAuth
 
 .. autoclass:: niquests.auth.AsyncAuthBase
+.. autoclass:: niquests.auth.AsyncHTTPDigestAuth
 
 .. _api-cookies:
 
@@ -149,7 +237,7 @@ Cookies
 
 
 
-Status Code Lookup
+Status code lookup
 ------------------
 
 .. autoclass:: niquests.codes
@@ -169,28 +257,28 @@ Removed
 ~~~~~~~
 
 * Property ``apparent_encoding`` in favor of a discrete internal inference.
-* Support for the legacy ``chardet`` detector in case it was present in environment.
+* Support for the legacy ``chardet`` detector when it was present in the environment.
   Extra ``chardet_on_py3`` is now unavailable.
 * Deprecated function ``get_encodings_from_content`` from utils.
 * Deprecated function ``get_unicode_from_response`` from utils.
-* BasicAuth middleware no-longer support anything else than ``bytes`` or ``str`` for username and password.
-* Charset fall back **ISO-8859-1** when content-type is text and no charset was specified.
-* Mixin classes ``RequestEncodingMixin``, and ``RequestHooksMixin`` due to OOP violations. Now deported directly into child classes.
-* Function ``unicode_is_ascii`` as it is part of the stable ``str`` stdlib on Python 3 or greater.
-* Alias function ``session`` for ``Session`` context manager that was kept for BC reasons since the v1.
-* pyOpenSSL/urllib3 injection in case built-in ssl module does not have SNI support as it is not the case anymore for every supported interpreters.
+* BasicAuth middleware support for username and password types other than :class:`bytes` or :class:`str`.
+* The **ISO-8859-1** charset fallback when the content type is text and no charset was specified.
+* Mixin classes ``RequestEncodingMixin`` and ``RequestHooksMixin`` due to OOP violations. Their behavior now resides directly in the child classes.
+* Function ``unicode_is_ascii`` as it is part of the stable :class:`str` stdlib on Python 3 or greater.
+* Alias function ``session`` for :class:`Session <niquests.Session>` context manager that was kept for BC reasons since the v1.
+* pyOpenSSL/urllib3 injection when the built-in :mod:`ssl` module lacks SNI support, because every supported interpreter now provides it.
 * Constant ``DEFAULT_CA_BUNDLE_PATH``, and submodule ``certs`` due to dropping ``certifi``.
 * Function ``extract_zipped_paths`` because rendered useless as it was made to handle an edge case where ``certifi`` is "zipped".
 * Extra ``security`` when installing this package. It was previously emptied in the previous major.
 * Warning emitted when passing a file opened in text-mode instead of binary. urllib3.future can overrule
   the content-length if it detects an error. You should not encounter broken request being sent.
-* Support for ``simplejson`` if was present in environment.
+* Support for ``simplejson`` when it was present in the environment.
 * Submodule ``compat``.
 * Dependency check at runtime for ``urllib3``. There's no more check and warnings at runtime for that subject. Ever.
 
-Behavioural Changes
+Behavioural changes
 ~~~~~~~~~~~~~~~~~~~
 
-* Niquests negotiate for a HTTP/2 connection by default, fallback to HTTP/1.1 if not available.
-* Support for HTTP/3 can be present by default if your platform support the pre-built wheel for qh3.
+* Niquests negotiates an HTTP/2 connection by default and falls back to HTTP/1.1 if HTTP/2 is unavailable.
+* HTTP/3 support can be available by default if your platform supports the pre-built wheel for qh3.
 * Server capability for HTTP/3 is remembered automatically (in-memory) for subsequent requests.

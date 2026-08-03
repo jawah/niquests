@@ -27,7 +27,7 @@ Niquests has currently 3 mandatory dependencies.
 - **wassima**
   - This package allows Niquests a seamless access to your native OS trust store. It avoids to rely on ``certify``.
 - **urllib3-future**
-  - The direct and immediate replacement for the well known ``urllib3`` package. Serve as the Niquests core.
+  - The direct and immediate replacement for the well known :mod:`urllib3` package. Serve as the Niquests core.
 - **charset-normalizer**
   - A clever encoding detector that helps provide a smooth user experience when dealing with legacy resources.
 
@@ -41,27 +41,31 @@ Niquests has currently 3 mandatory dependencies.
   - A QUIC stack with a HTTP/3 state-machine
 
 .. note::
-    **qh3** may not be installed on your machine even if **urllib3-future** depends on it.
-    That dependency is BOTH required AND optional.
-    There's a lot of markers in the requirement definition to prevent someone to accidentally try compile the source.
-    **qh3** is not pure Python and ship a ton of prebuilt wheels, but unfortunately it is
-    impossible to ship every possible combination of system/architecture.
-    e.g. this is why doing ``pip install niquests`` on a riscv linux distro will NOT bring **qh3**. but will for arm64, i686 or x86_64.
+    **qh3** is a conditional dependency of **urllib3-future**. Its environment markers
+    cover platforms with supported prebuilt wheels so a normal installation does not
+    unexpectedly compile the native extension from source. It is impossible to publish
+    wheels for every operating system and architecture.
+
+    For example, the current markers include Linux RISC-V, AArch64, i686, and x86_64,
+    but omit Linux LoongArch64, FreeBSD, and NetBSD. On those omitted platforms,
+    ``pip install niquests`` does not request **qh3** by default. The ``http3`` extra
+    requests it explicitly and may therefore attempt a source build.
 
 .. warning::
-    You could be surprised that ``urllib3-future`` replaces
-    ``urllib3`` in your environment. Fear not, as this package was perfectly designed to allows the best
-    backward-compatibility possible for end-users.
-    Installing Niquests affect other packages, as they will use ``urllib3-future`` instead of ``urllib3``.
-    The prevalent changes are as follow: No longer using HTTP/1 by default, not depending on ``http.client``, can
-    negotiate HTTP/2, and HTTP/3, backward compatible with old Python and OpenSSL, not opinionated on other SSL backend,
-    and finally faster. This list isn't exhaustive. Any issues encountered regarding this cohabitation will be handled
-    at https://github.com/jawah/urllib3.future with the utmost priority. Find deeper rational in the exposed repository.
+    Installing Niquests also installs ``urllib3-future``. Its default wheel
+    intentionally makes ``import urllib3`` resolve to urllib3.future. This selection
+    applies to the Python environment, so other packages there that import
+    :mod:`urllib3` receive urllib3.future too.
+
+    This default preserves compatibility with Requests integrations that import
+    urllib3 directly or exchange its objects. See
+    :ref:`urllib3-future-namespace` for the complete rationale, compatibility controls,
+    alternatives considered, and audit links.
 
 .. note::
-    You still have the choice of keeping the original ``urllib3`` in addition to ``urllib3-future``.
-    For example: ``URLLIB3_NO_OVERRIDE=1 pip install niquests --no-binary urllib3-future`` will keep both.
-    Find the way for other package manager in the frequently asked questions, section "Cohabitation".
+    Namespace replacement is the default, not a requirement. You can keep upstream
+    :mod:`urllib3` and urllib3.future under separate namespaces. See
+    :ref:`urllib3-future-cohabitation` for pip, Poetry, PDM, and uv instructions.
 
 Extras
 ~~~~~~
@@ -132,7 +136,7 @@ Instead of joining the long list of extras like ``zstd,socks,ws`` for example.
 
 .. note:: **full** does not include ``utls``.
 
-Get the Source Code
+Get the source code
 -------------------
 
 Niquests is actively developed on GitHub, where the code is

@@ -6,7 +6,7 @@ Support
 If you have questions or issues about Niquests, you may:
 
 
-File an Issue
+File an issue
 -------------
 
 If you notice some unexpected behaviour in Niquests, or want to see support
