@@ -1431,10 +1431,10 @@ class TestRequests:
         assert resp.json()["headers"]["Dummy-Auth-Test"] == "dummy-auth-test-ok"
 
     def test_prepare_request_with_bytestring_url(self):
-        req = niquests.Request("GET", b"https://httpbin.org/")
+        req = niquests.Request("GET", b"https://httpbingo.org/")
         s = niquests.Session()
         prep = s.prepare_request(req)
-        assert prep.url == "https://httpbin.org/"
+        assert prep.url == "https://httpbingo.org/"
 
     def test_request_with_bytestring_host(self, httpbin):
         s = niquests.Session()
@@ -1442,7 +1442,7 @@ class TestRequests:
             "GET",
             httpbin("cookies/set?cookie=value"),
             allow_redirects=False,
-            headers={"Host": b"httpbin.org"},
+            headers={"Host": b"httpbingo.org"},
         )
         assert resp.cookies.get("cookie") == "value"
 
@@ -2340,12 +2340,12 @@ class TestRequests:
 
     def test_proxy_auth(self):
         adapter = HTTPAdapter()
-        headers = adapter.proxy_headers("http://user:pass@httpbin.org")
+        headers = adapter.proxy_headers("http://user:pass@httpbingo.org")
         assert headers == {"Proxy-Authorization": "Basic dXNlcjpwYXNz"}
 
     def test_proxy_auth_empty_pass(self):
         adapter = HTTPAdapter()
-        headers = adapter.proxy_headers("http://user:@httpbin.org")
+        headers = adapter.proxy_headers("http://user:@httpbingo.org")
         assert headers == {"Proxy-Authorization": "Basic dXNlcjo="}
 
     def test_response_json_when_content_is_None(self, httpbin):

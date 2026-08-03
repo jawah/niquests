@@ -404,7 +404,7 @@ _proxy_combos += [(var.upper(), scheme) for var, scheme in _proxy_combos]
 
 @pytest.mark.parametrize("var,scheme", _proxy_combos)
 def test_use_proxy_from_environment(httpbin, var, scheme):
-    url = f"{scheme}://httpbin.org"
+    url = f"{scheme}://httpbingo.org"
     fake_proxy = Server()  # do nothing with the requests; just close the socket
     with fake_proxy as (host, port):
         proxy_url = f"socks5://{host}:{port}"

@@ -180,7 +180,7 @@ class Request:
     Usage::
 
       >>> import niquests
-      >>> req = niquests.Request('GET', 'https://httpbin.org/get')
+      >>> req = niquests.Request('GET', 'https://httpbingo.org/get')
       >>> req.prepare()
       <PreparedRequest [GET]>
     """
@@ -289,7 +289,7 @@ class PreparedRequest:
     Usage::
 
       >>> import niquests
-      >>> req = niquests.Request('GET', 'https://httpbin.org/get')
+      >>> req = niquests.Request('GET', 'https://httpbingo.org/get')
       >>> r = req.prepare()
       >>> r
       <PreparedRequest [GET]>

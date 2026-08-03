@@ -20,7 +20,7 @@ Basic GET usage:
 ... or POST:
 
    >>> payload = dict(key1='value1', key2='value2')
-   >>> r = niquests.post('https://httpbin.org/post', data=payload)
+   >>> r = niquests.post('https://httpbingo.org/post', data=payload)
    >>> print(r.text)
    {
      ...

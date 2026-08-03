@@ -396,7 +396,7 @@ class AsyncHTTPDigestAuth(HTTPDigestAuth, AsyncAuthBase):
         >>> import niquests
         >>> auth = niquests.auth.AsyncHTTPDigestAuth('user', 'pass')
         >>> async with niquests.AsyncSession() as session:
-        ...     r = await session.get('https://httpbin.org/digest-auth/auth/user/pass', auth=auth)
+        ...     r = await session.get('https://httpbingo.org/digest-auth/auth/user/pass', auth=auth)
         ...     print(r.status_code)
         200
     """

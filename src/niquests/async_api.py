@@ -161,7 +161,7 @@ async def request(
     Usage::
 
       >>> import niquests
-      >>> req = await niquests.arequest('GET', 'https://httpbin.org/get')
+      >>> req = await niquests.arequest('GET', 'https://httpbingo.org/get')
       >>> req
       <Response HTTP/2 [200]>
     """

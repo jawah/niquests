@@ -110,7 +110,7 @@ def request(
     Usage::
 
       >>> import niquests
-      >>> req = niquests.request('GET', 'https://httpbin.org/get')
+      >>> req = niquests.request('GET', 'https://httpbingo.org/get')
       >>> req
       <Response HTTP/2 [200]>
     """
