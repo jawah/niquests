@@ -1,117 +1,68 @@
 from __future__ import annotations
 
-from unittest.mock import patch
+from pathlib import Path
 
 import pytest
 
-from niquests import AsyncSession, ConnectionError, Session, Timeout
+from niquests import AsyncSession, ConnectionError, Session
+from niquests.extensions.revocation import RevocationConfiguration
 
 try:
     import qh3
 except ImportError:
     qh3 = None
 
-OCSP_MAX_DELAY_WAIT = 5
+
+ROOT_CA = str(Path(__file__).resolve().parents[1] / "traefik" / "revocation" / "root.pem")
 
 
-@pytest.mark.usefixtures("requires_wan")
+@pytest.mark.usefixtures("requires_revocation_stack")
 @pytest.mark.skipif(qh3 is None, reason="qh3 unavailable")
 class TestCertificateRevocationList:
-    """This test class hold the minimal amount of confidence
-    we need to ensure that we are fetching CRLs appropriately and parsing/validating them."""
-
-    def test_sync_valid_ensure_cached(self) -> None:
-        with Session() as s:
-            assert s._ocsp_cache is None
-            assert s._crl_cache is None
-            s.get("https://httpbingo.org/get", timeout=OCSP_MAX_DELAY_WAIT)
-            assert s._ocsp_cache is None
-            assert s._crl_cache is not None
-            assert hasattr(s._crl_cache, "_store")
-            assert isinstance(s._crl_cache._store, dict)
-            assert len(s._crl_cache._store) == 1
-
-            s.get("https://httpbingo.org/headers", timeout=OCSP_MAX_DELAY_WAIT)
-            assert s._crl_cache is not None
-            assert hasattr(s._crl_cache, "_store")
-            assert isinstance(s._crl_cache._store, dict)
-            assert len(s._crl_cache._store) == 1
+    def test_sync_valid_ensure_cached(self, traefik_resolver) -> None:
+        with Session(
+            resolver=traefik_resolver,
+            verify=ROOT_CA,
+            revocation_configuration=RevocationConfiguration(strict_mode=True),
+        ) as session:
+            url = "https://good-crl.httpbin.local:4443/get"
+            assert session.get(url, verify=ROOT_CA).status_code == 200
+            assert session.get(url, verify=ROOT_CA).status_code == 200
+            assert session._ocsp_cache is None
+            assert len(session._crl_cache._store) == 1
 
     @pytest.mark.asyncio
-    async def test_async_valid_ensure_cached(self) -> None:
-        async with AsyncSession() as s:
-            assert s._ocsp_cache is None
-            assert s._crl_cache is None
-            await s.get("https://httpbingo.org/get", timeout=OCSP_MAX_DELAY_WAIT)
-            assert s._ocsp_cache is None
-            assert s._crl_cache is not None
-            assert hasattr(s._crl_cache, "_store")
-            assert isinstance(s._crl_cache._store, dict)
-            assert len(s._crl_cache._store) == 1
+    async def test_async_valid_ensure_cached(self, traefik_resolver) -> None:
+        async with AsyncSession(
+            resolver=traefik_resolver,
+            verify=ROOT_CA,
+            revocation_configuration=RevocationConfiguration(strict_mode=True),
+        ) as session:
+            url = "https://good-crl.httpbin.local:4443/get"
+            assert (await session.get(url, verify=ROOT_CA)).status_code == 200
+            assert (await session.get(url, verify=ROOT_CA)).status_code == 200
+            assert session._ocsp_cache is None
+            assert len(session._crl_cache._store) == 1
 
-    @pytest.mark.parametrize(
-        "revoked_peer_url",
-        [
-            # "https://revoked-rsa-ev.ssl.com/",
-            # "https://digicert-tls-ecc-p384-root-g5-revoked.chain-demos.digicert.com/",
-            "https://revoked.badssl.com/",
-        ],
-    )
-    def test_sync_revoked_certificate(self, revoked_peer_url: str) -> None:
-        """This test may fail at any moment. Using several known revoked certs as targets tester."""
+    def test_sync_revoked_certificate(self, traefik_resolver) -> None:
+        with Session(
+            resolver=traefik_resolver,
+            verify=ROOT_CA,
+            revocation_configuration=RevocationConfiguration(strict_mode=True),
+        ) as session:
+            with pytest.raises(ConnectionError, match="certificate has been revoked"):
+                session.get("https://revoked-crl.httpbin.local:4443/get", verify=ROOT_CA)
+            assert session._ocsp_cache is None
+            assert len(session._crl_cache._store) == 1
 
-        with patch("niquests.sessions.should_check_ocsp", return_value=False):
-            with Session() as s:
-                assert s._ocsp_cache is None
-                assert s._crl_cache is None
-
-                with pytest.raises(
-                    ConnectionError,
-                    match=f"Unable to establish a secure connection to {revoked_peer_url} "
-                    "because the certificate has been revoked",
-                ):
-                    try:
-                        s.get(revoked_peer_url, timeout=OCSP_MAX_DELAY_WAIT)
-                    except Timeout:
-                        pytest.mark.skip(f"remote {revoked_peer_url} is unavailable at the moment...")
-
-                assert s._crl_cache is not None
-                assert s._ocsp_cache is None
-
-                assert hasattr(s._crl_cache, "_store")
-                assert isinstance(s._crl_cache._store, dict)
-                assert len(s._crl_cache._store) == 1
-
-    @pytest.mark.parametrize(
-        "revoked_peer_url",
-        [
-            # "https://revoked-rsa-ev.ssl.com/",
-            # "https://digicert-tls-ecc-p384-root-g5-revoked.chain-demos.digicert.com/",
-            "https://revoked.badssl.com/",
-        ],
-    )
     @pytest.mark.asyncio
-    async def test_async_revoked_certificate(self, revoked_peer_url: str) -> None:
-        """This test may fail at any moment. Using several known revoked certs as targets tester."""
-
-        with patch("niquests.async_session.should_check_ocsp", return_value=False):
-            async with AsyncSession() as s:
-                assert s._ocsp_cache is None
-                assert s._crl_cache is None
-
-                with pytest.raises(
-                    ConnectionError,
-                    match=f"Unable to establish a secure connection to {revoked_peer_url} "
-                    "because the certificate has been revoked",
-                ):
-                    try:
-                        await s.get(revoked_peer_url, timeout=OCSP_MAX_DELAY_WAIT)
-                    except Timeout:
-                        pytest.mark.skip(f"remote {revoked_peer_url} is unavailable at the moment...")
-
-                assert s._crl_cache is not None
-                assert s._ocsp_cache is None
-
-                assert hasattr(s._crl_cache, "_store")
-                assert isinstance(s._crl_cache._store, dict)
-                assert len(s._crl_cache._store) == 1
+    async def test_async_revoked_certificate(self, traefik_resolver) -> None:
+        async with AsyncSession(
+            resolver=traefik_resolver,
+            verify=ROOT_CA,
+            revocation_configuration=RevocationConfiguration(strict_mode=True),
+        ) as session:
+            with pytest.raises(ConnectionError, match="certificate has been revoked"):
+                await session.get("https://revoked-crl.httpbin.local:4443/get", verify=ROOT_CA)
+            assert session._ocsp_cache is None
+            assert len(session._crl_cache._store) == 1

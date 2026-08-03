@@ -10,6 +10,25 @@ import uuid
 
 import pytest
 
+
+@pytest.fixture(
+    # Pickleable HTTP, WebSocket, and SSE origins passed into Pyodide.
+    params=[
+        pytest.param(
+            ("http://localhost:8888", "ws://localhost:8888", "psse://localhost:8888"),
+            id="local",
+        ),
+        pytest.param(
+            ("https://httpbingo.org", "wss://httpbingo.org", "sse://httpbingo.org"),
+            id="live",
+        ),
+    ]
+)
+def httpbin_target(request):
+    request.getfixturevalue("requires_traefik_http" if request.param[0].startswith("http://") else "requires_wan")
+    return request.param
+
+
 # Handle the import safely. If pytest-pyodide is not installed (e.g. checks in IDE),
 # we define a dummy decorator and mock fixtures to avoid NameError/fixture errors.
 try:
@@ -32,7 +51,7 @@ except ImportError:
 
 
 @run_in_pyodide(packages=["micropip"])
-async def _inner_test_sync_basic_get(selenium_jspi):
+async def _inner_test_sync_basic_get(selenium_jspi, httpbin_target):
     import micropip
 
     await micropip.install(["./niquests-0.0.dev0-py3-none-any.whl", "coverage"], deps=True)
@@ -45,7 +64,7 @@ async def _inner_test_sync_basic_get(selenium_jspi):
         from niquests import Session
 
         with Session() as s:
-            response = s.get("https://httpbingo.org/get")
+            response = s.get(f"{httpbin_target[0]}/get")
             assert response.status_code == 200
             assert "headers" in response.json()
     finally:
@@ -55,16 +74,16 @@ async def _inner_test_sync_basic_get(selenium_jspi):
         return f.read()
 
 
-def test_sync_basic_get(selenium_jspi):
+def test_sync_basic_get(selenium_jspi, httpbin_target):
     """Test basic GET request works."""
-    data = _inner_test_sync_basic_get(selenium_jspi)
+    data = _inner_test_sync_basic_get(selenium_jspi, httpbin_target)
     if data:
         with open(f".coverage.pyodide.{uuid.uuid4().hex}", "wb") as f:
             f.write(data)
 
 
 @run_in_pyodide(packages=["micropip"])
-async def _inner_test_sync_basic_post(selenium_jspi):
+async def _inner_test_sync_basic_post(selenium_jspi, httpbin_target):
     import micropip
 
     await micropip.install(["./niquests-0.0.dev0-py3-none-any.whl", "coverage"], deps=True)
@@ -77,7 +96,7 @@ async def _inner_test_sync_basic_post(selenium_jspi):
         from niquests import Session
 
         with Session() as s:
-            response = s.post("https://httpbingo.org/post", json={"test": "data"})
+            response = s.post(f"{httpbin_target[0]}/post", json={"test": "data"})
             assert response.status_code == 200
             data = response.json()
             assert data["json"] == {"test": "data"}
@@ -88,16 +107,16 @@ async def _inner_test_sync_basic_post(selenium_jspi):
         return f.read()
 
 
-def test_sync_basic_post(selenium_jspi):
+def test_sync_basic_post(selenium_jspi, httpbin_target):
     """Test basic POST request works."""
-    data = _inner_test_sync_basic_post(selenium_jspi)
+    data = _inner_test_sync_basic_post(selenium_jspi, httpbin_target)
     if data:
         with open(f".coverage.pyodide.{uuid.uuid4().hex}", "wb") as f:
             f.write(data)
 
 
 @run_in_pyodide(packages=["micropip"])
-async def _inner_test_sync_streaming_read(selenium_jspi):
+async def _inner_test_sync_streaming_read(selenium_jspi, httpbin_target):
     import micropip
 
     await micropip.install(["./niquests-0.0.dev0-py3-none-any.whl", "coverage"], deps=True)
@@ -110,7 +129,7 @@ async def _inner_test_sync_streaming_read(selenium_jspi):
         from niquests import Session
 
         with Session() as s:
-            response = s.get("https://httpbingo.org/stream/5", stream=True)
+            response = s.get(f"{httpbin_target[0]}/stream/5", stream=True)
             assert response.status_code == 200
 
             chunks = []
@@ -126,16 +145,16 @@ async def _inner_test_sync_streaming_read(selenium_jspi):
         return f.read()
 
 
-def test_sync_streaming_read(selenium_jspi):
+def test_sync_streaming_read(selenium_jspi, httpbin_target):
     """Test streaming response works."""
-    data = _inner_test_sync_streaming_read(selenium_jspi)
+    data = _inner_test_sync_streaming_read(selenium_jspi, httpbin_target)
     if data:
         with open(f".coverage.pyodide.{uuid.uuid4().hex}", "wb") as f:
             f.write(data)
 
 
 @run_in_pyodide(packages=["micropip"])
-async def _inner_test_sync_retry_works(selenium_jspi):
+async def _inner_test_sync_retry_works(selenium_jspi, httpbin_target):
     import micropip
 
     await micropip.install(["./niquests-0.0.dev0-py3-none-any.whl", "coverage"], deps=True)
@@ -148,7 +167,7 @@ async def _inner_test_sync_retry_works(selenium_jspi):
         from niquests import Session
 
         with Session(retries=3) as s:
-            response = s.get("https://httpbingo.org/get")
+            response = s.get(f"{httpbin_target[0]}/get")
             assert response.status_code == 200
     finally:
         cov.stop()
@@ -157,16 +176,16 @@ async def _inner_test_sync_retry_works(selenium_jspi):
         return f.read()
 
 
-def test_sync_retry_works(selenium_jspi):
+def test_sync_retry_works(selenium_jspi, httpbin_target):
     """Test that retry mechanism works."""
-    data = _inner_test_sync_retry_works(selenium_jspi)
+    data = _inner_test_sync_retry_works(selenium_jspi, httpbin_target)
     if data:
         with open(f".coverage.pyodide.{uuid.uuid4().hex}", "wb") as f:
             f.write(data)
 
 
 @run_in_pyodide(packages=["micropip"])
-async def _inner_test_async_basic_get(selenium):
+async def _inner_test_async_basic_get(selenium, httpbin_target):
     import micropip
 
     await micropip.install(["./niquests-0.0.dev0-py3-none-any.whl", "coverage"], deps=True)
@@ -179,7 +198,7 @@ async def _inner_test_async_basic_get(selenium):
         from niquests import AsyncSession
 
         async with AsyncSession() as s:
-            response = await s.get("https://httpbingo.org/get")
+            response = await s.get(f"{httpbin_target[0]}/get")
             assert response.status_code == 200
             assert "headers" in response.json()
     finally:
@@ -189,16 +208,16 @@ async def _inner_test_async_basic_get(selenium):
         return f.read()
 
 
-def test_async_basic_get(selenium):
+def test_async_basic_get(selenium, httpbin_target):
     """Test basic async GET request works."""
-    data = _inner_test_async_basic_get(selenium)
+    data = _inner_test_async_basic_get(selenium, httpbin_target)
     if data:
         with open(f".coverage.pyodide.{uuid.uuid4().hex}", "wb") as f:
             f.write(data)
 
 
 @run_in_pyodide(packages=["micropip"])
-async def _inner_test_async_basic_post(selenium):
+async def _inner_test_async_basic_post(selenium, httpbin_target):
     import micropip
 
     await micropip.install(["./niquests-0.0.dev0-py3-none-any.whl", "coverage"], deps=True)
@@ -211,7 +230,7 @@ async def _inner_test_async_basic_post(selenium):
         from niquests import AsyncSession
 
         async with AsyncSession() as s:
-            response = await s.post("https://httpbingo.org/post", json={"test": "data"})
+            response = await s.post(f"{httpbin_target[0]}/post", json={"test": "data"})
             assert response.status_code == 200
             data = response.json()
             assert data["json"] == {"test": "data"}
@@ -222,16 +241,16 @@ async def _inner_test_async_basic_post(selenium):
         return f.read()
 
 
-def test_async_basic_post(selenium):
+def test_async_basic_post(selenium, httpbin_target):
     """Test basic async POST request works."""
-    data = _inner_test_async_basic_post(selenium)
+    data = _inner_test_async_basic_post(selenium, httpbin_target)
     if data:
         with open(f".coverage.pyodide.{uuid.uuid4().hex}", "wb") as f:
             f.write(data)
 
 
 @run_in_pyodide(packages=["micropip"])
-async def _inner_test_async_streaming_read(selenium):
+async def _inner_test_async_streaming_read(selenium, httpbin_target):
     import micropip
 
     await micropip.install(["./niquests-0.0.dev0-py3-none-any.whl", "coverage"], deps=True)
@@ -244,7 +263,7 @@ async def _inner_test_async_streaming_read(selenium):
         from niquests import AsyncSession
 
         async with AsyncSession() as s:
-            response = await s.get("https://httpbingo.org/stream/5", stream=True)
+            response = await s.get(f"{httpbin_target[0]}/stream/5", stream=True)
             assert response.status_code == 200
 
             chunks = []
@@ -260,16 +279,16 @@ async def _inner_test_async_streaming_read(selenium):
         return f.read()
 
 
-def test_async_streaming_read(selenium):
+def test_async_streaming_read(selenium, httpbin_target):
     """Test async streaming response works."""
-    data = _inner_test_async_streaming_read(selenium)
+    data = _inner_test_async_streaming_read(selenium, httpbin_target)
     if data:
         with open(f".coverage.pyodide.{uuid.uuid4().hex}", "wb") as f:
             f.write(data)
 
 
 @run_in_pyodide(packages=["micropip"])
-async def _inner_test_async_retry_works(selenium):
+async def _inner_test_async_retry_works(selenium, httpbin_target):
     import micropip
 
     await micropip.install(["./niquests-0.0.dev0-py3-none-any.whl", "coverage"], deps=True)
@@ -282,7 +301,7 @@ async def _inner_test_async_retry_works(selenium):
         from niquests import AsyncSession
 
         async with AsyncSession(retries=3) as s:
-            response = await s.get("https://httpbingo.org/get")
+            response = await s.get(f"{httpbin_target[0]}/get")
             assert response.status_code == 200
     finally:
         cov.stop()
@@ -291,16 +310,16 @@ async def _inner_test_async_retry_works(selenium):
         return f.read()
 
 
-def test_async_retry_works(selenium):
+def test_async_retry_works(selenium, httpbin_target):
     """Test that async retry mechanism works."""
-    data = _inner_test_async_retry_works(selenium)
+    data = _inner_test_async_retry_works(selenium, httpbin_target)
     if data:
         with open(f".coverage.pyodide.{uuid.uuid4().hex}", "wb") as f:
             f.write(data)
 
 
 @run_in_pyodide(packages=["micropip"])
-async def _inner_test_sync_websocket(selenium_jspi):
+async def _inner_test_sync_websocket(selenium_jspi, httpbin_target):
     import micropip
 
     await micropip.install(["./niquests-0.0.dev0-py3-none-any.whl", "coverage"], deps=True)
@@ -325,16 +344,12 @@ async def _inner_test_sync_websocket(selenium_jspi):
         from niquests import Session
 
         with Session() as s:
-            response = s.get("wss://echo.websocket.org")
+            response = s.get(f"{httpbin_target[1]}/websocket/echo")
             assert response.status_code == 101
 
             ext = response.extension
             assert ext is not None
             assert ext.closed is False
-
-            # Consume potential welcome/greeting message from the server
-            welcome = ext.next_payload()
-            assert isinstance(welcome, str)
 
             ext.send_payload("hello from niquests")
             msg = ext.next_payload()
@@ -350,16 +365,16 @@ async def _inner_test_sync_websocket(selenium_jspi):
         return f.read()
 
 
-def test_sync_websocket(selenium_jspi):
+def test_sync_websocket(selenium_jspi, httpbin_target):
     """Test sync WebSocket via browser native API + JSPI."""
-    data = _inner_test_sync_websocket(selenium_jspi)
+    data = _inner_test_sync_websocket(selenium_jspi, httpbin_target)
     if data:
         with open(f".coverage.pyodide.{uuid.uuid4().hex}", "wb") as f:
             f.write(data)
 
 
 @run_in_pyodide(packages=["micropip"])
-async def _inner_test_sync_websocket_binary(selenium_jspi):
+async def _inner_test_sync_websocket_binary(selenium_jspi, httpbin_target):
     import micropip
 
     await micropip.install(["./niquests-0.0.dev0-py3-none-any.whl", "coverage"], deps=True)
@@ -379,13 +394,10 @@ async def _inner_test_sync_websocket_binary(selenium_jspi):
         from niquests import Session
 
         with Session() as s:
-            response = s.get("wss://echo.websocket.org")
+            response = s.get(f"{httpbin_target[1]}/websocket/echo")
             assert response.status_code == 101
 
             ext = response.extension
-
-            # Consume potential welcome/greeting message from the server
-            ext.next_payload()
 
             ext.send_payload(b"\x00\x01\x02\x03")
             msg = ext.next_payload()
@@ -400,16 +412,16 @@ async def _inner_test_sync_websocket_binary(selenium_jspi):
         return f.read()
 
 
-def test_sync_websocket_binary(selenium_jspi):
+def test_sync_websocket_binary(selenium_jspi, httpbin_target):
     """Test sync WebSocket binary message handling."""
-    data = _inner_test_sync_websocket_binary(selenium_jspi)
+    data = _inner_test_sync_websocket_binary(selenium_jspi, httpbin_target)
     if data:
         with open(f".coverage.pyodide.{uuid.uuid4().hex}", "wb") as f:
             f.write(data)
 
 
 @run_in_pyodide(packages=["micropip"])
-async def _inner_test_sync_websocket_close_from_server(selenium_jspi):
+async def _inner_test_sync_websocket_close_from_server(selenium_jspi, httpbin_target):
     import micropip
 
     await micropip.install(["./niquests-0.0.dev0-py3-none-any.whl", "coverage"], deps=True)
@@ -429,7 +441,7 @@ async def _inner_test_sync_websocket_close_from_server(selenium_jspi):
         from niquests import Session
 
         with Session() as s:
-            response = s.get("wss://echo.websocket.org")
+            response = s.get(f"{httpbin_target[1]}/websocket/echo")
             ext = response.extension
             assert ext.closed is False
 
@@ -443,16 +455,16 @@ async def _inner_test_sync_websocket_close_from_server(selenium_jspi):
         return f.read()
 
 
-def test_sync_websocket_close_from_server(selenium_jspi):
+def test_sync_websocket_close_from_server(selenium_jspi, httpbin_target):
     """Test that close works and state is updated."""
-    data = _inner_test_sync_websocket_close_from_server(selenium_jspi)
+    data = _inner_test_sync_websocket_close_from_server(selenium_jspi, httpbin_target)
     if data:
         with open(f".coverage.pyodide.{uuid.uuid4().hex}", "wb") as f:
             f.write(data)
 
 
 @run_in_pyodide(packages=["micropip"])
-async def _inner_test_async_websocket(selenium):
+async def _inner_test_async_websocket(selenium, httpbin_target):
     import micropip
 
     await micropip.install(["./niquests-0.0.dev0-py3-none-any.whl", "coverage"], deps=True)
@@ -472,16 +484,12 @@ async def _inner_test_async_websocket(selenium):
         from niquests import AsyncSession
 
         async with AsyncSession() as s:
-            response = await s.get("wss://echo.websocket.org")
+            response = await s.get(f"{httpbin_target[1]}/websocket/echo")
             assert response.status_code == 101
 
             ext = response.extension
             assert ext is not None
             assert ext.closed is False
-
-            # Consume potential welcome/greeting message from the server
-            welcome = await ext.next_payload()
-            assert isinstance(welcome, str)
 
             await ext.send_payload("hello from niquests async")
             msg = await ext.next_payload()
@@ -497,16 +505,16 @@ async def _inner_test_async_websocket(selenium):
         return f.read()
 
 
-def test_async_websocket(selenium):
+def test_async_websocket(selenium, httpbin_target):
     """Test async WebSocket via browser native API."""
-    data = _inner_test_async_websocket(selenium)
+    data = _inner_test_async_websocket(selenium, httpbin_target)
     if data:
         with open(f".coverage.pyodide.{uuid.uuid4().hex}", "wb") as f:
             f.write(data)
 
 
 @run_in_pyodide(packages=["micropip"])
-async def _inner_test_async_websocket_binary(selenium):
+async def _inner_test_async_websocket_binary(selenium, httpbin_target):
     import micropip
 
     await micropip.install(["./niquests-0.0.dev0-py3-none-any.whl", "coverage"], deps=True)
@@ -526,13 +534,10 @@ async def _inner_test_async_websocket_binary(selenium):
         from niquests import AsyncSession
 
         async with AsyncSession() as s:
-            response = await s.get("wss://echo.websocket.org")
+            response = await s.get(f"{httpbin_target[1]}/websocket/echo")
             assert response.status_code == 101
 
             ext = response.extension
-
-            # Consume potential welcome/greeting message from the server
-            await ext.next_payload()
 
             await ext.send_payload(b"\x00\x01\x02\x03")
             msg = await ext.next_payload()
@@ -547,16 +552,16 @@ async def _inner_test_async_websocket_binary(selenium):
         return f.read()
 
 
-def test_async_websocket_binary(selenium):
+def test_async_websocket_binary(selenium, httpbin_target):
     """Test async WebSocket binary message handling."""
-    data = _inner_test_async_websocket_binary(selenium)
+    data = _inner_test_async_websocket_binary(selenium, httpbin_target)
     if data:
         with open(f".coverage.pyodide.{uuid.uuid4().hex}", "wb") as f:
             f.write(data)
 
 
 @run_in_pyodide(packages=["micropip"])
-async def _inner_test_sync_sse(selenium_jspi):
+async def _inner_test_sync_sse(selenium_jspi, httpbin_target):
     import micropip
 
     await micropip.install(["./niquests-0.0.dev0-py3-none-any.whl", "coverage"], deps=True)
@@ -571,7 +576,7 @@ async def _inner_test_sync_sse(selenium_jspi):
         from niquests import Session
 
         with Session() as s:
-            response = s.get("sse://httpbingo.org/sse?count=3&duration=1")
+            response = s.get(f"{httpbin_target[2]}/sse?count=3&duration=1")
             assert response.status_code == 200
 
             ext = response.extension
@@ -595,16 +600,16 @@ async def _inner_test_sync_sse(selenium_jspi):
         return f.read()
 
 
-def test_sync_sse(selenium_jspi):
+def test_sync_sse(selenium_jspi, httpbin_target):
     """Test sync SSE via pyfetch streaming + manual parsing."""
-    data = _inner_test_sync_sse(selenium_jspi)
+    data = _inner_test_sync_sse(selenium_jspi, httpbin_target)
     if data:
         with open(f".coverage.pyodide.{uuid.uuid4().hex}", "wb") as f:
             f.write(data)
 
 
 @run_in_pyodide(packages=["micropip"])
-async def _inner_test_async_sse(selenium):
+async def _inner_test_async_sse(selenium, httpbin_target):
     import micropip
 
     await micropip.install(["./niquests-0.0.dev0-py3-none-any.whl", "coverage"], deps=True)
@@ -619,7 +624,7 @@ async def _inner_test_async_sse(selenium):
         from niquests import AsyncSession
 
         async with AsyncSession() as s:
-            response = await s.get("sse://httpbingo.org/sse?count=3&duration=1")
+            response = await s.get(f"{httpbin_target[2]}/sse?count=3&duration=1")
             assert response.status_code == 200
 
             ext = response.extension
@@ -643,16 +648,16 @@ async def _inner_test_async_sse(selenium):
         return f.read()
 
 
-def test_async_sse(selenium):
+def test_async_sse(selenium, httpbin_target):
     """Test async SSE via pyfetch streaming + manual parsing."""
-    data = _inner_test_async_sse(selenium)
+    data = _inner_test_async_sse(selenium, httpbin_target)
     if data:
         with open(f".coverage.pyodide.{uuid.uuid4().hex}", "wb") as f:
             f.write(data)
 
 
 @run_in_pyodide(packages=["micropip"])
-async def _inner_test_sync_sse_send_raises(selenium_jspi):
+async def _inner_test_sync_sse_send_raises(selenium_jspi, httpbin_target):
     import micropip
 
     await micropip.install(["./niquests-0.0.dev0-py3-none-any.whl", "coverage"], deps=True)
@@ -667,7 +672,7 @@ async def _inner_test_sync_sse_send_raises(selenium_jspi):
         from niquests import Session
 
         with Session() as s:
-            response = s.get("sse://httpbingo.org/sse?count=1&duration=1")
+            response = s.get(f"{httpbin_target[2]}/sse?count=1&duration=1")
             ext = response.extension
 
             with pytest.raises(NotImplementedError):
@@ -681,16 +686,16 @@ async def _inner_test_sync_sse_send_raises(selenium_jspi):
         return f.read()
 
 
-def test_sync_sse_send_raises(selenium_jspi):
+def test_sync_sse_send_raises(selenium_jspi, httpbin_target):
     """Test that SSE send_payload raises NotImplementedError."""
-    data = _inner_test_sync_sse_send_raises(selenium_jspi)
+    data = _inner_test_sync_sse_send_raises(selenium_jspi, httpbin_target)
     if data:
         with open(f".coverage.pyodide.{uuid.uuid4().hex}", "wb") as f:
             f.write(data)
 
 
 @run_in_pyodide(packages=["micropip"])
-async def _inner_test_sync_timeout(selenium_jspi):
+async def _inner_test_sync_timeout(selenium_jspi, httpbin_target):
     import micropip
 
     await micropip.install(["./niquests-0.0.dev0-py3-none-any.whl", "coverage"], deps=True)
@@ -708,15 +713,15 @@ async def _inner_test_sync_timeout(selenium_jspi):
 
         with Session(retries=False) as s:
             with pytest.raises(ConnectTimeout):
-                s.get("https://httpbingo.org/delay/5", timeout=0.5)
+                s.get(f"{httpbin_target[0]}/delay/5", timeout=0.5)
 
         with Session(retries=0) as s:
             with pytest.raises(MaxRetryError):
-                s.get("https://httpbingo.org/delay/5", timeout=0.5)
+                s.get(f"{httpbin_target[0]}/delay/5", timeout=0.5)
 
         with Session(retries=0) as s:
             with pytest.raises(MaxRetryError):
-                s.get("https://httpbingo.org/delay/5", timeout=TimeoutConfiguration(0.5))
+                s.get(f"{httpbin_target[0]}/delay/5", timeout=TimeoutConfiguration(0.5))
     finally:
         cov.stop()
         cov.save()
@@ -724,16 +729,16 @@ async def _inner_test_sync_timeout(selenium_jspi):
         return f.read()
 
 
-def test_sync_timeout(selenium_jspi):
+def test_sync_timeout(selenium_jspi, httpbin_target):
     """Test that timeout raises ConnectTimeout on slow responses."""
-    data = _inner_test_sync_timeout(selenium_jspi)
+    data = _inner_test_sync_timeout(selenium_jspi, httpbin_target)
     if data:
         with open(f".coverage.pyodide.{uuid.uuid4().hex}", "wb") as f:
             f.write(data)
 
 
 @run_in_pyodide(packages=["micropip"])
-async def _inner_test_async_timeout(selenium):
+async def _inner_test_async_timeout(selenium, httpbin_target):
     import micropip
 
     await micropip.install(["./niquests-0.0.dev0-py3-none-any.whl", "coverage"], deps=True)
@@ -751,15 +756,15 @@ async def _inner_test_async_timeout(selenium):
 
         async with AsyncSession(retries=False) as s:
             with pytest.raises(ConnectTimeout):
-                await s.get("https://httpbingo.org/delay/5", timeout=0.5)
+                await s.get(f"{httpbin_target[0]}/delay/5", timeout=0.5)
 
         async with AsyncSession(retries=0) as s:
             with pytest.raises(MaxRetryError):
-                await s.get("https://httpbingo.org/delay/5", timeout=0.5)
+                await s.get(f"{httpbin_target[0]}/delay/5", timeout=0.5)
 
         async with AsyncSession(retries=0) as s:
             with pytest.raises(MaxRetryError):
-                await s.get("https://httpbingo.org/delay/5", timeout=TimeoutConfiguration(0.5))
+                await s.get(f"{httpbin_target[0]}/delay/5", timeout=TimeoutConfiguration(0.5))
     finally:
         cov.stop()
         cov.save()
@@ -767,16 +772,16 @@ async def _inner_test_async_timeout(selenium):
         return f.read()
 
 
-def test_async_timeout(selenium):
+def test_async_timeout(selenium, httpbin_target):
     """Test that async timeout raises ConnectTimeout on slow responses."""
-    data = _inner_test_async_timeout(selenium)
+    data = _inner_test_async_timeout(selenium, httpbin_target)
     if data:
         with open(f".coverage.pyodide.{uuid.uuid4().hex}", "wb") as f:
             f.write(data)
 
 
 @run_in_pyodide(packages=["micropip"])
-async def _inner_test_sync_custom_request_headers(selenium_jspi):
+async def _inner_test_sync_custom_request_headers(selenium_jspi, httpbin_target):
     import micropip
 
     await micropip.install(["./niquests-0.0.dev0-py3-none-any.whl", "coverage"], deps=True)
@@ -790,7 +795,7 @@ async def _inner_test_sync_custom_request_headers(selenium_jspi):
 
         with Session() as s:
             response = s.get(
-                "https://httpbingo.org/headers",
+                f"{httpbin_target[0]}/headers",
                 headers={"X-Custom-Test": "niquests-pyodide", "Accept": "application/json"},
             )
             assert response.status_code == 200
@@ -811,16 +816,16 @@ async def _inner_test_sync_custom_request_headers(selenium_jspi):
         return f.read()
 
 
-def test_sync_custom_request_headers(selenium_jspi):
+def test_sync_custom_request_headers(selenium_jspi, httpbin_target):
     """Test that custom request headers are sent and response headers are parsed."""
-    data = _inner_test_sync_custom_request_headers(selenium_jspi)
+    data = _inner_test_sync_custom_request_headers(selenium_jspi, httpbin_target)
     if data:
         with open(f".coverage.pyodide.{uuid.uuid4().hex}", "wb") as f:
             f.write(data)
 
 
 @run_in_pyodide(packages=["micropip"])
-async def _inner_test_async_custom_request_headers(selenium):
+async def _inner_test_async_custom_request_headers(selenium, httpbin_target):
     import micropip
 
     await micropip.install(["./niquests-0.0.dev0-py3-none-any.whl", "coverage"], deps=True)
@@ -834,7 +839,7 @@ async def _inner_test_async_custom_request_headers(selenium):
 
         async with AsyncSession() as s:
             response = await s.get(
-                "https://httpbingo.org/headers",
+                f"{httpbin_target[0]}/headers",
                 headers={"X-Custom-Test": "niquests-pyodide", "Accept": "application/json"},
             )
             assert response.status_code == 200
@@ -853,16 +858,16 @@ async def _inner_test_async_custom_request_headers(selenium):
         return f.read()
 
 
-def test_async_custom_request_headers(selenium):
+def test_async_custom_request_headers(selenium, httpbin_target):
     """Test that async custom request headers are sent and response headers are parsed."""
-    data = _inner_test_async_custom_request_headers(selenium)
+    data = _inner_test_async_custom_request_headers(selenium, httpbin_target)
     if data:
         with open(f".coverage.pyodide.{uuid.uuid4().hex}", "wb") as f:
             f.write(data)
 
 
 @run_in_pyodide(packages=["micropip"])
-async def _inner_test_sync_forbidden_header_silently_dropped(selenium_jspi):
+async def _inner_test_sync_forbidden_header_silently_dropped(selenium_jspi, httpbin_target):
     import micropip
 
     await micropip.install(["./niquests-0.0.dev0-py3-none-any.whl", "coverage"], deps=True)
@@ -876,7 +881,7 @@ async def _inner_test_sync_forbidden_header_silently_dropped(selenium_jspi):
 
         with Session() as s:
             response = s.get(
-                "https://httpbingo.org/headers",
+                f"{httpbin_target[0]}/headers",
                 headers={"Host": "evil.example.com", "Connection": "close", "X-Legit": "present"},
             )
             assert response.status_code == 200
@@ -898,16 +903,16 @@ async def _inner_test_sync_forbidden_header_silently_dropped(selenium_jspi):
         return f.read()
 
 
-def test_sync_forbidden_header_silently_dropped(selenium_jspi):
+def test_sync_forbidden_header_silently_dropped(selenium_jspi, httpbin_target):
     """Test that forbidden headers (e.g. Host) are silently stripped and do not cause errors."""
-    data = _inner_test_sync_forbidden_header_silently_dropped(selenium_jspi)
+    data = _inner_test_sync_forbidden_header_silently_dropped(selenium_jspi, httpbin_target)
     if data:
         with open(f".coverage.pyodide.{uuid.uuid4().hex}", "wb") as f:
             f.write(data)
 
 
 @run_in_pyodide(packages=["micropip"])
-async def _inner_test_async_forbidden_header_silently_dropped(selenium):
+async def _inner_test_async_forbidden_header_silently_dropped(selenium, httpbin_target):
     import micropip
 
     await micropip.install(["./niquests-0.0.dev0-py3-none-any.whl", "coverage"], deps=True)
@@ -921,7 +926,7 @@ async def _inner_test_async_forbidden_header_silently_dropped(selenium):
 
         async with AsyncSession() as s:
             response = await s.get(
-                "https://httpbingo.org/headers",
+                f"{httpbin_target[0]}/headers",
                 headers={"Host": "evil.example.com", "Connection": "close", "X-Legit": "present"},
             )
             assert response.status_code == 200
@@ -943,16 +948,16 @@ async def _inner_test_async_forbidden_header_silently_dropped(selenium):
         return f.read()
 
 
-def test_async_forbidden_header_silently_dropped(selenium):
+def test_async_forbidden_header_silently_dropped(selenium, httpbin_target):
     """Test that forbidden headers (e.g. Host) are silently stripped and do not cause errors (async)."""
-    data = _inner_test_async_forbidden_header_silently_dropped(selenium)
+    data = _inner_test_async_forbidden_header_silently_dropped(selenium, httpbin_target)
     if data:
         with open(f".coverage.pyodide.{uuid.uuid4().hex}", "wb") as f:
             f.write(data)
 
 
 @run_in_pyodide(packages=["micropip"])
-async def _inner_test_sync_non_ok_response(selenium_jspi):
+async def _inner_test_sync_non_ok_response(selenium_jspi, httpbin_target):
     import micropip
 
     await micropip.install(["./niquests-0.0.dev0-py3-none-any.whl", "coverage"], deps=True)
@@ -968,7 +973,7 @@ async def _inner_test_sync_non_ok_response(selenium_jspi):
         from niquests.exceptions import HTTPError
 
         with Session() as s:
-            response = s.get("https://httpbingo.org/status/418")
+            response = s.get(f"{httpbin_target[0]}/status/418")
             assert response.status_code == 418
             assert response.ok is False
 
@@ -981,16 +986,16 @@ async def _inner_test_sync_non_ok_response(selenium_jspi):
         return f.read()
 
 
-def test_sync_non_ok_response(selenium_jspi):
+def test_sync_non_ok_response(selenium_jspi, httpbin_target):
     """Test non-OK responses and raise_for_status."""
-    data = _inner_test_sync_non_ok_response(selenium_jspi)
+    data = _inner_test_sync_non_ok_response(selenium_jspi, httpbin_target)
     if data:
         with open(f".coverage.pyodide.{uuid.uuid4().hex}", "wb") as f:
             f.write(data)
 
 
 @run_in_pyodide(packages=["micropip"])
-async def _inner_test_async_non_ok_response(selenium):
+async def _inner_test_async_non_ok_response(selenium, httpbin_target):
     import micropip
 
     await micropip.install(["./niquests-0.0.dev0-py3-none-any.whl", "coverage"], deps=True)
@@ -1006,7 +1011,7 @@ async def _inner_test_async_non_ok_response(selenium):
         from niquests.exceptions import HTTPError
 
         async with AsyncSession() as s:
-            response = await s.get("https://httpbingo.org/status/418")
+            response = await s.get(f"{httpbin_target[0]}/status/418")
             assert response.status_code == 418
             assert response.ok is False
 
@@ -1019,16 +1024,16 @@ async def _inner_test_async_non_ok_response(selenium):
         return f.read()
 
 
-def test_async_non_ok_response(selenium):
+def test_async_non_ok_response(selenium, httpbin_target):
     """Test async non-OK responses and raise_for_status."""
-    data = _inner_test_async_non_ok_response(selenium)
+    data = _inner_test_async_non_ok_response(selenium, httpbin_target)
     if data:
         with open(f".coverage.pyodide.{uuid.uuid4().hex}", "wb") as f:
             f.write(data)
 
 
 @run_in_pyodide(packages=["micropip"])
-async def _inner_test_sync_binary_response(selenium_jspi):
+async def _inner_test_sync_binary_response(selenium_jspi, httpbin_target):
     import micropip
 
     await micropip.install(["./niquests-0.0.dev0-py3-none-any.whl", "coverage"], deps=True)
@@ -1041,7 +1046,7 @@ async def _inner_test_sync_binary_response(selenium_jspi):
         from niquests import Session
 
         with Session() as s:
-            response = s.get("https://httpbingo.org/image/jpeg")
+            response = s.get(f"{httpbin_target[0]}/image/jpeg")
             assert response.status_code == 200
             assert "image/jpeg" in response.headers.get("content-type", "")
 
@@ -1056,16 +1061,16 @@ async def _inner_test_sync_binary_response(selenium_jspi):
         return f.read()
 
 
-def test_sync_binary_response(selenium_jspi):
+def test_sync_binary_response(selenium_jspi, httpbin_target):
     """Test binary response content (JPEG image)."""
-    data = _inner_test_sync_binary_response(selenium_jspi)
+    data = _inner_test_sync_binary_response(selenium_jspi, httpbin_target)
     if data:
         with open(f".coverage.pyodide.{uuid.uuid4().hex}", "wb") as f:
             f.write(data)
 
 
 @run_in_pyodide(packages=["micropip"])
-async def _inner_test_async_binary_response(selenium):
+async def _inner_test_async_binary_response(selenium, httpbin_target):
     import micropip
 
     await micropip.install(["./niquests-0.0.dev0-py3-none-any.whl", "coverage"], deps=True)
@@ -1078,7 +1083,7 @@ async def _inner_test_async_binary_response(selenium):
         from niquests import AsyncSession
 
         async with AsyncSession() as s:
-            response = await s.get("https://httpbingo.org/image/jpeg")
+            response = await s.get(f"{httpbin_target[0]}/image/jpeg")
             assert response.status_code == 200
             assert "image/jpeg" in response.headers.get("content-type", "")
 
@@ -1092,16 +1097,16 @@ async def _inner_test_async_binary_response(selenium):
         return f.read()
 
 
-def test_async_binary_response(selenium):
+def test_async_binary_response(selenium, httpbin_target):
     """Test async binary response content (JPEG image)."""
-    data = _inner_test_async_binary_response(selenium)
+    data = _inner_test_async_binary_response(selenium, httpbin_target)
     if data:
         with open(f".coverage.pyodide.{uuid.uuid4().hex}", "wb") as f:
             f.write(data)
 
 
 @run_in_pyodide(packages=["micropip"])
-async def _inner_test_sync_redirect(selenium_jspi):
+async def _inner_test_sync_redirect(selenium_jspi, httpbin_target):
     import micropip
 
     await micropip.install(["./niquests-0.0.dev0-py3-none-any.whl", "coverage"], deps=True)
@@ -1114,7 +1119,7 @@ async def _inner_test_sync_redirect(selenium_jspi):
         from niquests import Session
 
         with Session() as s:
-            response = s.get("https://httpbingo.org/redirect/3")
+            response = s.get(f"{httpbin_target[0]}/redirect/3")
             assert response.status_code == 200
             # After 3 redirects, we should end up at /get
             assert response.url.endswith("/get") or "/get" in response.url
@@ -1125,16 +1130,16 @@ async def _inner_test_sync_redirect(selenium_jspi):
         return f.read()
 
 
-def test_sync_redirect(selenium_jspi):
+def test_sync_redirect(selenium_jspi, httpbin_target):
     """Test that redirects are followed and final URL is correct."""
-    data = _inner_test_sync_redirect(selenium_jspi)
+    data = _inner_test_sync_redirect(selenium_jspi, httpbin_target)
     if data:
         with open(f".coverage.pyodide.{uuid.uuid4().hex}", "wb") as f:
             f.write(data)
 
 
 @run_in_pyodide(packages=["micropip"])
-async def _inner_test_async_redirect(selenium):
+async def _inner_test_async_redirect(selenium, httpbin_target):
     import micropip
 
     await micropip.install(["./niquests-0.0.dev0-py3-none-any.whl", "coverage"], deps=True)
@@ -1147,7 +1152,7 @@ async def _inner_test_async_redirect(selenium):
         from niquests import AsyncSession
 
         async with AsyncSession() as s:
-            response = await s.get("https://httpbingo.org/redirect/3")
+            response = await s.get(f"{httpbin_target[0]}/redirect/3")
             assert response.status_code == 200
             assert response.url.endswith("/get") or "/get" in response.url
     finally:
@@ -1157,16 +1162,16 @@ async def _inner_test_async_redirect(selenium):
         return f.read()
 
 
-def test_async_redirect(selenium):
+def test_async_redirect(selenium, httpbin_target):
     """Test that async redirects are followed and final URL is correct."""
-    data = _inner_test_async_redirect(selenium)
+    data = _inner_test_async_redirect(selenium, httpbin_target)
     if data:
         with open(f".coverage.pyodide.{uuid.uuid4().hex}", "wb") as f:
             f.write(data)
 
 
 @run_in_pyodide(packages=["micropip"])
-async def _inner_test_sync_string_body(selenium_jspi):
+async def _inner_test_sync_string_body(selenium_jspi, httpbin_target):
     import micropip
 
     await micropip.install(["./niquests-0.0.dev0-py3-none-any.whl", "coverage"], deps=True)
@@ -1180,7 +1185,7 @@ async def _inner_test_sync_string_body(selenium_jspi):
 
         with Session() as s:
             response = s.post(
-                "https://httpbingo.org/post",
+                f"{httpbin_target[0]}/post",
                 data="raw string body",
                 headers={"Content-Type": "text/plain"},
             )
@@ -1194,16 +1199,16 @@ async def _inner_test_sync_string_body(selenium_jspi):
         return f.read()
 
 
-def test_sync_string_body(selenium_jspi):
+def test_sync_string_body(selenium_jspi, httpbin_target):
     """Test POST with a raw string body."""
-    data = _inner_test_sync_string_body(selenium_jspi)
+    data = _inner_test_sync_string_body(selenium_jspi, httpbin_target)
     if data:
         with open(f".coverage.pyodide.{uuid.uuid4().hex}", "wb") as f:
             f.write(data)
 
 
 @run_in_pyodide(packages=["micropip"])
-async def _inner_test_async_string_body(selenium):
+async def _inner_test_async_string_body(selenium, httpbin_target):
     import micropip
 
     await micropip.install(["./niquests-0.0.dev0-py3-none-any.whl", "coverage"], deps=True)
@@ -1217,7 +1222,7 @@ async def _inner_test_async_string_body(selenium):
 
         async with AsyncSession() as s:
             response = await s.post(
-                "https://httpbingo.org/post",
+                f"{httpbin_target[0]}/post",
                 data="raw string body",
                 headers={"Content-Type": "text/plain"},
             )
@@ -1231,16 +1236,16 @@ async def _inner_test_async_string_body(selenium):
         return f.read()
 
 
-def test_async_string_body(selenium):
+def test_async_string_body(selenium, httpbin_target):
     """Test async POST with a raw string body."""
-    data = _inner_test_async_string_body(selenium)
+    data = _inner_test_async_string_body(selenium, httpbin_target)
     if data:
         with open(f".coverage.pyodide.{uuid.uuid4().hex}", "wb") as f:
             f.write(data)
 
 
 @run_in_pyodide(packages=["micropip"])
-async def _inner_test_sync_iterable_body(selenium_jspi):
+async def _inner_test_sync_iterable_body(selenium_jspi, httpbin_target):
     import micropip
 
     await micropip.install(["./niquests-0.0.dev0-py3-none-any.whl", "coverage"], deps=True)
@@ -1259,7 +1264,7 @@ async def _inner_test_sync_iterable_body(selenium_jspi):
 
         with Session() as s:
             response = s.post(
-                "https://httpbingo.org/post",
+                f"{httpbin_target[0]}/post",
                 data=body_gen(),
                 headers={"Content-Type": "application/octet-stream"},
             )
@@ -1273,16 +1278,16 @@ async def _inner_test_sync_iterable_body(selenium_jspi):
         return f.read()
 
 
-def test_sync_iterable_body(selenium_jspi):
+def test_sync_iterable_body(selenium_jspi, httpbin_target):
     """Test POST with a generator/iterable body."""
-    data = _inner_test_sync_iterable_body(selenium_jspi)
+    data = _inner_test_sync_iterable_body(selenium_jspi, httpbin_target)
     if data:
         with open(f".coverage.pyodide.{uuid.uuid4().hex}", "wb") as f:
             f.write(data)
 
 
 @run_in_pyodide(packages=["micropip"])
-async def _inner_test_async_iterable_body(selenium):
+async def _inner_test_async_iterable_body(selenium, httpbin_target):
     import micropip
 
     await micropip.install(["./niquests-0.0.dev0-py3-none-any.whl", "coverage"], deps=True)
@@ -1301,7 +1306,7 @@ async def _inner_test_async_iterable_body(selenium):
 
         async with AsyncSession() as s:
             response = await s.post(
-                "https://httpbingo.org/post",
+                f"{httpbin_target[0]}/post",
                 data=body_gen(),
                 headers={"Content-Type": "application/octet-stream"},
             )
@@ -1315,16 +1320,16 @@ async def _inner_test_async_iterable_body(selenium):
         return f.read()
 
 
-def test_async_iterable_body(selenium):
+def test_async_iterable_body(selenium, httpbin_target):
     """Test async POST with a generator/iterable body."""
-    data = _inner_test_async_iterable_body(selenium)
+    data = _inner_test_async_iterable_body(selenium, httpbin_target)
     if data:
         with open(f".coverage.pyodide.{uuid.uuid4().hex}", "wb") as f:
             f.write(data)
 
 
 @run_in_pyodide(packages=["micropip"])
-async def _inner_test_sync_iterable_str_body(selenium_jspi):
+async def _inner_test_sync_iterable_str_body(selenium_jspi, httpbin_target):
     import micropip
 
     await micropip.install(["./niquests-0.0.dev0-py3-none-any.whl", "coverage"], deps=True)
@@ -1342,7 +1347,7 @@ async def _inner_test_sync_iterable_str_body(selenium_jspi):
 
         with Session() as s:
             response = s.post(
-                "https://httpbingo.org/post",
+                f"{httpbin_target[0]}/post",
                 data=str_body_gen(),
                 headers={"Content-Type": "text/plain"},
             )
@@ -1356,16 +1361,16 @@ async def _inner_test_sync_iterable_str_body(selenium_jspi):
         return f.read()
 
 
-def test_sync_iterable_str_body(selenium_jspi):
+def test_sync_iterable_str_body(selenium_jspi, httpbin_target):
     """Test POST with a generator yielding str chunks."""
-    data = _inner_test_sync_iterable_str_body(selenium_jspi)
+    data = _inner_test_sync_iterable_str_body(selenium_jspi, httpbin_target)
     if data:
         with open(f".coverage.pyodide.{uuid.uuid4().hex}", "wb") as f:
             f.write(data)
 
 
 @run_in_pyodide(packages=["micropip"])
-async def _inner_test_async_iterable_str_body(selenium):
+async def _inner_test_async_iterable_str_body(selenium, httpbin_target):
     import micropip
 
     await micropip.install(["./niquests-0.0.dev0-py3-none-any.whl", "coverage"], deps=True)
@@ -1383,7 +1388,7 @@ async def _inner_test_async_iterable_str_body(selenium):
 
         async with AsyncSession() as s:
             response = await s.post(
-                "https://httpbingo.org/post",
+                f"{httpbin_target[0]}/post",
                 data=str_body_gen(),
                 headers={"Content-Type": "text/plain"},
             )
@@ -1397,16 +1402,16 @@ async def _inner_test_async_iterable_str_body(selenium):
         return f.read()
 
 
-def test_async_iterable_str_body(selenium):
+def test_async_iterable_str_body(selenium, httpbin_target):
     """Test async POST with a generator yielding str chunks."""
-    data = _inner_test_async_iterable_str_body(selenium)
+    data = _inner_test_async_iterable_str_body(selenium, httpbin_target)
     if data:
         with open(f".coverage.pyodide.{uuid.uuid4().hex}", "wb") as f:
             f.write(data)
 
 
 @run_in_pyodide(packages=["micropip"])
-async def _inner_test_async_async_iterable_body(selenium):
+async def _inner_test_async_async_iterable_body(selenium, httpbin_target):
     import micropip
 
     await micropip.install(["./niquests-0.0.dev0-py3-none-any.whl", "coverage"], deps=True)
@@ -1425,7 +1430,7 @@ async def _inner_test_async_async_iterable_body(selenium):
 
         async with AsyncSession() as s:
             response = await s.post(
-                "https://httpbingo.org/post",
+                f"{httpbin_target[0]}/post",
                 data=body_gen(),
                 headers={"Content-Type": "application/octet-stream"},
             )
@@ -1439,16 +1444,16 @@ async def _inner_test_async_async_iterable_body(selenium):
         return f.read()
 
 
-def test_async_async_iterable_body(selenium):
+def test_async_async_iterable_body(selenium, httpbin_target):
     """Test async POST with an async generator body (covers __aiter__ path)."""
-    data = _inner_test_async_async_iterable_body(selenium)
+    data = _inner_test_async_async_iterable_body(selenium, httpbin_target)
     if data:
         with open(f".coverage.pyodide.{uuid.uuid4().hex}", "wb") as f:
             f.write(data)
 
 
 @run_in_pyodide(packages=["micropip"])
-async def _inner_test_async_async_iterable_str_body(selenium):
+async def _inner_test_async_async_iterable_str_body(selenium, httpbin_target):
     import micropip
 
     await micropip.install(["./niquests-0.0.dev0-py3-none-any.whl", "coverage"], deps=True)
@@ -1466,7 +1471,7 @@ async def _inner_test_async_async_iterable_str_body(selenium):
 
         async with AsyncSession() as s:
             response = await s.post(
-                "https://httpbingo.org/post",
+                f"{httpbin_target[0]}/post",
                 data=str_body_gen(),
                 headers={"Content-Type": "text/plain"},
             )
@@ -1480,16 +1485,16 @@ async def _inner_test_async_async_iterable_str_body(selenium):
         return f.read()
 
 
-def test_async_async_iterable_str_body(selenium):
+def test_async_async_iterable_str_body(selenium, httpbin_target):
     """Test async POST with an async generator yielding str chunks."""
-    data = _inner_test_async_async_iterable_str_body(selenium)
+    data = _inner_test_async_async_iterable_str_body(selenium, httpbin_target)
     if data:
         with open(f".coverage.pyodide.{uuid.uuid4().hex}", "wb") as f:
             f.write(data)
 
 
 @run_in_pyodide(packages=["micropip"])
-async def _inner_test_sync_sse_raw_mode(selenium_jspi):
+async def _inner_test_sync_sse_raw_mode(selenium_jspi, httpbin_target):
     import micropip
 
     await micropip.install(["./niquests-0.0.dev0-py3-none-any.whl", "coverage"], deps=True)
@@ -1502,7 +1507,7 @@ async def _inner_test_sync_sse_raw_mode(selenium_jspi):
         from niquests import Session
 
         with Session() as s:
-            response = s.get("sse://httpbingo.org/sse?count=2&duration=1")
+            response = s.get(f"{httpbin_target[2]}/sse?count=2&duration=1")
             assert response.status_code == 200
 
             ext = response.extension
@@ -1525,16 +1530,16 @@ async def _inner_test_sync_sse_raw_mode(selenium_jspi):
         return f.read()
 
 
-def test_sync_sse_raw_mode(selenium_jspi):
+def test_sync_sse_raw_mode(selenium_jspi, httpbin_target):
     """Test sync SSE with raw=True returns raw event strings."""
-    data = _inner_test_sync_sse_raw_mode(selenium_jspi)
+    data = _inner_test_sync_sse_raw_mode(selenium_jspi, httpbin_target)
     if data:
         with open(f".coverage.pyodide.{uuid.uuid4().hex}", "wb") as f:
             f.write(data)
 
 
 @run_in_pyodide(packages=["micropip"])
-async def _inner_test_async_sse_raw_mode(selenium):
+async def _inner_test_async_sse_raw_mode(selenium, httpbin_target):
     import micropip
 
     await micropip.install(["./niquests-0.0.dev0-py3-none-any.whl", "coverage"], deps=True)
@@ -1547,7 +1552,7 @@ async def _inner_test_async_sse_raw_mode(selenium):
         from niquests import AsyncSession
 
         async with AsyncSession() as s:
-            response = await s.get("sse://httpbingo.org/sse?count=2&duration=1")
+            response = await s.get(f"{httpbin_target[2]}/sse?count=2&duration=1")
             assert response.status_code == 200
 
             ext = response.extension
@@ -1570,16 +1575,16 @@ async def _inner_test_async_sse_raw_mode(selenium):
         return f.read()
 
 
-def test_async_sse_raw_mode(selenium):
+def test_async_sse_raw_mode(selenium, httpbin_target):
     """Test async SSE with raw=True returns raw event strings."""
-    data = _inner_test_async_sse_raw_mode(selenium)
+    data = _inner_test_async_sse_raw_mode(selenium, httpbin_target)
     if data:
         with open(f".coverage.pyodide.{uuid.uuid4().hex}", "wb") as f:
             f.write(data)
 
 
 @run_in_pyodide(packages=["micropip"])
-async def _inner_test_sync_sse_via_stream(selenium_jspi):
+async def _inner_test_sync_sse_via_stream(selenium_jspi, httpbin_target):
     import micropip
 
     await micropip.install(["./niquests-0.0.dev0-py3-none-any.whl", "coverage"], deps=True)
@@ -1593,7 +1598,7 @@ async def _inner_test_sync_sse_via_stream(selenium_jspi):
 
         with Session() as s:
             response = s.get(
-                "https://httpbingo.org/sse?count=3&duration=1",
+                f"{httpbin_target[0]}/sse?count=3&duration=1",
                 stream=True,
             )
             assert response.status_code == 200
@@ -1614,16 +1619,16 @@ async def _inner_test_sync_sse_via_stream(selenium_jspi):
         return f.read()
 
 
-def test_sync_sse_via_stream(selenium_jspi):
+def test_sync_sse_via_stream(selenium_jspi, httpbin_target):
     """Test consuming an SSE endpoint as a plain stream (no sse:// scheme)."""
-    data = _inner_test_sync_sse_via_stream(selenium_jspi)
+    data = _inner_test_sync_sse_via_stream(selenium_jspi, httpbin_target)
     if data:
         with open(f".coverage.pyodide.{uuid.uuid4().hex}", "wb") as f:
             f.write(data)
 
 
 @run_in_pyodide(packages=["micropip"])
-async def _inner_test_async_sse_via_stream(selenium):
+async def _inner_test_async_sse_via_stream(selenium, httpbin_target):
     import micropip
 
     await micropip.install(["./niquests-0.0.dev0-py3-none-any.whl", "coverage"], deps=True)
@@ -1637,7 +1642,7 @@ async def _inner_test_async_sse_via_stream(selenium):
 
         async with AsyncSession() as s:
             response = await s.get(
-                "https://httpbingo.org/sse?count=3&duration=1",
+                f"{httpbin_target[0]}/sse?count=3&duration=1",
                 stream=True,
             )
             assert response.status_code == 200
@@ -1658,16 +1663,16 @@ async def _inner_test_async_sse_via_stream(selenium):
         return f.read()
 
 
-def test_async_sse_via_stream(selenium):
+def test_async_sse_via_stream(selenium, httpbin_target):
     """Test consuming an SSE endpoint as a plain async stream (no sse:// scheme)."""
-    data = _inner_test_async_sse_via_stream(selenium)
+    data = _inner_test_async_sse_via_stream(selenium, httpbin_target)
     if data:
         with open(f".coverage.pyodide.{uuid.uuid4().hex}", "wb") as f:
             f.write(data)
 
 
 @run_in_pyodide(packages=["micropip"])
-async def _inner_test_async_concurrent_gather(selenium):
+async def _inner_test_async_concurrent_gather(selenium, httpbin_target):
     import micropip
 
     await micropip.install(["./niquests-0.0.dev0-py3-none-any.whl", "coverage"], deps=True)
@@ -1684,7 +1689,7 @@ async def _inner_test_async_concurrent_gather(selenium):
         async with AsyncSession() as s:
 
             async def do_get(req_id):
-                resp = await s.get(f"https://httpbingo.org/get?req={req_id}")
+                resp = await s.get(f"{httpbin_target[0]}/get?req={req_id}")
                 return req_id, resp
 
             results = await asyncio.gather(
@@ -1712,9 +1717,9 @@ async def _inner_test_async_concurrent_gather(selenium):
         return f.read()
 
 
-def test_async_concurrent_gather(selenium):
+def test_async_concurrent_gather(selenium, httpbin_target):
     """Test that 5 concurrent async requests via asyncio.gather all complete."""
-    data = _inner_test_async_concurrent_gather(selenium)
+    data = _inner_test_async_concurrent_gather(selenium, httpbin_target)
     if data:
         with open(f".coverage.pyodide.{uuid.uuid4().hex}", "wb") as f:
             f.write(data)

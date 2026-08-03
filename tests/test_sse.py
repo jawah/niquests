@@ -5,11 +5,11 @@ import pytest
 from niquests import AsyncSession, Session
 
 
-@pytest.mark.usefixtures("requires_wan")
+@pytest.mark.usefixtures("requires_traefik_tls")
 class TestLiveSSE:
-    def test_sync_sse_basic_example(self) -> None:
-        with Session() as s:
-            resp = s.get("sse://httpbingo.org/sse")
+    def test_sync_sse_basic_example(self, local_httpbin, traefik_resolver, traefik_ca_bundle) -> None:
+        with Session(resolver=traefik_resolver, verify=traefik_ca_bundle) as s:
+            resp = s.get(local_httpbin.sse_url, verify=traefik_ca_bundle)
 
             assert resp.status_code == 200
             assert resp.extension is not None
@@ -25,9 +25,9 @@ class TestLiveSSE:
             assert events[-1] is None
 
     @pytest.mark.asyncio
-    async def test_async_sse_basic_example(self) -> None:
-        async with AsyncSession() as s:
-            resp = await s.get("sse://httpbingo.org/sse")
+    async def test_async_sse_basic_example(self, local_httpbin, traefik_resolver, traefik_ca_bundle) -> None:
+        async with AsyncSession(resolver=traefik_resolver, verify=traefik_ca_bundle) as s:
+            resp = await s.get(local_httpbin.sse_url, verify=traefik_ca_bundle)
 
             assert resp.status_code == 200
             assert resp.extension is not None

@@ -1,6 +1,10 @@
+.. meta::
+   :description: Migrate from Requests to Niquests, a drop-in Python Requests replacement with HTTP/2, HTTP/3, async APIs, WebSocket, SSE, and modern networking.
+   :keywords: Requests replacement, Requests alternative, alternative to Requests, migrate from Requests, Python Requests drop-in replacement, Requests HTTP/2, Requests HTTP/3, async Requests, Niquests migration
+
 .. _migrate:
 
-Requests → Niquests Guide
+Requests → Niquests guide
 =========================
 
 If you're reading this, you're probably interested in Niquests. We're thrilled to have
@@ -36,7 +40,10 @@ Or simply
     import niquests as requests
     requests.get(...)
 
-.. tip:: If you were used to use ``urllib3.Timeout`` or ``urllib3.Retry`` you can either keep them as-is or use our fully compatible ``niquests.RetryConfiguration`` or ``niquests.TimeoutConfiguration`` instead.
+.. tip:: If you were used to use :class:`urllib3.Timeout <urllib3.util.Timeout>` or
+   :class:`urllib3.Retry <urllib3.util.Retry>`, you can either keep them as-is or use
+   our fully compatible :class:`niquests.RetryConfiguration` or
+   :class:`niquests.TimeoutConfiguration` instead.
 
 If you were used to depends on urllib3.
 
@@ -52,7 +59,8 @@ Will now become:
     import niquests
     from niquests.packages.urllib3 import Timeout
 
-.. note:: urllib3 is safely aliased as ``niquests.packages.urllib3``. Using the alias provided by Niquests is safer.
+.. note:: urllib3 is safely aliased as
+   :mod:`niquests.packages.urllib3 <urllib3>`. Using the alias provided by Niquests is safer.
 
 Maintainer migration
 --------------------

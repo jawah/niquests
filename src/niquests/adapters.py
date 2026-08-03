@@ -147,6 +147,9 @@ except ImportError:
         raise InvalidSchema("Missing dependencies for SOCKS support.")
 
 
+_TLS_SCHEMES = frozenset(("https", "sse", "wss"))
+
+
 class BaseAdapter:
     """The Base Transport Adapter"""
 
@@ -546,7 +549,10 @@ class HTTPAdapter(BaseAdapter):
             It is also possible to put the certificates (directly) in a string or bytes.
         :param cert: The SSL certificate to verify.
         """
-        if not parse_scheme(url) == "https":
+        scheme = parse_scheme(url)
+        if "+" in scheme:
+            scheme = scheme.split("+", 1)[0]
+        if scheme not in _TLS_SCHEMES:
             return
 
         need_reboot_conn: bool = False
@@ -1644,7 +1650,10 @@ class AsyncHTTPAdapter(AsyncBaseAdapter):
             It is also possible to put the certificates (directly) in a string or bytes.
         :param cert: The SSL certificate to verify.
         """
-        if not parse_scheme(url) == "https":
+        scheme = parse_scheme(url)
+        if "+" in scheme:
+            scheme = scheme.split("+", 1)[0]
+        if scheme not in _TLS_SCHEMES:
             return False
 
         need_reboot_conn: bool = False

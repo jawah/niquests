@@ -109,6 +109,9 @@ include = [
     "/LICENSE",
     "/NOTICE",
     "/Makefile",
+    "/docker-compose.yaml",
+    "/docker-compose.win.yaml",
+    "/traefik",
 ]
 
 [tool.hatch.build.targets.wheel]

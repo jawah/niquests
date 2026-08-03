@@ -1,7 +1,7 @@
 .. _updates:
 
 
-Community Updates
+Community updates
 =================
 
 If you'd like to stay up to date on the community and development of Niquests,

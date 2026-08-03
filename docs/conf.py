@@ -156,11 +156,12 @@ html_theme_options = {
 }
 
 html_js_files = [
-    'https://unpkg.com/@terminhtml/bootstrap@1.x/dist/@terminhtml-bootstrap.umd.js',
+    'termynal.js',
     'analytics-events.js',
 ]
 
 html_css_files = [
+    'termynal.css',
     'analytics-events.css',
 ]
 

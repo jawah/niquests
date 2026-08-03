@@ -243,6 +243,7 @@ def test_common_branches():
         "example.test",
         "/x?q=1",
     )
+    assert common.validate_transport_options(prepared("sse://example.test"), True, None, None)[0] == "https"
     with pytest.raises(InvalidSchema):
         common.validate_transport_options(prepared("ftp://example.test"), True, None, None)
     missing = PreparedRequest()
@@ -381,6 +382,9 @@ def test_low_level_read_finish_abort_and_errors():
 
     no_body_abort = wasi._WASILowLevelResponse("GET", 200, "OK", HTTPHeaderDict(), None, Stream([b"pending"]), "url")
     no_body_abort.abort()
+    direct_close = wasi._WASILowLevelResponse("GET", 200, "OK", HTTPHeaderDict(), Body(), Stream([b"pending"]), "url")
+    direct_close.close()
+    assert direct_close._stream is None
     wasi._TYPES = SimpleNamespace(IncomingBody=BrokenIncomingBody)
     error_abort = wasi._WASILowLevelResponse("GET", 200, "OK", HTTPHeaderDict(), Body(), Stream([b"pending"]), "url")
     error_abort.abort()

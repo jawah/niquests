@@ -1,7 +1,7 @@
-Niquests Extension Ecosystem
+Niquests extension ecosystem
 ============================
 
-Native Niquests Extensions
+Native Niquests extensions
 --------------------------
 
 The community regularly produce useful 3rd party extension that plugs directly into Niquests APIs without patch.
@@ -39,7 +39,7 @@ For synchronous use, the API is the same and async is almost identical:
         import niquests_cache
 
         session = niquests_cache.CachedSession('demo_cache')
-        session.get('https://httpbin.org/delay/1')
+        session.get('https://httpbingo.org/delay/1')
 
 .. tab:: 🔀 Async
 
@@ -50,7 +50,7 @@ For synchronous use, the API is the same and async is almost identical:
 
         async def main() -> None:
             async with niquests_cache.AsyncCachedSession('demo_cache') as session:
-                await session.get('https://httpbin.org/delay/1')
+                await session.get('https://httpbingo.org/delay/1')
 
         asyncio.run(main())
 
@@ -69,7 +69,7 @@ the complete path.
         from niquests_cache import cached_session
 
         with cached_session(app_name='my-tool') as session:  # On XDG, stores to ~/.cache/my-tool/http.sqlite
-            response = session.get('https://httpbin.org/get')
+            response = session.get('https://httpbingo.org/get')
             response.raise_for_status()
 
 .. tab:: 🔀 Async
@@ -81,7 +81,7 @@ the complete path.
 
         async def main() -> None:
             async with cached_session(app_name='my-tool', aio=True) as session:
-                response = await session.get('https://httpbin.org/get')
+                response = await session.get('https://httpbingo.org/get')
                 response.raise_for_status()
 
         asyncio.run(main())
@@ -104,7 +104,8 @@ Individual requests accept per-request cache controls:
     session.get('https://example.com', only_if_cached=True)  # return 504 if not cached
     session.get('https://example.com', expire_after=60)      # override session TTL
 
-Cache behaviour is tuneable at runtime through ``session.settings``, and caching can be temporarily
+Cache behaviour is tuneable at runtime through
+:attr:`session.settings <niquests_cache.session.CacheMixin.settings>`, and caching can be temporarily
 suspended with a context manager:
 
 .. code:: python
@@ -177,7 +178,7 @@ Niquests. It instruments both synchronous (:py:class:`niquests.Session`) and asy
 out of the box with no manual wiring.
 
 Beyond the usual HTTP client spans and request duration metrics, it reports Niquests-specific
-data taken from ``conn_info``: TLS version and cipher, OCSP revocation status, destination IP and
+data taken from :attr:`conn_info <niquests.Response.conn_info>`: TLS version and cipher, OCSP revocation status, destination IP and
 port, and per-phase connection timings (DNS resolution, TCP establishment, TLS handshake, and
 request send).
 
@@ -241,7 +242,7 @@ There is 4 levels of compatibility:
 
 .. note:: Feel free to reach out to the maintainers and speak up about Niquests. Suggesting a patch to support both Requests, and Niquests is really straightforward!
 
-Requests Cache
+requests-cache
 ~~~~~~~~~~~~~~
 
 .. note:: Classified as: Working
@@ -265,7 +266,7 @@ Quickstart to leverage its potential::
         s = CacheSession()
 
         for i in range(60):
-            r = s.get('https://httpbin.org/delay/1')
+            r = s.get('https://httpbingo.org/delay/1')
 
 .. warning:: Be advised that this extension nullify the advantage of using ``multiplexed=True`` within your Session constructor as is eagerly access the content.
 
@@ -700,7 +701,8 @@ Basic synchronous usage requires no special setup::
 Enabling async support
 """"""""""""""""""""""
 
-vcrpy does not patch ``AsyncHTTPConnectionPool`` shipped by urllib3.future.
+vcrpy does not patch
+:class:`AsyncHTTPConnectionPool <urllib3.AsyncHTTPConnectionPool>` shipped by urllib3.future.
 The fixture below extends every cassette context so that async calls are
 also played back and recorded.
 

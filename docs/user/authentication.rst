@@ -14,7 +14,7 @@ Below, we outline various forms of authentication available in Niquests, from
 the simple to the complex.
 
 
-Basic Authentication
+Basic authentication
 --------------------
 
 Many web services that require authentication accept HTTP Basic Auth. This is
@@ -24,13 +24,13 @@ Making requests with HTTP Basic Auth is very simple::
 
     >>> from niquests.auth import HTTPBasicAuth
     >>> basic = HTTPBasicAuth('user', 'pass')
-    >>> niquests.get('https://httpbin.org/basic-auth/user/pass', auth=basic)
+    >>> niquests.get('https://httpbingo.org/basic-auth/user/pass', auth=basic)
     <Response HTTP/2 [200]>
 
 In fact, HTTP Basic Auth is so common that Niquests provides a handy shorthand
 for using it::
 
-    >>> niquests.get('https://httpbin.org/basic-auth/user/pass', auth=('user', 'pass'))
+    >>> niquests.get('https://httpbingo.org/basic-auth/user/pass', auth=('user', 'pass'))
     <Response HTTP/2 [200]>
 
 Providing the credentials in a tuple like this is exactly the same as the
@@ -66,7 +66,7 @@ You must provide the token directly into the DNS url as such::
     with Session(resolver="doh://token@my-resolver.tld") as s:
         resp = s.get("https://httpbingo.org/get")
 
-netrc Authentication
+netrc authentication
 ~~~~~~~~~~~~~~~~~~~~
 
 If no authentication method is given with the ``auth`` argument and the
@@ -77,21 +77,21 @@ If credentials for the hostname are found, the request is sent with HTTP Basic
 Auth.
 
 
-Digest Authentication
+Digest authentication
 ---------------------
 
 Another very popular form of HTTP Authentication is Digest Authentication,
 and Niquests supports this out of the box as well::
 
     >>> from niquests.auth import HTTPDigestAuth
-    >>> url = 'https://httpbin.org/digest-auth/auth/user/pass'
+    >>> url = 'https://httpbingo.org/digest-auth/auth/user/pass'
     >>> niquests.get(url, auth=HTTPDigestAuth('user', 'pass'))
     <Response HTTP/2 [200]>
 
 
-.. warning:: In asyncio, you MUST use ``AsyncHTTPDigestAuth`` instead.
+.. warning:: In asyncio, you MUST use :class:`~niquests.auth.AsyncHTTPDigestAuth` instead.
 
-OAuth 1 Authentication
+OAuth 1 authentication
 ----------------------
 
 A common form of authentication for several web APIs is OAuth. The ``requests-oauthlib``
@@ -111,7 +111,7 @@ For more information on how to OAuth flow works, please see the official `OAuth`
 For examples and documentation on requests-oauthlib, please see the `requests_oauthlib`_
 repository on GitHub
 
-OAuth 2 and OpenID Connect Authentication
+OAuth 2 and OpenID Connect authentication
 -----------------------------------------
 
 The ``requests-oauthlib`` library also handles OAuth 2, the authentication mechanism
@@ -123,7 +123,7 @@ details of the various OAuth 2 credential management flows:
 * `Legacy Application Flow`_
 * `Backend Application Flow`_
 
-Other Authentication
+Other authentication
 --------------------
 
 Niquests is designed to allow other forms of authentication to be easily and
@@ -139,15 +139,15 @@ If you want to use any of these forms of authentication, go straight to their
 GitHub page and follow the instructions.
 
 
-New Forms of Authentication
+New forms of authentication
 ---------------------------
 
 If you can't find a good implementation of the form of authentication you
 want, you can implement it yourself. Niquests makes it easy to add your own
 forms of authentication.
 
-To do so, subclass :class:`AuthBase <niquests.auth.AuthBase>` and implement the
-``__call__()`` method::
+To do so, subclass :class:`AuthBase <niquests.auth.AuthBase>` and implement its
+:meth:`~niquests.auth.AuthBase.__call__` method::
 
     >>> import niquests
     >>> class MyAuth(niquests.auth.AuthBase):
@@ -155,12 +155,12 @@ To do so, subclass :class:`AuthBase <niquests.auth.AuthBase>` and implement the
     ...         # Implement my authentication
     ...         return r
     ...
-    >>> url = 'https://httpbin.org/get'
+    >>> url = 'https://httpbingo.org/get'
     >>> niquests.get(url, auth=MyAuth())
     <Response HTTP/2 [200]>
 
 When an authentication handler is attached to a request,
-it is called during request setup. The ``__call__`` method must therefore do
+it is called during request setup. The :meth:`~niquests.auth.AuthBase.__call__` method must therefore do
 whatever is required to make the authentication work. Some forms of
 authentication will additionally add hooks to provide further functionality.
 

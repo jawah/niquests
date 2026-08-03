@@ -127,13 +127,13 @@ class AsyncSession(Session):
 
       >>> import niquests
       >>> s = niquests.AsyncSession()
-      >>> await s.get('https://httpbin.org/get')
+      >>> await s.get('https://httpbingo.org/get')
       <Response HTTP/2 [200]>
 
     Or as a context manager::
 
       >>> async with niquests.AsyncSession() as s:
-      ...     await s.get('https://httpbin.org/get')
+      ...     await s.get('https://httpbingo.org/get')
       <Response HTTP/2 [200]>
     """
 

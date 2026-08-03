@@ -1,6 +1,6 @@
 .. _contributing:
 
-Contributor's Guide
+Contributor's guide
 ===================
 
 If you're reading this, you're probably interested in contributing to Niquests.
@@ -19,7 +19,7 @@ The guide is split into sections based on the type of contribution you're
 thinking of making, with a section that covers general guidelines for all
 contributors.
 
-Be Cordial
+Be cordial
 ----------
 
     **Be cordial or be on your way**. *—Kenneth Reitz*
@@ -35,7 +35,7 @@ everyone involved is treated with respect.
 
 .. _early-feedback:
 
-Get Early Feedback
+Get early feedback
 ------------------
 
 If you are contributing, do not feel the need to sit on your contribution until
@@ -45,7 +45,7 @@ version of your contribution for feedback in no way prejudices your chances of
 getting that contribution accepted, and can save you from putting a lot of work
 into a contribution that is not suitable for the project.
 
-Contribution Suitability
+Contribution suitability
 ------------------------
 
 Our project maintainers have the last word on whether or not a contribution is
@@ -58,10 +58,10 @@ guidelines, you will have a much better chance of getting your next
 contribution accepted.
 
 
-Code Contributions
+Code contributions
 ------------------
 
-Steps for Submitting Code
+Steps for submitting code
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
 When contributing code, you'll want to follow this checklist:
@@ -81,7 +81,7 @@ When contributing code, you'll want to follow this checklist:
 
 The following sub-sections go into more detail on some of the points above.
 
-Code Review
+Code review
 ~~~~~~~~~~~
 
 Contributions will not be merged until they've been code reviewed. You should
@@ -90,7 +90,7 @@ event that you object to the code review feedback, you should make your case
 clearly and calmly. If, after doing so, the feedback is judged to still apply,
 you must either apply the feedback or withdraw your contribution.
 
-Code Style
+Code style
 ~~~~~~~~~~
 
 Niquests uses a collection of tools to ensure the code base has a consistent
@@ -105,7 +105,7 @@ You can find the full list of formatting requirements specified in the
 .. _pre-commit: https://pre-commit.com/
 .. _.pre-commit-config.yaml: https://github.com/jawah/niquests/blob/main/.pre-commit-config.yaml
 
-New Contributors
+New contributors
 ~~~~~~~~~~~~~~~~
 
 If you are new or relatively new to Open Source, welcome! Niquests IS a gentle introduction to the world of Open Source.
@@ -115,7 +115,7 @@ asking for help.
 Please also check the :ref:`early-feedback` section.
 
 
-Documentation Contributions
+Documentation contributions
 ---------------------------
 
 Documentation improvements are always welcome! The documentation files live in
@@ -136,7 +136,7 @@ When presenting Python code, use single-quoted strings (``'hello'`` instead of
 
 .. _bug-reports:
 
-Bug Reports
+Bug reports
 -----------
 
 Bug reports are hugely important! Before you raise one, though, please check
@@ -147,7 +147,7 @@ of other contributors, and should be avoided as much as possible.
 .. _GitHub issues: https://github.com/jawah/niquests/issues
 
 
-Feature Requests
+Feature requests
 ----------------
 
 Niquests happily accept new feature. Forever? Hopefully!

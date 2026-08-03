@@ -11,9 +11,9 @@ async def test_hybrid_selection_and_requests() -> None:
         assert capabilities.HAS_WASI_P3_SOCKETS
         assert capabilities.HAS_WASI_P3_HTTP
         assert not capabilities.HAS_WASI_TLS_SUPPORT
-        assert isinstance(session.get_adapter("http://httpbingo.org"), AsyncHTTPAdapter)
+        assert isinstance(session.get_adapter("http://localhost:8888"), AsyncHTTPAdapter)
         assert isinstance(session.get_adapter("https://httpbingo.org"), AsyncWASIAdapter)
-        assert (await session.get("http://httpbingo.org/get")).status_code == 200
+        assert (await session.get("http://localhost:8888/get")).status_code == 200
         assert (await session.get("https://httpbingo.org/get")).status_code == 200
 
 

@@ -1,5 +1,10 @@
 .coverage
 .coverage.*
+rootCA.pem
+traefik/httpbin.local.pem
+traefik/httpbin.local.pem.key
+traefik/revocation/
+go-httpbin/
 MANIFEST
 coverage.xml
 nosetests.xml

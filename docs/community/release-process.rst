@@ -1,4 +1,4 @@
-Release Process and Rules
+Release process and rules
 =========================
 
 .. versionadded:: v2.6.2
@@ -6,7 +6,7 @@ Release Process and Rules
 Starting with the version to be released after ``v2.6.2``, the following rules
 will govern and describe how the Niquests core team produces a new release.
 
-Major Releases
+Major releases
 --------------
 
 A major release will include breaking changes. When it is versioned, it will
@@ -14,8 +14,9 @@ be versioned as ``vX.0.0``. For example, if the previous release was
 ``v10.2.7`` the next version will be ``v11.0.0``.
 
 Breaking changes are changes that break backwards compatibility with prior
-versions. If the project were to change the ``text`` attribute on a
-``Response`` object to a method, that would only happen in a Major release.
+versions. If the project were to change the :attr:`text <niquests.Response.text>`
+attribute on a :class:`Response <niquests.Response>` object to a method, that would only
+happen in a Major release.
 
 Major releases may also include miscellaneous bug fixes. The core developers of
 Niquests are committed to providing a good user experience. This means we're
@@ -23,7 +24,7 @@ also committed to preserving backwards compatibility as much as possible. Major
 releases will be infrequent and will need strong justifications before they are
 considered.
 
-Minor Releases
+Minor releases
 --------------
 
 A minor release will not include breaking changes but may include miscellaneous
@@ -34,7 +35,7 @@ Minor releases will be backwards compatible with releases that have the same
 major version number. In other words, all versions that would start with
 ``v10.`` should be compatible with each other.
 
-Hotfix Releases
+Hotfix releases
 ---------------
 
 A hotfix release will only include bug fixes that were missed when the project

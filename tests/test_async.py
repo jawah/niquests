@@ -65,41 +65,47 @@ async def test_top_level_async_json_encoder_and_tls_configuration():
     assert captured["tls_configuration"] is tls_configuration
 
 
-@pytest.mark.usefixtures("requires_wan")
+@pytest.mark.usefixtures("requires_traefik_tls")
 @pytest.mark.asyncio
 class TestAsyncWithoutMultiplex:
+    @pytest.fixture(autouse=True)
+    def configure_local_stack(self, local_httpbin, traefik_resolver, traefik_ca_bundle):
+        self.httpbin = local_httpbin
+        self.ca_bundle = traefik_ca_bundle
+        self.session_kwargs = {"resolver": traefik_resolver, "verify": traefik_ca_bundle}
+
     async def test_awaitable_get(self):
-        async with AsyncSession(base_url="https://httpbingo.org") as s:
+        async with AsyncSession(base_url=self.httpbin.https_url, **self.session_kwargs) as s:
             resp = await s.get("/get")
 
             assert resp.lazy is False
             assert resp.status_code == 200
 
     async def test_awaitable_redirect_chain(self):
-        async with AsyncSession() as s:
-            resp = await s.get("https://httpbingo.org/redirect/2")
+        async with AsyncSession(**self.session_kwargs) as s:
+            resp = await s.get(f"{self.httpbin.https_url}/redirect/2")
 
             assert resp.lazy is False
             assert resp.status_code == 200
 
     async def test_awaitable_redirect_chain_stream(self):
-        async with AsyncSession() as s:
-            resp = await s.get("https://httpbingo.org/redirect/2", stream=True)
+        async with AsyncSession(**self.session_kwargs) as s:
+            resp = await s.get(f"{self.httpbin.https_url}/redirect/2", stream=True)
 
             assert resp.lazy is False
             assert resp.status_code == 200
             assert await resp.json()
 
     async def test_awaitable_response_context(self):
-        async with AsyncSession() as s:
-            async with await s.get("https://httpbingo.org/get", stream=True) as resp:
+        async with AsyncSession(**self.session_kwargs) as s:
+            async with await s.get(f"{self.httpbin.https_url}/get", stream=True) as resp:
                 assert resp.lazy is False
                 assert resp.status_code == 200
                 assert await resp.json()
 
     async def test_async_session_cookie_dummylock(self):
-        async with AsyncSession() as s:
-            await s.get("https://httpbingo.org/cookies/set?hello=world")
+        async with AsyncSession(**self.session_kwargs) as s:
+            await s.get(f"{self.httpbin.https_url}/cookies/set?hello=world")
             assert len(s.cookies)
             assert "hello" in s.cookies
 
@@ -107,9 +113,9 @@ class TestAsyncWithoutMultiplex:
         async def emit():
             responses = []
 
-            async with AsyncSession() as s:
-                responses.append(await s.get("https://httpbingo.org/get"))
-                responses.append(await s.get("https://httpbingo.org/delay/5"))
+            async with AsyncSession(**self.session_kwargs) as s:
+                responses.append(await s.get(f"{self.httpbin.https_url}/get"))
+                responses.append(await s.get(f"{self.httpbin.https_url}/delay/5"))
 
             return responses
 
@@ -125,7 +131,7 @@ class TestAsyncWithoutMultiplex:
         assert all(r.status_code == 200 for r in responses_foo + responses_bar)
 
     async def test_with_async_iterable(self):
-        async with AsyncSession() as s:
+        async with AsyncSession(**self.session_kwargs) as s:
 
             async def fake_aiter():
                 await asyncio.sleep(0.01)
@@ -133,44 +139,27 @@ class TestAsyncWithoutMultiplex:
                 await asyncio.sleep(0.01)
                 yield b"bar"
 
-            r = await s.post("https://httpbingo.org/post", data=fake_aiter())
+            r = await s.post(f"{self.httpbin.https_url}/post", data=fake_aiter())
 
             assert r.status_code == 200
             assert r.json()["data"] == "data:application/octet-stream;base64,Zm9vYmFy"
 
     async def test_with_async_auth(self):
-        async with AsyncSession() as s:
+        async with AsyncSession(**self.session_kwargs) as s:
 
             async def fake_aauth(p):
                 await asyncio.sleep(0.01)
                 p.headers["X-Async-Auth"] = "foobar"
                 return p
 
-            r = await s.get("https://httpbingo.org/get", auth=fake_aauth)
+            r = await s.get(f"{self.httpbin.https_url}/get", auth=fake_aauth)
 
             assert r.status_code == 200
             assert "X-Async-Auth" in r.json()["headers"]
 
-    async def test_early_response(self) -> None:
-        received_early_response: bool = False
-
-        async def callback_on_early(early_resp) -> None:
-            nonlocal received_early_response
-            if early_resp.status_code == 103:
-                received_early_response = True
-
-        async with AsyncSession() as s:
-            resp = await s.get(
-                "https://early-hints.fastlylabs.com/",
-                hooks={"early_response": [callback_on_early]},
-            )
-
-            assert resp.status_code == 200
-            assert received_early_response is True
-
     async def test_iter_line(self) -> None:
-        async with AsyncSession() as s:
-            r = await s.get("https://httpbingo.org/html", stream=True)
+        async with AsyncSession(**self.session_kwargs) as s:
+            r = await s.get(f"{self.httpbin.https_url}/html", stream=True)
             content = b""
 
             async for line in r.iter_lines():
@@ -181,8 +170,8 @@ class TestAsyncWithoutMultiplex:
             assert b"Herman Melville - Moby-Dick" in content
 
     async def test_iter_line_decode(self) -> None:
-        async with AsyncSession() as s:
-            r = await s.get("https://httpbingo.org/html", stream=True)
+        async with AsyncSession(**self.session_kwargs) as s:
+            r = await s.get(f"{self.httpbin.https_url}/html", stream=True)
             content = ""
 
             async for line in r.iter_lines(decode_unicode=True):
@@ -193,19 +182,19 @@ class TestAsyncWithoutMultiplex:
             assert "Herman Melville - Moby-Dick" in content
 
     async def test_explicit_close_in_streaming_response(self) -> None:
-        async with AsyncSession() as s:
+        async with AsyncSession(**self.session_kwargs) as s:
             try:
-                r = await s.get("https://httpbingo.org/html", stream=True)
+                r = await s.get(f"{self.httpbin.https_url}/html", stream=True)
             finally:
                 await r.close()
 
     async def test_post_awaitable_body_seek_tell(self) -> None:
-        async with AsyncSession() as s:
+        async with AsyncSession(**self.session_kwargs) as s:
             async with NamedTemporaryFile() as fp:
                 await fp.write(b"foobar" * 128)
                 await fp.seek(0)
 
-                r = await s.post("https://httpbingo.org/post", data=fp)
+                r = await s.post(f"{self.httpbin.https_url}/post", data=fp)
 
                 assert r.request._body_position == 0
 
@@ -221,44 +210,50 @@ class TestAsyncWithoutMultiplex:
             nonlocal call_count
             call_count += 1
 
-        async with AsyncSession() as s:
+        async with AsyncSession(**self.session_kwargs) as s:
             req = niquests.Request(
                 "GET",
-                "https://httpbingo.org/get",
+                f"{self.httpbin.https_url}/get",
                 hooks={"pre_request": [hook]},
             )
-            await s.send(req.prepare())
+            await s.send(req.prepare(), verify=self.ca_bundle)
 
             assert call_count == 1
 
             # Ensure no double-dispatch through the high-level API.
             call_count = 0
-            await s.get("https://httpbingo.org/get", hooks={"pre_request": [hook]})
+            await s.get(f"{self.httpbin.https_url}/get", hooks={"pre_request": [hook]})
             assert call_count == 1
 
 
-@pytest.mark.usefixtures("requires_wan")
+@pytest.mark.usefixtures("requires_traefik_tls")
 @pytest.mark.asyncio
 class TestAsyncWithMultiplex:
+    @pytest.fixture(autouse=True)
+    def configure_local_stack(self, local_httpbin, traefik_resolver, traefik_ca_bundle):
+        self.httpbin = local_httpbin
+        self.ca_bundle = traefik_ca_bundle
+        self.session_kwargs = {"resolver": traefik_resolver, "verify": traefik_ca_bundle}
+
     async def test_awaitable_get(self):
-        async with AsyncSession(multiplexed=True) as s:
-            resp = await s.get("https://httpbingo.org/get")
+        async with AsyncSession(multiplexed=True, **self.session_kwargs) as s:
+            resp = await s.get(f"{self.httpbin.https_url}/get")
 
             assert resp.lazy is True
             await s.gather()
             assert resp.status_code == 200
 
     async def test_awaitable_redirect_with_lazy(self):
-        async with AsyncSession(multiplexed=True) as s:
-            resp = await s.get("https://httpbingo.org/redirect/3")
+        async with AsyncSession(multiplexed=True, **self.session_kwargs) as s:
+            resp = await s.get(f"{self.httpbin.https_url}/redirect/3")
 
             assert resp.lazy is True
             await s.gather()
             assert resp.status_code == 200
 
     async def test_awaitable_redirect_direct_access_with_lazy(self):
-        async with AsyncSession(multiplexed=True) as s:
-            resp = await s.get("https://httpbingo.org/redirect/3")
+        async with AsyncSession(multiplexed=True, **self.session_kwargs) as s:
+            resp = await s.get(f"{self.httpbin.https_url}/redirect/3")
 
             assert resp.lazy is True
 
@@ -272,8 +267,8 @@ class TestAsyncWithMultiplex:
             assert all(isinstance(_, Response) for _ in resp.history)
 
     async def test_awaitable_stream_redirect_direct_access_with_lazy(self):
-        async with AsyncSession(multiplexed=True) as s:
-            resp = await s.get("https://httpbingo.org/redirect/3", stream=True)
+        async with AsyncSession(multiplexed=True, **self.session_kwargs) as s:
+            resp = await s.get(f"{self.httpbin.https_url}/redirect/3", stream=True)
 
             assert isinstance(resp, AsyncResponse)
             assert resp.lazy is True
@@ -287,8 +282,8 @@ class TestAsyncWithMultiplex:
             assert all(isinstance(_, Response) for _ in resp.history)
 
     async def test_awaitable_get_direct_access_lazy(self):
-        async with AsyncSession(multiplexed=True) as s:
-            resp = await s.get("https://httpbingo.org/get")
+        async with AsyncSession(multiplexed=True, **self.session_kwargs) as s:
+            resp = await s.get(f"{self.httpbin.https_url}/get")
 
             assert resp.lazy is True
             assert isinstance(resp, Response)
@@ -299,7 +294,7 @@ class TestAsyncWithMultiplex:
             await s.gather(resp)
             assert resp.status_code == 200
 
-            resp = await s.get("https://httpbingo.org/get", stream=True)
+            resp = await s.get(f"{self.httpbin.https_url}/get", stream=True)
 
             assert isinstance(resp, AsyncResponse)
 
@@ -313,9 +308,9 @@ class TestAsyncWithMultiplex:
         async def emit():
             responses = []
 
-            async with AsyncSession(multiplexed=True) as s:
-                responses.append(await s.get("https://httpbingo.org/get"))
-                responses.append(await s.get("https://httpbingo.org/delay/5"))
+            async with AsyncSession(multiplexed=True, **self.session_kwargs) as s:
+                responses.append(await s.get(f"{self.httpbin.https_url}/get"))
+                responses.append(await s.get(f"{self.httpbin.https_url}/delay/5"))
 
                 await s.gather()
 
@@ -333,24 +328,24 @@ class TestAsyncWithMultiplex:
         assert all(r.status_code == 200 for r in responses_foo + responses_bar)
 
     async def test_with_stream_json(self):
-        async with AsyncSession() as s:
-            r = await s.get("https://httpbingo.org/get", stream=True)
+        async with AsyncSession(**self.session_kwargs) as s:
+            r = await s.get(f"{self.httpbin.https_url}/get", stream=True)
             assert isinstance(r, AsyncResponse)
             assert r.ok
             payload = await r.json()
             assert payload
 
     async def test_with_stream_text(self):
-        async with AsyncSession() as s:
-            r = await s.get("https://httpbingo.org/get", stream=True)
+        async with AsyncSession(**self.session_kwargs) as s:
+            r = await s.get(f"{self.httpbin.https_url}/get", stream=True)
             assert isinstance(r, AsyncResponse)
             assert r.ok
             payload = await r.text
             assert payload is not None
 
     async def test_with_stream_iter_decode(self):
-        async with AsyncSession() as s:
-            r = await s.get("https://httpbingo.org/get", stream=True)
+        async with AsyncSession(**self.session_kwargs) as s:
+            r = await s.get(f"{self.httpbin.https_url}/get", stream=True)
             assert isinstance(r, AsyncResponse)
             assert r.ok
             payload = ""
@@ -361,8 +356,8 @@ class TestAsyncWithMultiplex:
             assert json.loads(payload)
 
     async def test_with_stream_iter_raw(self):
-        async with AsyncSession() as s:
-            r = await s.get("https://httpbingo.org/get", stream=True)
+        async with AsyncSession(**self.session_kwargs) as s:
+            r = await s.get(f"{self.httpbin.https_url}/get", stream=True)
             assert isinstance(r, AsyncResponse)
             assert r.ok
             payload = b""
@@ -376,9 +371,9 @@ class TestAsyncWithMultiplex:
         async def emit():
             responses = []
 
-            async with AsyncSession(multiplexed=True) as s:
-                responses.append(await s.get("https://httpbingo.org/get", stream=True))
-                responses.append(await s.get("https://httpbingo.org/delay/5", stream=True))
+            async with AsyncSession(multiplexed=True, **self.session_kwargs) as s:
+                responses.append(await s.get(f"{self.httpbin.https_url}/get", stream=True))
+                responses.append(await s.get(f"{self.httpbin.https_url}/delay/5", stream=True))
 
                 await s.gather()
 
@@ -398,13 +393,33 @@ class TestAsyncWithMultiplex:
 
         assert all(r.status_code == 200 for r in responses_foo + responses_bar)
 
-    @pytest.mark.skipif(os.environ.get("CI") is None, reason="Worth nothing locally")
-    async def test_happy_eyeballs(self) -> None:
-        """A bit of context, this test, running it locally does not get us
-        any confidence about Happy Eyeballs. This test is valuable in Github CI where IPv6 addresses are unreachable.
-        We're using a custom DNS resolver that will yield the IPv6 addresses and IPv4 ones.
-        If this hang in CI, then you did something wrong...!"""
-        async with AsyncSession(resolver="doh+cloudflare://", happy_eyeballs=True) as s:
-            r = await s.get("https://httpbingo.org/get")
 
-            assert r.ok
+@pytest.mark.asyncio
+@pytest.mark.usefixtures("requires_wan")
+async def test_async_early_response() -> None:
+    received_early_response: bool = False
+
+    async def callback_on_early(early_resp) -> None:
+        nonlocal received_early_response
+        if early_resp.status_code == 103:
+            received_early_response = True
+
+    async with AsyncSession() as s:
+        resp = await s.get(
+            "https://early-hints.fastlylabs.com/",
+            hooks={"early_response": [callback_on_early]},
+        )
+
+        assert resp.status_code == 200
+        assert received_early_response is True
+
+
+@pytest.mark.asyncio
+@pytest.mark.skipif(os.environ.get("CI") is None, reason="Worth nothing locally")
+@pytest.mark.usefixtures("requires_wan")
+async def test_async_happy_eyeballs() -> None:
+    """Exercise Happy Eyeballs where CI has IPv6 addresses but no IPv6 route."""
+    async with AsyncSession(resolver="doh+cloudflare://", happy_eyeballs=True) as s:
+        r = await s.get("https://httpbingo.org/get")
+
+        assert r.ok

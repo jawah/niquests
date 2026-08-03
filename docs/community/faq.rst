@@ -1,11 +1,11 @@
 .. _faq:
 
-Frequently Asked Questions
+Frequently asked questions
 ==========================
 
 This part of the documentation answers common questions about Niquests.
 
-Encoded Data?
+Encoded data?
 -------------
 
 Niquests automatically decompresses gzip-encoded responses, and does
@@ -47,78 +47,163 @@ Python 3 already includes native support for SNI in their SSL modules.
 What is "urllib3.future"?
 -------------------------
 
-It is a fork of the well-known **urllib3** library. Niquests would not have been
-able to deliver its feature set on top of the existing **urllib3** library.
+**urllib3.future** is an independently maintained fork of **urllib3**. Preserving
+urllib3's synchronous API is a compatibility requirement, while the fork adds the
+HTTP/2, HTTP/3, async, and transport capabilities required by Niquests.
 
-**urllib3.future** is independent, managed separately, and fully compatible with
-its counterpart (API-wise).
+.. _urllib3-future-namespace:
 
-Shadow-Naming
-~~~~~~~~~~~~~
+Why urllib3.future provides the urllib3 namespace
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Your environment may or may not include the legacy urllib3 package in addition to urllib3.future.
-So doing::
+Installing the default urllib3.future wheel intentionally makes this import resolve to
+urllib3.future::
 
     import urllib3
 
-By default, it will be ``urllib3-future`` sitting there.
+This selection applies to the Python environment, so other packages there that import
+``urllib3`` receive urllib3.future too.
 
-.. note:: This behavior is not mandatory. You can circumvent it with a simple command. See below (Cohabitation).
+Niquests is intended to remain compatible with Requests and its extension ecosystem.
+Many integrations import urllib3 directly, exchange urllib3 exceptions and response
+objects, or rely on type identity. A separate namespace preserves isolation but gives up
+part of that compatibility. Python packaging has no standard way for one distribution to
+declare itself a compatible replacement for another, so namespace selection must happen
+somewhere.
 
-The first reaction is usually instinctive: *software should not silently replace other software in my environment.*
-That feels like a firm principle - and a reasonable one.
+.. note:: Namespace replacement is the default, not a requirement. `Cohabitation`_
+   keeps upstream urllib3 and urllib3.future under separate namespaces.
 
-But then the question becomes: what's the alternative?
+We tried upstream first
+^^^^^^^^^^^^^^^^^^^^^^^
 
-**Contributing upstream?** That was attempted. A pull request bringing HTTP/2 support to urllib3 sat without review for months. The door wasn't open for our proposal.
+Forking was not our first choice. In May 2023 we submitted an `experimental urllib3 PR
+<https://github.com/urllib3/urllib3/pull/3030>`_ for HTTP/1.1, HTTP/2, and HTTP/3 outside
+:mod:`http.client`. It preserved the existing backend by default while exploring an optional,
+unified protocol backend.
 
-**A separate namespace?** Over 100 packages call ``import urllib3`` directly in their source code. Forking the entire ecosystem isn't viable.
+Seth Larson was the only urllib3 maintainer to engage substantively with its architecture.
+We carefully answered the concerns raised, but the central alternative-backend proposal
+was never debated to a conclusion. Our `final technical report
+<https://github.com/urllib3/urllib3/pull/3030#issuecomment-1594403788>`_ was acknowledged,
+then received no detailed public follow-up.
 
-**An opt-in extra, like** ``pip install urllib3-future[override]`` **?** If any single dependency in the tree activates it, every other package in the environment is affected. Same outcome, false sense of consent.
+The contrast became clear later that year. A similarly sized `Emscripten transport PR
+<https://github.com/urllib3/urllib3/pull/3195>`_ received 60 inline comments from multiple
+maintainers and merged as experimental work in nine days. That contribution deserved its
+support; its reception also showed which work the project was prepared to prioritize. We
+took the difference as a signal to continue independently.
 
-**A public** ``inject_into_urllib3()`` **function?** That's a ``sys.modules`` hack hiding inside application code, triggered by import order, invisible unless you go hunting for it. Strictly worse.
+Months later, upstream found urllib3.future and opened an `upstreaming request
+<https://github.com/jawah/urllib3.future/issues/46>`_ before having read the project
+completely, only guessing that it continued our earlier PR. In January 2024, upstream
+announced a `roughly $40,000 fundraiser for HTTP/2
+<https://sethmlarson.dev/urllib3-is-fundraising-for-http2-support>`_. We respect the need
+to fund sustainable open source; the timeline also confirmed that waiting would not have
+delivered the protocol support Niquests needed.
 
-**Why not a warning printed out to stderr?** This was considered, but printing a warning on every import would pollute stderr in ways that quickly become untenable.
-Long-running applications, CI pipelines, and containerized services would accumulate massive volumes of repeated warnings, one for every process, every worker, every restart.
-In sub-interpreter environments, each subinterpreter would emit its own copy of the warning, multiplying the noise further.
-Many monitoring and logging systems treat unexpected stderr output as a signal that something is wrong, which would generate false alerts at scale.
-A warning also creates the worst middle ground: it doesn't prevent the override from happening, it doesn't give the user a mechanism to act on it inline, and it
-trains developers to ignore it, the same fatigue that makes deprecation warnings invisible after the first occurrence.
+How compatibility is protected
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-*Every path leads to the same destination.* The only difference is where the redirection happens and how easy it is to find. The ``.pth`` approach we implemented is deterministic - it runs before
-any user code, lives in one inspectable file in ``site-packages``, and supports a clean opt-out via ``URLLIB3_NO_OVERRIDE=1`` at install time. Of all the options, it's the most transparent.
+Compatibility is a release requirement, not an assumption. Changes are checked through:
 
-The discomfort is understandable. But it assumes a packaging system that supports package replacement natively - and Python's doesn't.
-When the principle collides with a hard ecosystem constraint, pragmatism has to win. Especially when the pragmatic choice is also the most auditable one.
+- The inherited urllib3 test suite.
+- The actual test suites of Requests, Niquests, botocore, boto3, Sphinx, docker-py, and
+  clickhouse-connect.
+- HTTP/1.1, HTTP/2, and HTTP/3 integration tests against independent Traefik and
+  go-httpbin servers.
+- Regular synchronization of applicable upstream bug fixes and security patches.
 
-What tends to happen in practice is this: once the override is understood, most developers choose to keep it.
+These checks run continuously, and downstream compatibility regressions are priority
+bugs. They cannot guarantee every private integration, especially one using undocumented
+internals, but they make compatibility measurable rather than aspirational.
 
-The HTTP/2 and HTTP/3 support alone justifies it, and the compatibility story - we actually run the actual test suites of Requests, botocore, boto3, Sphinx, docker-py, and others on
-every push on top of urllib3-future, this builds genuine confidence that nothing will break.
+Alternatives we considered
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The alternatives below are evaluated against one requirement: existing code using
+``import urllib3`` should remain compatible by default.
+
+**Contribute upstream?** We tried first, as documented above.
+
+**Use only a separate namespace?** This is available through `Cohabitation`_, but packages
+that import ``urllib3`` directly will not receive urllib3.future objects or improvements.
+
+**Use an opt-in extra?** If one transitive dependency enables an override extra, every
+package in the environment is still affected. It produces the same global result with a
+false sense of local consent.
+
+**Expose** ``inject_into_urllib3()`` **?** Runtime injection mutates :data:`sys.modules`, makes
+behavior depend on import order, and hides namespace selection inside application code.
+
+**Manipulate path precedence at runtime?** This is harder for users, IDEs, and type
+checkers to inspect and reason about.
+
+Every approach that preserves transparent ``import urllib3`` compatibility reaches the
+same destination: environment-wide namespace selection. The practical question is where
+that selection occurs and whether it is deterministic, inspectable, and reversible.
+
+The default wheel uses one `inspectable .pth file
+<https://github.com/jawah/urllib3.future/blob/main/urllib3_future.pth>`_ before application
+imports begin. This avoids import-order-dependent patching and leaves the environment in
+one deterministic state. Of the mechanisms we found that preserve compatibility by
+default, it is the most transparent and auditable. Installation can opt out through
+``URLLIB3_NO_OVERRIDE=1`` as described below.
+
+**Why not emit a warning?** A warning would not repeat for every import in one interpreter,
+but it would appear for every new CLI invocation, worker process, short-lived job,
+container restart, and applicable subinterpreter. At scale, that becomes persistent
+operational noise. It also arrives too late to offer a useful choice: namespace selection
+must happen before imports and cannot safely be reversed inside the running process.
+
+Real-world exposure
+^^^^^^^^^^^^^^^^^^^
+
+At the time of writing, `urllib3.future receives nearly two million downloads per month
+<https://www.pepy.tech/projects/urllib3-future>`_. Download counts include CI and
+transitive installations, so they are not unique users or proof of consent. They do show
+broad real-world exposure, while reported namespace-related compatibility failures remain
+rare.
 
 Using urllib3 within Niquests
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-If you are using Niquests alongside urllib3-future, prefer importing urllib3 through Niquests
-rather than directly::
+Niquests extensions should import urllib3 through Niquests::
 
     from niquests.packages import urllib3
 
-This ensures smoother upgrades in the future when important changes are made.
+This binds the extension to the implementation selected by Niquests. It also avoids an
+unnecessary dependency on today's namespace mechanism if a future major release no longer
+needs it.
 
 Audit
 ^^^^^
 
-Anyone can freely analyze urllib3-future, its practices, sources, workflows ci/cd, sigstore signature, and so on.
-More details about the project history and more advanced topics are directly addressed there.
+The implementation and its controls are public:
 
-Visit https://github.com/jawah/urllib3.future
+- `Source and history <https://github.com/jawah/urllib3.future>`_
+- `Main CI <https://github.com/jawah/urllib3.future/blob/main/.github/workflows/ci.yml>`_
+- `Downstream integration CI <https://github.com/jawah/urllib3.future/blob/main/.github/workflows/integration.yml>`_
+- `CodeQL <https://github.com/jawah/urllib3.future/blob/main/.github/workflows/codeql.yml>`_
+- `OpenSSF Scorecard workflow <https://github.com/jawah/urllib3.future/blob/main/.github/workflows/scorecards.yml>`_
+- `Changelog <https://github.com/jawah/urllib3.future/blob/main/CHANGES.rst>`_
+- `Signed release artifacts and provenance <https://github.com/jawah/urllib3.future/releases>`_
+
+Google also includes urllib3-future in its `Assured Open Source Software premium-tier
+catalog <https://cloud.google.com/security-command-center/docs/aoss-supported-packages-premium>`_.
+Assured OSS provides Google-built and signed artifacts with provenance and security
+metadata. This applies to artifacts distributed through Google's service; it is not an
+endorsement of every project decision or a substitute for evaluating the PyPI release.
+
+.. _urllib3-future-cohabitation:
 
 Cohabitation
 ~~~~~~~~~~~~
 
-You may have both urllib3 and urllib3.future installed if wished.
-Niquests will use the secondary entrypoint for urllib3.future internally.
+Environments that prioritize namespace isolation over maximum Requests-extension
+compatibility can install both packages. Niquests then uses the ``urllib3_future`` entry
+point internally, while independent ``import urllib3`` statements continue to receive
+upstream urllib3.
 
 .. tab:: pip
 
@@ -128,7 +213,7 @@ Niquests will use the secondary entrypoint for urllib3.future internally.
 
 .. tab:: Poetry
 
-    Option 1)
+    Configure the project, then install:
 
     .. code-block::
 
@@ -136,7 +221,7 @@ Niquests will use the secondary entrypoint for urllib3.future internally.
         $ poetry config --local installer.no-binary urllib3-future
         $ poetry add niquests
 
-    Option 2)
+    Or use one command:
 
     .. code-block::
 
@@ -144,13 +229,13 @@ Niquests will use the secondary entrypoint for urllib3.future internally.
 
 .. tab:: PDM
 
-    Option 1)
+    Use one command:
 
     .. code-block::
 
         $ URLLIB3_NO_OVERRIDE=1 PDM_NO_BINARY=urllib3-future pdm add niquests
 
-    Option 2) Add to your pyproject.toml metadata
+    Or add this to ``pyproject.toml``:
 
     .. code-block:: toml
 
@@ -166,7 +251,7 @@ Niquests will use the secondary entrypoint for urllib3.future internally.
 
 .. tab:: UV
 
-    Add to your pyproject.toml metadata
+    Add this to ``pyproject.toml``:
 
     .. code-block:: toml
 
@@ -180,11 +265,11 @@ Niquests will use the secondary entrypoint for urllib3.future internally.
         $ export URLLIB3_NO_OVERRIDE=1
         $ uv add niquests
 
-It does not change anything for you. You may still pass ``urllib3.Retry`` and
-``urllib3.Timeout`` regardless of the cohabitation, Niquests will do
-the translation internally.
-
-.. warning:: Separate namespace for urllib3 and urllib3-future can disturb the backward compatibility with Requests, especially with 3rd party plugins/extensions. Feel free to open an issue if you encounter compatibility bugs.
+Niquests translates supported :class:`urllib3.Retry <urllib3.util.Retry>` and
+:class:`urllib3.Timeout <urllib3.util.Timeout>` objects across
+the boundary. Third-party Requests extensions that import urllib3 directly may not share
+urllib3.future's types or behavior in this configuration; that is the deliberate tradeoff
+for strict namespace separation.
 
 Why are my headers are lowercased?
 ----------------------------------
@@ -192,7 +277,7 @@ Why are my headers are lowercased?
 This may come as a surprise for some of you. Until Requests-era, header keys could arrive
 as they were originally sent (case-sensitive). This is possible thanks to HTTP/1.1 protocol.
 Nonetheless, RFCs specifies that header keys are *case-insensible*, that's why both Requests
-and Niquests ships with ``CaseInsensitiveDict`` class.
+and Niquests ships with :class:`~niquests.structures.CaseInsensitiveDict`.
 
 So why did we alter it then?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -204,8 +289,10 @@ Can we revert this behavior? Any fallback?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Yes... kind of!
-Niquests ships with a nice alternative to ``CaseInsensitiveDict`` that is ``kiss_headers.Headers``.
-You may access it through the ``oheaders`` property of your usual Response, Request and PreparedRequest.
+Niquests ships with a nice alternative to
+:class:`~niquests.structures.CaseInsensitiveDict` that is ``kiss_headers.Headers``.
+You may access it through the :attr:`oheaders <niquests.Response.oheaders>` property of
+your usual Response, Request and PreparedRequest.
 
 Am I obligated to install qh3?
 ------------------------------
@@ -236,53 +323,94 @@ encoded certificate.
 
 If none of those seems related to your situation, feel free to open an issue at https://github.com/jawah/niquests/issues
 
-Why HTTP/2 and HTTP/3 seems slower than HTTP/1.1?
--------------------------------------------------
+Why do HTTP/2 and HTTP/3 seem slower than HTTP/1.1?
+----------------------------------------------------
 
-Because you are not leveraging its potential properly. Most of the time, developers tend to
-make a request and immediately consume the response afterward. Let's call that making OneToOne requests.
-HTTP/2, and HTTP/3 both requires more computational power for a single request than HTTP/1.1 (in OneToOne context).
-The true reason for them to exist, is not the OneToOne scenario.
+A newer HTTP version does not make serial application code concurrent. If an
+application submits one request, waits for and consumes its response, and only then
+submits the next request, it keeps just one exchange in flight. That pattern cannot
+benefit much from stream multiplexing.
 
-So, how to remedy that?
+For a small serial workload, cold-connection setup, protocol discovery and negotiation,
+framing, and implementation overhead can outweigh any measurable gain. HTTP/2 and
+HTTP/3 are most effective when a reused connection carries several independent
+exchanges concurrently. They also provide benefits beyond concurrency, including header
+compression and, with HTTP/3, avoiding transport-level head-of-line blocking between
+streams.
 
-You have multiple choices:
+Niquests supports two straightforward ways to place several requests in flight.
 
-1. Using multiplexing in a synchronous context or asynchronous
-2. Starting threads
-3. Using async with concurrent tasks
+.. tab:: 🔀 Async Tasks
 
-This example will quickly demonstrate, how to utilize and leverage your HTTP/2 connection with ease::
+    Keep the default ``multiplexed=False`` behavior and schedule ordinary request
+    coroutines concurrently with :func:`asyncio.gather`:
 
-    from time import time
-    from niquests import Session
+    .. code:: python
 
-    #: You can adjust it as you want and verify the multiplexed advantage!
-    REQUEST_COUNT = 10
-    REQUEST_URL = "https://httpbin.org/delay/1"
+        import asyncio
 
-    def make_requests(url: str, count: int, use_multiplexed: bool):
-      before = time()
+        from niquests import AsyncSession
 
-      responses = []
 
-      with Session(multiplexed=use_multiplexed) as s:
-        for _ in range(count):
-          responses.append(s.get(url))
-          print(f"request {_+1}...OK")
-        print([r.status_code for r in responses])
+        async def main() -> None:
+            url = "https://httpbingo.org/delay/1"
 
-      print(
-          f"{time() - before} seconds elapsed ({'multiplexed' if use_multiplexed else 'standard'})"
-      )
+            async with AsyncSession() as session:
+                requests = [session.get(url) for _ in range(10)]
+                responses = await asyncio.gather(*requests)
 
-    #: Let's start with the same good old request one request at a time.
-    print("> Without multiplexing:")
-    make_requests(REQUEST_URL, REQUEST_COUNT, False)
-    #: Now we'll take advantage of a multiplexed connection.
-    print("> With multiplexing:")
-    make_requests(REQUEST_URL, REQUEST_COUNT, True)
+            print([response.status_code for response in responses])
 
-.. note:: This piece of code demonstrate how to emit concurrent requests in a synchronous context without threads and async.
 
-We would gladly discuss potential implementations if needed, just open a new issue at https://github.com/jawah/niquests/issues
+        asyncio.run(main())
+
+    Each task waits for its own eager response, but the event loop lets the requests
+    progress concurrently. With HTTP/2 or HTTP/3, the exchanges can use independent
+    streams on one connection. HTTP/1.1 can also benefit by using multiple pooled
+    connections, so an improvement here demonstrates concurrency rather than proving
+    that one protocol is inherently faster.
+
+.. tab:: 🔂 Sync Lazy Responses
+
+    In synchronous code, enable lazy responses with ``multiplexed=True``. Submit every
+    request before resolving any response:
+
+    .. code:: python
+
+        from niquests import Session
+
+
+        url = "https://httpbingo.org/delay/1"
+
+        with Session(multiplexed=True) as session:
+            responses = [session.get(url) for _ in range(10)]
+
+            session.gather(*responses)
+            print([response.status_code for response in responses])
+
+    The option name is historical: ``multiplexed=True`` does not enable HTTP/2 or
+    HTTP/3 and does not alter protocol negotiation. It returns lazy, promise-backed
+    responses so multiple requests can be submitted before synchronous code waits for
+    their results.
+
+.. warning:: Do not inspect a lazy response inside the submission loop. Accessing
+   :attr:`~niquests.Response.status_code`, headers, or body data resolves that response immediately and can
+   serialize the workload again. Submit all requests first, then call
+   :meth:`~niquests.Session.gather` or inspect the responses.
+
+Do not confuse :func:`asyncio.gather` with
+:meth:`AsyncSession.gather <niquests.AsyncSession.gather>`. :func:`asyncio.gather`
+schedules ordinary async request coroutines concurrently.
+:meth:`AsyncSession.gather <niquests.AsyncSession.gather>`
+resolves lazy responses and has an effect only when the session was created with
+``multiplexed=True``.
+
+These examples demonstrate scheduling patterns, not a protocol benchmark. For a useful
+HTTP-version comparison:
+
+- Reuse a session and decide whether cold-connection setup belongs in the measurement.
+- Verify the negotiated protocol through :attr:`Response.http_version
+  <niquests.Response.http_version>`; HTTP/3 discovery may occur after an initial request.
+- Use equivalent concurrency and consume every response body in each test.
+- Account for DNS, TLS, QUIC discovery, ``Alt-Svc``, server limits, and network variance.
+- Repeat the measurement instead of drawing conclusions from a single run.

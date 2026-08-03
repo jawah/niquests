@@ -5,16 +5,21 @@ import pytest
 from niquests import Session
 
 
-@pytest.mark.usefixtures("requires_wan")
+@pytest.mark.usefixtures("requires_traefik_tls")
 class TestMultiplexed:
+    @pytest.fixture(autouse=True)
+    def configure_local_stack(self, local_httpbin, traefik_resolver, traefik_ca_bundle):
+        self.httpbin = local_httpbin
+        self.session_kwargs = {"resolver": traefik_resolver, "verify": traefik_ca_bundle}
+
     def test_concurrent_request_in_sync(self):
         responses = []
 
-        with Session(multiplexed=True) as s:
-            responses.append(s.get("https://httpbingo.org/delay/3"))
-            responses.append(s.get("https://httpbingo.org/delay/1"))
-            responses.append(s.get("https://httpbingo.org/delay/1"))
-            responses.append(s.get("https://httpbingo.org/delay/3"))
+        with Session(multiplexed=True, **self.session_kwargs) as s:
+            responses.append(s.get(f"{self.httpbin.https_url}/delay/3"))
+            responses.append(s.get(f"{self.httpbin.https_url}/delay/1"))
+            responses.append(s.get(f"{self.httpbin.https_url}/delay/1"))
+            responses.append(s.get(f"{self.httpbin.https_url}/delay/3"))
 
             assert all(r.lazy for r in responses)
 
@@ -24,28 +29,28 @@ class TestMultiplexed:
         assert all(r.status_code == 200 for r in responses)
 
     def test_redirect_with_multiplexed(self):
-        with Session(multiplexed=True) as s:
-            resp = s.get("https://httpbingo.org/redirect/3")
+        with Session(multiplexed=True, **self.session_kwargs) as s:
+            resp = s.get(f"{self.httpbin.https_url}/redirect/3")
             assert resp.lazy
             s.gather()
 
             assert resp.status_code == 200
-            assert resp.url == "https://httpbingo.org/get"
+            assert resp.url == f"{self.httpbin.https_url}/get"
             assert len(resp.history) == 3
 
     def test_redirect_with_multiplexed_direct_access(self):
-        with Session(multiplexed=True) as s:
-            resp = s.get("https://httpbingo.org/redirect/3")
+        with Session(multiplexed=True, **self.session_kwargs) as s:
+            resp = s.get(f"{self.httpbin.https_url}/redirect/3")
             assert resp.lazy
 
             assert resp.status_code == 200
-            assert resp.url == "https://httpbingo.org/get"
+            assert resp.url == f"{self.httpbin.https_url}/get"
             assert len(resp.history) == 3
             assert resp.json()
 
     def test_lazy_access_sync_mode(self):
-        with Session(multiplexed=True) as s:
-            resp = s.get("https://httpbingo.org/headers")
+        with Session(multiplexed=True, **self.session_kwargs) as s:
+            resp = s.get(f"{self.httpbin.https_url}/headers")
             assert resp.lazy
 
             assert resp.status_code == 200
@@ -53,11 +58,11 @@ class TestMultiplexed:
     def test_post_data_with_multiplexed(self):
         responses = []
 
-        with Session(multiplexed=True) as s:
+        with Session(multiplexed=True, **self.session_kwargs) as s:
             for i in range(5):
                 responses.append(
                     s.post(
-                        "https://httpbingo.org/post",
+                        f"{self.httpbin.https_url}/post",
                         data=b"foo" * 128,
                     )
                 )
@@ -69,8 +74,8 @@ class TestMultiplexed:
         assert all(r.json()["data"] != "" for r in responses)
 
     def test_get_stream_with_multiplexed(self):
-        with Session(multiplexed=True) as s:
-            resp = s.get("https://httpbingo.org/headers", stream=True)
+        with Session(multiplexed=True, **self.session_kwargs) as s:
+            resp = s.get(f"{self.httpbin.https_url}/headers", stream=True)
             assert resp.lazy
 
             assert resp.status_code == 200
@@ -90,9 +95,9 @@ class TestMultiplexed:
     def test_one_at_a_time(self):
         responses = []
 
-        with Session(multiplexed=True) as s:
+        with Session(multiplexed=True, **self.session_kwargs) as s:
             for _ in [3, 1, 3, 5]:
-                responses.append(s.get(f"https://httpbingo.org/delay/{_}"))
+                responses.append(s.get(f"{self.httpbin.https_url}/delay/{_}"))
 
             assert all(r.lazy for r in responses)
             promise_count = len(responses)
@@ -108,9 +113,9 @@ class TestMultiplexed:
     def test_early_close_no_error(self):
         responses = []
 
-        with Session(multiplexed=True) as s:
+        with Session(multiplexed=True, **self.session_kwargs) as s:
             for _ in [2, 1, 1]:
-                responses.append(s.get(f"https://httpbingo.org/delay/{_}"))
+                responses.append(s.get(f"{self.httpbin.https_url}/delay/{_}"))
 
             assert all(r.lazy for r in responses)
 
@@ -118,21 +123,23 @@ class TestMultiplexed:
         # shutdown.
         assert all([r.json() for r in responses])
 
-    def test_early_response(self) -> None:
-        received_early_response: bool = False
 
-        def callback_on_early(early_resp) -> None:
-            nonlocal received_early_response
-            if early_resp.status_code == 103:
-                received_early_response = True
+@pytest.mark.usefixtures("requires_wan")
+def test_multiplexed_early_response() -> None:
+    received_early_response: bool = False
 
-        with Session(multiplexed=True) as s:
-            resp = s.get(
-                "https://early-hints.fastlylabs.com/",
-                hooks={"early_response": [callback_on_early]},
-            )
+    def callback_on_early(early_resp) -> None:
+        nonlocal received_early_response
+        if early_resp.status_code == 103:
+            received_early_response = True
 
-            assert received_early_response is False
+    with Session(multiplexed=True) as s:
+        resp = s.get(
+            "https://early-hints.fastlylabs.com/",
+            hooks={"early_response": [callback_on_early]},
+        )
 
-            assert resp.status_code == 200
-            assert received_early_response is True
+        assert received_early_response is False
+
+        assert resp.status_code == 200
+        assert received_early_response is True

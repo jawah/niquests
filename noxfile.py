@@ -2,12 +2,194 @@ from __future__ import annotations
 
 import json
 import os
+import platform
 import shutil
+import socket
+import subprocess
+import sys
 import tarfile
+import time
 import urllib.request
+from contextlib import contextmanager
+from http.client import RemoteDisconnected
 from pathlib import Path
+from socket import timeout as SocketTimeout
+from urllib.error import HTTPError, URLError
 
 import nox
+
+
+@contextmanager
+def local_http_stack(session: nox.Session, *, stop_on_exit: bool = True):
+    """Run the local HTTP/1.1, HTTP/2, and HTTP/3 test stack when available."""
+    if os.environ.get("TRAEFIK_HTTPBIN_ENABLE", "true").lower() != "true":
+        yield
+        return
+
+    root = Path.cwd()
+    cert_dir = root / "traefik"
+    certificate = cert_dir / "httpbin.local.pem"
+    private_key = cert_dir / "httpbin.local.pem.key"
+    root_ca = root / "rootCA.pem"
+    required_certificates = (certificate, private_key, root_ca)
+    if not all(path.is_file() for path in required_certificates):
+        for path in required_certificates:
+            if path.exists():
+                path.unlink()
+        session.log("Generating local Traefik certificates")
+        session.run(
+            "python",
+            "-m",
+            "trustme",
+            "-i",
+            "httpbin.local",
+            "alt.httpbin.local",
+            "localhost",
+            "127.0.0.1",
+            "-d",
+            str(cert_dir),
+        )
+        (cert_dir / "server.pem").replace(certificate)
+        (cert_dir / "server.key").replace(private_key)
+        (cert_dir / "client.pem").replace(root_ca)
+
+    revocation_dir = cert_dir / "revocation"
+    revocation_artifacts = (
+        revocation_dir / "root.pem",
+        revocation_dir / "intermediate.pem",
+        revocation_dir / "intermediate.der",
+        revocation_dir / "intermediate.crl",
+        revocation_dir / "good-ocsp.fullchain.pem",
+        revocation_dir / "good-ocsp.key",
+        revocation_dir / "revoked-ocsp.fullchain.pem",
+        revocation_dir / "revoked-ocsp.key",
+        revocation_dir / "good-crl.fullchain.pem",
+        revocation_dir / "good-crl.key",
+        revocation_dir / "revoked-crl.fullchain.pem",
+        revocation_dir / "revoked-crl.key",
+        revocation_dir / "ocsp-responder.pem",
+        revocation_dir / "ocsp-responder.key",
+        revocation_dir / "index.txt",
+    )
+    if not all(path.is_file() for path in revocation_artifacts):
+        session.run("python", "tests/revocation/generate.py")
+
+    is_windows = platform.system() == "Windows"
+    compose_file = "docker-compose.win.yaml" if is_windows else "docker-compose.yaml"
+    if is_windows:
+        checkout = root / "go-httpbin"
+        if not checkout.exists():
+            subprocess.run(
+                ["git", "clone", "--depth", "1", "https://github.com/mccutchen/go-httpbin.git", str(checkout)],
+                check=True,
+            )
+        shutil.copyfile(cert_dir / "patched.Dockerfile", checkout / "patched.Dockerfile")
+
+    if (
+        shutil.which("docker")
+        and subprocess.run(["docker", "compose", "version"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL).returncode
+        == 0
+    ):
+        compose = ["docker", "compose", "-f", compose_file]
+    elif not is_windows and shutil.which("docker-compose"):
+        compose = ["docker-compose", "-f", compose_file]
+    else:
+        message = "Docker Compose is unavailable; local protocol tests will be skipped"
+        if os.environ.get("CI"):
+            session.error(message)
+        session.warn(message)
+        os.environ["TRAEFIK_HTTPBIN_ENABLE"] = "false"
+        yield
+        return
+
+    started = False
+    revocation_processes: list[subprocess.Popen] = []
+    try:
+        for attempt in range(2):
+            result = subprocess.run([*compose, "up", "-d"], check=False)
+            if result.returncode == 0:
+                started = True
+                break
+            if attempt == 0:
+                session.warn("Docker Compose startup failed; retrying in 30 seconds")
+                time.sleep(30)
+        if not started:
+            subprocess.run([*compose, "logs", "--tail=128"], check=False)
+            message = "Docker Compose failed to start the local protocol stack"
+            if os.environ.get("CI"):
+                session.error(message)
+            session.warn(message)
+            os.environ["TRAEFIK_HTTPBIN_ENABLE"] = "false"
+            yield
+            return
+
+        revocation_processes = [
+            subprocess.Popen(
+                [
+                    "openssl",
+                    "ocsp",
+                    "-index",
+                    str(revocation_dir / "index.txt"),
+                    "-CA",
+                    str(revocation_dir / "intermediate.pem"),
+                    "-rsigner",
+                    str(revocation_dir / "ocsp-responder.pem"),
+                    "-rkey",
+                    str(revocation_dir / "ocsp-responder.key"),
+                    "-port",
+                    "8890",
+                    "-nmin",
+                    "10",
+                    "-ignore_err",
+                ]
+            ),
+            subprocess.Popen(
+                [sys.executable, "-m", "http.server", "8891", "--bind", "127.0.0.1", "--directory", str(revocation_dir)],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            ),
+        ]
+        time.sleep(0.2)
+        for port in (8891,):
+            for attempt in range(30):
+                try:
+                    with socket.create_connection(("127.0.0.1", port), timeout=1):
+                        break
+                except OSError:
+                    if attempt == 29:
+                        raise TimeoutError(f"Timed out waiting for local revocation service on port {port}")
+                    time.sleep(0.2)
+
+        stack_ip = os.environ.get("TRAEFIK_HTTPBIN_IPV4", "127.0.0.1")
+        for attempt in range(120):
+            try:
+                response = urllib.request.urlopen(
+                    urllib.request.Request(
+                        f"http://{stack_ip}:8888/get",
+                        headers={"Host": "httpbin.local"},
+                    ),
+                    timeout=1.0,
+                )
+                if response.status == 200:
+                    break
+            except (HTTPError, URLError, RemoteDisconnected, TimeoutError, SocketTimeout, ConnectionError):
+                pass
+            if attempt == 119:
+                subprocess.run([*compose, "logs", "--tail=128"], check=False)
+                raise TimeoutError("Timed out waiting for the local protocol stack")
+            time.sleep(1)
+        session.log("Local protocol stack is ready")
+        yield
+    finally:
+        for process in revocation_processes:
+            process.terminate()
+        for process in revocation_processes:
+            try:
+                process.wait(timeout=5)
+            except subprocess.TimeoutExpired:
+                process.kill()
+        if started and stop_on_exit:
+            subprocess.run([*compose, "stop"], check=False)
 
 
 def tests_impl(
@@ -58,33 +240,43 @@ def tests_impl(
     elif cohabitation is None:
         session.run("python", "-m", "niquests.help")
 
-    session.run(
-        "python",
-        "-m",
-        "coverage",
-        "run",
-        "--parallel-mode",
-        "-m",
-        "pytest",
-        "-v",
-        "-ra",
-        f"--color={'yes' if 'GITHUB_ACTIONS' in os.environ else 'auto'}",
-        "--tb=native",
-        "--durations=10",
-        "--strict-config",
-        "--strict-markers",
-        *pytest_extra_args,
-        *(session.posargs or (("tests/",) if not pytest_extra_args else ())),
-        env={
-            "PYTHONWARNINGS": "always::DeprecationWarning",
-            "NIQUESTS_STRICT_OCSP": "1",
-        },
-    )
+    with local_http_stack(session):
+        session.run(
+            "python",
+            "-m",
+            "coverage",
+            "run",
+            "--parallel-mode",
+            "-m",
+            "pytest",
+            "-v",
+            "-ra",
+            f"--color={'yes' if 'GITHUB_ACTIONS' in os.environ else 'auto'}",
+            "--tb=native",
+            "--durations=10",
+            "--strict-config",
+            "--strict-markers",
+            *pytest_extra_args,
+            *(session.posargs or (("tests/",) if not pytest_extra_args else ())),
+            env={
+                "PYTHONWARNINGS": "always::DeprecationWarning",
+                "TRAEFIK_HTTPBIN_ENABLE": os.environ.get("TRAEFIK_HTTPBIN_ENABLE", "true"),
+                "TRAEFIK_HTTPBIN_IPV4": os.environ.get("TRAEFIK_HTTPBIN_IPV4", "127.0.0.1"),
+            },
+        )
 
 
 @nox.session(python=["3.7", "3.8", "3.9", "3.10", "3.11", "3.12", "3.13", "3.14", "3.15", "pypy3.11"])
 def test(session: nox.Session) -> None:
     tests_impl(session)
+
+
+@nox.session(python="3.13")
+def local_server(session: nox.Session) -> None:
+    """Start the local protocol stack without stopping it on session exit."""
+    session.install("trustme==1.2.1")
+    with local_http_stack(session, stop_on_exit=False):
+        pass
 
 
 @nox.session(
@@ -149,7 +341,7 @@ def emscripten(session: nox.Session, runner: str) -> None:
             session.run("node", "--version", silent=True, external=True),
         )
 
-    session.install("build")
+    session.install("build", "trustme==1.2.1")
 
     # make sure we have a dist dir for pyodide
     pyodide_version = "0.28.1"
@@ -256,7 +448,8 @@ def wasi(session: nox.Session) -> None:
         shutil.rmtree(artifacts)
     artifacts.mkdir()
     wasi_coverage = root / ".coverage.wasi"
-    wasi_coverage.unlink(missing_ok=True)
+    if wasi_coverage.exists():
+        wasi_coverage.unlink()
     old_site_packages = Path(session.cache_dir) / "wasi-urllib3-2.23.900"
     if old_site_packages.exists():
         shutil.rmtree(old_site_packages)
@@ -459,7 +652,22 @@ def wasi(session: nox.Session) -> None:
         "--dir",
         f"{artifacts}::/artifacts",
     ]
-    session.run(wasmtime, "run", "-S", "http", *preopens, str(sync_component), external=True)
+    try:
+        with socket.create_connection(("httpbingo.org", 443), timeout=1):
+            wan_available = True
+    except OSError:
+        wan_available = False
+    session.run(
+        wasmtime,
+        "run",
+        "-S",
+        "http",
+        "--env",
+        f"NIQUESTS_WASI_WAN_AVAILABLE={str(wan_available).lower()}",
+        *preopens,
+        str(sync_component),
+        external=True,
+    )
     session.run(
         wasmtime,
         "run",

@@ -1,4 +1,4 @@
-Vulnerability Disclosure
+Vulnerability disclosure
 ========================
 
 If you think you have found a potential security vulnerability in requests,
