@@ -43,7 +43,9 @@ def issue_leaf(name: str, extension: str) -> None:
         env=env,
     )
     run("x509", "-in", str(issued), "-out", str(certificate))
-    (OUTPUT / f"{name}.fullchain.pem").write_bytes(certificate.read_bytes() + (OUTPUT / "intermediate.pem").read_bytes())
+    fullchain = OUTPUT / f"{name}.fullchain.pem"
+    fullchain.write_bytes(certificate.read_bytes() + (OUTPUT / "intermediate.pem").read_bytes())
+    fullchain.chmod(0o644)
 
 
 def main() -> None:
@@ -52,6 +54,7 @@ def main() -> None:
     if OUTPUT.exists():
         shutil.rmtree(OUTPUT)
     (OUTPUT / "newcerts").mkdir(parents=True)
+    OUTPUT.chmod(0o755)
     (OUTPUT / "index.txt").write_text("")
     (OUTPUT / "serial").write_text("1000\n")
     (OUTPUT / "crlnumber").write_text("1000\n")
