@@ -34,31 +34,31 @@ Supports HTTP/1.1, HTTP/2 and HTTP/3 out-of-the-box without breaking a sweat!
 
 **Behold, the power of Niquests**
 
-.. raw:: html
+.. container:: termy
 
-   <pre class="terminhtml">
-   >>> import niquests
-   >>> s = niquests.Session(resolver="doh+google://")
-   >>> r = s.get('https://pie.dev/basic-auth/user/pass', auth=('user', 'pass'))
-   >>> r.status_code
-   200
-   >>> r.headers['content-type']
-   'application/json; charset=utf-8'
-   >>> r.oheaders.content_type.charset
-   'utf-8'
-   >>> r.encoding
-   'utf-8'
-   >>> r.text
-   '{"authenticated": true, ...'
-   >>> r.json()
-   {'authenticated': True, ...}
-   >>> r
-   &lt;Response HTTP/3 [200]&gt;
-   >>> r.ocsp_verified
-   True
-   >>> r.conn_info.established_latency
-   datetime.timedelta(microseconds=38)
-   </pre>
+   .. code-block:: pycon
+
+      >>> import niquests
+      >>> s = niquests.Session(resolver="doh+google://")
+      >>> r = s.get('https://httpbingo.org/basic-auth/user/pass', auth=('user', 'pass'))
+      >>> r.status_code
+      200
+      >>> r.headers['content-type']
+      'application/json; charset=utf-8'
+      >>> r.oheaders.content_type.charset
+      'utf-8'
+      >>> r.encoding
+      'utf-8'
+      >>> r.text
+      '{"authenticated": true, ...'
+      >>> r.json()
+      {'authenticated': True, ...}
+      >>> r
+      <Response HTTP/3 [200]>
+      >>> r.ocsp_verified
+      True
+      >>> r.conn_info.established_latency
+      datetime.timedelta(microseconds=38)
 
 **Niquests** allows you to send HTTP/1.1, HTTP/2 and HTTP/3 requests extremely easily.
 There's no need to manually add query strings to your

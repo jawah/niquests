@@ -720,14 +720,14 @@ The dictionary is special: it is designed for HTTP fields. According to
 
 So, we can access the headers using any capitalization we want:
 
-.. raw:: html
+.. container:: termy
 
-   <pre class="terminhtml">
-    >>> r.headers['Content-Type']
-    'application/json; charset=utf-8'
-    >>> r.headers.get('content-type')
-    'application/json; charset=utf-8'
-   </pre>
+   .. code-block:: pycon
+
+      >>> r.headers['Content-Type']
+      'application/json; charset=utf-8'
+      >>> r.headers.get('content-type')
+      'application/json; charset=utf-8'
 
 The server can send some fields multiple times with different values. Niquests
 combines fields whose grammar permits comma-separated values so they can be
@@ -738,20 +738,20 @@ cookie APIs.
 In most cases, you may want to access a specific structured field quickly.
 The :attr:`~niquests.Response.oheaders` property exposes parsed headers as objects:
 
-.. raw:: html
+.. container:: termy
 
-   <pre class="terminhtml">
-    >>> r.oheaders.content_type.charset
-    'utf-8'
-    >>> r.oheaders.report_to.max_age
-    '604800'
-    >>> str(r.oheaders.date)
-    'Mon, 02 Oct 2023 05:34:48 GMT'
-    >>> from kiss_headers import get_polymorphic, Date
-    >>> h = get_polymorphic(r.oheaders.date, Date)
-    >>> repr(h.get_datetime())
-    datetime.datetime(2023, 10, 2, 5, 39, 46, tzinfo=datetime.timezone.utc)
-   </pre>
+   .. code-block:: pycon
+
+      >>> r.oheaders.content_type.charset
+      'utf-8'
+      >>> r.oheaders.report_to.max_age
+      '604800'
+      >>> str(r.oheaders.date)
+      'Mon, 02 Oct 2023 05:34:48 GMT'
+      >>> from kiss_headers import get_polymorphic, Date
+      >>> h = get_polymorphic(r.oheaders.date, Date)
+      >>> repr(h.get_datetime())
+      datetime.datetime(2023, 10, 2, 5, 39, 46, tzinfo=datetime.timezone.utc)
 
 To explore possibilities, visit the ``kiss-headers`` documentation at https://jawah.github.io/kiss-headers/
 
@@ -760,46 +760,46 @@ Cookies
 
 If a response contains cookies, you can quickly access them:
 
-.. raw:: html
+.. container:: termy
 
-   <pre class="terminhtml">
-    >>> url = 'https://httpbingo.org/cookies/set?example_cookie_name=example_cookie_value'
-    >>> r = niquests.get(url, allow_redirects=False)
+   .. code-block:: pycon
 
-    >>> r.cookies['example_cookie_name']
-    'example_cookie_value'
-   </pre>
+      >>> url = 'https://httpbingo.org/cookies/set?example_cookie_name=example_cookie_value'
+      >>> r = niquests.get(url, allow_redirects=False)
+
+      >>> r.cookies['example_cookie_name']
+      'example_cookie_value'
 
 To send your own cookies to the server, you can use the ``cookies``
 parameter:
 
-.. raw:: html
+.. container:: termy
 
-   <pre class="terminhtml">
-    >>> url = 'https://httpbingo.org/cookies'
-    >>> cookies = dict(cookies_are='working')
+   .. code-block:: pycon
 
-    >>> r = niquests.get(url, cookies=cookies)
-    >>> r.json()['cookies']
-    {'cookies_are': 'working'}
-   </pre>
+      >>> url = 'https://httpbingo.org/cookies'
+      >>> cookies = dict(cookies_are='working')
+
+      >>> r = niquests.get(url, cookies=cookies)
+      >>> r.json()['cookies']
+      {'cookies_are': 'working'}
 
 Cookies are returned in a :class:`~niquests.cookies.RequestsCookieJar`,
 which acts like a dictionary but also offers a more complete interface,
 suitable for use over multiple domains or paths. Cookie jars can
 also be passed in to requests:
 
-.. raw:: html
+.. container:: termy
 
-   <pre class="terminhtml">
-    >>> jar = niquests.cookies.RequestsCookieJar()
-    >>> jar.set('tasty_cookie', 'yum', domain='httpbingo.org', path='/cookies')
-    >>> jar.set('gross_cookie', 'blech', domain='httpbingo.org', path='/elsewhere')
-    >>> url = 'https://httpbingo.org/cookies'
-    >>> r = niquests.get(url, cookies=jar)
-    >>> r.json()['cookies']
-    {'tasty_cookie': 'yum'}
-    </pre>
+   .. code-block:: pycon
+
+      >>> jar = niquests.cookies.RequestsCookieJar()
+      >>> jar.set('tasty_cookie', 'yum', domain='httpbingo.org', path='/cookies')
+      >>> jar.set('gross_cookie', 'blech', domain='httpbingo.org', path='/elsewhere')
+      >>> url = 'https://httpbingo.org/cookies'
+      >>> r = niquests.get(url, cookies=jar)
+      >>> r.json()['cookies']
+      {'tasty_cookie': 'yum'}
 
 The same response and request cookie APIs are available asynchronously:
 
@@ -868,42 +868,42 @@ response.
 
 For example, GitHub redirects all HTTP requests to HTTPS:
 
-.. raw:: html
+.. container:: termy
 
-   <pre class="terminhtml">
-    >>> r = niquests.get('http://github.com/')
-    >>> r.url
-    'https://github.com/'
-    >>> r.status_code
-    200
-    >>> r.history
-     [&lt;Response HTTP/2 [301]&gt;]
-   </pre>
+   .. code-block:: pycon
+
+      >>> r = niquests.get('http://github.com/')
+      >>> r.url
+      'https://github.com/'
+      >>> r.status_code
+      200
+      >>> r.history
+      [<Response HTTP/2 [301]>]
 
 If you're using GET, OPTIONS, POST, PUT, PATCH, DELETE, or QUERY, you can disable
 redirection handling with the ``allow_redirects`` parameter:
 
-.. raw:: html
+.. container:: termy
 
-   <pre class="terminhtml">
-    >>> r = niquests.get('http://github.com/', allow_redirects=False)
-    >>> r.status_code
-    301
-    >>> r.history
-    []
-   </pre>
+   .. code-block:: pycon
+
+      >>> r = niquests.get('http://github.com/', allow_redirects=False)
+      >>> r.status_code
+      301
+      >>> r.history
+      []
 
 If you're using HEAD, you can enable redirection as well:
 
-.. raw:: html
+.. container:: termy
 
-   <pre class="terminhtml">
-    >>> r = niquests.head('http://github.com/', allow_redirects=True)
-    >>> r.url
-    'https://github.com/'
-    >>> r.history
-     [&lt;Response HTTP/2 [301]&gt;]
-   </pre>
+   .. code-block:: pycon
+
+      >>> r = niquests.head('http://github.com/', allow_redirects=True)
+      >>> r.url
+      'https://github.com/'
+      >>> r.history
+      [<Response HTTP/2 [301]>]
 
 The redirect controls and :attr:`~niquests.Response.history` property are identical in async code:
 

@@ -1,0 +1,136 @@
+/* Progressive terminal examples inspired by termynal.js (MIT). */
+[data-termynal] {
+  --termynal-bg: #111827;
+  --termynal-border: #263244;
+  --termynal-text: #e5e7eb;
+  --termynal-muted: #94a3b8;
+  --termynal-prompt: #c4b5fd;
+  background: var(--termynal-bg);
+  border: 1px solid var(--termynal-border);
+  border-radius: 0.7rem;
+  box-shadow: 0 0.75rem 2rem rgb(15 23 42 / 18%);
+  color: var(--termynal-text);
+  margin: 1.25rem 0;
+  max-width: 100%;
+  overflow: hidden;
+}
+
+.termynal-toolbar {
+  align-items: center;
+  background: #172033;
+  border-bottom: 1px solid var(--termynal-border);
+  display: flex;
+  min-height: 2.6rem;
+  padding: 0 0.7rem;
+}
+
+.termynal-dots {
+  background: #fb7185;
+  border-radius: 50%;
+  box-shadow: 1.25rem 0 #fbbf24, 2.5rem 0 #4ade80;
+  height: 0.7rem;
+  margin-right: 3.25rem;
+  width: 0.7rem;
+}
+
+.termynal-title {
+  color: var(--termynal-muted);
+  font-family: var(--font-stack--monospace, ui-monospace, SFMono-Regular, Consolas, monospace);
+  font-size: 0.75rem;
+  letter-spacing: 0.04em;
+  margin-right: auto;
+  text-transform: uppercase;
+}
+
+.termynal-controls {
+  display: flex;
+  gap: 0.25rem;
+}
+
+.termynal-control {
+  background: transparent;
+  border: 0;
+  border-radius: 0.3rem;
+  color: var(--termynal-muted);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.75rem;
+  padding: 0.25rem 0.45rem;
+}
+
+.termynal-control:hover,
+.termynal-control:focus-visible {
+  background: rgb(255 255 255 / 8%);
+  color: var(--termynal-text);
+  outline: none;
+}
+
+.termynal-body {
+  box-sizing: border-box;
+  font-family: var(--font-stack--monospace, ui-monospace, SFMono-Regular, Consolas, monospace);
+  font-size: 0.86rem;
+  line-height: 1.55;
+  overflow-x: auto;
+  padding: 1rem 1.2rem 1.15rem;
+  scrollbar-color: var(--termynal-border) transparent;
+}
+
+.termynal-line {
+  display: block;
+  min-height: 1.55em;
+  white-space: pre;
+}
+
+.termynal-line[data-ty="input"]::before {
+  color: var(--termynal-prompt);
+  content: attr(data-ty-prompt);
+  display: inline-block;
+  margin-right: 0.75em;
+  user-select: none;
+}
+
+.termynal-line[data-ty="input"].termynal-cursor::after {
+  animation: termynal-blink 1s step-end infinite;
+  color: var(--termynal-prompt);
+  content: "▋";
+  margin-left: 0.3em;
+}
+
+.termynal-line[hidden],
+.termynal-control[hidden] {
+  display: none;
+}
+
+.termynal-sr-only {
+  clip: rect(0, 0, 0, 0);
+  clip-path: inset(50%);
+  height: 1px;
+  overflow: hidden;
+  position: absolute;
+  white-space: pre;
+  width: 1px;
+}
+
+@keyframes termynal-blink {
+  50% {
+    opacity: 0;
+  }
+}
+
+@media (max-width: 50rem) {
+  .termynal-title {
+    display: none;
+  }
+
+  .termynal-body {
+    font-size: 0.78rem;
+    padding-inline: 0.85rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .termynal-line[data-ty="input"].termynal-cursor::after {
+    animation: none;
+    content: "";
+  }
+}
