@@ -1,6 +1,12 @@
 Release History
 ===============
 
+3.21.1 (2026-08-28)
+-------------------
+
+**Fixed**
+- verify parameter not honored when targeting a `wss` or `see` endpoint (using the shortcut scheme).
+
 3.21.0 (2026-07-29)
 -------------------
 
