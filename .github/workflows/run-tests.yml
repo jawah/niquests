@@ -75,7 +75,7 @@ jobs:
       with:
         version: "47.0.1"
     - name: "Install Chrome"
-      uses: browser-actions/setup-chrome@b94431e051d1c52dcbe9a7092a4f10f827795416 # v2.1.0
+      uses: browser-actions/setup-chrome@48ad923757ca74d66703209fe939badbdf80f2f4 # v2.2.0
       id: setup-chrome
       if: ${{ matrix.nox-session == 'emscripten(chrome)' }}
       with:
