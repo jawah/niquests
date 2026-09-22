@@ -78,9 +78,9 @@ _GET https://httpbingo.org/get_
 
 | Client   | Average Delay to Complete | Notes    |
 |----------|---------------------------|----------|
-| httpx    | 2.087s                    | HTTP/2   |
-| aiohttp  | 1.351s                    | HTTP/1.1 |
-| niquests | 0.551s                    | HTTP/2   |
+| httpx    | 1.877s                    | HTTP/2   |
+| aiohttp  | 1.458s                    | HTTP/1.1 |
+| niquests | 0.450s                    | HTTP/2   |
 
 :tada: Niquests can easily bring you twice the throughput if you migrated today. Join us today!
 
