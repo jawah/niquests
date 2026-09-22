@@ -655,9 +655,13 @@ class Session:
 
         # Set environment's basic authentication if not explicitly set.
         auth = request.auth
-        has_authorization_set = "authorization" in self.headers or "authorization" in CaseInsensitiveDict(request.headers)
-
-        if self.trust_env and not auth and not self.auth and not has_authorization_set:
+        if (
+            self.trust_env
+            and not auth
+            and not self.auth
+            and "authorization" not in self.headers
+            and "authorization" not in CaseInsensitiveDict(request.headers)
+        ):
             auth = get_netrc_auth(merge_base_url(self.base_url, request.url))
 
         p = PreparedRequest()
