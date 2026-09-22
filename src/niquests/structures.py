@@ -11,24 +11,6 @@ import threading
 import typing
 from collections.abc import Mapping, MutableMapping
 
-try:
-    from ._compat import HAS_LEGACY_URLLIB3
-
-    if not HAS_LEGACY_URLLIB3:
-        from urllib3._collections import _lower_wrapper  # type: ignore[attr-defined]
-    else:  # Defensive: tested in separate/isolated CI
-        from urllib3_future._collections import (
-            _lower_wrapper,  # type: ignore[attr-defined]
-        )
-except ImportError:
-    from functools import lru_cache
-
-    @lru_cache(maxsize=64)
-    def _lower_wrapper(string: str) -> str:
-        """backport"""
-        return string.lower()
-
-
 from .exceptions import InvalidHeader
 
 
@@ -53,7 +35,7 @@ _T = typing.TypeVar("_T")
 if typing.TYPE_CHECKING:
     from typing_extensions import TypeVar
 
-    _KT = TypeVar("_KT", default="str | bytes")
+    _KT = TypeVar("_KT", bound="str | bytes", default="str | bytes")
     _VT = TypeVar("_VT", default="str | bytes")
 else:
     _KT = typing.TypeVar("_KT")
@@ -111,10 +93,10 @@ class CaseInsensitiveDict(MutableMapping, typing.Generic[_KT, _VT]):
     def __setitem__(self, key: _KT, value: _VT) -> None:
         # Use the lowercased key for lookups, but store the actual
         # key alongside the value.
-        self._store[_lower_wrapper(key)] = _ensure_str_or_bytes(key, value)
+        self._store[key.lower()] = _ensure_str_or_bytes(key, value)
 
     def __getitem__(self, key: _KT) -> _VT:
-        e = self._store[_lower_wrapper(key)]
+        e = self._store[key.lower()]
         if len(e) == 2:
             return e[1]  # type: ignore[return-value]
         # this path should always be list[str] (if coming from urllib3.HTTPHeaderDict!)
@@ -133,7 +115,7 @@ class CaseInsensitiveDict(MutableMapping, typing.Generic[_KT, _VT]):
         return super().get(key, default=default)
 
     def __delitem__(self, key) -> None:
-        del self._store[_lower_wrapper(key)]
+        del self._store[key.lower()]
 
     def __iter__(self) -> typing.Iterator[_KT]:
         for key_ci in self._store:
@@ -176,7 +158,7 @@ class CaseInsensitiveDict(MutableMapping, typing.Generic[_KT, _VT]):
         return str(dict(self.items()))
 
     def __contains__(self, item: _KT) -> bool:  # type: ignore[override]
-        return _lower_wrapper(item) in self._store
+        return item.lower() in self._store
 
     if typing.TYPE_CHECKING:
 
