@@ -137,6 +137,54 @@ CONTENT_CHUNK_SIZE = 10 * 1024
 ITER_CHUNK_SIZE = -1
 
 
+class _LineDecoder:
+    """Accumulate record fragments while preserving iter_lines' chunk-boundary semantics."""
+
+    __slots__ = ("delimiter", "buffer", "tail")
+
+    def __init__(self, delimiter: str | bytes | None) -> None:
+        self.delimiter = delimiter
+        self.buffer: list[bytes | str] = []
+        self.tail: bytes | str | None = None
+
+    def decode(self, chunk: bytes | str) -> list[bytes] | list[str]:
+        buffer = self.buffer
+        if not chunk and (buffer or self.tail is not None):
+            return []
+        if self.tail is not None:
+            chunk = self.tail + chunk  # type: ignore[operator]
+            self.tail = None
+
+        delimiter = self.delimiter
+        lines = chunk.split(delimiter) if delimiter else chunk.splitlines()  # type: ignore[arg-type]
+        pending = lines.pop() if lines and lines[-1] and chunk and lines[-1][-1] == chunk[-1] else None
+        if buffer and lines:
+            buffer.append(lines[0])
+            lines[0] = chunk[:0].join(buffer)  # type: ignore[arg-type,assignment]
+            buffer.clear()
+
+        if pending is not None:
+            if delimiter and len(delimiter) > 1:
+                # Only rescan the suffix that could form a delimiter across chunks.
+                overlap = len(delimiter) - 1
+                if len(pending) > overlap:
+                    buffer.append(pending[:-overlap])
+                self.tail = pending[-overlap:]
+            else:
+                buffer.append(pending)
+        return lines
+
+    def flush(self) -> bytes | str | None:
+        if self.tail is not None:
+            self.buffer.append(self.tail)
+            self.tail = None
+        if not self.buffer:
+            return None
+        line = self.buffer[0][:0].join(self.buffer)  # type: ignore[arg-type]
+        self.buffer.clear()
+        return line
+
+
 class TransferProgress:
     def __init__(self):
         self.total: int = 0
@@ -1398,26 +1446,13 @@ class Response:
                 "if decode_unicode is set to True, delimiter MUST be a str, otherwise we expect a bytes-like variable."
             )
 
-        pending = None
-
+        decoder = _LineDecoder(delimiter)
         for chunk in self.iter_content(  # type: ignore[call-overload]
             chunk_size=chunk_size, decode_unicode=decode_unicode
         ):
-            if pending is not None:
-                chunk = pending + chunk
+            yield from decoder.decode(chunk)
 
-            if delimiter:
-                lines = chunk.split(delimiter)  # type: ignore[arg-type]
-            else:
-                lines = chunk.splitlines()
-
-            if lines and lines[-1] and chunk and lines[-1][-1] == chunk[-1]:
-                pending = lines.pop()
-            else:
-                pending = None
-
-            yield from lines
-
+        pending = decoder.flush()
         if pending is not None:
             yield pending
 
@@ -1889,27 +1924,14 @@ class AsyncResponse(Response):
                 "if decode_unicode is set to True, delimiter MUST be a str, otherwise we expect a bytes-like variable."
             )
 
-        pending = None
-
+        decoder = _LineDecoder(delimiter)
         async for chunk in await self.iter_content(  # type: ignore[call-overload]
             chunk_size=chunk_size, decode_unicode=decode_unicode
         ):
-            if pending is not None:
-                chunk = pending + chunk
-
-            if delimiter:
-                lines = chunk.split(delimiter)  # type: ignore[arg-type]
-            else:
-                lines = chunk.splitlines()
-
-            if lines and lines[-1] and chunk and lines[-1][-1] == chunk[-1]:
-                pending = lines.pop()
-            else:
-                pending = None
-
-            for line in lines:
+            for line in decoder.decode(chunk):
                 yield line
 
+        pending = decoder.flush()
         if pending is not None:
             yield pending
 
