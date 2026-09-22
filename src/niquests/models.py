@@ -1066,20 +1066,21 @@ class Response:
             pass
 
     def __getattribute__(self, item):
+        getattribute = super().__getattribute__
         try:
-            if super().__getattribute__("raw") is None and item in Response.__lazy_attrs__ and super().__getattribute__("lazy"):
-                if iscoroutinefunction(super().__getattribute__("connection").gather):
+            if getattribute("raw") is None and item in Response.__lazy_attrs__ and getattribute("lazy"):
+                if iscoroutinefunction(getattribute("connection").gather):
                     raise MultiplexingError(
                         "Accessing a lazy response produced by an AsyncSession is forbidden. "
                         "Either call await session.gather() or set stream=True to produce an AsyncResponse "
                         "that you can access directly."
                     )
                 else:
-                    super().__getattribute__("_gather")()
+                    getattribute("_gather")()
         except AttributeError:
             pass
 
-        return super().__getattribute__(item)
+        return getattribute(item)
 
     def __enter__(self):
         return self
