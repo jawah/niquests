@@ -64,6 +64,9 @@ ocsp = [
 ws = [
     "urllib3.future[ws]",
 ]
+ws-fast = [
+    "urllib3.future[ws-fast]",
+]
 speedups = [
     "orjson>=3,<4",
     "urllib3.future[zstd,brotli]",
