@@ -1,6 +1,6 @@
 services:
   proxy:
-    image: traefik:v3.6
+    image: traefik:v3.7
     restart: unless-stopped
     depends_on:
       httpbin:
@@ -53,10 +53,10 @@ services:
       - --log.level=ERROR
 
   httpbin:
-    image: mccutchen/go-httpbin:2.21
+    image: mccutchen/go-httpbin:2.25
     restart: unless-stopped
     deploy:
-      replicas: 6
+      replicas: 2
     labels:
       - traefik.enable=true
       - traefik.http.routers.httpbin-http.rule=Host(`httpbin.local`) || Host(`alt.httpbin.local`) || Host(`localhost`) || Host(`127.0.0.1`) || Host(`good-ocsp.httpbin.local`) || Host(`revoked-ocsp.httpbin.local`) || Host(`good-crl.httpbin.local`) || Host(`revoked-crl.httpbin.local`)
