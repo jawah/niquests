@@ -147,8 +147,9 @@ The default wheel uses one `inspectable .pth file
 <https://github.com/jawah/urllib3.future/blob/main/urllib3_future.pth>`_ before application
 imports begin. This avoids import-order-dependent patching and leaves the environment in
 one deterministic state. Of the mechanisms we found that preserve compatibility by
-default, it is the most transparent and auditable. Installation can opt out through
-``URLLIB3_NO_OVERRIDE=1`` as described below.
+default, it is the most transparent and auditable. Installation can opt out through a
+prebuilt ``+isolation`` wheel or a source build with ``URLLIB3_NO_OVERRIDE=1``, as
+described below.
 
 **Why not emit a warning?** A warning would not repeat for every import in one interpreter,
 but it would appear for every new CLI invocation, worker process, short-lived job,
@@ -205,37 +206,147 @@ compatibility can install both packages. Niquests then uses the ``urllib3_future
 point internally, while independent ``import urllib3`` statements continue to receive
 upstream urllib3.
 
+Choose one of the two methods below. Both install only ``urllib3_future`` for the
+fork, omit its ``.pth`` startup hook, and retain all its transport features. If the
+default wheel is already installed, recreate the virtual environment using the
+chosen recipe so each distribution has separate ownership of its files.
+
+Prebuilt isolation wheels
+^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The project's `isolation index <https://jawah.github.io/urllib3.future/isolation/>`_
+provides prebuilt wheels with a ``+isolation`` version suffix, hashes, and attestations.
+This route needs no build flag or source-only setting. Select a release listed in
+the index; the pip example uses ``2.25.900+isolation``. Use the source-build method
+below if your desired release is not listed.
+
 .. tab:: pip
 
-    .. code-block::
+    Activate your virtual environment, then save the extra index once:
 
-        $ URLLIB3_NO_OVERRIDE=1 pip install niquests --no-binary urllib3-future
+    .. code-block:: console
+
+        $ python -m pip config --site set global.extra-index-url https://jawah.github.io/urllib3.future/isolation/simple/
+
+    ``--site`` stores the setting in the environment's ``pip.conf`` on Linux/macOS
+    or ``pip.ini`` on Windows. Repeat this step when recreating the environment,
+    or use ``--user`` instead to save the setting across your user account's environments.
+
+    Add these entries to the existing ``[project].dependencies`` list in your
+    application's ``pyproject.toml``:
+
+    .. code-block:: toml
+
+        [project]
+        dependencies = [
+            "niquests",
+            "urllib3",
+            "urllib3-future==2.25.900+isolation",
+        ]
+
+    Then install your project:
+
+    .. code-block:: console
+
+        $ python -m pip install .
+
+    Keep the complete ``+isolation`` pin when updating dependencies. If that wheel
+    is unavailable, pip fails to resolve it. An extra index alone does not prevent
+    selection of the default PyPI wheel.
+
+.. tab:: Poetry
+
+    Add the isolation index as a supplemental source, then install with the full
+    ``+isolation`` version pin:
+
+    .. code-block:: console
+
+        $ poetry source add --priority=supplemental urllib3-future-isolation https://jawah.github.io/urllib3.future/isolation/simple/
+        $ poetry add niquests urllib3 "urllib3-future==2.25.900+isolation"
+
+    Poetry uses PyPI first and searches the supplemental index when no compatible
+    distribution is found there. Keep ``--priority=supplemental``: omitting the
+    priority makes the source primary and disables implicit PyPI access.
+    Keep the complete version pin and source configuration in ``pyproject.toml``,
+    along with ``poetry.lock``, when updating dependencies.
+
+.. tab:: PDM
+
+    Bind only urllib3.future to the isolation index in ``pyproject.toml``:
+
+    .. code-block:: toml
+
+        [[tool.pdm.source]]
+        name = "urllib3-future-isolation"
+        url = "https://jawah.github.io/urllib3.future/isolation/simple/"
+        include_packages = ["urllib3-future"]
+
+    Then install:
+
+    .. code-block:: console
+
+        $ pdm add niquests urllib3-future urllib3
+
+    Keep ``pyproject.toml`` and ``pdm.lock`` with your project.
+
+.. tab:: uv
+
+    Bind only urllib3.future to the isolation index in ``pyproject.toml``:
+
+    .. code-block:: toml
+
+        [tool.uv.sources]
+        urllib3-future = { index = "urllib3-future-isolation" }
+
+        [[tool.uv.index]]
+        name = "urllib3-future-isolation"
+        url = "https://jawah.github.io/urllib3.future/isolation/simple/"
+        explicit = true
+
+    Then install:
+
+    .. code-block:: console
+
+        $ uv add niquests urllib3-future urllib3
+
+    Keep ``pyproject.toml`` and ``uv.lock`` with your project. The source binding
+    also applies to Niquests' dependency on urllib3.future.
+
+Build from the PyPI source distribution
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Select a source build for urllib3.future and set ``URLLIB3_NO_OVERRIDE=1`` during
+the build. Other dependencies can still use wheels. Keep both settings for future
+installs and upgrades; the environment variable is not needed at runtime.
+
+The environment-variable prefixes below use Linux/macOS shell syntax. In Windows
+PowerShell, set ``$env:URLLIB3_NO_OVERRIDE = "1"`` before running the package-manager
+command instead of using the prefix. The uv recipe stores this setting in the
+project configuration and works unchanged across these platforms.
+
+.. tab:: pip
+
+    .. code-block:: console
+
+        $ URLLIB3_NO_OVERRIDE=1 python -m pip install --no-cache-dir --no-binary=urllib3-future niquests urllib3
+
+    ``--no-cache-dir`` ensures a fresh source build with the chosen build flag.
 
 .. tab:: Poetry
 
     Configure the project, then install:
 
-    .. code-block::
+    .. code-block:: console
 
-        $ export URLLIB3_NO_OVERRIDE=1
         $ poetry config --local installer.no-binary urllib3-future
-        $ poetry add niquests
+        $ URLLIB3_NO_OVERRIDE=1 poetry add niquests urllib3
 
-    Or use one command:
-
-    .. code-block::
-
-        $ URLLIB3_NO_OVERRIDE=1 POETRY_INSTALLER_NO_BINARY=urllib3-future poetry add niquests
+    Keep the generated ``poetry.toml`` setting with your project and supply the
+    build flag on subsequent installs and upgrades.
 
 .. tab:: PDM
 
-    Use one command:
-
-    .. code-block::
-
-        $ URLLIB3_NO_OVERRIDE=1 PDM_NO_BINARY=urllib3-future pdm add niquests
-
-    Or add this to ``pyproject.toml``:
+    Add this to ``pyproject.toml``:
 
     .. code-block:: toml
 
@@ -244,12 +355,11 @@ upstream urllib3.
 
     Then:
 
-    .. code-block::
+    .. code-block:: console
 
-        $ export URLLIB3_NO_OVERRIDE=1
-        $ pdm add niquests
+        $ URLLIB3_NO_OVERRIDE=1 pdm add niquests urllib3
 
-.. tab:: UV
+.. tab:: uv
 
     Add this to ``pyproject.toml``:
 
@@ -257,13 +367,20 @@ upstream urllib3.
 
         [tool.uv]
         no-binary-package = ["urllib3-future"]
+        extra-build-variables = { "urllib3-future" = { URLLIB3_NO_OVERRIDE = "1" } }
 
     Then:
 
-    .. code-block::
+    .. code-block:: console
 
-        $ export URLLIB3_NO_OVERRIDE=1
-        $ uv add niquests
+        $ uv add niquests urllib3
+
+    Keep ``pyproject.toml`` and ``uv.lock`` with your project. uv supplies the build
+    flag automatically during installs, syncs, and upgrades.
+
+See urllib3.future's `cohabitation guide
+<https://urllib3future.readthedocs.io/en/latest/cohabitation.html>`_ for verification
+and upgrade instructions for both methods.
 
 Niquests translates supported :class:`urllib3.Retry <urllib3.util.Retry>` and
 :class:`urllib3.Timeout <urllib3.util.Timeout>` objects across

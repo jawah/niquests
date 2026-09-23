@@ -64,8 +64,14 @@ except ImportError:
 
 try:
     import wsproto  # type: ignore[import-not-found]
+
+    websockets = None
 except ImportError:
     wsproto = None  # type: ignore
+    try:
+        import websockets  # type: ignore
+    except ImportError:
+        websockets = None  # type: ignore
 
 
 _IS_GIL_DISABLED: bool = hasattr(sys, "_is_gil_enabled") and sys._is_gil_enabled() is False
@@ -167,8 +173,13 @@ def info():
         },
         "ocsp": {"enabled": ocsp_verify is not None},
         "websocket": {
-            "enabled": wsproto is not None,
-            "wsproto": wsproto.__version__ if wsproto is not None else None,
+            "enabled": wsproto is not None or websockets is not None,
+            "version": (wsproto.__version__ if wsproto is not None else websockets.__version__)  # type: ignore[attr-defined]
+            if wsproto is not None or websockets is not None
+            else "N/A",
+            "backend": ("wsproto" if wsproto is not None else "websockets")
+            if wsproto is not None or websockets is not None
+            else "N/A",
         },
     }
 

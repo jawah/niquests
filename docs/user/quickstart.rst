@@ -1648,11 +1648,21 @@ WebSockets
 ----------
 
 .. versionadded:: 3.9
-   Requires the WebSocket extra: ``pip install niquests[ws]``.
 
 WebSockets are a vital part of the web ecosystem alongside HTTP. Niquests
 provides an integrated interface to reduce the friction of connecting to a
 WebSocket server for the first time.
+
+Run ``pip install "niquests[ws]"`` to use the ``wsproto`` backend, or
+``pip install "niquests[ws-fast]"`` to use the ``websockets`` package from PyPI.
+The ``websockets`` backend requires Python 3.9 or newer and urllib3-future
+2.25.900 or newer, and supports WebSocket over HTTP/1.1. Both backends expose
+the same synchronous and asynchronous extension API.
+
+Plain ``ws://`` and ``wss://`` URLs prefer ``wsproto`` when it is installed
+and fall back to ``websockets`` otherwise. To explicitly select ``websockets``, use
+``ws+fast://`` or ``wss+fast://``, for example ``wss+fast://echo.websocket.org``.
+Run ``python -m niquests.help`` to check which backend is selected by default.
 
 Quick start
 ~~~~~~~~~~~
@@ -1703,7 +1713,7 @@ The following example interacts with a basic, well-known echo server.
 
         asyncio.run(main())
 
-.. warning:: Without the extra installed, an exception indicates that the
+.. warning:: Without a supported backend installed, an exception indicates that the
    scheme is unsupported.
 
 .. note:: Requests historically accepted only ``http://`` and ``https://``.
@@ -1795,8 +1805,15 @@ apply to WebSocket connections. See the relevant sections for details.
 Example with concurrency
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
-The following example communicates with a WebSocket echo server. It uses a
-thread for reads and the main thread for writes.
+With urllib3-future 2.25.900 or newer, both WebSocket backends support full-duplex
+communication over HTTP/1.1. One thread or task can call ``send_payload()`` or
+``ping()`` while another waits in ``next_payload()``.
+
+Concurrent readers are serialized, and read timeouts still apply. A blocking
+TLS read that has already started can still delay a concurrent writer.
+
+The following examples communicate with a WebSocket echo server using a
+separate thread or task for reads while the main thread or task sends messages.
 
 .. tab:: 🔂 Sync
 
@@ -1826,7 +1843,6 @@ thread for reads and the main thread for writes.
                 except ReadTimeout:  # if no message received within 1s
                     pass
 
-                sleep(1)  # let some time for the write part to acquire the lock
                 iteration_counter += 1
 
                 # Send a ping every four iterations.
@@ -1851,7 +1867,7 @@ thread for reads and the main thread for writes.
                     to_send = f"Hello World {i}"
                     resp.extension.send_payload(to_send)
                     print(f"sent message: '{to_send}'")
-                    sleep(1)  # let some time for the read part to acquire the lock
+                    sleep(1)  # Pace outgoing messages.
 
                 # exit gently!
                 resp.extension.close()
@@ -1860,9 +1876,6 @@ thread for reads and the main thread for writes.
                 t.join()
 
                 print("program ended!")
-
-    .. warning:: The sleeps give each side an opportunity to acquire the shared
-       read/write lock and prevent starvation.
 
 .. tab:: 🔀 Async
 
@@ -1887,7 +1900,6 @@ thread for reads and the main thread for writes.
                 except ReadTimeout:  # if no message received within 1s
                     pass
 
-                await asyncio.sleep(1)  # let some time for the write part to acquire the lock
                 iteration_counter += 1
 
                 # Send a ping every four iterations.
@@ -1907,7 +1919,7 @@ thread for reads and the main thread for writes.
                     to_send = f"Hello World {i}"
                     await resp.extension.send_payload(to_send)
                     print(f"sent message: '{to_send}'")
-                    await asyncio.sleep(1)  # let some time for the read part to acquire the lock
+                    await asyncio.sleep(1)  # Pace outgoing messages.
 
                 # exit gently!
                 await resp.extension.close()

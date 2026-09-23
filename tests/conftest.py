@@ -9,15 +9,45 @@ except ImportError:
 import os
 import socket
 import ssl
+import sys
 import threading
 from http.client import HTTPConnection, HTTPException
 from pathlib import Path
 from types import SimpleNamespace
-from urllib.parse import urljoin
+from urllib.error import URLError
+from urllib.parse import urljoin, urlsplit
 
 import pytest
 
+# Fixture infrastructure is checked explicitly by `nox -s revocation`.
+collect_ignore = ["test_revocation_fixtures.py"]
 collect_ignore_glob = ["wasi_guest/**/*.py"]
+
+
+@pytest.fixture(scope="session", autouse=True)
+def isolate_windows_ssl_store_inspection():
+    if sys.platform != "win32":
+        yield
+        return
+
+    from concurrent.futures import ThreadPoolExecutor
+    from functools import wraps
+    from unittest.mock import patch
+
+    # Older OpenSSL builds can leave X509 errors queued after inspecting CAs.
+    # Keep them off the TLS thread until urllib3-future handles this upstream.
+    def isolated(method):
+        @wraps(method)
+        def inspect(*args, **kwargs):
+            with ThreadPoolExecutor(max_workers=1) as executor:
+                return executor.submit(method, *args, **kwargs).result()
+
+        return inspect
+
+    with patch.object(ssl.SSLContext, "cert_store_stats", isolated(ssl.SSLContext.cert_store_stats)), patch.object(
+        ssl.SSLContext, "get_ca_certs", isolated(ssl.SSLContext.get_ca_certs)
+    ):
+        yield
 
 
 def prepare_url(value):
@@ -115,10 +145,18 @@ except ImportError:
 _WAN_AVAILABLE = None
 
 
+def _local_stack_unavailable(reason: str) -> None:
+    if os.environ.get("NIQUESTS_REQUIRE_REVOCATION") == "1" or (
+        os.environ.get("CI") and os.environ.get("TRAEFIK_HTTPBIN_ENABLE", "true").lower() == "true"
+    ):
+        pytest.fail(reason)
+    pytest.skip(reason)
+
+
 @pytest.fixture(scope="session")
 def requires_traefik_http() -> None:
     if os.environ.get("TRAEFIK_HTTPBIN_ENABLE", "true").lower() != "true":
-        pytest.skip("Local Traefik HTTP stack is disabled by TRAEFIK_HTTPBIN_ENABLE")
+        _local_stack_unavailable("Local Traefik HTTP stack is disabled by TRAEFIK_HTTPBIN_ENABLE")
 
     host = os.environ.get("TRAEFIK_HTTPBIN_IPV4", "127.0.0.1")
     connection = HTTPConnection(host, 8888, timeout=1)
@@ -126,10 +164,10 @@ def requires_traefik_http() -> None:
         connection.request("GET", "/get", headers={"Host": "httpbin.local"})
         response = connection.getresponse()
         if response.status != 200:
-            pytest.skip(f"Local Traefik HTTP endpoint returned status {response.status} on {host}:8888")
+            _local_stack_unavailable(f"Local Traefik HTTP endpoint returned status {response.status} on {host}:8888")
         response.read()
     except (OSError, HTTPException) as exc:
-        pytest.skip(f"Local Traefik HTTP endpoint is unavailable on {host}:8888: {exc}")
+        _local_stack_unavailable(f"Local Traefik HTTP endpoint is unavailable on {host}:8888: {exc}")
     finally:
         connection.close()
 
@@ -142,7 +180,7 @@ def requires_traefik_tls(requires_traefik_http) -> None:
     private_key = root / "traefik" / "httpbin.local.pem.key"
     missing = [str(path.relative_to(root)) for path in (root_ca, certificate, private_key) if not path.is_file()]
     if missing:
-        pytest.skip(f"Local Traefik TLS artifacts are missing: {', '.join(missing)}; run `nox -s local_server`")
+        _local_stack_unavailable(f"Local Traefik TLS artifacts are missing: {', '.join(missing)}; run `nox -s local_server`")
 
     host = os.environ.get("TRAEFIK_HTTPBIN_IPV4", "127.0.0.1")
     try:
@@ -151,62 +189,61 @@ def requires_traefik_tls(requires_traefik_http) -> None:
             with context.wrap_socket(raw_socket, server_hostname="httpbin.local"):
                 pass
     except (OSError, ssl.SSLError) as exc:
-        pytest.skip(f"Local Traefik TLS endpoint is unavailable or untrusted on {host}:4443: {exc}")
+        _local_stack_unavailable(f"Local Traefik TLS endpoint is unavailable or untrusted on {host}:4443: {exc}")
 
 
 @pytest.fixture(scope="session")
-def requires_revocation_stack(requires_traefik_http) -> None:
-    root = Path(__file__).resolve().parents[1]
-    revocation = root / "traefik" / "revocation"
-    artifacts = (
-        "root.pem",
-        "intermediate.pem",
-        "intermediate.der",
-        "intermediate.crl",
-        "good-ocsp.fullchain.pem",
-        "good-ocsp.key",
-        "revoked-ocsp.fullchain.pem",
-        "revoked-ocsp.key",
-        "good-crl.fullchain.pem",
-        "good-crl.key",
-        "revoked-crl.fullchain.pem",
-        "revoked-crl.key",
-        "ocsp-responder.pem",
-        "ocsp-responder.key",
-        "index.txt",
-    )
-    missing = [name for name in artifacts if not (revocation / name).is_file()]
-    if missing:
-        pytest.skip(f"Local revocation PKI artifacts are missing: {', '.join(missing)}; run `nox -s local_server`")
-
+def requires_revocation_stack(request) -> None:
+    # Check the optional backend before probing services, including in main CI.
     try:
-        with socket.create_connection(("127.0.0.1", 8890), timeout=1) as ocsp_socket:
-            ocsp_socket.sendall(b"GET / HTTP/1.0\r\nHost: 127.0.0.1\r\n\r\n")
-            ocsp_socket.shutdown(socket.SHUT_WR)
-            ocsp_socket.recv(1)
-    except OSError as exc:
-        pytest.skip(f"Local OCSP responder is unavailable on 127.0.0.1:8890: {exc}; run `nox -s local_server`")
+        import qh3  # noqa: F401
+    except ImportError:
+        pytest.skip("qh3 unavailable")
 
-    crl_connection = HTTPConnection("127.0.0.1", 8891, timeout=1)
+    request.getfixturevalue("requires_traefik_http")
     try:
-        crl_connection.request("GET", "/intermediate.der")
-        response = crl_connection.getresponse()
-        if response.status != 200:
-            pytest.skip(f"Local CRL server returned status {response.status} on 127.0.0.1:8891")
-        response.read()
-    except (OSError, HTTPException) as exc:
-        pytest.skip(f"Local CRL server is unavailable on 127.0.0.1:8891: {exc}; run `nox -s local_server`")
-    finally:
-        crl_connection.close()
+        from tests.revocation.check import check_services
+    except ModuleNotFoundError as exc:
+        if exc.name != "cryptography":
+            raise
+        _local_stack_unavailable(f"Local revocation tests require cryptography and qh3: {exc}")
 
+    revocation = Path(__file__).resolve().parents[1] / "traefik" / "revocation"
     host = os.environ.get("TRAEFIK_HTTPBIN_IPV4", "127.0.0.1")
     try:
-        context = ssl.create_default_context(cafile=str(revocation / "root.pem"))
-        with socket.create_connection((host, 4443), timeout=2) as raw_socket:
-            with context.wrap_socket(raw_socket, server_hostname="good-ocsp.httpbin.local"):
-                pass
-    except (OSError, ssl.SSLError) as exc:
-        pytest.skip(f"Local revocation TLS endpoint is unavailable or untrusted on {host}:4443: {exc}")
+        check_services(revocation, host)
+    except (ConnectionRefusedError, URLError) as exc:
+        if isinstance(exc, URLError) and not isinstance(exc.reason, ConnectionRefusedError):
+            raise
+        _local_stack_unavailable(f"Local revocation service is not listening: {exc}; run `nox -s local_server`")
+
+
+@pytest.fixture
+def revocation_requests(requires_revocation_stack, monkeypatch):
+    """Record real OCSP/CRL fetches without replacing the verification backend."""
+    from niquests.adapters import AsyncHTTPAdapter, HTTPAdapter
+    from tests.revocation import CRL_PORT, OCSP_PORT
+
+    requests = []
+    send = HTTPAdapter.send
+    async_send = AsyncHTTPAdapter.send
+
+    def record(request):
+        url = urlsplit(request.url)
+        if url.hostname == "127.0.0.1" and url.port in (OCSP_PORT, CRL_PORT):
+            requests.append(request.url)
+
+    def tracked_send(self, request, *args, **kwargs):
+        record(request)
+        return send(self, request, *args, **kwargs)
+
+    async def tracked_async_send(self, request, *args, **kwargs):
+        record(request)
+        return await async_send(self, request, *args, **kwargs)
+
+    monkeypatch.setattr(HTTPAdapter, "send", tracked_send)
+    monkeypatch.setattr(AsyncHTTPAdapter, "send", tracked_async_send)
+    return requests
 
 
 @pytest.fixture(scope="session")

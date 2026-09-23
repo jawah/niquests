@@ -1,6 +1,29 @@
 Release History
 ===============
 
+3.21.2 (2026-09-23)
+-------------------
+
+**Changed**
+- Minor performance improvement in `CaseInsensitiveDict`, with an expected gain of up to 1%.
+- Reduced overhead in response attribute access and request preparation.
+- `python -m niquests.help` now reports the WebSocket backend and version through `websocket.backend`
+  and `websocket.version`, replacing `websocket.wsproto`.
+
+**Fixed**
+- Fixed a quadratic performance issue in `iter_lines()` when processing long lines.
+- Corrected the generic key type in `CaseInsensitiveDict` to require `str` or `bytes`.
+- Fixed an intermittent WASI HTTP 0.2 upload failure when the host closes the output stream after the request body is written.
+
+**Misc**
+- Officially recognized `websockets` as a supported WebSocket backend alongside `wsproto`.
+  Requires Python 3.9 or newer and urllib3-future 2.25.900 or newer.
+  Install it with `pip install "niquests[ws-fast]"`. When both backends are installed, use
+  `wss+fast://example.org/` to explicitly select `websockets`. Run `python -m niquests.help`
+  to check which backend is selected by default.
+- Documented full-duplex WebSocket communication over HTTP/1.1 with urllib3-future 2.25.900 or newer.
+- Documented installation via a prebuilt alternative wheel that isolates `urllib3-future`, with no local build required.
+
 3.21.1 (2026-08-28)
 -------------------
 

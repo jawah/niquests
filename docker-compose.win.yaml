@@ -1,6 +1,6 @@
 services:
   proxy:
-    image: traefik:v3.6.12-windowsservercore-ltsc2022
+    image: traefik:v3.7.11-windowsservercore-ltsc2022
     restart: unless-stopped
     depends_on:
       httpbin:

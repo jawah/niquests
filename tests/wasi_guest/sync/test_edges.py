@@ -237,6 +237,81 @@ def prepared(url="https://example.test", method="GET"):
     return request
 
 
+@pytest.mark.parametrize(
+    "stage,closed,response_ok",
+    [
+        ("flush", True, True),
+        ("check_write", True, True),
+        ("flush", True, False),
+        ("check_write", True, False),
+        ("write", True, True),
+        ("flush", False, True),
+        ("check_write", False, True),
+    ],
+)
+def test_upload_stream_closure(monkeypatch, stage, closed, response_ok):
+    error = wasi._StreamErrorClosed() if closed else Failed()
+
+    class ClosingOutput(Resource):
+        written = b""
+        flushed = False
+
+        def check_write(self):
+            if self.flushed and stage == "check_write":
+                raise Err(error)
+            return 4096
+
+        def write(self, value):
+            if stage == "write":
+                raise Err(error)
+            self.written += value
+
+        def flush(self):
+            self.flushed = True
+            if stage == "flush":
+                raise Err(error)
+
+        def subscribe(self):
+            return Pollable()
+
+    output = ClosingOutput()
+    result = Ok(GoodIncoming()) if response_ok else Err(Failed())
+    # The response becomes ready only after the upload stream has closed.
+    future = Future([None, None, Ok(result)])
+    finished = []
+
+    def finish(body, trailers):
+        assert output.closed
+        assert output.written == b"payload"
+        finished.append(body)
+
+    monkeypatch.setattr(wasi, "_TYPES", FakeTypes)
+    monkeypatch.setattr(FakeTypes, "OutgoingBody", SimpleNamespace(finish=finish))
+    monkeypatch.setattr(OutgoingRequest, "body", lambda self: SimpleNamespace(write=lambda: output))
+    monkeypatch.setattr(wasi, "_OUTGOING_HANDLER", SimpleNamespace(handle=lambda *args: future))
+    request = prepared(method="POST")
+    request.prepare_body("payload", None)
+    progress = []
+    adapter = wasi.WASIAdapter()
+    if closed and stage != "write" and response_ok:
+        response = adapter._send_once(request, stream=True, on_upload_body=lambda *args: progress.append(args))
+        assert response.status_code == 200
+        assert future.closed
+        assert len(finished) == 1
+        assert progress[-1] == (7, 7, True, False)
+        response.close()
+    else:
+        with pytest.raises(ConnectionError) as caught:
+            adapter._send_once(request, stream=True)
+        if closed and stage != "write":
+            assert caught.value.__cause__.value is result.value
+            assert len(finished) == 1
+        else:
+            assert caught.value.__cause__.value is error
+            assert not finished
+    assert output.closed
+
+
 def test_common_branches():
     assert common.validate_transport_options(prepared("psse://example.test/x?q=1"), True, None, None) == (
         "http",
