@@ -318,13 +318,19 @@ class WASIAdapter(BaseAdapter):
                             chunks.close()
                             break
                     if not stop_upload:  # Defensive: host timing-dependent
-                        output.flush()
-                        pollable = output.subscribe()
                         try:
-                            pollable.block()
-                        finally:
-                            close_resource(pollable)
-                        output.check_write()
+                            output.flush()
+                            pollable = output.subscribe()
+                            try:
+                                pollable.block()
+                            finally:
+                                close_resource(pollable)
+                            output.check_write()
+                        except _Err as exc:
+                            if not isinstance(exc.value, _StreamErrorClosed):
+                                raise
+                            # The host may close a completed upload before its response is ready.
+                            # Finish the body and let the response future report any request error.
                 except BaseException:  # Defensive: upload failure cleanup
                     if on_upload_body is not None:
                         on_upload_body(sent, total, True, True)

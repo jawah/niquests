@@ -13,6 +13,7 @@ Release History
 **Fixed**
 - Fixed a quadratic performance issue in `iter_lines()` when processing long lines.
 - Corrected the generic key type in `CaseInsensitiveDict` to require `str` or `bytes`.
+- Fixed an intermittent WASI HTTP 0.2 upload failure when the host closes the output stream after the request body is written.
 
 **Misc**
 - Officially recognized `websockets` as a supported WebSocket backend alongside `wsproto`.
