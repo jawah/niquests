@@ -67,7 +67,8 @@ def local_http_stack(session: nox.Session, *, stop_on_exit: bool = True, with_re
         for port in (8890, 8891):
             try:
                 probe = socket.create_connection(("127.0.0.1", port), timeout=0.2)
-            except ConnectionRefusedError:
+            except (ConnectionRefusedError, SocketTimeout):
+                # Windows may hit the probe timeout before reporting a closed port.
                 pass
             else:
                 probe.close()
