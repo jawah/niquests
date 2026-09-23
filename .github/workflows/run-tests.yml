@@ -151,7 +151,7 @@ jobs:
         pip install nox
     - name: Start local protocol stack for WASI
       if: ${{ matrix.nox-session == 'wasi' }}
-      run: nox -s local_server
+      run: nox -s local_server -- --no-revocation
       env:
         TRAEFIK_HTTPBIN_ENABLE: "true"
     - name: Run tests

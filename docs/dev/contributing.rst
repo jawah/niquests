@@ -81,6 +81,22 @@ When contributing code, you'll want to follow this checklist:
 
 The following sub-sections go into more detail on some of the points above.
 
+Local protocol and revocation tests
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+``nox -s revocation`` runs the opt-in PKI fixture smoke tests and strict sync/async
+OCSP and CRL checks against the local Docker stack. The fixture generator and OCSP
+responder use ``cryptography``; the OpenSSL command-line executable is not required.
+This does not change the library's runtime revocation backend.
+Fixture smoke tests are excluded from default pytest collection and main CI;
+the OCSP and CRL integration tests remain in the normal test matrix.
+
+For IDE or direct pytest runs, keep ``nox -s local_server`` running in another
+terminal. Ctrl-C stops its services and containers. The Docker-only variant,
+``nox -s local_server -- --no-revocation``, returns immediately and must be cleaned
+up with ``docker compose stop``. See ``tests/revocation/README.md`` for ports,
+trust anchors, regeneration, and focused test commands.
+
 Code review
 ~~~~~~~~~~~
 
