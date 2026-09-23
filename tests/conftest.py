@@ -9,6 +9,7 @@ except ImportError:
 import os
 import socket
 import ssl
+import sys
 import threading
 from http.client import HTTPConnection, HTTPException
 from pathlib import Path
@@ -21,6 +22,32 @@ import pytest
 # Fixture infrastructure is checked explicitly by `nox -s revocation`.
 collect_ignore = ["test_revocation_fixtures.py"]
 collect_ignore_glob = ["wasi_guest/**/*.py"]
+
+
+@pytest.fixture(scope="session", autouse=True)
+def isolate_windows_ssl_store_inspection():
+    if sys.platform != "win32":
+        yield
+        return
+
+    from concurrent.futures import ThreadPoolExecutor
+    from functools import wraps
+    from unittest.mock import patch
+
+    # Older OpenSSL builds can leave X509 errors queued after inspecting CAs.
+    # Keep them off the TLS thread until urllib3-future handles this upstream.
+    def isolated(method):
+        @wraps(method)
+        def inspect(*args, **kwargs):
+            with ThreadPoolExecutor(max_workers=1) as executor:
+                return executor.submit(method, *args, **kwargs).result()
+
+        return inspect
+
+    with patch.object(ssl.SSLContext, "cert_store_stats", isolated(ssl.SSLContext.cert_store_stats)), patch.object(
+        ssl.SSLContext, "get_ca_certs", isolated(ssl.SSLContext.get_ca_certs)
+    ):
+        yield
 
 
 def prepare_url(value):
