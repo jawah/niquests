@@ -1,0 +1,20 @@
+# Colima's Ubuntu 24.04 image cannot serve SSH over vsock (needs systemd >= 256).
+ssh:
+  overVsock: false
+
+# Set Docker group membership before Lima opens its persistent SSH session.
+# Colima's later group update can otherwise trigger its fallback VM restart.
+provision:
+  - mode: boot
+    script: |
+      set -eu
+      mkdir -p /var/lib/cloud/scripts/per-boot
+      # cloud-init creates the user before running these scripts alphabetically.
+      # This must run before Lima's 00-lima.boot.sh signals that SSH is ready.
+      cat > /var/lib/cloud/scripts/per-boot/00-colima-docker-group.sh <<'EOF'
+      #!/bin/sh
+      set -eu
+      groupadd -f docker
+      usermod -aG docker "{{.User}}"
+      EOF
+      chmod 755 /var/lib/cloud/scripts/per-boot/00-colima-docker-group.sh

@@ -1,0 +1,92 @@
+# Adapted from douglascamata/setup-docker-macos-action at
+# d5ccc6aae0ce23e7700154f5e63cc53e6433ac48. See LICENSE in this directory.
+name: "Setup Docker on macOS"
+description: "Install pinned binaries and start Colima on Intel macOS runners."
+
+inputs:
+  colima-network-address:
+    description: "Assign a reachable VM IP address, needed for UDP/HTTP3 tests."
+    default: "false"
+  cpus:
+    description: "Number of CPUs assigned to the VM."
+    default: "2"
+  memory:
+    description: "Memory assigned to the VM, in GiB."
+    default: "4"
+
+runs:
+  using: "composite"
+  steps:
+    - name: "Check runner platform"
+      shell: bash
+      run: |
+        if [[ "$RUNNER_OS" != "macOS" || "$(uname -m)" != "x86_64" ]]; then
+          echo "::error::This action requires an Intel macOS runner with nested virtualization."
+          exit 1
+        fi
+
+    - name: "Install Lima, Colima, Docker CLI, and Compose"
+      shell: bash
+      env:
+        # Update each version together with its archive/binary SHA-256.
+        LIMA_VERSION: "2.2.0"
+        LIMA_SHA256: "0d6f99c19f6e4bc3c92730c4c29d929e6927f0cb0a0ba1a84383367135a8ff31"
+        COLIMA_VERSION: "0.10.3"
+        COLIMA_SHA256: "3082737fe8a98afda11cba7d9a20b6e56fe80c6153464beda04bec630758770b"
+        DOCKER_VERSION: "29.8.1"
+        DOCKER_SHA256: "de42b6bb38d0ea08333cdddc18b054d61d4c9f003b3616ae55d85ccea72c47c9"
+        COMPOSE_VERSION: "5.5.1"
+        COMPOSE_SHA256: "a264d61e824bf08a78867e59cdf32eb09f0aee9ecdf9f6ebfa43f76dc52880f1"
+      run: | # zizmor: ignore[github-env] -- Only a runner-owned directory with a fixed suffix is added to PATH.
+        set -euo pipefail
+        install_dir="$RUNNER_TEMP/docker-macos"
+        download_dir="$RUNNER_TEMP/docker-macos-downloads"
+        mkdir -p "$install_dir/bin" "$download_dir" "$HOME/.docker/cli-plugins"
+
+        download() {
+          curl --fail --silent --show-error --location --retry 3 \
+            --connect-timeout 15 --max-time 180 "$1" --output "$2"
+          printf '%s  %s\n' "$3" "$2" | shasum -a 256 --check
+        }
+
+        download \
+          "https://github.com/lima-vm/lima/releases/download/v${LIMA_VERSION}/lima-${LIMA_VERSION}-Darwin-x86_64.tar.gz" \
+          "$download_dir/lima.tar.gz" "$LIMA_SHA256"
+        # Keep Lima's bin/libexec/share layout so it can find its guest agents.
+        tar -xzf "$download_dir/lima.tar.gz" -C "$install_dir"
+
+        download \
+          "https://github.com/abiosoft/colima/releases/download/v${COLIMA_VERSION}/colima-Darwin-x86_64" \
+          "$download_dir/colima" "$COLIMA_SHA256"
+        install -m 755 "$download_dir/colima" "$install_dir/bin/colima"
+
+        download \
+          "https://download.docker.com/mac/static/stable/x86_64/docker-${DOCKER_VERSION}.tgz" \
+          "$download_dir/docker.tgz" "$DOCKER_SHA256"
+        tar -xzf "$download_dir/docker.tgz" -C "$download_dir" docker/docker
+        install -m 755 "$download_dir/docker/docker" "$install_dir/bin/docker"
+
+        download \
+          "https://github.com/docker/compose/releases/download/v${COMPOSE_VERSION}/docker-compose-darwin-x86_64" \
+          "$download_dir/docker-compose" "$COMPOSE_SHA256"
+        install -m 755 "$download_dir/docker-compose" "$HOME/.docker/cli-plugins/docker-compose"
+
+        echo "$install_dir/bin" >> "$GITHUB_PATH"
+
+    - name: "Start Colima"
+      shell: bash
+      env:
+        ACTION_PATH: ${{ github.action_path }}
+        COLIMA_CPUS: ${{ inputs.cpus }}
+        COLIMA_MEMORY: ${{ inputs.memory }}
+        COLIMA_NETWORK_ADDRESS: ${{ inputs.colima-network-address }}
+      run: |
+        mkdir -p "$HOME/.colima/_lima/_config"
+        cp "$ACTION_PATH/lima-override.yaml" "$HOME/.colima/_lima/_config/override.yaml"
+        time colima start --runtime=docker --arch=x86_64 \
+          --vm-type=vz --mount-type=virtiofs \
+          --cpus="$COLIMA_CPUS" --memory="$COLIMA_MEMORY" \
+          --network-address="$COLIMA_NETWORK_ADDRESS"
+        docker version
+        docker compose version
+        colima version

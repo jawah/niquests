@@ -100,7 +100,8 @@ jobs:
         node-version: 24
     - name: "Traefik: Setup Docker - Colima (MacOS)"
       if: ${{ matrix.traefik-server && contains(matrix.os, 'mac') }}
-      uses: douglascamata/setup-docker-macos-action@d5ccc6aae0ce23e7700154f5e63cc53e6433ac48
+      uses: ./.github/actions/setup-docker-macos
+      timeout-minutes: 15
       with:
         colima-network-address: true
     - name: "Get Colima VM IP Address (MacOS)"
