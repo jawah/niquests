@@ -1184,7 +1184,10 @@ def parse_scheme(url: str, default: str | None = None, max_length: int = 11) -> 
     enough to use urlparse for it...! We were wasting precious CPU cycles.
     Return used scheme url, lowercased."""
     try:
-        scheme = url[: url.index("://", 1, max_length + 1)]
+        # "://" is three characters and str.index() treats end as exclusive,
+        # so the window has to reach three past max_length to accept a scheme
+        # of that length. A shorter window drops sse+native and psse+native.
+        scheme = url[: url.index("://", 1, max_length + 3)]
     except ValueError as e:
         if default is not None:
             return default
