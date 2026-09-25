@@ -3013,6 +3013,16 @@ class TestPreparingURLs:
             ("http://api.example.com", "/v1/users", "http://api.example.com/v1/users"),
             ("http://api.example.com", "v1/users", "http://api.example.com/v1/users"),
             ("https://example.com", "123456789/k:v", "https://example.com/123456789/k:v"),
+            (
+                "https://example.com",
+                "sse+native://example.com/events",
+                "sse+native://example.com/events",
+            ),
+            (
+                "https://example.com",
+                "psse+native://origin.test/events",
+                "psse+native://origin.test/events",
+            ),
         ],
     )
     def test_base_url_prepare(self, base_url, url, join_expected):
@@ -3028,6 +3038,19 @@ class TestPreparingURLs:
         prepared = r.prepare()
 
         assert prepared.url == "https://google.com"
+
+    @pytest.mark.parametrize(
+        "url, expected",
+        [
+            ("sse://example.com/events", "sse://example.com/events?alt=sse"),
+            ("sse+native://example.com/events", "sse+native://example.com/events?alt=sse"),
+            ("wss+fast://example.com/sock", "wss+fast://example.com/sock?alt=sse"),
+        ],
+    )
+    def test_extension_scheme_keeps_query_params(self, url, expected):
+        prepared = niquests.Request("GET", url, params={"alt": "sse"}).prepare()
+
+        assert prepared.url == expected
 
     @pytest.mark.parametrize(
         "base_url, url, override_scheme, expected",

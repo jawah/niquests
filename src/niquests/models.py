@@ -457,15 +457,15 @@ class PreparedRequest:
         # `data` etc to work around exceptions from `url_parse`, which
         # handles RFC 3986 only.
         parsed_scheme = parse_scheme(url)
-        if "http" not in parsed_scheme and parsed_scheme not in {
+        # sse+native and wss+fast are the same families as sse and wss.
+        scheme_base = parsed_scheme.split("+", 1)[0]
+        if "http" not in parsed_scheme and scheme_base not in {
             "asgi",
             "wsgi",
             "ws",
             "wss",
             "sse",
             "psse",
-            "psse+unix",
-            "ws+unix",
         }:
             self.url = url
             return

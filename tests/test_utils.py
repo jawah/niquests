@@ -865,7 +865,11 @@ def test_compare_ipv6(a, b, expected):
             None,
         ),
         ("tooloooooooooooooooooooooooong://www.google.com/", None),
+        ("xxxxxxxxxxxx://example.com/e", None),
         ("mailto:complaint@pytest.dev", "mailto"),
+        ("sse+native://example.com/events", "sse+native"),
+        ("psse+native://origin.test", "psse+native"),
+        ("xxxxxxxxxxx://example.com/e", "xxxxxxxxxxx"),
     ],
 )
 def test_extract_scheme(url, expected):
