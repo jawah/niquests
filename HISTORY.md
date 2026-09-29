@@ -1,6 +1,13 @@
 Release History
 ===============
 
+Unreleased
+----------
+
+**Fixed**
+- Extension schemes of up to 11 characters, including `sse+native` and `psse+native`, are no longer treated as relative paths when a `base_url` is set. (#468)
+- Query `params` are applied to implementation-suffixed schemes such as `sse+native` and `wss+fast`, the same way they are for `sse` and `wss`. (#469)
+
 3.21.2 (2026-09-23)
 -------------------
 

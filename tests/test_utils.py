@@ -855,7 +855,7 @@ def test_compare_ipv6(a, b, expected):
         ("https://www.google.com/", "https"),
         ("htTPS://www.google.com/", "https"),
         ("nonsense://www.google.com/", "nonsense"),
-        (" HTTP://www.google.com/", " http"),
+        (" HTTP://www.google.com/", None),
         (
             "//invalid",
             None,
@@ -864,8 +864,12 @@ def test_compare_ipv6(a, b, expected):
             "invalid-no-scheme.com",
             None,
         ),
-        ("tooloooooooooooooooooooooooong://www.google.com/", None),
+        ("tooloooooooooooooooooooooooong://www.google.com/", "tooloooooooooooooooooooooooong"),
+        ("xxxxxxxxxxxx://example.com/e", "xxxxxxxxxxxx"),
         ("mailto:complaint@pytest.dev", "mailto"),
+        ("sse+native://example.com/events", "sse+native"),
+        ("psse+native://origin.test", "psse+native"),
+        ("xxxxxxxxxxx://example.com/e", "xxxxxxxxxxx"),
     ],
 )
 def test_extract_scheme(url, expected):

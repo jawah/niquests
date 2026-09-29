@@ -81,6 +81,8 @@ getproxies_environment = lru_cache()(getproxies_environment)
 
 NETRC_FILES = (".netrc", "_netrc")
 
+_SCHEME_CHARS = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789+.-"
+
 DEFAULT_PORTS: dict[str, int] = {"http": 80, "https": 443}
 
 # Ensure that ', ' is used to preserve previous delimiter behavior.
@@ -1179,26 +1181,18 @@ def _deepcopy_ci(o: ConnectionInfo | None) -> ConnectionInfo | None:
     return n
 
 
-def parse_scheme(url: str, default: str | None = None, max_length: int = 11) -> str:
-    """We tend to extract url scheme often enough, but we were crazy
-    enough to use urlparse for it...! We were wasting precious CPU cycles.
-    Return used scheme url, lowercased."""
-    try:
-        scheme = url[: url.index("://", 1, max_length + 1)]
-    except ValueError as e:
-        if default is not None:
-            return default
+def parse_scheme(url: str, default: str | None = None) -> str:
+    """Return a valid URI scheme lowercased, or the default if absent."""
+    end = url.find(":")
+    if end > 0:
+        scheme = url[:end]
+        if scheme.isascii() and (scheme.isalpha() or (scheme[0].isalpha() and not scheme.strip(_SCHEME_CHARS))):
+            return scheme.lower()
 
-        try:
-            outsider_scheme = url[: url.index(":", 1, max_length + 1)]
+    if default is not None:
+        return default
 
-            return outsider_scheme.lower()
-        except ValueError:
-            pass
-
-        raise MissingSchema(f"Invalid URL {url!r}: No scheme supplied. Perhaps you meant https://{url}?") from e
-
-    return scheme.lower()
+    raise MissingSchema(f"Invalid URL {url!r}: No scheme supplied. Perhaps you meant https://{url}?")
 
 
 def urljoin_safe(base: str, url: str) -> str:
