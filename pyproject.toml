@@ -151,6 +151,7 @@ markers = [
 ]
 filterwarnings = [
     "error",
+    "ignore:.*asyncio_default_fixture_loop_scope.*is unset:pytest.PytestDeprecationWarning",
     '''ignore:'parse_authorization_header' is deprecated and will be removed:DeprecationWarning''',
     '''ignore:The 'set_digest' method is deprecated and will be removed:UserWarning''',
     '''ignore:Passing bytes as a header value is deprecated and will:DeprecationWarning''',
