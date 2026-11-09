@@ -714,6 +714,14 @@ def test_should_bypass_proxies_no_proxy(url, expected, monkeypatch):
         ("http://google.com:5000/v1.0/", False, None),
         ("http://mylocalhostname:5000/v1.0/", True, "<local>"),
         ("http://192.168.0.1/", False, ""),
+        ("http://example.com/", True, "example.com"),
+        ("http://example.com.evil.test/", False, "example.com"),
+        ("http://www.example.com/", True, "*.example.com"),
+        ("http://www.example.com.evil.test/", False, "*.example.com"),
+        ("http://example.com/", True, "EXAMPLE.COM"),
+        ("http://node1.example.com/", True, "node?.example.com"),
+        ("http://node1.example.com.evil.test/", False, "node?.example.com"),
+        ("http://192.168.0.10/", False, "192.168.0.1"),
     ),
 )
 def test_should_bypass_proxies_win_registry(url, expected, override, monkeypatch):

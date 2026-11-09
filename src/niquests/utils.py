@@ -127,7 +127,7 @@ if sys.platform == "win32":
             test = test.replace(".", r"\.")  # mask dots
             test = test.replace("*", r".*")  # change glob sequence
             test = test.replace("?", r".")  # change glob char
-            if re.match(test, host, re.I):
+            if re.fullmatch(test, host, re.I):
                 return True
         return False
 
