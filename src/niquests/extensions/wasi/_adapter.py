@@ -277,83 +277,113 @@ class WASIAdapter(BaseAdapter):
             outgoing_body = outgoing.body() if body is not None else None
             future = _OUTGOING_HANDLER.handle(outgoing, options)
             incoming = None
-
-            if outgoing_body is not None:
-                output = outgoing_body.write()
-                sent = 0
-                content_length = request.headers.get("Content-Length") if request.headers is not None else None
-                try:
-                    total = int(content_length) if content_length is not None else prepared_body.content_length
-                except (TypeError, ValueError):  # Defensive: PreparedRequest emits a valid length
-                    total = prepared_body.content_length
-                try:
+            sent = 0
+            total = None
+            try:
+                if outgoing_body is not None:
+                    content_length = request.headers.get("Content-Length") if request.headers is not None else None
+                    try:
+                        total = int(content_length) if content_length is not None else prepared_body.content_length
+                    except (TypeError, ValueError):  # Defensive: PreparedRequest emits a valid length
+                        total = prepared_body.content_length
                     stop_upload = False
                     chunks = prepared_body.chunks
                     assert chunks is not None and not hasattr(chunks, "__aiter__")
-                    for chunk in chunks:
-                        chunk = chunk.encode("utf-8") if isinstance(chunk, str) else bytes(chunk)
-                        offset = 0
-                        while offset < len(chunk):
-                            permit = output.check_write()
-                            if permit == 0:  # Defensive: depends on host output-buffer saturation
+                    output = None
+                    try:
+                        output = outgoing_body.write()
+                        for chunk in chunks:
+                            chunk = chunk.encode("utf-8") if isinstance(chunk, str) else bytes(chunk)
+                            offset = 0
+                            while offset < len(chunk):
+                                try:
+                                    permit = output.check_write()
+                                    if permit == 0:  # Defensive: depends on host output-buffer saturation
+                                        pollable = output.subscribe()
+                                        try:
+                                            pollable.block()
+                                        finally:
+                                            close_resource(pollable)
+                                        continue
+                                    count = min(permit, len(chunk) - offset)
+                                    output.write(chunk[offset : offset + count])
+                                except _Err as exc:
+                                    if not isinstance(exc.value, _StreamErrorClosed):
+                                        raise
+                                    # A final response can close the request body before
+                                    # its headers are exposed by the response future.
+                                    stop_upload = True
+                                    break
+                                offset += count
+                                sent += count
+                                if on_upload_body is not None:  # Defensive: Session always supplies the callback
+                                    on_upload_body(sent, total, False, False)
+                                result = future.get()
+                                if result is not None:
+                                    incoming = _unwrap(_unwrap(result))
+                                    stop_upload = True
+                                    break
+                            if stop_upload:
+                                break
+                        if not stop_upload:
+                            try:
+                                output.flush()
                                 pollable = output.subscribe()
                                 try:
                                     pollable.block()
                                 finally:
                                     close_resource(pollable)
-                                continue
-                            count = min(permit, len(chunk) - offset)
-                            output.write(chunk[offset : offset + count])
-                            offset += count
-                            sent += count
-                            if on_upload_body is not None:  # Defensive: Session always supplies the callback
-                                on_upload_body(sent, total, False, False)
-                            result = future.get()
-                            if result is not None:  # Defensive: racing condition?
-                                incoming = _unwrap(_unwrap(result))
-                                close_resource(future)
+                                output.check_write()
+                            except _Err as exc:
+                                if not isinstance(exc.value, _StreamErrorClosed):
+                                    raise
                                 stop_upload = True
-                                break
-                        if stop_upload:  # Defensive: early final-response branch
-                            chunks.close()
-                            break
-                    if not stop_upload:  # Defensive: host timing-dependent
+                    finally:
                         try:
-                            output.flush()
-                            pollable = output.subscribe()
+                            close_chunks = getattr(chunks, "close", None)
+                            if close_chunks is not None:
+                                close_chunks()
+                        finally:
+                            close_resource(output)
+                    finished_body = outgoing_body
+                    outgoing_body = None  # finish consumes the resource, including on error.
+                    try:
+                        _TYPES.OutgoingBody.finish(finished_body, None)
+                    except _Err as exc:
+                        if not (
+                            stop_upload
+                            and total is not None
+                            and sent < total
+                            and isinstance(exc.value, _TYPES.ErrorCode_HttpRequestBodySize)
+                        ):
+                            raise
+                        # An early response may interrupt a fixed-length body.
+                        # The response future still decides whether the request succeeded.
+
+                if incoming is None:
+                    while True:
+                        result = future.get()
+                        if result is None:
+                            pollable = future.subscribe()
                             try:
                                 pollable.block()
                             finally:
                                 close_resource(pollable)
-                            output.check_write()
-                        except _Err as exc:
-                            if not isinstance(exc.value, _StreamErrorClosed):
-                                raise
-                            # The host may close a completed upload before its response is ready.
-                            # Finish the body and let the response future report any request error.
-                except BaseException:  # Defensive: upload failure cleanup
-                    if on_upload_body is not None:
-                        on_upload_body(sent, total, True, True)
-                    raise
+                            continue
+                        incoming = _unwrap(_unwrap(result))
+                        break
+            except BaseException:
+                close_resource(incoming)
+                if body is not None and on_upload_body is not None:
+                    on_upload_body(sent, total, True, True)
+                raise
+            finally:
+                try:
+                    close_resource(outgoing_body)
                 finally:
-                    close_resource(output)
-                _TYPES.OutgoingBody.finish(outgoing_body, None)
-                if on_upload_body is not None:  # Defensive: Session always supplies the callback
-                    on_upload_body(sent, total, True, False)
-
-            if incoming is None:  # Defensive: response timing/race before end request
-                while True:
-                    result = future.get()
-                    if result is None:
-                        pollable = future.subscribe()
-                        try:
-                            pollable.block()
-                        finally:
-                            close_resource(pollable)
-                        continue
-                    incoming = _unwrap(_unwrap(result))
                     close_resource(future)
-                    break
+            if body is not None and on_upload_body is not None:
+                on_upload_body(sent, total, True, False)
         header_resource = incoming.headers()
         try:
             header_entries = header_resource.entries()

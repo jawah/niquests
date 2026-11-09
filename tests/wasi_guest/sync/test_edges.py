@@ -38,6 +38,11 @@ class Failed:
     pass
 
 
+class BodySizeMismatch:
+    def __init__(self, size):
+        self.value = size
+
+
 class Stream(Resource):
     def __init__(self, values):
         super().__init__()
@@ -191,7 +196,7 @@ class Headers(Resource):
         return []
 
 
-class GoodIncoming:
+class GoodIncoming(Resource):
     def status(self):
         return 200
 
@@ -213,6 +218,7 @@ class FakeTypes:
     RequestOptions = FakeOptions
     IncomingBody = IncomingBody
     OutgoingBody = SimpleNamespace(finish=lambda body, trailers: None)
+    ErrorCode_HttpRequestBodySize = BodySizeMismatch
 
     @staticmethod
     def Method_Get():
@@ -242,11 +248,16 @@ def prepared(url="https://example.test", method="GET"):
     [
         ("flush", True, True),
         ("check_write", True, True),
+        ("check_write_upload", True, True),
+        ("write", True, True),
         ("flush", True, False),
         ("check_write", True, False),
-        ("write", True, True),
+        ("check_write_upload", True, False),
+        ("write", True, False),
         ("flush", False, True),
         ("check_write", False, True),
+        ("check_write_upload", False, True),
+        ("write", False, True),
     ],
 )
 def test_upload_stream_closure(monkeypatch, stage, closed, response_ok):
@@ -257,7 +268,7 @@ def test_upload_stream_closure(monkeypatch, stage, closed, response_ok):
         flushed = False
 
         def check_write(self):
-            if self.flushed and stage == "check_write":
+            if stage == "check_write_upload" or (self.flushed and stage == "check_write"):
                 raise Err(error)
             return 4096
 
@@ -282,8 +293,9 @@ def test_upload_stream_closure(monkeypatch, stage, closed, response_ok):
 
     def finish(body, trailers):
         assert output.closed
-        assert output.written == b"payload"
         finished.append(body)
+        if len(output.written) != 7:
+            raise Err(BodySizeMismatch(len(output.written)))
 
     monkeypatch.setattr(wasi, "_TYPES", FakeTypes)
     monkeypatch.setattr(FakeTypes, "OutgoingBody", SimpleNamespace(finish=finish))
@@ -293,23 +305,163 @@ def test_upload_stream_closure(monkeypatch, stage, closed, response_ok):
     request.prepare_body("payload", None)
     progress = []
     adapter = wasi.WASIAdapter()
-    if closed and stage != "write" and response_ok:
+    if closed and response_ok:
         response = adapter._send_once(request, stream=True, on_upload_body=lambda *args: progress.append(args))
         assert response.status_code == 200
         assert future.closed
         assert len(finished) == 1
-        assert progress[-1] == (7, 7, True, False)
+        assert progress[-1] == (len(output.written), 7, True, False)
         response.close()
     else:
         with pytest.raises(ConnectionError) as caught:
-            adapter._send_once(request, stream=True)
-        if closed and stage != "write":
+            adapter._send_once(request, stream=True, on_upload_body=lambda *args: progress.append(args))
+        if closed:
             assert caught.value.__cause__.value is result.value
             assert len(finished) == 1
         else:
             assert caught.value.__cause__.value is error
             assert not finished
+        assert progress[-1] == (len(output.written), 7, True, True)
     assert output.closed
+    assert future.closed
+
+
+@pytest.mark.parametrize("generator_body", [False, True])
+def test_early_response_stops_upload(monkeypatch, generator_body):
+    class EarlyResponse(GoodIncoming):
+        def status(self):
+            return 413
+
+    class PartialOutput(Resource):
+        written = b""
+
+        def check_write(self):
+            return 3
+
+        def write(self, data):
+            self.written += data
+
+    output = PartialOutput()
+    outgoing_body = Resource()
+    outgoing_body.write = lambda: output
+    incoming = EarlyResponse()
+    future = Future([Ok(Ok(incoming))])
+    producer_closed = []
+
+    def produce():
+        try:
+            yield b"payload"
+            pytest.fail("The producer must not be advanced after an early response")
+        finally:
+            producer_closed.append(True)
+
+    def finish(body, trailers):
+        assert output.closed
+        body.__exit__(None, None, None)
+        raise Err(BodySizeMismatch(len(output.written)))
+
+    monkeypatch.setattr(wasi, "_TYPES", FakeTypes)
+    monkeypatch.setattr(FakeTypes, "OutgoingBody", SimpleNamespace(finish=finish))
+    monkeypatch.setattr(OutgoingRequest, "body", lambda self: outgoing_body)
+    monkeypatch.setattr(wasi, "_OUTGOING_HANDLER", SimpleNamespace(handle=lambda *args: future))
+    request = prepared(method="POST")
+    request.prepare_body(produce() if generator_body else b"payload", None)
+    request.headers["Content-Length"] = "7"
+    progress = []
+    response = wasi.WASIAdapter()._send_once(request, stream=True, on_upload_body=lambda *args: progress.append(args))
+    assert response.status_code == 413
+    assert output.written == b"pay"
+    assert output.closed and outgoing_body.closed and incoming.closed and future.closed
+    assert producer_closed == ([True] if generator_body else [])
+    assert progress[-1] == (3, 7, True, False)
+    response.close()
+
+
+@pytest.mark.parametrize(
+    "early_response,size_error,declared_length",
+    [(False, True, 9), (False, False, 7), (True, False, 7), (True, True, 7)],
+)
+def test_body_finish_error_is_not_hidden(monkeypatch, early_response, size_error, declared_length):
+    class WritableOutput(Resource):
+        def check_write(self):
+            return 4096
+
+        def write(self, data):
+            pass
+
+        def flush(self):
+            pass
+
+        def subscribe(self):
+            return Pollable()
+
+    output = WritableOutput()
+    outgoing_body = Resource()
+    outgoing_body.write = lambda: output
+    incoming = GoodIncoming()
+    future = Future([Ok(Ok(incoming))] if early_response else [None])
+    error = BodySizeMismatch(7) if size_error else Failed()
+
+    def finish(body, trailers):
+        assert output.closed
+        body.__exit__(None, None, None)
+        raise Err(error)
+
+    monkeypatch.setattr(wasi, "_TYPES", FakeTypes)
+    monkeypatch.setattr(FakeTypes, "OutgoingBody", SimpleNamespace(finish=finish))
+    monkeypatch.setattr(OutgoingRequest, "body", lambda self: outgoing_body)
+    monkeypatch.setattr(wasi, "_OUTGOING_HANDLER", SimpleNamespace(handle=lambda *args: future))
+    request = prepared(method="POST")
+    request.prepare_body(b"payload", None)
+    request.headers["Content-Length"] = str(declared_length)
+    progress = []
+    with pytest.raises(ConnectionError) as caught:
+        wasi.WASIAdapter()._send_once(request, stream=True, on_upload_body=lambda *args: progress.append(args))
+    assert caught.value.__cause__.value is error
+    assert output.closed and outgoing_body.closed and future.closed
+    assert incoming.closed == early_response
+    assert progress[-1] == (7, declared_length, True, True)
+
+
+@pytest.mark.parametrize("source", ["producer", "callback"])
+def test_caller_stream_error_is_not_an_early_response(monkeypatch, source):
+    class WritableOutput(Resource):
+        def check_write(self):
+            return 3
+
+        def write(self, data):
+            pass
+
+    output = WritableOutput()
+    outgoing_body = Resource()
+    outgoing_body.write = lambda: output
+    future = Future([None])
+    error = wasi._StreamErrorClosed()
+    progress = []
+
+    def producer():
+        yield b"x"
+        raise Err(error)
+
+    def on_upload(*args):
+        progress.append(args)
+        if source == "callback" and not args[2]:
+            raise Err(error)
+
+    def finish(body, trailers):
+        pytest.fail("A failed producer or callback must not finish the body successfully")
+
+    monkeypatch.setattr(wasi, "_TYPES", FakeTypes)
+    monkeypatch.setattr(FakeTypes, "OutgoingBody", SimpleNamespace(finish=finish))
+    monkeypatch.setattr(OutgoingRequest, "body", lambda self: outgoing_body)
+    monkeypatch.setattr(wasi, "_OUTGOING_HANDLER", SimpleNamespace(handle=lambda *args: future))
+    request = prepared(method="POST")
+    request.prepare_body(producer() if source == "producer" else b"payload", None)
+    with pytest.raises(ConnectionError) as caught:
+        wasi.WASIAdapter()._send_once(request, stream=True, on_upload_body=on_upload)
+    assert caught.value.__cause__.value is error
+    assert output.closed and outgoing_body.closed and future.closed
+    assert progress[-1][2:] == (True, True)
 
 
 def test_common_branches():
