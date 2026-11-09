@@ -126,21 +126,28 @@ def test_upload_failure_callback(httpbin_target):
     assert pulses[-1].any_error
 
 
-def test_early_response_during_upload(httpbin_target):
+@pytest.mark.parametrize("known_length", [False, True])
+def test_early_response_during_upload(httpbin_target, known_length):
     http_origin, _, _ = httpbin_target
     early = []
+    producer_closed = []
 
     def slow_upload():
-        for _ in range(128):
-            yield b"x" * 4096
-            time.sleep(0.01)
+        try:
+            for _ in range(128):
+                yield b"x" * 4096
+                time.sleep(0.01)
+        finally:
+            producer_closed.append(True)
 
     response = niquests.post(
         f"{http_origin}/status/413",
         data=slow_upload(),
+        headers={"Content-Length": str(128 * 4096)} if known_length else None,
         hooks={"early_response": [lambda item: early.append(item)]},
     )
     assert response.status_code == 413
+    assert producer_closed == [True]
     assert not early or early[0] is response
 
 

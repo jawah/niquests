@@ -1,26 +1,18 @@
 from __future__ import annotations
 
 import encodings.unicode_escape  # noqa: F401
-import importlib
 import os
-import pkgutil
 import sys
 
-import _pytest
-import packaging
 import pytest  # noqa: F401
 from coverage_runner import new_coverage, save_coverage
+from pytest_bootstrap import prepare_pytest
 from wit_world import exports
 
 _import_coverage = new_coverage()
 _import_coverage.start()
 
-for package in (_pytest, packaging):
-    for module in pkgutil.walk_packages(package.__path__, f"{package.__name__}."):
-        try:
-            importlib.import_module(module.name)
-        except ImportError:
-            pass
+prepare_pytest()
 
 from test_wasi import CASES  # noqa: E402
 

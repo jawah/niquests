@@ -844,162 +844,159 @@ class HTTPAdapter(BaseAdapter):
         )
 
         try:
+            proxy = select_proxy(request.url, proxies)
+            if proxy:
+                proxy = prepend_scheme_if_needed(proxy, "http")
             conn = self.get_connection(request.url, proxies)
         except LocationValueError as e:
             raise InvalidURL(e, request=request)
 
-        # We enforce a check to avoid running out of capacity.
-        if multiplexed and conn.is_saturated:
-            # the pool is saturated = no more stream can be opened
-            while not conn.is_idle:  # we resolve everything pending
-                low_resp = conn.get_response()
-
-                if low_resp is not None:
-                    assert (
-                        low_resp._fp is not None
-                        and hasattr(low_resp._fp, "from_promise")
-                        and low_resp._fp.from_promise is not None
-                    )
-
-                    proxy = select_proxy(request.url, proxies)
-
-                    if proxy is not None:
-                        self.proxy_manager[proxy].pools.forget(low_resp._fp.from_promise)
-                    else:
-                        self.poolmanager.pools.forget(low_resp._fp.from_promise)
-
-                    response = low_resp._fp.from_promise.get_parameter("niquests_response")
-
-                    if response is not None:
-                        self._future_handler(response, low_resp)
-                else:
-                    # we'll take any room available right away.
-                    if not conn.is_saturated:
-                        break
-
-        if isinstance(conn, HTTPSConnectionPool):
-            self.cert_verify(conn, request.url, verify, cert)
-
-        url = self.request_url(request, proxies)
-        self.add_headers(
-            request,
-            stream=stream,
-            timeout=timeout,
-            verify=verify,
-            cert=cert,
-            proxies=proxies,
-        )
-
-        chunked = not (bool(request.body) is False or "Content-Length" in request.headers)
-
-        if isinstance(timeout, tuple):
-            try:
-                if len(timeout) == 3:
-                    connect, read, total = timeout  # type: ignore[assignment]
-                else:
-                    connect, read = timeout  # type: ignore[assignment]
-                    total = None
-                timeout = TimeoutSauce(connect=connect, read=read, total=total)
-            except ValueError:
-                raise ValueError(
-                    f"Invalid timeout {timeout}. Pass a (connect, read) or (connect, read, total) timeout tuple, "
-                    f"or a single float to set both timeouts to the same value."
-                )
-        elif isinstance(timeout, TimeoutSauce):
-            pass
-        else:
-            timeout = TimeoutSauce(connect=timeout, read=timeout)
-
-        if isinstance(request.body, (list, dict)):
-            raise ValueError("Body contains unprepared native list or dict.")
-
-        scheme = parse_scheme(request.url)
-        extension = None
-
-        if scheme is not None and scheme not in ("http", "https", "http+unix"):
-            if "+" in scheme:
-                scheme, implementation = tuple(scheme.split("+", maxsplit=1))
-            else:
-                implementation = None
-
-            extension = wrap_extension_for_http(load_extension(scheme, implementation=implementation))()
-
-        def early_response_hook(early_response: BaseHTTPResponse) -> None:
-            nonlocal on_early_response
-            assert on_early_response is not None
-            on_early_response(self.build_response(request, early_response))
-
+        # get_connection() leaves a manager hold on the selected host pool.
+        # Keep its owner fixed across setup hooks, redirects, and failures.
+        pools = self.proxy_manager[proxy].pools if proxy else self.poolmanager.pools
         try:
-            resp_or_promise = conn.urlopen(  # type: ignore[call-overload,misc]
-                method=request.method,
-                url=url,
-                body=request.body,
-                headers=request.headers,
-                redirect=False,
-                assert_same_host=False,
-                preload_content=False,
-                decode_content=False,
-                retries=self.max_retries,
+            # We enforce a check to avoid running out of capacity.
+            if multiplexed and conn.is_saturated:
+                # the pool is saturated = no more stream can be opened
+                while not conn.is_idle:  # we resolve everything pending
+                    low_resp = conn.get_response()
+
+                    if low_resp is not None:
+                        assert (
+                            low_resp._fp is not None
+                            and hasattr(low_resp._fp, "from_promise")
+                            and low_resp._fp.from_promise is not None
+                        )
+
+                        pools.forget(low_resp._fp.from_promise)
+
+                        response = low_resp._fp.from_promise.get_parameter("niquests_response")
+
+                        if response is not None:
+                            self._future_handler(response, low_resp)
+                    else:
+                        # we'll take any room available right away.
+                        if not conn.is_saturated:
+                            break
+
+            if isinstance(conn, HTTPSConnectionPool):
+                self.cert_verify(conn, request.url, verify, cert)
+
+            url = self.request_url(request, proxies)
+            self.add_headers(
+                request,
+                stream=stream,
                 timeout=timeout,
-                chunked=chunked,
-                on_post_connection=on_post_connection,
-                on_upload_body=on_upload_body,
-                on_early_response=early_response_hook if on_early_response is not None else None,
-                extension=extension,
-                multiplexed=multiplexed,
+                verify=verify,
+                cert=cert,
+                proxies=proxies,
             )
 
-            # branch for urllib3.future 2.5+ with advanced conn/multiplexing scheduler/mapper. aka. TrafficPolice.
-            # we are bypassing the PoolManager.request to directly invoke the concerned HttpPool, so we missed
-            # a required call to TrafficPolice::memorize(...).
-            proxy = select_proxy(request.url, proxies)
+            chunked = not (bool(request.body) is False or "Content-Length" in request.headers)
 
-            if proxy is not None:
-                self.proxy_manager[proxy].pools.memorize(resp_or_promise, conn)
-                self.proxy_manager[proxy].pools.release()
+            if isinstance(timeout, tuple):
+                try:
+                    if len(timeout) == 3:
+                        connect, read, total = timeout  # type: ignore[assignment]
+                    else:
+                        connect, read = timeout  # type: ignore[assignment]
+                        total = None
+                    timeout = TimeoutSauce(connect=connect, read=read, total=total)
+                except ValueError:
+                    raise ValueError(
+                        f"Invalid timeout {timeout}. Pass a (connect, read) or (connect, read, total) timeout tuple, "
+                        f"or a single float to set both timeouts to the same value."
+                    )
+            elif isinstance(timeout, TimeoutSauce):
+                pass
             else:
-                self.poolmanager.pools.memorize(resp_or_promise, conn)
-                self.poolmanager.pools.release()
+                timeout = TimeoutSauce(connect=timeout, read=timeout)
 
-        except (ProtocolError, OSError) as err:
-            if "illegal header" in str(err).lower():
-                raise InvalidHeader(err, request=request)
-            raise ConnectionError(err, request=request)
+            if isinstance(request.body, (list, dict)):
+                raise ValueError("Body contains unprepared native list or dict.")
 
-        except MaxRetryError as e:
-            if isinstance(e.reason, ConnectTimeoutError):
-                # TODO: Remove this in 3.0.0: see #2811
-                if not isinstance(e.reason, NewConnectionError):
-                    raise ConnectTimeout(e, request=request)
+            scheme = parse_scheme(request.url)
+            extension = None
 
-            if isinstance(e.reason, ResponseError):
-                raise RetryError(e, request=request)
+            if scheme is not None and scheme not in ("http", "https", "http+unix"):
+                if "+" in scheme:
+                    scheme, implementation = tuple(scheme.split("+", maxsplit=1))
+                else:
+                    implementation = None
 
-            if isinstance(e.reason, _ProxyError):
-                raise ProxyError(e, request=request)
+                extension = wrap_extension_for_http(load_extension(scheme, implementation=implementation))()
 
-            if isinstance(e.reason, _SSLError):
-                # This branch is for urllib3 v1.22 and later.
-                raise SSLError(e, request=request)
+            def early_response_hook(early_response: BaseHTTPResponse) -> None:
+                nonlocal on_early_response
+                assert on_early_response is not None
+                on_early_response(self.build_response(request, early_response))
 
-            raise ConnectionError(e, request=request)
+            try:
+                resp_or_promise = conn.urlopen(  # type: ignore[call-overload,misc]
+                    method=request.method,
+                    url=url,
+                    body=request.body,
+                    headers=request.headers,
+                    redirect=False,
+                    assert_same_host=False,
+                    preload_content=False,
+                    decode_content=False,
+                    retries=self.max_retries,
+                    timeout=timeout,
+                    chunked=chunked,
+                    on_post_connection=on_post_connection,
+                    on_upload_body=on_upload_body,
+                    on_early_response=early_response_hook if on_early_response is not None else None,
+                    extension=extension,
+                    multiplexed=multiplexed,
+                )
 
-        except ClosedPoolError as e:
-            raise ConnectionError(e, request=request)
+                # branch for urllib3.future 2.5+ with advanced conn/multiplexing scheduler/mapper. aka. TrafficPolice.
+                # we are bypassing the PoolManager.request to directly invoke the concerned HttpPool, so we missed
+                # a required call to TrafficPolice::memorize(...).
+                pools.memorize(resp_or_promise, conn)
 
-        except _ProxyError as e:
-            raise ProxyError(e)
+            except (ProtocolError, OSError) as err:
+                if "illegal header" in str(err).lower():
+                    raise InvalidHeader(err, request=request)
+                raise ConnectionError(err, request=request)
 
-        except (_SSLError, _HTTPError) as e:
-            if isinstance(e, _SSLError):
-                # This branch is for urllib3 versions earlier than v1.22
-                raise SSLError(e, request=request)
-            elif isinstance(e, ReadTimeoutError):
-                raise ReadTimeout(e, request=request)
-            elif isinstance(e, _InvalidHeader):
-                raise InvalidHeader(e, request=request)
-            else:
-                raise
+            except MaxRetryError as e:
+                if isinstance(e.reason, ConnectTimeoutError):
+                    # TODO: Remove this in 3.0.0: see #2811
+                    if not isinstance(e.reason, NewConnectionError):
+                        raise ConnectTimeout(e, request=request)
+
+                if isinstance(e.reason, ResponseError):
+                    raise RetryError(e, request=request)
+
+                if isinstance(e.reason, _ProxyError):
+                    raise ProxyError(e, request=request)
+
+                if isinstance(e.reason, _SSLError):
+                    # This branch is for urllib3 v1.22 and later.
+                    raise SSLError(e, request=request)
+
+                raise ConnectionError(e, request=request)
+
+            except ClosedPoolError as e:
+                raise ConnectionError(e, request=request)
+
+            except _ProxyError as e:
+                raise ProxyError(e)
+
+            except (_SSLError, _HTTPError) as e:
+                if isinstance(e, _SSLError):
+                    # This branch is for urllib3 versions earlier than v1.22
+                    raise SSLError(e, request=request)
+                elif isinstance(e, ReadTimeoutError):
+                    raise ReadTimeout(e, request=request)
+                elif isinstance(e, _InvalidHeader):
+                    raise InvalidHeader(e, request=request)
+                else:
+                    raise
+        finally:
+            pools.release()
 
         return self.build_response(request, resp_or_promise)
 
@@ -1069,7 +1066,7 @@ class HTTPAdapter(BaseAdapter):
                     assert next_request is not None
                     next_request.conn_info = conn_info
 
-                    if next_request.url and next_request.url.startswith("https://") and kwargs["verify"]:
+                    if next_request.url and parse_scheme(next_request.url) == "https" and kwargs["verify"]:
                         strict_ocsp_enabled: bool = os.environ.get("NIQUESTS_STRICT_OCSP", "0") != "0"
 
                         if not strict_ocsp_enabled and self._revocation_configuration is not None:
@@ -1937,178 +1934,175 @@ class AsyncHTTPAdapter(AsyncBaseAdapter):
         )
 
         try:
+            proxy = select_proxy(request.url, proxies)
+            if proxy:
+                proxy = prepend_scheme_if_needed(proxy, "http")
             conn = await self.get_connection(request.url, proxies)
         except LocationValueError as e:
             raise InvalidURL(e, request=request)
 
-        # We enforce a check to avoid running out of capacity.
-        if multiplexed and conn.is_saturated:
-            # the pool is saturated = no more stream can be opened
-            while not conn.is_idle:  # we resolve everything pending
-                low_resp = await conn.get_response()
-
-                if low_resp is not None:
-                    assert (
-                        low_resp._fp is not None
-                        and hasattr(low_resp._fp, "from_promise")
-                        and low_resp._fp.from_promise is not None
-                    )
-
-                    proxy = select_proxy(request.url, proxies)
-
-                    if proxy is not None:
-                        self.proxy_manager[proxy].pools.forget(low_resp._fp.from_promise)
-                    else:
-                        self.poolmanager.pools.forget(low_resp._fp.from_promise)
-
-                    response = low_resp._fp.from_promise.get_parameter("niquests_response")
-
-                    if response is not None:
-                        await self._future_handler(response, low_resp)
-                else:
-                    # yield control to another task
-                    # we're in the situation where no ResponsePromise
-                    # is pending but all responses are pending drain.
-                    # the user is responsible from draining their
-                    # pending response streams.
-                    await asyncio.sleep(0)
-
-                    # we'll take any room available right away.
-                    if not conn.is_saturated:
-                        break
-
-        if isinstance(conn, AsyncHTTPSConnectionPool):
-            need_reboot = self.cert_verify(conn, request.url, verify, cert)
-
-            if need_reboot:
-                if conn.is_idle:
-                    if conn.pool is not None and conn.pool.qsize():
-                        await conn.pool.clear()
-                else:
-                    warnings.warn(
-                        f"The TLS verification changed for {conn.host} but the connection isn't idle.",
-                        UserWarning,
-                    )
-
-        url = self.request_url(request, proxies)
-        self.add_headers(
-            request,
-            stream=stream,
-            timeout=timeout,
-            verify=verify,
-            cert=cert,
-            proxies=proxies,
-        )
-
-        chunked = not (bool(request.body) is False or "Content-Length" in request.headers)
-
-        if isinstance(timeout, tuple):
-            try:
-                if len(timeout) == 3:
-                    connect, read, total = timeout  # type: ignore[assignment]
-                else:
-                    connect, read = timeout  # type: ignore[assignment]
-                    total = None
-                timeout = TimeoutSauce(connect=connect, read=read, total=total)
-            except ValueError:
-                raise ValueError(
-                    f"Invalid timeout {timeout}. Pass a (connect, read) or (connect, read, total) timeout tuple, "
-                    f"or a single float to set both timeouts to the same value."
-                )
-        elif isinstance(timeout, TimeoutSauce):
-            pass
-        else:
-            timeout = TimeoutSauce(connect=timeout, read=timeout)
-
-        if isinstance(request.body, (list, dict)):
-            raise ValueError("Body contains unprepared native list or dict.")
-
-        scheme = parse_scheme(request.url)
-        extension = None
-
-        if scheme is not None and scheme not in ("http", "https", "http+unix"):
-            if "+" in scheme:
-                scheme, implementation = tuple(scheme.split("+", maxsplit=1))
-            else:
-                implementation = None
-
-            extension = async_wrap_extension_for_http(async_load_extension(scheme, implementation=implementation))()
-
-        async def early_response_hook(early_response: BaseAsyncHTTPResponse) -> None:
-            nonlocal on_early_response
-            assert on_early_response is not None
-            await on_early_response(self.build_response(request, early_response))
-
+        # get_connection() leaves a manager hold on the selected host pool.
+        # Keep its owner fixed across setup hooks, redirects, and failures.
+        pools = self.proxy_manager[proxy].pools if proxy else self.poolmanager.pools
         try:
-            resp_or_promise = await conn.urlopen(  # type: ignore[call-overload,misc]
-                method=request.method,
-                url=url,
-                body=request.body,
-                headers=request.headers,
-                redirect=False,
-                assert_same_host=False,
-                preload_content=False,
-                decode_content=False,
-                retries=self.max_retries,
+            # We enforce a check to avoid running out of capacity.
+            if multiplexed and conn.is_saturated:
+                # the pool is saturated = no more stream can be opened
+                while not conn.is_idle:  # we resolve everything pending
+                    low_resp = await conn.get_response()
+
+                    if low_resp is not None:
+                        assert (
+                            low_resp._fp is not None
+                            and hasattr(low_resp._fp, "from_promise")
+                            and low_resp._fp.from_promise is not None
+                        )
+
+                        pools.forget(low_resp._fp.from_promise)
+
+                        response = low_resp._fp.from_promise.get_parameter("niquests_response")
+
+                        if response is not None:
+                            await self._future_handler(response, low_resp)
+                    else:
+                        # yield control to another task
+                        # we're in the situation where no ResponsePromise
+                        # is pending but all responses are pending drain.
+                        # the user is responsible from draining their
+                        # pending response streams.
+                        await asyncio.sleep(0)
+
+                        # we'll take any room available right away.
+                        if not conn.is_saturated:
+                            break
+
+            if isinstance(conn, AsyncHTTPSConnectionPool):
+                need_reboot = self.cert_verify(conn, request.url, verify, cert)
+
+                if need_reboot:
+                    if conn.is_idle:
+                        if conn.pool is not None and conn.pool.qsize():
+                            await conn.pool.clear()
+                    else:
+                        warnings.warn(
+                            f"The TLS verification changed for {conn.host} but the connection isn't idle.",
+                            UserWarning,
+                        )
+
+            url = self.request_url(request, proxies)
+            self.add_headers(
+                request,
+                stream=stream,
                 timeout=timeout,
-                chunked=chunked,
-                on_post_connection=on_post_connection,
-                on_upload_body=on_upload_body,
-                on_early_response=early_response_hook if on_early_response is not None else None,
-                extension=extension,
-                multiplexed=multiplexed,
+                verify=verify,
+                cert=cert,
+                proxies=proxies,
             )
 
-            # we are bypassing the PoolManager.request to directly invoke the concerned HttpPool, so we missed
-            # a required call to TrafficPolice::memorize(...).
-            proxy = select_proxy(request.url, proxies)
+            chunked = not (bool(request.body) is False or "Content-Length" in request.headers)
 
-            if proxy is not None:
-                self.proxy_manager[proxy].pools.memorize(resp_or_promise, conn)
-                self.proxy_manager[proxy].pools.release()
+            if isinstance(timeout, tuple):
+                try:
+                    if len(timeout) == 3:
+                        connect, read, total = timeout  # type: ignore[assignment]
+                    else:
+                        connect, read = timeout  # type: ignore[assignment]
+                        total = None
+                    timeout = TimeoutSauce(connect=connect, read=read, total=total)
+                except ValueError:
+                    raise ValueError(
+                        f"Invalid timeout {timeout}. Pass a (connect, read) or (connect, read, total) timeout tuple, "
+                        f"or a single float to set both timeouts to the same value."
+                    )
+            elif isinstance(timeout, TimeoutSauce):
+                pass
             else:
-                self.poolmanager.pools.memorize(resp_or_promise, conn)
-                self.poolmanager.pools.release()
+                timeout = TimeoutSauce(connect=timeout, read=timeout)
 
-        except (ProtocolError, OSError) as err:
-            if "illegal header" in str(err).lower():
-                raise InvalidHeader(err, request=request)
-            raise ConnectionError(err, request=request)
+            if isinstance(request.body, (list, dict)):
+                raise ValueError("Body contains unprepared native list or dict.")
 
-        except MaxRetryError as e:
-            if isinstance(e.reason, ConnectTimeoutError):
-                # TODO: Remove this in 3.0.0: see #2811
-                if not isinstance(e.reason, NewConnectionError):
-                    raise ConnectTimeout(e, request=request)
+            scheme = parse_scheme(request.url)
+            extension = None
 
-            if isinstance(e.reason, ResponseError):
-                raise RetryError(e, request=request)
+            if scheme is not None and scheme not in ("http", "https", "http+unix"):
+                if "+" in scheme:
+                    scheme, implementation = tuple(scheme.split("+", maxsplit=1))
+                else:
+                    implementation = None
 
-            if isinstance(e.reason, _ProxyError):
-                raise ProxyError(e, request=request)
+                extension = async_wrap_extension_for_http(async_load_extension(scheme, implementation=implementation))()
 
-            if isinstance(e.reason, _SSLError):
-                # This branch is for urllib3 v1.22 and later.
-                raise SSLError(e, request=request)
+            async def early_response_hook(early_response: BaseAsyncHTTPResponse) -> None:
+                nonlocal on_early_response
+                assert on_early_response is not None
+                await on_early_response(self.build_response(request, early_response))
 
-            raise ConnectionError(e, request=request)
+            try:
+                resp_or_promise = await conn.urlopen(  # type: ignore[call-overload,misc]
+                    method=request.method,
+                    url=url,
+                    body=request.body,
+                    headers=request.headers,
+                    redirect=False,
+                    assert_same_host=False,
+                    preload_content=False,
+                    decode_content=False,
+                    retries=self.max_retries,
+                    timeout=timeout,
+                    chunked=chunked,
+                    on_post_connection=on_post_connection,
+                    on_upload_body=on_upload_body,
+                    on_early_response=early_response_hook if on_early_response is not None else None,
+                    extension=extension,
+                    multiplexed=multiplexed,
+                )
 
-        except ClosedPoolError as e:
-            raise ConnectionError(e, request=request)
+                # we are bypassing the PoolManager.request to directly invoke the concerned HttpPool, so we missed
+                # a required call to TrafficPolice::memorize(...).
+                pools.memorize(resp_or_promise, conn)
 
-        except _ProxyError as e:
-            raise ProxyError(e)
+            except (ProtocolError, OSError) as err:
+                if "illegal header" in str(err).lower():
+                    raise InvalidHeader(err, request=request)
+                raise ConnectionError(err, request=request)
 
-        except (_SSLError, _HTTPError) as e:
-            if isinstance(e, _SSLError):
-                # This branch is for urllib3 versions earlier than v1.22
-                raise SSLError(e, request=request)
-            elif isinstance(e, ReadTimeoutError):
-                raise ReadTimeout(e, request=request)
-            elif isinstance(e, _InvalidHeader):
-                raise InvalidHeader(e, request=request)
-            else:
-                raise
+            except MaxRetryError as e:
+                if isinstance(e.reason, ConnectTimeoutError):
+                    # TODO: Remove this in 3.0.0: see #2811
+                    if not isinstance(e.reason, NewConnectionError):
+                        raise ConnectTimeout(e, request=request)
+
+                if isinstance(e.reason, ResponseError):
+                    raise RetryError(e, request=request)
+
+                if isinstance(e.reason, _ProxyError):
+                    raise ProxyError(e, request=request)
+
+                if isinstance(e.reason, _SSLError):
+                    # This branch is for urllib3 v1.22 and later.
+                    raise SSLError(e, request=request)
+
+                raise ConnectionError(e, request=request)
+
+            except ClosedPoolError as e:
+                raise ConnectionError(e, request=request)
+
+            except _ProxyError as e:
+                raise ProxyError(e)
+
+            except (_SSLError, _HTTPError) as e:
+                if isinstance(e, _SSLError):
+                    # This branch is for urllib3 versions earlier than v1.22
+                    raise SSLError(e, request=request)
+                elif isinstance(e, ReadTimeoutError):
+                    raise ReadTimeout(e, request=request)
+                elif isinstance(e, _InvalidHeader):
+                    raise InvalidHeader(e, request=request)
+                else:
+                    raise
+        finally:
+            pools.release()
 
         return self.build_response(request, resp_or_promise)
 
@@ -2184,7 +2178,7 @@ class AsyncHTTPAdapter(AsyncBaseAdapter):
                     assert next_request is not None
                     next_request.conn_info = conn_info
 
-                    if next_request.url and next_request.url.startswith("https://") and kwargs["verify"]:
+                    if next_request.url and parse_scheme(next_request.url) == "https" and kwargs["verify"]:
                         strict_ocsp_enabled: bool = os.environ.get("NIQUESTS_STRICT_OCSP", "0") != "0"
 
                         if not strict_ocsp_enabled and self._revocation_configuration is not None:

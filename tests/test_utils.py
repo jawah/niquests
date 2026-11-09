@@ -714,6 +714,14 @@ def test_should_bypass_proxies_no_proxy(url, expected, monkeypatch):
         ("http://google.com:5000/v1.0/", False, None),
         ("http://mylocalhostname:5000/v1.0/", True, "<local>"),
         ("http://192.168.0.1/", False, ""),
+        ("http://example.com/", True, "example.com"),
+        ("http://example.com.evil.test/", False, "example.com"),
+        ("http://www.example.com/", True, "*.example.com"),
+        ("http://www.example.com.evil.test/", False, "*.example.com"),
+        ("http://example.com/", True, "EXAMPLE.COM"),
+        ("http://node1.example.com/", True, "node?.example.com"),
+        ("http://node1.example.com.evil.test/", False, "node?.example.com"),
+        ("http://192.168.0.10/", False, "192.168.0.1"),
     ),
 )
 def test_should_bypass_proxies_win_registry(url, expected, override, monkeypatch):
@@ -855,7 +863,7 @@ def test_compare_ipv6(a, b, expected):
         ("https://www.google.com/", "https"),
         ("htTPS://www.google.com/", "https"),
         ("nonsense://www.google.com/", "nonsense"),
-        (" HTTP://www.google.com/", " http"),
+        (" HTTP://www.google.com/", None),
         (
             "//invalid",
             None,
@@ -864,8 +872,12 @@ def test_compare_ipv6(a, b, expected):
             "invalid-no-scheme.com",
             None,
         ),
-        ("tooloooooooooooooooooooooooong://www.google.com/", None),
+        ("tooloooooooooooooooooooooooong://www.google.com/", "tooloooooooooooooooooooooooong"),
+        ("xxxxxxxxxxxx://example.com/e", "xxxxxxxxxxxx"),
         ("mailto:complaint@pytest.dev", "mailto"),
+        ("sse+native://example.com/events", "sse+native"),
+        ("psse+native://origin.test", "psse+native"),
+        ("xxxxxxxxxxx://example.com/e", "xxxxxxxxxxx"),
     ],
 )
 def test_extract_scheme(url, expected):

@@ -686,7 +686,7 @@ class AsyncSession(Session):
             nonlocal ptr_request, request, kwargs
             ptr_request.conn_info = conn_info
 
-            if ptr_request.url and ptr_request.url.startswith("https://") and kwargs["verify"]:
+            if ptr_request.url and parse_scheme(ptr_request.url) == "https" and kwargs["verify"]:
                 strict_ocsp_enabled: bool = os.environ.get("NIQUESTS_STRICT_OCSP", "0") != "0"
 
                 if not strict_ocsp_enabled and self._revocation_configuration is not None:

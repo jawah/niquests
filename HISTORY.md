@@ -1,6 +1,16 @@
 Release History
 ===============
 
+3.21.3 (2026-11-09)
+-------------------
+
+**Fixed**
+- Handle early responses that close a WASI HTTP 0.2 request body during upload, instead of raising a connection error before reading the response.
+- Release host-pool ownership after failed requests and request setup errors, preventing pool exhaustion and retention of finished asynchronous tasks. (#488)
+- Windows proxy exclusions now match entire hostnames, preventing unintended proxy bypass for names such as `example.com.evil.test` when `example.com` is excluded.
+- Extension schemes of up to 11 characters, including `sse+native` and `psse+native`, are no longer treated as relative paths when a `base_url` is set. (#468)
+- Query `params` are applied to implementation-suffixed schemes such as `sse+native` and `wss+fast`, the same way they are for `sse` and `wss`. (#469)
+
 3.21.2 (2026-09-23)
 -------------------
 
