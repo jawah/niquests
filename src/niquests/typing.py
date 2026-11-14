@@ -7,6 +7,21 @@ from os import PathLike
 
 from ._vendor.kiss_headers import Headers
 from .auth import AsyncAuthBase, AuthBase
+from .hooks import (
+    _HV as _HV,
+)
+from .hooks import (
+    AsyncHookCallableType as AsyncHookCallableType,
+)
+from .hooks import (
+    AsyncHookType as AsyncHookType,
+)
+from .hooks import (
+    HookCallableType as HookCallableType,
+)
+from .hooks import (
+    HookType as HookType,
+)
 from .packages.urllib3 import AsyncResolverDescription, ResolverDescription, Retry, Timeout
 from .packages.urllib3.contrib.resolver import BaseResolver
 from .packages.urllib3.contrib.resolver._async import AsyncBaseResolver
@@ -21,7 +36,6 @@ if typing.TYPE_CHECKING:
     from urllib3.contrib.resolver._async import AsyncBaseResolver  # type: ignore[no-redef]
     from urllib3.fields import RequestField  # type: ignore[no-redef]
 
-    from .hooks import AsyncLifeCycleHook, LifeCycleHook
     from .models import PreparedRequest
 
 #: (Restricted) list of http verb that we natively support and understand.
@@ -147,28 +161,6 @@ FieldSequenceType: typing.TypeAlias = typing.Sequence[typing.Union[typing.Tuple[
 FieldsType: typing.TypeAlias = typing.Union[
     FieldSequenceType,
     typing.Mapping[str, FieldTupleType],
-]
-
-_HV = typing.TypeVar("_HV")
-
-HookCallableType: typing.TypeAlias = typing.Callable[
-    [_HV],
-    typing.Optional[_HV],
-]
-
-HookType: typing.TypeAlias = typing.Union[
-    typing.Dict[str, typing.List[HookCallableType[_HV]]],
-    "LifeCycleHook[_HV]",
-]
-
-AsyncHookCallableType: typing.TypeAlias = typing.Callable[
-    [_HV],
-    typing.Awaitable[typing.Optional[_HV]],
-]
-
-AsyncHookType: typing.TypeAlias = typing.Union[
-    typing.Dict[str, typing.List[typing.Union[HookCallableType[_HV], AsyncHookCallableType[_HV]]]],
-    "AsyncLifeCycleHook[_HV]",
 ]
 
 CacheLayerAltSvcType: typing.TypeAlias = typing.MutableMapping[typing.Tuple[str, int], typing.Optional[typing.Tuple[str, int]]]
