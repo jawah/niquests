@@ -28,16 +28,21 @@ import typing
 from collections.abc import MutableMapping
 
 from ._compat import iscoroutinefunction
-from .typing import (
-    _HV,
-    AsyncHookCallableType,
-    AsyncHookType,
-    HookCallableType,
-    HookType,
-)
 
 if typing.TYPE_CHECKING:
     from .models import PreparedRequest, Response
+
+_HV = typing.TypeVar("_HV")
+
+HookCallableType: typing.TypeAlias = typing.Callable[
+    [_HV],
+    typing.Optional[_HV],
+]
+
+AsyncHookCallableType: typing.TypeAlias = typing.Callable[
+    [_HV],
+    typing.Awaitable[typing.Optional[_HV]],
+]
 
 HOOKS = [
     "pre_request",
@@ -233,6 +238,17 @@ class AsyncLifeCycleHook(_BaseLifeCycleHook[_HV]):
     async def response(self, response: Response, **kwargs: typing.Any) -> Response | None:
         """The response generated from a Request. You may alter the response at will."""
         return None
+
+
+HookType: typing.TypeAlias = typing.Union[
+    typing.Dict[str, typing.List[HookCallableType[_HV]]],
+    LifeCycleHook[_HV],
+]
+
+AsyncHookType: typing.TypeAlias = typing.Union[
+    typing.Dict[str, typing.List[typing.Union[HookCallableType[_HV], AsyncHookCallableType[_HV]]]],
+    AsyncLifeCycleHook[_HV],
+]
 
 
 class _LeakyBucketMixin:
