@@ -6,6 +6,7 @@ import asyncio
 import concurrent.futures
 import time
 from functools import partial
+from types import SimpleNamespace
 
 import pytest
 
@@ -286,3 +287,57 @@ class TestAsyncLimitersUnit:
             limiter._acquire_token()
 
         assert limiter.tokens <= limiter.capacity
+
+
+@pytest.mark.parametrize("rate", [0.1, 0.5, 0.9, 1.0, 2.0])
+@pytest.mark.parametrize("capacity", [None, 1.0])
+def test_sync_token_bucket_fractional_rate(monkeypatch, rate, capacity):
+    """A low replenishment rate must still leave room for one whole token."""
+    now = 0.0
+    waits = []
+
+    def sleep(delay):
+        nonlocal now
+        waits.append(delay)
+        now += delay
+
+    monkeypatch.setattr("niquests.hooks.time", SimpleNamespace(monotonic=lambda: now, sleep=sleep))
+    limiter = TokenBucketLimiter(rate=rate, capacity=capacity)
+    burst = int(max(1.0, rate) if capacity is None else capacity)
+    for _ in range(burst):
+        limiter.pre_request(None)
+    assert waits == []
+
+    for _ in range(3):
+        limiter.pre_request(None)
+        assert limiter.tokens >= 0
+
+    assert waits == pytest.approx([1.0 / rate] * 3)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("rate", [0.1, 0.5, 0.9, 1.0, 2.0])
+@pytest.mark.parametrize("capacity", [None, 1.0])
+async def test_async_token_bucket_fractional_rate(monkeypatch, rate, capacity):
+    """Async limiters must preserve the configured spacing at low rates too."""
+    now = 0.0
+    waits = []
+
+    async def sleep(delay):
+        nonlocal now
+        waits.append(delay)
+        now += delay
+
+    monkeypatch.setattr("niquests.hooks.time", SimpleNamespace(monotonic=lambda: now))
+    monkeypatch.setattr("niquests.hooks.asyncio.sleep", sleep)
+    limiter = AsyncTokenBucketLimiter(rate=rate, capacity=capacity)
+    burst = int(max(1.0, rate) if capacity is None else capacity)
+    for _ in range(burst):
+        await limiter.pre_request(None)
+    assert waits == []
+
+    for _ in range(3):
+        await limiter.pre_request(None)
+        assert limiter.tokens >= 0
+
+    assert waits == pytest.approx([1.0 / rate] * 3)

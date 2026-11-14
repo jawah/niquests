@@ -272,7 +272,7 @@ class _TokenBucketMixin:
 
     def _init_token_bucket(self, rate: float, capacity: float | None) -> None:
         self.rate = rate
-        self.capacity = capacity if capacity is not None else rate
+        self.capacity = capacity if capacity is not None else max(1.0, rate)
         self.tokens = self.capacity
         self.last_update = time.monotonic()
 
@@ -386,7 +386,7 @@ class TokenBucketLimiter(_TokenBucketMixin, LifeCycleHook):
 
         Args:
             rate: Token replenishment rate (tokens per second)
-            capacity: Maximum bucket capacity (defaults to rate, allowing 1 second burst)
+            capacity: Maximum bucket capacity (defaults to rate, with a minimum of one token)
         """
         super().__init__()
         self._init_token_bucket(rate, capacity)
@@ -420,7 +420,7 @@ class AsyncTokenBucketLimiter(_TokenBucketMixin, AsyncLifeCycleHook):
 
         Args:
             rate: Token replenishment rate (tokens per second)
-            capacity: Maximum bucket capacity (defaults to rate, allowing 1 second burst)
+            capacity: Maximum bucket capacity (defaults to rate, with a minimum of one token)
         """
         super().__init__()
         self._init_token_bucket(rate, capacity)
