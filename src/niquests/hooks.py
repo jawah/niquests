@@ -130,8 +130,7 @@ class _BaseLifeCycleHook(
         combined_hooks: _BaseLifeCycleHook[_HV] = _BaseLifeCycleHook()
 
         for h, fns in self._store.items():
-            tmp_store[h] = fns
-            tmp_store[h] += other._store[h]
+            tmp_store[h] = fns + other._store[h]
 
         combined_hooks._store = tmp_store
 
