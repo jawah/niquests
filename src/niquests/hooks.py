@@ -31,9 +31,7 @@ from ._compat import iscoroutinefunction
 from .typing import (
     _HV,
     AsyncHookCallableType,
-    AsyncHookType,
     HookCallableType,
-    HookType,
 )
 
 if typing.TYPE_CHECKING:
@@ -434,3 +432,14 @@ class AsyncTokenBucketLimiter(_TokenBucketMixin, AsyncLifeCycleHook):
                 await asyncio.sleep(wait_time)
                 self._post_wait()
         return None
+
+
+HookType: typing.TypeAlias = typing.Union[
+    typing.Dict[str, typing.List[HookCallableType[_HV]]],
+    LifeCycleHook[_HV],
+]
+
+AsyncHookType: typing.TypeAlias = typing.Union[
+    typing.Dict[str, typing.List[typing.Union[HookCallableType[_HV], AsyncHookCallableType[_HV]]]],
+    AsyncLifeCycleHook[_HV],
+]

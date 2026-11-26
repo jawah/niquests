@@ -21,7 +21,7 @@ if typing.TYPE_CHECKING:
     from urllib3.contrib.resolver._async import AsyncBaseResolver  # type: ignore[no-redef]
     from urllib3.fields import RequestField  # type: ignore[no-redef]
 
-    from .hooks import AsyncLifeCycleHook, LifeCycleHook
+    from .hooks import AsyncHookType, AsyncLifeCycleHook, HookType, LifeCycleHook
     from .models import PreparedRequest
 
 #: (Restricted) list of http verb that we natively support and understand.
@@ -156,19 +156,9 @@ HookCallableType: typing.TypeAlias = typing.Callable[
     typing.Optional[_HV],
 ]
 
-HookType: typing.TypeAlias = typing.Union[
-    typing.Dict[str, typing.List[HookCallableType[_HV]]],
-    "LifeCycleHook[_HV]",
-]
-
 AsyncHookCallableType: typing.TypeAlias = typing.Callable[
     [_HV],
     typing.Awaitable[typing.Optional[_HV]],
-]
-
-AsyncHookType: typing.TypeAlias = typing.Union[
-    typing.Dict[str, typing.List[typing.Union[HookCallableType[_HV], AsyncHookCallableType[_HV]]]],
-    "AsyncLifeCycleHook[_HV]",
 ]
 
 CacheLayerAltSvcType: typing.TypeAlias = typing.MutableMapping[typing.Tuple[str, int], typing.Optional[typing.Tuple[str, int]]]
@@ -206,3 +196,15 @@ WSGIApp: typing.TypeAlias = typing.Callable[
     [typing.Dict[str, typing.Any], WSGIStartResponse],
     typing.Iterable[bytes],
 ]
+
+
+def __getattr__(name: str) -> typing.Any:
+    # HookType and AsyncHookType are defined in .hooks, next to the hook
+    # classes they reference, so that the unions hold the real classes
+    # instead of unresolvable forward references. They are re-exported here
+    # lazily for backward compatibility, without a circular import.
+    if name in ("HookType", "AsyncHookType"):
+        from . import hooks
+
+        return getattr(hooks, name)
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
